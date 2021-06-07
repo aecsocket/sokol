@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.gitlab.aecsocket.sokol</groupId>
+    <artifactId>sokol-parent</artifactId>
+    <version>1.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Sokol-Parent</name>
+    <description>Platform-agnostic, data-driven item framework</description>
+    <url>https://gitlab.com/aecsocket/sokol</url>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>16</maven.compiler.source>
+        <maven.compiler.target>${maven.compiler.source}</maven.compiler.target>
+        <minecommons.version>1.0-SNAPSHOT</minecommons.version>
+        <asm.version>9.1</asm.version>
+    </properties>
+
+    <modules>
+        <module>sokol-core</module>
+        <module>sokol-paper</module>
+    </modules>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.gitlab.aecsocket.minecommons</groupId>
+                <artifactId>minecommons-core</artifactId>
+                <version>${minecommons.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.gitlab.aecsocket.minecommons</groupId>
+                <artifactId>minecommons-paper</artifactId>
+                <version>${minecommons.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.gitlab.aecsocket.sokol</groupId>
+                <artifactId>sokol-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jetbrains</groupId>
+                <artifactId>annotations</artifactId>
+                <version>18.0.0</version>
+            </dependency>
+            <dependency>
+                <groupId>org.spongepowered</groupId>
+                <artifactId>configurate-hocon</artifactId>
+                <version>4.1.1</version>
+            </dependency>
+            <dependency>
+                <groupId>net.kyori</groupId>
+                <artifactId>adventure-api</artifactId>
+                <version>4.7.0</version>
+                <scope>provided</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.kyori</groupId>
+                <artifactId>adventure-text-minimessage</artifactId>
+                <version>4.1.0-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.junit.jupiter</groupId>
+                <artifactId>junit-jupiter</artifactId>
+                <version>5.7.0</version>
+                <scope>test</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <repositories>
+        <repository>
+            <id>gitlab-maven-minecommons</id>
+            <url>https://gitlab.com/api/v4/projects/27049637/packages/maven</url>
+        </repository>
+        <repository>
+            <id>gitlab-maven-sokol</id>
+            <url>$env{CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+        </repository>
+    </repositories>
+
+    <distributionManagement>
+        <repository>
+            <id>gitlab-maven</id>
+            <url>${CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+        </repository>
+        <snapshotRepository>
+            <id>gitlab-maven</id>
+            <url>${CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+        </snapshotRepository>
+    </distributionManagement>
+
+    <build>
+        <defaultGoal>clean install</defaultGoal>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <version>3.2.0</version>
+                    <configuration>
+                        <javadocExecutable>${java.home}/bin/javadoc</javadocExecutable>
+                        <links>
+                            <link>https://papermc.io/javadocs/paper/1.16</link>
+                            <link>https://junit.org/junit4/javadoc/latest</link>
+                        </links>
+                        <additionalOptions>-linksource</additionalOptions>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <phase>package</phase>
+                            <goals>
+                                <goal>javadoc</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.0.0-M5</version>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>true</filtering>
+            </resource>
+        </resources>
+    </build>
+</project>

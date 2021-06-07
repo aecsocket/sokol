@@ -1,0 +1,21 @@
+image: "maven:latest"
+
+cache:
+  paths:
+    - "maven.repository/"
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository"
+
+build:
+  script:
+    - "mvn package"
+  artifacts:
+    paths:
+      - "*/target"
+
+deploy:
+  script:
+    - "mvn deploy -s ci_settings.xml"
+  only:
+    - "master"
