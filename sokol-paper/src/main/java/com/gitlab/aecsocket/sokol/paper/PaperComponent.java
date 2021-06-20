@@ -1,6 +1,11 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.gitlab.aecsocket.sokol.core.component.BasicComponent;
+import com.gitlab.aecsocket.sokol.core.SokolPlatform;
+import com.gitlab.aecsocket.sokol.core.component.AbstractComponent;
+import com.gitlab.aecsocket.sokol.core.registry.Keyed;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.jetbrains.annotations.NotNull;
@@ -11,7 +16,7 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 import java.lang.reflect.Type;
 import java.util.*;
 
-public final class PaperComponent extends BasicComponent<PaperComponent, PaperSlot, PaperSystem> {
+public final class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot, PaperSystem> {
     public static final class Serializer implements TypeSerializer<PaperComponent> {
         private final SokolPlugin plugin;
 
@@ -33,6 +38,10 @@ public final class PaperComponent extends BasicComponent<PaperComponent, PaperSl
 
         @Override
         public PaperComponent deserialize(Type type, ConfigurationNode node) throws SerializationException {
+            String id = Objects.toString(node.key());
+            if (!Keyed.validKey(id))
+                throw new SerializationException(node, type, "Invalid ID [" + id + "], must be " + Keyed.VALID_KEY);
+
             Map<String, PaperSystem> systems = new HashMap<>();
             for (var entry : node.node("systems").childrenMap().entrySet()) {
                 String systemId = (String) entry.getKey();
@@ -40,40 +49,55 @@ public final class PaperComponent extends BasicComponent<PaperComponent, PaperSl
                 if (systemType == null)
                     throw new SerializationException(node, type, "Could not find system [" + systemId + "]");
                 try {
-                    systems.put(systemId, systemType.create(entry.getValue()));
+                    systems.put(systemId, systemType.create(plugin, entry.getValue()));
                 } catch (SerializationException e) {
                     throw new SerializationException(node, type, "Could not create system [" + systemId + "]", e);
                 }
             }
-            return new PaperComponent(plugin,
-                    ""+node.key(),
+
+            Map<String, Stat<?>> baseStats = new HashMap<>();
+            for (PaperSystem system : systems.values()) {
+                baseStats.putAll(system.baseStats());
+            }
+            plugin.statMapSerializer().base(baseStats);
+            PaperComponent result = new PaperComponent(plugin,
+                    Objects.toString(node.key()),
                     node.node("slots").get(new TypeToken<Map<String, PaperSlot>>() {}, Collections.emptyMap()),
                     systems,
-                    node.node("tags").get(new TypeToken<Set<String>>() {}, Collections.emptySet())
+                    node.node("tags").get(new TypeToken<Set<String>>() {}, Collections.emptySet()),
+                    node.node("stats").get(StatLists.class, new StatLists())
             );
+            for (var entry : result.slots.entrySet()) {
+                String key = entry.getKey();
+                if (!Keyed.validKey(key))
+                    throw new SerializationException(node, type, "Invalid slot key [" + key + "], must be " + Keyed.VALID_KEY);
+                entry.getValue().parent(entry.getKey(), result);
+            }
+            return result;
         }
     }
 
-    private final SokolPlugin plugin;
+    private final SokolPlugin platform;
 
-    public PaperComponent(SokolPlugin plugin, String id, Map<String, PaperSlot> slots, Map<String, PaperSystem> baseSystems, Collection<String> tags) {
-        super(id, slots, baseSystems, tags);
-        this.plugin = plugin;
+    public PaperComponent(SokolPlugin platform, String id, Map<String, PaperSlot> slots, Map<String, PaperSystem> baseSystems, Collection<String> tags, StatLists stats) {
+        super(id, slots, baseSystems, tags, stats);
+        this.platform = platform;
     }
 
-    public PaperComponent(SokolPlugin plugin, Scoped<PaperComponent, PaperSlot, PaperSystem> o) {
+    public PaperComponent(SokolPlugin platform, Scoped<PaperComponent, PaperSlot, PaperSystem> o) {
         super(o);
-        this.plugin = plugin;
+        this.platform = platform;
     }
 
     public PaperComponent(PaperComponent o) {
-        this(o.plugin, o);
+        this(o.platform, o);
     }
 
+    @Override public @NotNull SokolPlatform platform() { return platform; }
     @Override public @NotNull PaperComponent self() { return this; }
 
     public PaperTreeNode asTree() {
-        return new PaperTreeNode(this);
+        return new PaperTreeNode(this).build();
     }
 
     @Override
@@ -82,12 +106,12 @@ public final class PaperComponent extends BasicComponent<PaperComponent, PaperSl
         if (o == null || getClass() != o.getClass()) return false;
         if (!super.equals(o)) return false;
         PaperComponent that = (PaperComponent) o;
-        return plugin.equals(that.plugin);
+        return platform.equals(that.platform);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(super.hashCode(), plugin);
+        return Objects.hash(super.hashCode(), platform);
     }
 
     @Override
@@ -97,6 +121,7 @@ public final class PaperComponent extends BasicComponent<PaperComponent, PaperSl
                 ", slots=" + slots +
                 ", baseSystems=" + baseSystems.keySet() +
                 ", tags=" + tags +
+                ", stats=" + stats +
                 '}';
     }
 }

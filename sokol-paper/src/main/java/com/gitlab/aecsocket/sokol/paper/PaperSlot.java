@@ -1,32 +1,75 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Point2;
-import com.gitlab.aecsocket.sokol.core.component.BasicSlot;
+import com.gitlab.aecsocket.sokol.core.component.AbstractSlot;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
+import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
+import org.spongepowered.configurate.serialize.SerializationException;
+import org.spongepowered.configurate.serialize.TypeSerializer;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Objects;
+import java.lang.reflect.Type;
+import java.util.*;
 
 @ConfigSerializable
-public final class PaperSlot extends BasicSlot<PaperComponent> {
+public final class PaperSlot extends AbstractSlot<PaperComponent> {
+    public static final String TAG_INTERNAL = "internal";
+
+    public static final class Serializer implements TypeSerializer<PaperSlot> {
+        private final SokolPlugin plugin;
+
+        public Serializer(SokolPlugin plugin) {
+            this.plugin = plugin;
+        }
+
+        public SokolPlugin plugin() { return plugin; }
+
+        @Override
+        public void serialize(Type type, @Nullable PaperSlot obj, ConfigurationNode node) throws SerializationException {
+            if (obj == null) node.set(null);
+            else {
+                node.node("tags").set(obj.tags);
+                node.node("accepts").set(obj.accepts);
+                node.node("offset").set(obj.offset);
+            }
+        }
+
+        @Override
+        public PaperSlot deserialize(Type type, ConfigurationNode node) throws SerializationException {
+            return new PaperSlot(plugin,
+                    node.node("tags").getList(String.class),
+                    node.node("accepts").getList(String.class),
+                    node.node("offset").get(Point2.class, Point2.ZERO)
+            );
+        }
+    }
+
+    private final SokolPlugin platform;
     private final Point2 offset;
 
-    public PaperSlot(Collection<String> tags, String key, PaperComponent parent, Point2 offset) {
-        super(tags, key, parent);
+    public PaperSlot(SokolPlugin platform, Collection<String> tags, Collection<String> accepts, String key, PaperComponent parent, Point2 offset) {
+        super(tags, accepts, key, parent);
+        this.platform = platform;
         this.offset = offset;
     }
 
-    public PaperSlot(Collection<String> tags, Point2 offset) {
-        super(tags);
+    public PaperSlot(SokolPlugin platform, Collection<String> tags, Collection<String> accepts, Point2 offset) {
+        super(tags, accepts);
+        this.platform = platform;
         this.offset = offset;
     }
 
-    private PaperSlot() {
-        this(Collections.emptySet(), Point2.ZERO);
+    private PaperSlot(SokolPlugin platform) {
+        this(platform, Collections.emptySet(), Collections.emptySet(), Point2.ZERO);
     }
 
-    public Point2 offset() { return offset; }
+    @Override public @NotNull SokolPlugin platform() { return platform; }
+    public @NotNull Point2 offset() { return offset; }
+
+    @Override protected @NotNull Class<PaperComponent> componentType() { return PaperComponent.class; }
+
+    public boolean internal() { return tagged(TAG_INTERNAL); }
 
     @Override
     public boolean equals(Object o) {
@@ -44,7 +87,7 @@ public final class PaperSlot extends BasicSlot<PaperComponent> {
 
     @Override
     public String toString() {
-        return "PaperSlot{" +
+        return "PaperSlot:" + key + "{" +
                 "tags=" + tags +
                 ", offset=" + offset +
                 '}';
