@@ -36,7 +36,9 @@ public final class PaperItemSystem extends ItemSystem<PaperTreeNode> implements 
         @Override public PersistentDataContainer save(PersistentDataAdapterContext ctx) { return null; }
         @Override public void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException {}
 
-        @Override public PaperItemStack create(Locale locale) { return (PaperItemStack) super.create(locale); }
+        @Override public PaperItemStack create(Locale locale) {
+            return (PaperItemStack) super.create(locale);
+        }
     }
 
     @Override

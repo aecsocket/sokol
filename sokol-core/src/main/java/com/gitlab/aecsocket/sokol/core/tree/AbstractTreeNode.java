@@ -160,6 +160,17 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     @Override public S slot() { return slot; }
 
     @Override
+    public String[] path() {
+        List<String> result = new ArrayList<>();
+        N current = self();
+        while (current != null && current.key != null) {
+            result.add(0, current.key);
+            current = current.parent;
+        }
+        return result.toArray(new String[0]);
+    }
+
+    @Override
     public N root() {
         return parent == null ? self() : parent.root();
     }
@@ -177,17 +188,6 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         return Objects.hash(value, children, systems, key, parent);
     }
 
-    public String toStringRoot() {
-        StringJoiner details = new StringJoiner(", ");
-        if (systems.size() > 0)
-            details.add("systems=" + systems);
-        if (stats.size() > 0)
-            details.add("stats=" + stats);
-        if (children.size() > 0)
-            details.add("children=" + children);
-        return value.id() + '{' + details + '}';
-    }
-
     @Override
     public String toString() {
         StringJoiner details = new StringJoiner(", ");
@@ -195,6 +195,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
             details.add("systems=" + systems);
         if (children.size() > 0)
             details.add("children=" + children);
-        return value.id() + ":" + key + '{' + details + '}';
+        String[] path = path();
+        return value.id() + ":" + (path.length == 0 ? "<root>" : String.join("/", path)) + '{' + details + '}';
     }
 }

@@ -12,6 +12,11 @@ public interface Stat<T> {
             this.value = value;
         }
 
+        public Instance(Instance<T> o) {
+            stat = o.stat;
+            value = stat.copy(o.value);
+        }
+
         public Stat<T> stat() { return stat; }
         public T raw() { return value; }
 
@@ -26,11 +31,14 @@ public interface Stat<T> {
             value = stat.combine(value, o.value);
         }
 
+        public Instance<T> copy() { return new Instance<>(this); }
+
         @Override public String toString() { return "{%s}={%s}".formatted(stat, value); }
     }
 
     Class<T> type();
     T defaultValue();
+    T copy(T v);
     T combine(T a, T b);
 
     default Instance<T> instance(T value) {

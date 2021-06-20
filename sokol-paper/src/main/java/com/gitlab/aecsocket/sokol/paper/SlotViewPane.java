@@ -11,7 +11,9 @@ import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.InventoryView;
@@ -20,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 public class SlotViewPane extends Pane {
     public class SlotGuiItem extends GuiItem {
@@ -56,6 +59,7 @@ public class SlotViewPane extends Pane {
             InventoryView view = event.getView();
             ItemStack cursor = view.getCursor();
             if (event.getClick() == ClickType.LEFT) {
+                PaperTreeNode node = this.node == null ? null : this.node.asRoot();
                 PaperItemSystem.Instance itemSystem = node == null ? null : node.systemOf(ItemSystem.ID);
                 if (PaperUtils.empty(cursor) && node != null && itemSystem != null) {
                     // todo play sound
@@ -78,7 +82,7 @@ public class SlotViewPane extends Pane {
                 }
 
                 updateItems(plugin.persistenceManager().load(view.getCursor()));
-                treeModifyCallback.run();
+                callTreeModify();
             }
         }
 
@@ -96,11 +100,12 @@ public class SlotViewPane extends Pane {
     private final SokolPlugin plugin;
     private Locale locale;
     private PaperTreeNode tree;
+
     private final Point2 center;
     private final SlotGuiItem[] items;
     private boolean modification;
     private boolean limited;
-    private Runnable treeModifyCallback;
+    private Consumer<PaperTreeNode> treeModifyCallback;
 
     public SlotViewPane(SokolPlugin plugin, int x, int y, int length, int height, @NotNull Priority priority, Locale locale, PaperTreeNode tree) {
         super(x, y, length, height, priority);
@@ -146,8 +151,12 @@ public class SlotViewPane extends Pane {
     public boolean limited() { return limited; }
     public SlotViewPane limited(boolean limited) { this.limited = limited; return this; }
 
-    public Runnable treeModifyCallback() { return treeModifyCallback; }
-    public SlotViewPane treeModifyCallback(Runnable treeModifyCallback) { this.treeModifyCallback = treeModifyCallback; return this; }
+    public Consumer<PaperTreeNode> treeModifyCallback() { return treeModifyCallback; }
+    public SlotViewPane treeModifyCallback(Consumer<PaperTreeNode> treeModifyCallback) { this.treeModifyCallback = treeModifyCallback; return this; }
+    public void callTreeModify() {
+        if (treeModifyCallback != null)
+            treeModifyCallback.accept(tree);
+    }
 
     private ItemStack createItem(PaperSlot slot, PaperTreeNode node, PaperTreeNode cursor) {
         if (slot == null)
@@ -230,6 +239,18 @@ public class SlotViewPane extends Pane {
         }
     }
 
+    public void updateGui(Gui gui) {
+        Map<HumanEntity, ItemStack> cursors = new HashMap<>();
+        for (HumanEntity human : gui.getViewers()) {
+            cursors.put(human, human.getItemOnCursor());
+            human.setItemOnCursor(null);
+        }
+        gui.update();
+        for (var entry : cursors.entrySet()) {
+            entry.getKey().setItemOnCursor(entry.getValue());
+        }
+    }
+
     private Component slotText(PaperSlot slot) {
         return plugin.localize(locale, "slot.meta.name",
                 "name", slot.name(locale),
@@ -273,11 +294,27 @@ public class SlotViewPane extends Pane {
 
     public void updateItems(PaperTreeNode cursor) {
         buildItems(cursor);
-        /*for (SlotGuiItem item : items) {
-            if (item != null) {
-                item.updateItem(cursor);
+    }
+
+    public void handleGlobalClick(Gui gui, InventoryClickEvent event) {
+        ItemStack clicked = event.getCurrentItem();
+        PaperTreeNode clickedNode = plugin.persistenceManager().load(clicked);
+        if (event.getClickedInventory() == event.getView().getTopInventory()) {
+            if (PaperUtils.empty(clicked))
+                event.setCancelled(true);
+        } else {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+                return;
             }
-        }*/
+            if (!plugin.persistenceManager().isTree(event.getCursor()) && clickedNode == null)
+                return;
+
+            Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
+                updateItems(plugin.persistenceManager().load(event.getCursor()));
+                updateGui(gui);
+            });
+        }
     }
 
     @Override public @NotNull Collection<GuiItem> getItems() { return Arrays.asList(items); }

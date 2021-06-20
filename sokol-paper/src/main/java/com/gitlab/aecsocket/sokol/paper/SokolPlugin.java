@@ -1,9 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.github.stefvanschie.inventoryframework.gui.type.ChestGui;
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
-import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
@@ -19,11 +17,7 @@ import com.gitlab.aecsocket.sokol.paper.system.PaperSlotInfoSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import io.leangen.geantyref.TypeToken;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
-import org.bukkit.entity.HumanEntity;
-import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -31,10 +25,7 @@ import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
-import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
-import java.util.function.Consumer;
 
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
     public static final String FILE_EXTENSION = "conf";
@@ -43,6 +34,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperSystem.KeyedType> systemTypes = new Registry<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
+    private final SlotViewGuis slotViewGuis = new SlotViewGuis(this);
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
     private final ItemDescriptor invalidItem = new ItemDescriptor(this, Material.BARRIER, 0, 0, false);
@@ -57,6 +49,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override public Registry<PaperComponent> components() { return components; }
     public Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public PersistenceManager persistenceManager() { return persistenceManager; }
+    public SlotViewGuis slotViewGuis() { return slotViewGuis; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public PaperSystem.Serializer systemSerializer() { return systemSerializer; }
     public ItemDescriptor invalidItem() { return invalidItem; }
@@ -119,48 +112,5 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override
     protected BaseCommand<SokolPlugin> createCommand() throws Exception {
         return new SokolCommand(this);
-    }
-
-    private void updateGui(ChestGui gui) {
-        Map<HumanEntity, ItemStack> cursors = new HashMap<>();
-        for (HumanEntity human : gui.getViewers()) {
-            cursors.put(human, human.getItemOnCursor());
-            human.setItemOnCursor(null);
-        }
-        gui.update();
-        for (var entry : cursors.entrySet()) {
-            entry.getKey().setItemOnCursor(entry.getValue());
-        }
-    }
-
-    public ChestGui createSlotViewGui(PaperTreeNode tree, Locale locale, Consumer<SlotViewPane> paneFunction) {
-        // todo components
-        ChestGui gui = new ChestGui(6, LegacyComponentSerializer.legacySection().serialize(tree.value().name(locale)));
-        SlotViewPane pane = new SlotViewPane(this, 9, 6, locale, tree)
-                .treeModifyCallback(() -> Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> updateGui(gui)));
-        paneFunction.accept(pane);
-        gui.addPane(pane);
-        gui.setOnGlobalClick(event -> {
-            ItemStack clicked = event.getCurrentItem();
-            PaperTreeNode clickedNode = persistenceManager.load(clicked);
-            if (event.getClickedInventory() == event.getView().getTopInventory()) {
-                if (PaperUtils.empty(clicked))
-                    event.setCancelled(true);
-            } else {
-                if (event.isShiftClick()) {
-                    event.setCancelled(true);
-                    return;
-                }
-                if (!persistenceManager.isTree(event.getCursor()) && clickedNode == null)
-                    return;
-
-                Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
-                    pane.updateItems(persistenceManager.load(event.getCursor()));
-                    updateGui(gui);
-                });
-            }
-        });
-        gui.setOnTopDrag(event -> event.setCancelled(true));
-        return gui;
     }
 }

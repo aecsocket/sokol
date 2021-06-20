@@ -34,6 +34,7 @@ public interface TreeNode {
     String key();
     TreeNode parent();
     Slot slot();
+    String[] path();
 
     TreeNode root();
     default boolean isRoot() { return key() == null; }

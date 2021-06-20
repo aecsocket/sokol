@@ -10,14 +10,18 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
-public final class StatMap extends HashMap<String, Stat.Instance<?>> {
+public class StatMap extends HashMap<String, Stat.Instance<?>> {
     public record Priority(int value, boolean reverse) {
         public static final Priority DEFAULT = new Priority(0, false);
 
         public Priority {
             Validation.greaterThanEquals("value", value, 0);
+        }
+
+        @Override
+        public String toString() {
+            return reverse ? "[" + value + "]" : Integer.toString(value);
         }
 
         public static final class Serializer implements TypeSerializer<Priority> {
@@ -105,7 +109,7 @@ public final class StatMap extends HashMap<String, Stat.Instance<?>> {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> existing = (Stat.Instance<T>) get(key);
         if (existing == null)
-            put(key, instance);
+            put(key, instance.copy());
         else
             existing.combineFrom(instance);
     }

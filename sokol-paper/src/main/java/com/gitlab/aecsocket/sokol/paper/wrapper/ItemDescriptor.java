@@ -59,7 +59,7 @@ public record ItemDescriptor(
 
     public static final class Stat extends BasicStat<ItemDescriptor> {
         public Stat(ItemDescriptor defaultValue) {
-            super(ItemDescriptor.class, defaultValue, (a, b) -> b);
+            super(ItemDescriptor.class, defaultValue, (a, b) -> b, i -> i);
         }
     }
 

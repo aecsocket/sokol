@@ -14,6 +14,7 @@ import com.gitlab.aecsocket.sokol.paper.command.TreeArgument;
 import com.gitlab.aecsocket.sokol.paper.system.PaperItemSystem;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
@@ -151,9 +152,11 @@ import java.util.function.Supplier;
                 () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand()));
 
         for (Player target : targets) {
-            plugin.createSlotViewGui(tree, target.locale(), pane -> pane
-                    .modification(ctx.flags().isPresent("modification"))
-                    .limited(ctx.flags().isPresent("limited")))
+            plugin.slotViewGuis()
+                    .create(tree, target.locale(), gui -> new SlotViewPane(plugin, 9, 6, locale, tree)
+                            .modification(ctx.flags().isPresent("modification"))
+                            .limited(ctx.flags().isPresent("limited"))
+                    )
                     .show(target);
         }
     }

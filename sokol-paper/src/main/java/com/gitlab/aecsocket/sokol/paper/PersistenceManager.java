@@ -12,7 +12,6 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.function.Consumer;
 import java.util.function.Function;
 
 public final class PersistenceManager {
@@ -109,7 +108,7 @@ public final class PersistenceManager {
     private final GetTreeNodeDataType getDataType;
     private final SetTreeNodeDataType setDataType;
 
-    public PersistenceManager(SokolPlugin plugin) {
+    PersistenceManager(SokolPlugin plugin) {
         this.plugin = plugin;
         key = plugin.key("tree");
         getDataType = new GetTreeNodeDataType();
