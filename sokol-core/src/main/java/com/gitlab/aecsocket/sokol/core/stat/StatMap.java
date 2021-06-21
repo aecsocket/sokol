@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
 import com.gitlab.aecsocket.minecommons.core.Validation;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -56,6 +57,7 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
             if (obj == null) node.set(null);
             else {
                 node.set(obj.toBase());
+                node.node("priority").set(obj.priority);
             }
         }
 
@@ -70,9 +72,11 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
 
             Map<Object, ? extends ConfigurationNode> nodes = new HashMap<>(node.childrenMap());
             StatMap result = new StatMap(
-                    node.node("priority").get(Priority.class, Priority.DEFAULT)
+                    node.node("priority").get(Priority.class, Priority.DEFAULT),
+                    node.node("rule").get(Rule.class, Rule.Constant.TRUE)
             );
             nodes.remove("priority");
+            nodes.remove("rule");
 
             for (var entry : nodes.entrySet()) {
                 String key = entry.getKey().toString();
@@ -86,12 +90,15 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
     }
 
     private final Priority priority;
+    private final Rule rule;
 
-    public StatMap(Priority priority) {
+    public StatMap(Priority priority, Rule rule) {
         this.priority = priority;
+        this.rule = rule;
     }
 
     public Priority priority() { return priority; }
+    public Rule rule() { return rule; }
 
     public <T> T value(String key) {
         @SuppressWarnings("unchecked")
@@ -136,6 +143,6 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
 
     @Override
     public String toString() {
-        return "(%s) %s".formatted(priority, super.toString());
+        return priority + super.toString();
     }
 }

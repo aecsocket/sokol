@@ -3,30 +3,29 @@ package com.gitlab.aecsocket.sokol.core.tree;
 import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>, C extends Component.Scoped<C, S, B>, S extends Slot, B extends System<N>, Y extends System.Instance<N>>
-        implements ScopedTreeNode<N, C, S, B, Y> {
+        implements TreeNode.Scoped<N, C, S, B, Y> {
     protected final C value;
-    protected final EventDispatcher<TreeEvent> events;
-    protected final StatMap stats;
+    protected EventDispatcher<TreeEvent> events = new EventDispatcher<>();
+    protected StatMap stats = new StatMap(StatMap.Priority.DEFAULT, Rule.Constant.TRUE);
+    protected AtomicBoolean complete = new AtomicBoolean();
     protected final Map<String, N> children = new HashMap<>();
     protected final Map<String, Y> systems = new HashMap<>();
     protected String key;
     protected N parent;
     protected S slot;
 
-    public AbstractTreeNode(C value, EventDispatcher<TreeEvent> events, StatMap stats, String key, N parent) {
+    public AbstractTreeNode(C value) {
         this.value = value;
-        this.events = events;
-        this.stats = stats;
-        this.key = key;
-        this.parent = parent;
         for (var entry : value.baseSystems().entrySet()) {
             @SuppressWarnings("unchecked")
             Y instance = (Y) entry.getValue().create(self(), value);
@@ -35,23 +34,12 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         slot = parent != null ? parent.value.slot(key) : null;
     }
 
-    public AbstractTreeNode(C value, EventDispatcher<TreeEvent> events, StatMap stats) {
-        this(value, events, stats, null, null);
-    }
-
-    public AbstractTreeNode(C value, N o) {
-        this(value, o.events, o.stats);
-    }
-
-    public AbstractTreeNode(C value) {
-        this(value, new EventDispatcher<>(), new StatMap(StatMap.Priority.DEFAULT));
-    }
-
     protected abstract N self();
 
     @Override public @NotNull C value() { return value; }
     @Override public @NotNull StatMap stats() { return stats; }
     @Override public @NotNull EventDispatcher<TreeEvent> events() { return events; }
+    @Override public boolean complete() { return complete.get(); }
 
     @Override public @NotNull Map<String, N> children() { return children; }
     @Override public N child(String key) { return children.get(key); }
@@ -60,7 +48,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         S slot = value.slot(key);
         if (slot == null)
             throw new IllegalArgumentException("Cannot add child into slot [" + key + "] to tree node without corresponding slot in component");
-        if (!slot.compatible(child))
+        if (!slot.compatible(this, child))
             throw new IllegalArgumentException("Cannot add child [" + child.value.id() + "] into slot [" + key + "] as it is not compatible");
         if (child == null)
             children.remove(key);
@@ -69,6 +57,16 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
             child.parent(key, self(), slot);
         }
         return self();
+    }
+
+    @Override
+    public N node(String... path) {
+        if (path.length == 0)
+            return self();
+        N next = child(path[0]);
+        if (next == null)
+            return null;
+        return next.node(Arrays.copyOfRange(path, 1, path.length));
     }
 
     @Override
@@ -91,47 +89,59 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         systems.put(id, system);
     }
 
-    public void parent(String key, N parent, S slot) {
+    public N parent(String key, N parent, S slot) {
         this.key = key;
         this.parent = parent;
         this.slot = slot;
+        if (parent != null) {
+            this.events = parent.events;
+            this.stats = parent.stats;
+            this.complete = parent.complete;
+        }
+        return self();
     }
 
-    private void add(List<List<StatMap>> stats) {
-        for (List<StatMap> statsList : stats) {
-            for (StatMap map : statsList) {
-                this.stats.combineAll(map);
+    private record StatsPair(TreeNode node, List<StatMap> stats) {}
+
+    private void add(List<StatsPair> stats) {
+        for (StatsPair pair : stats) {
+            for (StatMap map : pair.stats) {
+                if (map.rule().applies(pair.node)) {
+                    this.stats.combineAll(map);
+                }
             }
         }
     }
 
-    protected void build0(List<List<StatMap>> forwardStats, List<List<StatMap>> reverseStats, String key, N parent, S slot) {
+    protected void build0(List<StatsPair> forwardStats, List<StatsPair> reverseStats, String key, N parent, S slot) {
         StatLists stats = value.stats();
-        forwardStats.add(stats.forward());
-        reverseStats.add(0, stats.reverse());
+        forwardStats.add(new StatsPair(this, stats.forward()));
+        reverseStats.add(0, new StatsPair(this, stats.reverse()));
         for (System.Instance<N> system : systems.values()) {
             system.build();
         }
-        this.key = key;
-        this.parent = parent;
-        this.slot = slot;
+        for (var entry : slotChildren().entrySet()) {
+            N child;
+            if ((child = entry.getValue().child()) == null) {
+                if (entry.getValue().slot().required())
+                    complete.set(false);
+            } else {
+                child.build0(forwardStats, reverseStats, entry.getKey(), self(), entry.getValue().slot());
+            }
+        }
+        parent(key, parent, slot);
     }
 
     @Override
     public @NotNull N build() {
         events.unregisterAll();
         stats.clear();
+        complete.set(true);
 
-        List<List<StatMap>> forwardStats = new ArrayList<>();
-        List<List<StatMap>> reverseStats = new ArrayList<>();
+        List<StatsPair> forwardStats = new ArrayList<>();
+        List<StatsPair> reverseStats = new ArrayList<>();
 
         build0(forwardStats, reverseStats, null, null, null);
-        for (var entry : slotChildren().entrySet()) {
-            N child;
-            if ((child = entry.getValue().child()) != null) {
-                child.build0(forwardStats, reverseStats, entry.getKey(), self(), entry.getValue().slot());
-            }
-        }
 
         add(forwardStats);
         add(reverseStats);

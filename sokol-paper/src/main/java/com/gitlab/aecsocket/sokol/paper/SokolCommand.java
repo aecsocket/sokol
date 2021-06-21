@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper;
 import cloud.commandframework.ArgumentDescription;
 import cloud.commandframework.arguments.flags.CommandFlag;
 import cloud.commandframework.arguments.standard.IntegerArgument;
-import cloud.commandframework.bukkit.arguments.selector.MultiplePlayerSelector;
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument;
 import cloud.commandframework.captions.SimpleCaptionRegistry;
 import cloud.commandframework.context.CommandContext;
@@ -14,12 +13,10 @@ import com.gitlab.aecsocket.sokol.paper.command.TreeArgument;
 import com.gitlab.aecsocket.sokol.paper.system.PaperItemSystem;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
-import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 /* package */ class SokolCommand extends BaseCommand<SokolPlugin> {
     public SokolCommand(SokolPlugin plugin) throws Exception {
@@ -62,54 +59,6 @@ import java.util.function.Supplier;
                 .flag(CommandFlag.newBuilder("limited")
                         .withAliases("l").withDescription(ArgumentDescription.of("If only field-modifiable slots can be modified.")))
                 .handler(c -> handle(c, this::gui)));
-    }
-    // Utils
-
-    private interface CommandHandler {
-        void handle(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender);
-    }
-
-    private static class CommandException extends RuntimeException {
-        private final String key;
-        private final Object[] args;
-
-        public CommandException(String key, Object[] args) {
-            this.key = key;
-            this.args = args;
-        }
-
-        public String key() { return key; }
-        public Object[] args() { return args; }
-    }
-
-    private static CommandException error(String key, Object... args) {
-        return new CommandException("chat.error." + key, args);
-    }
-
-    private void handle(CommandContext<CommandSender> ctx, CommandHandler handler) {
-        CommandSender sender = ctx.getSender();
-        Locale locale = locale(sender);
-        try {
-            handler.handle(ctx, sender, locale, sender instanceof Player player ? player : null);
-        } catch (CommandException e) {
-            sender.sendMessage(localize(locale, e.key, e.args));
-        }
-    }
-
-    private <T> T defaultedArg(CommandContext<CommandSender> ctx, String key, Player pSender, Supplier<T> ifPlayer) {
-        return ctx.<T>getOptional(key).orElseGet(() -> {
-            T result = pSender == null ? null : ifPlayer.get();
-            if (result == null)
-                throw error("no_arg", "arg", key);
-            return result;
-        });
-    }
-
-    private List<Player> targets(CommandContext<CommandSender> ctx, String key, Player pSender) {
-        List<Player> targets = this.defaultedArg(ctx, key, pSender, () -> new MultiplePlayerSelector("", Collections.singletonList(pSender))).getPlayers();
-        if (targets.size() == 0)
-            throw error("no_targets");
-        return targets;
     }
 
     // Command-specific Utils

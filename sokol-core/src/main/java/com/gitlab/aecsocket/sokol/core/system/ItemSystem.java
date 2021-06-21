@@ -1,17 +1,19 @@
 package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.sokol.core.tree.ScopedTreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.TreeEvent;
+import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
-public abstract class ItemSystem<N extends ScopedTreeNode<N, ?, ?, ?, ?>> extends AbstractSystem<N> {
+public abstract class ItemSystem<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends AbstractSystem<N> {
     public static final String ID = "item";
     private final Map<String, Stat<?>> baseStats;
 
@@ -21,7 +23,7 @@ public abstract class ItemSystem<N extends ScopedTreeNode<N, ?, ?, ?, ?>> extend
                 .build();
     }
 
-    public static abstract class Instance<N extends ScopedTreeNode<N, ?, ?, ?, ?>> extends AbstractSystem.Instance<N> {
+    public static abstract class Instance<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends AbstractSystem.Instance<N> {
         public Instance(N parent) {
             super(parent);
         }
@@ -43,6 +45,7 @@ public abstract class ItemSystem<N extends ScopedTreeNode<N, ?, ?, ?, ?>> extend
 
     @Override public @NotNull String id() { return ID; }
     @Override public @NotNull Map<String, Stat<?>> baseStats() { return baseStats; }
+    @Override public @NotNull Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
 
     public static final class Events {
         private Events() {}

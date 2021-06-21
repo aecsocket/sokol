@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.component;
 
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -23,10 +24,10 @@ public interface Slot {
     Collection<String> tags();
     boolean tagged(String tag);
 
-    Collection<String> accepts();
+    @NotNull Rule rule();
 
-    @Contract("null -> true")
-    boolean compatible(@Nullable TreeNode node);
+    @Contract("_, null -> true")
+    boolean compatible(@Nullable TreeNode parent, @Nullable TreeNode child);
 
     default boolean required() { return tagged(TAG_REQUIRED); }
     default boolean internal() { return tagged(TAG_INTERNAL); }

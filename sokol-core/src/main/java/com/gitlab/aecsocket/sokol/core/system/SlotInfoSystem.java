@@ -2,18 +2,18 @@ package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.sokol.core.tree.ScopedTreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public abstract class SlotInfoSystem<N extends ScopedTreeNode<N, ?, ?, ?, ?>> extends AbstractSystem<N> {
+public abstract class SlotInfoSystem<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends AbstractSystem<N> {
     public static final String ID = "slot_info";
 
-    public static abstract class Instance<N extends ScopedTreeNode<N, ?, ?, ?, ?>> extends AbstractSystem.Instance<N> {
+    public static abstract class Instance<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends AbstractSystem.Instance<N> {
         public Instance(N parent) {
             super(parent);
         }
@@ -53,4 +53,5 @@ public abstract class SlotInfoSystem<N extends ScopedTreeNode<N, ?, ?, ?, ?>> ex
 
     @Override public @NotNull String id() { return ID; }
     @Override public @NotNull Map<String, Stat<?>> baseStats() { return Collections.emptyMap(); }
+    @Override public @NotNull Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
 }

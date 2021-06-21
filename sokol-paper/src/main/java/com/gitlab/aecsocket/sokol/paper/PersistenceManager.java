@@ -10,6 +10,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Function;
@@ -24,13 +25,13 @@ public final class PersistenceManager {
             throw new UnsupportedOperationException("Use the Set data type");
         }
 
-        private PaperTreeNode tree(PaperTreeNode parent, PersistentDataContainer data) {
+        private PaperTreeNode fromPrimitive0(PersistentDataContainer data) {
             String id = data.get(plugin.key("id"), PersistentDataType.STRING);
             PaperComponent component = plugin.component(id);
             if (id == null || component == null)
                 throw new IllegalArgumentException("No component with ID [" + id + "]");
 
-            PaperTreeNode tree = parent == null ? new PaperTreeNode(component) : new PaperTreeNode(component, parent);
+            PaperTreeNode tree = new PaperTreeNode(component);
 
             try {
                 PersistentDataContainer slots = data.get(plugin.key("slots"), PersistentDataType.TAG_CONTAINER);
@@ -38,7 +39,7 @@ public final class PersistenceManager {
                     for (var key : slots.getKeys()) {
                         String slot = key.getKey();
                         try {
-                            tree.child(slot, tree(tree, slots.get(key, PersistentDataType.TAG_CONTAINER)));
+                            tree.child(slot, fromPrimitive0(slots.get(key, PersistentDataType.TAG_CONTAINER)));
                         } catch (IllegalArgumentException e) {
                             throw new IllegalArgumentException("[" + slot + "]", e);
                         }
@@ -64,7 +65,7 @@ public final class PersistenceManager {
 
         @Override
         public @NotNull PaperTreeNode fromPrimitive(@NotNull PersistentDataContainer data, @NotNull PersistentDataAdapterContext ctx) {
-            return tree(null, data).build();
+            return fromPrimitive0(data).build();
         }
     }
 
@@ -148,6 +149,7 @@ public final class PersistenceManager {
         return use(item, this::isTree, false);
     }
 
+    @Contract("null -> null")
     public PaperTreeNode load(ItemStack item) {
         return use(item, this::load, null);
     }

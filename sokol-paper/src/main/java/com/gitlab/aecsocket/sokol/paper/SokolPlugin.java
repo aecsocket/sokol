@@ -8,6 +8,7 @@ import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
@@ -36,6 +37,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
     private final SlotViewGuis slotViewGuis = new SlotViewGuis(this);
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
+    private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
     private final ItemDescriptor invalidItem = new ItemDescriptor(this, Material.BARRIER, 0, 0, false);
 
@@ -51,6 +53,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public PersistenceManager persistenceManager() { return persistenceManager; }
     public SlotViewGuis slotViewGuis() { return slotViewGuis; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
+    public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public PaperSystem.Serializer systemSerializer() { return systemSerializer; }
     public ItemDescriptor invalidItem() { return invalidItem; }
 
@@ -77,6 +80,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         serializers.register(ItemDescriptor.class, new ItemDescriptor.Serializer(this));
         serializers.register(PaperSlot.class, new PaperSlot.Serializer(this));
         serializers.register(PaperComponent.class, new PaperComponent.Serializer(this));
+        serializers.registerExact(Rule.class, ruleSerializer);
         serializers.register(PaperSystem.Instance.class, systemSerializer);
         serializers.register(PaperTreeNode.class, new PaperTreeNode.Serializer(this));
     }

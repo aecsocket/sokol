@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
+import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;

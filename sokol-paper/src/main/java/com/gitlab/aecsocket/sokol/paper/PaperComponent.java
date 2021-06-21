@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.AbstractComponent;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
@@ -56,10 +57,14 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
             }
 
             Map<String, Stat<?>> baseStats = new HashMap<>();
+            Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>(Rule.BASE_RULE_TYPES);
             for (PaperSystem system : systems.values()) {
                 baseStats.putAll(system.baseStats());
+                ruleTypes.putAll(system.ruleTypes());
             }
             plugin.statMapSerializer().base(baseStats);
+            plugin.ruleSerializer().ruleTypes(ruleTypes);
+
             PaperComponent result = new PaperComponent(plugin,
                     Objects.toString(node.key()),
                     node.node("slots").get(new TypeToken<Map<String, PaperSlot>>() {}, Collections.emptyMap()),

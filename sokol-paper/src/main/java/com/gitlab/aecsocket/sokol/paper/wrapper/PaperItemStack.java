@@ -7,10 +7,7 @@ import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import net.kyori.adventure.text.Component;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 public record PaperItemStack(
         SokolPlugin plugin,
@@ -53,5 +50,18 @@ public record PaperItemStack(
             lore.addAll(Arrays.asList(add));
             meta.lore(lore);
         });
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PaperItemStack that = (PaperItemStack) o;
+        return handle.equals(that.handle);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(handle);
     }
 }

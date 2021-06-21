@@ -1,9 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
-import com.gitlab.aecsocket.sokol.core.tree.TreeEvent;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -71,28 +68,11 @@ public class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponen
         }
     }
 
-    public PaperTreeNode(PaperComponent value, EventDispatcher<TreeEvent> events, StatMap stats, String key, PaperTreeNode parent) {
-        super(value, events, stats, key, parent);
-    }
-
-    public PaperTreeNode(PaperComponent value, EventDispatcher<TreeEvent> events, StatMap stats) {
-        super(value, events, stats);
-    }
-
-    public PaperTreeNode(PaperComponent value, PaperTreeNode o) {
-        super(value, o);
-    }
-
     public PaperTreeNode(PaperComponent value) {
         super(value);
     }
 
     @Override protected PaperTreeNode self() { return this; }
-
-    public @NotNull PaperTreeNode child(String key, PaperComponent component) {
-        child(key, new PaperTreeNode(component, this));
-        return this;
-    }
 
     public @NotNull PaperTreeNode asRoot() {
         return value.asTree();

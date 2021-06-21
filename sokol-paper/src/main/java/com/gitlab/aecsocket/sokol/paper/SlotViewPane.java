@@ -31,7 +31,7 @@ public class SlotViewPane extends Pane {
         private PaperTreeNode node;
 
         public SlotGuiItem(PaperSlot slot, PaperTreeNode parent, PaperTreeNode node, PaperTreeNode cursor) {
-            super(slot == null ? item(node) : createItem(slot, node, cursor));
+            super(slot == null ? item(node) : createItem(slot, parent, node, cursor));
             this.slot = slot;
             this.parent = parent;
             this.node = node;
@@ -60,34 +60,47 @@ public class SlotViewPane extends Pane {
             ItemStack cursor = view.getCursor();
             if (event.getClick() == ClickType.LEFT) {
                 PaperTreeNode node = this.node == null ? null : this.node.asRoot();
+                PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
                 PaperItemSystem.Instance itemSystem = node == null ? null : node.systemOf(ItemSystem.ID);
-                if (PaperUtils.empty(cursor) && node != null && itemSystem != null) {
-                    // todo play sound
-                    view.setCursor(itemSystem.create(locale).handle());
-                    node(null);
+
+                if (node == null) {
+                    if (cursorNode == null || !slot.compatible(parent, cursorNode))
+                        return;
+                    // Put the cursor into the slot
+                    // TODO play sound
+                    node(cursorNode);
+                    cursor.subtract();
                 } else {
-                    PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
-                    if (
-                            cursorNode == null || !slot.compatible(cursorNode)
-                            || (node != null && (itemSystem == null || cursor.getAmount() > 1))
-                    )
+                    if (itemSystem == null)
                         return;
 
-                    // todo play sound
-                    if (node == null)
-                        cursor.subtract();
-                    else
-                        view.setCursor(itemSystem.create(locale).handle());
-                    node(cursorNode);
+                    ItemStack nodeItem = itemSystem.create(locale).handle();
+                    if (PaperUtils.empty(cursor)) {
+                        // Put the slot item into the cursor
+                        node(null);
+                        view.setCursor(nodeItem);
+                    } else {
+                        if (nodeItem.isSimilar(cursor)) {
+                            // Add the slot item into the current cursor
+                            node(null);
+                            cursor.add();
+                        } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1) {
+                            // Swap the cursor and slot item
+                            node(cursorNode);
+                            view.setCursor(nodeItem);
+                        } else
+                            return;
+                    }
                 }
 
+                tree.build();
                 updateItems(plugin.persistenceManager().load(view.getCursor()));
                 callTreeModify();
             }
         }
 
         public void updateItem(PaperTreeNode cursor) {
-            ItemStack item = createItem(slot, node, cursor);
+            ItemStack item = createItem(slot, parent, node, cursor);
             if (item == null)
                 return;
             ItemStack handle = getItem();
@@ -158,7 +171,7 @@ public class SlotViewPane extends Pane {
             treeModifyCallback.accept(tree);
     }
 
-    private ItemStack createItem(PaperSlot slot, PaperTreeNode node, PaperTreeNode cursor) {
+    private ItemStack createItem(PaperSlot slot, PaperTreeNode parent, PaperTreeNode node, PaperTreeNode cursor) {
         if (slot == null)
             return null;
         if (node == null) {
@@ -174,7 +187,7 @@ public class SlotViewPane extends Pane {
                     itemPath = "default";
             } else {
                 // in/compatible
-                itemPath = slot.compatible(cursor)
+                itemPath = slot.compatible(parent, cursor)
                         ? (!limited || slot.fieldModifiable()) ? "compatible" : "unusable"
                         : "incompatible";
             }
@@ -185,7 +198,7 @@ public class SlotViewPane extends Pane {
         } else {
             return PaperUtils.modify(item(node.asRoot()), meta -> {
                 PaperUtils.addLore(meta, Components.BLANK.append(slotText(slot)));
-                if (cursor != null && slot.compatible(cursor)) {
+                if (cursor != null && slot.compatible(parent, cursor)) {
                     meta.addEnchant(Enchantment.PROTECTION_ENVIRONMENTAL, 0, true); // TODO replace with glint API
                 }
             });

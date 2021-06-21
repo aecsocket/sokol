@@ -1,5 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.component;
 
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
+import com.gitlab.aecsocket.sokol.core.rule.Visitor;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -10,36 +12,37 @@ import java.util.*;
 @ConfigSerializable
 public abstract class AbstractSlot<C extends Component> implements Slot {
     protected final Set<String> tags;
-    protected final Set<String> accepts;
+    protected final Rule rule;
     protected transient String key;
     protected transient C parent;
 
-    public AbstractSlot(Collection<String> tags, Collection<String> accepts, String key, C parent) {
+    public AbstractSlot(Collection<String> tags, Rule rule, String key, C parent) {
         this.tags = Collections.unmodifiableSet(tags instanceof Set<String> sTags ? sTags : new HashSet<>(tags));
-        this.accepts = Collections.unmodifiableSet(accepts instanceof Set<String> sAccepts ? sAccepts : new HashSet<>(accepts));
+        this.rule = rule;
         this.key = key;
         this.parent = parent;
     }
 
-    public AbstractSlot(Collection<String> tags, Collection<String> accepts) {
-        this(tags, accepts, null, null);
+    public AbstractSlot(Collection<String> tags, Rule rule) {
+        this(tags, rule, null, null);
     }
 
     @Override public Collection<String> tags() { return tags; }
     @Override public boolean tagged(String tag) { return tags.contains(tag); }
-    @Override public Set<String> accepts() { return accepts; }
+    @Override public @NotNull Rule rule() { return rule; }
     @Override @NotNull public String key() { return key; }
     @Override @NotNull public C parent() { return parent; }
 
     protected abstract @NotNull Class<C> componentType();
 
     @Override
-    public boolean compatible(@Nullable TreeNode node) {
-        if (node == null)
+    public boolean compatible(@Nullable TreeNode parent, @Nullable TreeNode child) {
+        if (child == null)
             return true;
-        if (!componentType().isInstance(node.value()))
+        if (!componentType().isInstance(child.value()))
             return false;
-        return accepts.size() == 0 || !Collections.disjoint(node.value().tags(), accepts);
+        rule.visit(new Visitor.SlotCompatibility(child, parent));
+        return rule.applies(child);
     }
 
     public void parent(String key, C parent) {
@@ -64,7 +67,7 @@ public abstract class AbstractSlot<C extends Component> implements Slot {
     public String toString() {
         return "<" +
                 "tags=" + tags +
-                ", accepts=" + accepts +
+                ", rule=" + rule +
                 '>';
     }
 }
