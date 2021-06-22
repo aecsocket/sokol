@@ -1,9 +1,11 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
+import com.gitlab.aecsocket.sokol.core.tree.BasicTreeNode;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.checker.units.qual.C;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -74,7 +76,11 @@ public class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponen
 
     @Override protected PaperTreeNode self() { return this; }
 
-    public @NotNull PaperTreeNode asRoot() {
-        return value.asTree();
+    @Override
+    public PaperTreeNode asRoot() {
+        PaperTreeNode result = new PaperTreeNode(value);
+        result.children.putAll(children);
+        result.build();
+        return result;
     }
 }

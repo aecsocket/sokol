@@ -11,4 +11,11 @@ public class BasicTreeNode<C extends Component.Scoped<C, S, B>, S extends Slot, 
     }
 
     @Override protected BasicTreeNode<C, S, B, Y> self() { return this; }
+
+    @Override
+    public BasicTreeNode<C, S, B, Y> asRoot() {
+        BasicTreeNode<C, S, B, Y> result = new BasicTreeNode<>(value);
+        result.children.putAll(children);
+        return result;
+    }
 }

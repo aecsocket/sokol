@@ -102,10 +102,9 @@ import java.util.*;
 
         for (Player target : targets) {
             plugin.slotViewGuis()
-                    .create(tree, target.locale(), gui -> new SlotViewPane(plugin, 9, 6, locale, tree)
+                    .create(new SlotViewPane(plugin, 9, 6, target.locale(), tree)
                             .modification(ctx.flags().isPresent("modification"))
-                            .limited(ctx.flags().isPresent("limited"))
-                    )
+                            .limited(ctx.flags().isPresent("limited")), evt -> {})
                     .show(target);
         }
     }

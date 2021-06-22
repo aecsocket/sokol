@@ -31,7 +31,6 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
             Y instance = (Y) entry.getValue().create(self(), value);
             systems.put(entry.getKey(), instance);
         }
-        slot = parent != null ? parent.value.slot(key) : null;
     }
 
     protected abstract N self();
@@ -67,6 +66,20 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         if (next == null)
             return null;
         return next.node(Arrays.copyOfRange(path, 1, path.length));
+    }
+
+    @Override
+    public boolean combine(N node, boolean limited) {
+        AtomicBoolean success = new AtomicBoolean(false);
+        visitScoped((parent, slot, child, path) -> {
+            if (success.get())
+                return;
+            if (child == null && slot.compatible(parent, node) && (!limited || slot.fieldModifiable())) {
+                success.set(true);
+                parent.child(slot.key(), node);
+            }
+        });
+        return success.get();
     }
 
     @Override
@@ -150,18 +163,21 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override
-    public void visit(Visitor<TreeNode> visitor, String... path) {
+    public void visit(Visitor<TreeNode, Slot> visitor, String... path) {
         visitScoped(visitor::visit, path);
     }
 
     @Override
-    public void visitScoped(Visitor<N> visitor, String... path) {
-        visitor.visit(self(), path);
-        for (var entry : children.entrySet()) {
+    public void visitScoped(Visitor<N, S> visitor, String... path) {
+        visitor.visit(parent, slot, self(), path);
+        for (var entry : slotChildren().entrySet()) {
             String[] newPath = new String[path.length + 1];
             java.lang.System.arraycopy(path, 0, newPath, 0, path.length);
             newPath[path.length] = entry.getKey();
-            entry.getValue().visitScoped(visitor, newPath);
+            if (entry.getValue().child() == null)
+                visitor.visit(self(), entry.getValue().slot(), null, newPath);
+            else
+                entry.getValue().child().visitScoped(visitor, newPath);
         }
     }
 

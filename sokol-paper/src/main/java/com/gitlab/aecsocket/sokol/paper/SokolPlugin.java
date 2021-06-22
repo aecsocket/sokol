@@ -18,6 +18,7 @@ import com.gitlab.aecsocket.sokol.paper.system.PaperSlotInfoSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import io.leangen.geantyref.TypeToken;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurateException;
@@ -44,6 +45,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override
     public void onEnable() {
         super.onEnable();
+        Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
         registerSystemType(ItemSystem.ID, PaperItemSystem.TYPE);
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.TYPE);
     }

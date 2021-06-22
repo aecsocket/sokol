@@ -45,6 +45,7 @@ public class SlotViewPane extends Pane {
         public void node(PaperTreeNode node) {
             this.node = node;
             parent.child(slot.key(), node);
+            System.out.println("parent = " + parent);
         }
 
         private void event(InventoryClickEvent event) {
@@ -127,7 +128,7 @@ public class SlotViewPane extends Pane {
         this.tree = tree;
         center = new Point2(length / 2, height / 2);
         items = new SlotGuiItem[length * height];
-        buildItems(null);
+        updateItems(null);
     }
 
     public SlotViewPane(SokolPlugin plugin, int length, int height, Locale locale, PaperTreeNode tree) {
@@ -137,7 +138,7 @@ public class SlotViewPane extends Pane {
         this.tree = tree;
         center = new Point2(length / 2, height / 2);
         items = new SlotGuiItem[length * height];
-        buildItems(null);
+        updateItems(null);
     }
 
     public SlotViewPane(SokolPlugin plugin, int x, int y, int length, int height, Locale locale, PaperTreeNode tree) {
@@ -147,7 +148,7 @@ public class SlotViewPane extends Pane {
         this.tree = tree;
         center = new Point2(length / 2, height / 2);
         items = new SlotGuiItem[length * height];
-        buildItems(null);
+        updateItems(null);
     }
 
     public SokolPlugin plugin() { return plugin; }
@@ -210,17 +211,17 @@ public class SlotViewPane extends Pane {
             items[(y * length) + x] = item;
     }
 
-    private void buildItems(PaperTreeNode cursor, @NotNull PaperSlot slot, @NotNull PaperTreeNode parent, @Nullable PaperTreeNode node, int cx, int cy) {
+    private void updateItems(PaperTreeNode cursor, @NotNull PaperSlot slot, @NotNull PaperTreeNode parent, @Nullable PaperTreeNode node, int cx, int cy) {
         int x = cx + slot.offset().x(), y = cy + slot.offset().y();
         put(new SlotGuiItem(slot, parent, node, cursor), x, y);
         if (node != null) {
             for (var entry : node.slotChildren().entrySet()) {
-                buildItems(cursor, entry.getValue().slot(), node, entry.getValue().child(), x, y);
+                updateItems(cursor, entry.getValue().slot(), node, entry.getValue().child(), x, y);
             }
         }
     }
 
-    public void buildItems(PaperTreeNode cursor) {
+    public void updateItems(PaperTreeNode cursor) {
         Arrays.fill(items, null);
 
         boolean showInternal = true;
@@ -237,7 +238,7 @@ public class SlotViewPane extends Pane {
             PaperSlot slot = entry.getValue().slot();
             if (slot.internal() && !showInternal)
                 continue;
-            buildItems(cursor, slot, tree, entry.getValue().child(), x, y);
+            updateItems(cursor, slot, tree, entry.getValue().child(), x, y);
         }
     }
 
@@ -249,18 +250,6 @@ public class SlotViewPane extends Pane {
             });
         } else {
             return itemSystem.create(locale).handle();
-        }
-    }
-
-    public void updateGui(Gui gui) {
-        Map<HumanEntity, ItemStack> cursors = new HashMap<>();
-        for (HumanEntity human : gui.getViewers()) {
-            cursors.put(human, human.getItemOnCursor());
-            human.setItemOnCursor(null);
-        }
-        gui.update();
-        for (var entry : cursors.entrySet()) {
-            entry.getKey().setItemOnCursor(entry.getValue());
         }
     }
 
@@ -305,10 +294,6 @@ public class SlotViewPane extends Pane {
         return true;
     }
 
-    public void updateItems(PaperTreeNode cursor) {
-        buildItems(cursor);
-    }
-
     public void handleGlobalClick(Gui gui, InventoryClickEvent event) {
         ItemStack clicked = event.getCurrentItem();
         PaperTreeNode clickedNode = plugin.persistenceManager().load(clicked);
@@ -325,7 +310,7 @@ public class SlotViewPane extends Pane {
 
             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
                 updateItems(plugin.persistenceManager().load(event.getCursor()));
-                updateGui(gui);
+                gui.update();
             });
         }
     }

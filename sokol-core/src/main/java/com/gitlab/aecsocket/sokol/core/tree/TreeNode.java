@@ -23,6 +23,8 @@ public interface TreeNode {
 
         @Override N node(String... path);
 
+        boolean combine(N node, boolean limited);
+
         @Override @NotNull Map<String, ChildSlot<S, N>> slotChildren();
 
         @Override @NotNull Map<String, Y> systems();
@@ -32,18 +34,19 @@ public interface TreeNode {
         void system(Y system);
 
         @NotNull N build();
-        void visitScoped(Visitor<N> visitor, String... path);
+        void visitScoped(Visitor<N, S> visitor, String... path);
 
         @Override N parent();
         @Override S slot();
 
         @Override N root();
+        @Override N asRoot();
     }
 
     record ChildSlot<S, N>(S slot, N child) {}
 
-    interface Visitor<N extends TreeNode> {
-        void visit(N node, String... path);
+    interface Visitor<N extends TreeNode, S extends Slot> {
+        void visit(N parent, S slot, N child, String... path);
     }
 
     @NotNull Component value();
@@ -62,7 +65,7 @@ public interface TreeNode {
     System.Instance<?> system(String id);
 
     @NotNull TreeNode build();
-    void visit(Visitor<TreeNode> visitor, String... path);
+    void visit(Visitor<TreeNode, Slot> visitor, String... path);
 
     String key();
     TreeNode parent();
@@ -71,4 +74,5 @@ public interface TreeNode {
 
     TreeNode root();
     default boolean isRoot() { return key() == null; }
+    TreeNode asRoot();
 }
