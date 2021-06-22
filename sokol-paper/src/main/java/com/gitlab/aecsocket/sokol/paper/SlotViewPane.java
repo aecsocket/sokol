@@ -45,7 +45,6 @@ public class SlotViewPane extends Pane {
         public void node(PaperTreeNode node) {
             this.node = node;
             parent.child(slot.key(), node);
-            System.out.println("parent = " + parent);
         }
 
         private void event(InventoryClickEvent event) {

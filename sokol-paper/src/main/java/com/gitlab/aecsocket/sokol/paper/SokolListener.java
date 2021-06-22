@@ -73,6 +73,7 @@ import java.util.Locale;
                     event.getView().setCursor(clickedNode.<PaperItemSystem.Instance>systemOf(ItemSystem.ID).create(locale).amount(cursorAmount).handle());
                     clicked.subtract(cursorAmount);
                 }
+                event.setCancelled(true);
             }
         }
     }
