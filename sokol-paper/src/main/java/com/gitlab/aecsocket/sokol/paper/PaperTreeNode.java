@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper;
 
+import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.BasicTreeNode;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
@@ -40,10 +41,9 @@ public class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponen
         }
 
         private PaperTreeNode deserialize0(Type type, ConfigurationNode node) throws SerializationException {
-            String id = (node.isMap() ? node.node("id") : node).getString();
-            PaperComponent component = plugin.component(id);
-            if (component == null)
-                throw new SerializationException(node, type, "No component with ID [" + id + "]");
+            String id = Serializers.require(node.isMap() ? node.node("id") : node, String.class);
+            PaperComponent component = plugin.component(id)
+                    .orElseThrow(() -> new SerializationException(node, type, "No component with ID [" + id + "]"));
 
             PaperTreeNode tree = new PaperTreeNode(component);
 
@@ -77,7 +77,7 @@ public class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponen
     @Override protected PaperTreeNode self() { return this; }
 
     @Override
-    public PaperTreeNode asRoot() {
+    public @NotNull PaperTreeNode asRoot() {
         PaperTreeNode result = new PaperTreeNode(value);
         result.children.putAll(children);
         result.build();

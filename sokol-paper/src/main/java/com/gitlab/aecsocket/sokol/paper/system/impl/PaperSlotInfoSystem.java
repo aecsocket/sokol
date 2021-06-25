@@ -1,17 +1,27 @@
-package com.gitlab.aecsocket.sokol.paper.system;
+package com.gitlab.aecsocket.sokol.paper.system.impl;
 
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
+import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
-import org.bukkit.persistence.PersistentDataAdapterContext;
+import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-public final class PaperSlotInfoSystem extends SlotInfoSystem<PaperTreeNode> implements PaperSystem {
+public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSystem {
     public static final Type TYPE = (plugin, node) -> new PaperSlotInfoSystem(plugin);
+
+    public final class Instance extends SlotInfoSystem.Instance implements PaperSystem.Instance {
+        public Instance(TreeNode parent) {
+            super(parent);
+        }
+
+        @Override public @NotNull PaperSlotInfoSystem base() { return PaperSlotInfoSystem.this; }
+        @Override public @NotNull SokolPlugin platform() { return platform; }
+    }
 
     private final SokolPlugin platform;
 
@@ -19,19 +29,10 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem<PaperTreeNode> imp
         this.platform = platform;
     }
 
-    public final class Instance extends SlotInfoSystem.Instance<PaperTreeNode> implements PaperSystem.Instance {
-        public Instance(PaperTreeNode parent) {
-            super(parent);
-        }
-
-        @Override public @NotNull PaperSlotInfoSystem base() { return PaperSlotInfoSystem.this; }
-        @Override public @NotNull SokolPlugin platform() { return platform; }
-        @Override public PersistentDataContainer save(PersistentDataAdapterContext ctx) { return null; }
-        @Override public void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException {}
-    }
+    public SokolPlugin platform() { return platform; }
 
     @Override
-    public @NotNull Instance create(PaperTreeNode node, Component component) {
+    public @NotNull Instance create(TreeNode node, Component component) {
         return new Instance(node);
     }
 
@@ -41,7 +42,7 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem<PaperTreeNode> imp
     }
 
     @Override
-    public PaperSystem.@NotNull Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
+    public @NotNull Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
         return new Instance(node);
     }
 }

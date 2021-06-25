@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
+import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
@@ -13,8 +14,10 @@ import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
-import com.gitlab.aecsocket.sokol.paper.system.PaperItemSystem;
-import com.gitlab.aecsocket.sokol.paper.system.PaperSlotInfoSystem;
+import com.gitlab.aecsocket.sokol.paper.stat.Descriptor;
+import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
+import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.system.impl.PaperSlotInfoSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import io.leangen.geantyref.TypeToken;
@@ -27,7 +30,9 @@ import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
     public static final String FILE_EXTENSION = "conf";
@@ -48,6 +53,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
         registerSystemType(ItemSystem.ID, PaperItemSystem.TYPE);
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.TYPE);
+        registerSystemType(SlotsSystem.ID, SlotsSystem.TYPE);
     }
 
     @Override public Registry<PaperComponent> components() { return components; }
@@ -59,7 +65,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public PaperSystem.Serializer systemSerializer() { return systemSerializer; }
     public ItemDescriptor invalidItem() { return invalidItem; }
 
-    @Override public PaperComponent component(String id) { return components.get(id); }
+    @Override public Optional<PaperComponent> component(String id) { return components.getOpt(id); }
 
     public void registerSystemType(String id, PaperSystem.Type type) {
         if (!Keyed.validKey(id))
@@ -85,6 +91,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         serializers.registerExact(Rule.class, ruleSerializer);
         serializers.register(PaperSystem.Instance.class, systemSerializer);
         serializers.register(PaperTreeNode.class, new PaperTreeNode.Serializer(this));
+        serializers.register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, new Descriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
     }
 
     @Override

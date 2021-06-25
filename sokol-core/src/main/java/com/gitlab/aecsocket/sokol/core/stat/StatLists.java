@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
+import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -24,7 +25,7 @@ public final class StatLists {
         @Override
         public StatLists deserialize(Type type, ConfigurationNode node) throws SerializationException {
             return new StatLists(
-                    node.require(new TypeToken<List<StatMap>>() {})
+                    Serializers.require(node, new TypeToken<List<StatMap>>() {})
             );
         }
     }

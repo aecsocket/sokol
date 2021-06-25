@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 
 public interface Component extends Keyed {
-    interface Scoped<C extends Scoped<C, S, B>, S extends Slot, B extends System<?>> extends Component {
+    interface Scoped<C extends Scoped<C, S, B>, S extends Slot, B extends System> extends Component {
         @NotNull C self();
 
         @Override @NotNull Map<String, S> slots();
@@ -33,8 +33,8 @@ public interface Component extends Keyed {
     @NotNull Map<String, ? extends Slot> slots();
     Slot slot(String key);
 
-    @NotNull Map<String, ? extends System<?>> baseSystems();
-    System<?> baseSystem(String id);
+    @NotNull Map<String, ? extends System> baseSystems();
+    System baseSystem(String id);
 
     @NotNull StatLists stats();
 }

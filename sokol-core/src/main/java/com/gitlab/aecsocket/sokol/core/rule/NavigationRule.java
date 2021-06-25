@@ -25,8 +25,8 @@ public final class NavigationRule {
         public String[] path() { return path; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            return tree.node(path) != null;
+        public boolean applies(TreeNode node) {
+            return node.node(path) != null;
         }
 
         @Override
@@ -48,7 +48,7 @@ public final class NavigationRule {
         }
 
         @Override
-        public String toString() { return "#" + Arrays.toString(path); }
+        public String toString() { return "?" + Arrays.toString(path); }
     }
 
     @ConfigSerializable
@@ -69,11 +69,10 @@ public final class NavigationRule {
         public Rule term() { return term; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            TreeNode child = tree.node(path);
-            if (child == null)
-                return false;
-            return term.applies(child);
+        public boolean applies(TreeNode node) {
+            return node.node(path)
+                    .map(term::applies)
+                    .orElse(false);
         }
 
         @Override
@@ -119,11 +118,10 @@ public final class NavigationRule {
         public Rule term() { return term; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            TreeNode child = tree.root().node(path);
-            if (child == null)
-                return false;
-            return term.applies(child);
+        public boolean applies(TreeNode node) {
+            return node.root().node(path)
+                    .map(term::applies)
+                    .orElse(false);
         }
 
         @Override
@@ -159,8 +157,8 @@ public final class NavigationRule {
         private IsRoot() {}
 
         @Override
-        public boolean applies(TreeNode tree) {
-            return tree.isRoot();
+        public boolean applies(TreeNode node) {
+            return node.isRoot();
         }
 
         @Override
@@ -200,10 +198,10 @@ public final class NavigationRule {
         public Rule term() { return term; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            if (node == null)
+        public boolean applies(TreeNode node) {
+            if (this.node == null)
                 throw new IllegalStateException("Attempting to use inline node [rule type " + type() + "]");
-            return term.applies(node);
+            return term.applies(this.node);
         }
 
         @Override

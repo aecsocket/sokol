@@ -27,11 +27,12 @@ public final class PersistenceManager {
 
         private PaperTreeNode fromPrimitive0(PersistentDataContainer data) {
             String id = data.get(plugin.key("id"), PersistentDataType.STRING);
-            PaperComponent component = plugin.component(id);
-            if (id == null || component == null)
-                throw new IllegalArgumentException("No component with ID [" + id + "]");
+            if (id == null)
+                throw new IllegalArgumentException("No ID in data");
+            PaperComponent component = plugin.component(id)
+                    .orElseThrow(() -> new IllegalArgumentException("No component with ID [" + id + "]"));
 
-            PaperTreeNode tree = new PaperTreeNode(component);
+            PaperTreeNode node = new PaperTreeNode(component);
 
             try {
                 PersistentDataContainer slots = data.get(plugin.key("slots"), PersistentDataType.TAG_CONTAINER);
@@ -39,7 +40,7 @@ public final class PersistenceManager {
                     for (var key : slots.getKeys()) {
                         String slot = key.getKey();
                         try {
-                            tree.child(slot, fromPrimitive0(slots.get(key, PersistentDataType.TAG_CONTAINER)));
+                            node.child(slot, fromPrimitive0(slots.get(key, PersistentDataType.TAG_CONTAINER)));
                         } catch (IllegalArgumentException e) {
                             throw new IllegalArgumentException("[" + slot + "]", e);
                         }
@@ -53,11 +54,11 @@ public final class PersistenceManager {
                         PaperSystem system = component.baseSystems().get(systemId);
                         if (system == null)
                             throw new IllegalArgumentException("No system with ID [" + systemId + "]");
-                        tree.system(system.load(tree, systems.get(key, PersistentDataType.TAG_CONTAINER)));
+                        node.system(system.load(node, systems.get(key, PersistentDataType.TAG_CONTAINER)));
                     }
                 }
 
-                return tree;
+                return node;
             } catch (IllegalArgumentException e) {
                 throw new IllegalArgumentException("(" + id + " " + e.getMessage() + ")", e);
             }
@@ -118,8 +119,8 @@ public final class PersistenceManager {
 
     public SokolPlugin plugin() { return plugin; }
 
-    public PersistentDataContainer save(PersistentDataContainer data, TreeNode tree) {
-        data.set(key, setDataType, tree);
+    public PersistentDataContainer save(PersistentDataContainer data, TreeNode node) {
+        data.set(key, setDataType, node);
         return data;
     }
 

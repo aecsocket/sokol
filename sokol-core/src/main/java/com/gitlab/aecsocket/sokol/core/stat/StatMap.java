@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
 import com.gitlab.aecsocket.minecommons.core.Validation;
+import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -11,6 +12,7 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 public class StatMap extends HashMap<String, Stat.Instance<?>> {
     public record Priority(int value, boolean reverse) {
@@ -62,7 +64,7 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
         }
 
         private <T> void add(String key, ConfigurationNode node, Stat<T> stat, StatMap result) throws SerializationException {
-            result.put(key, stat.instance(node.get(stat.type())));
+            result.put(key, stat.instance(Serializers.require(node, stat.type())));
         }
 
         @Override
@@ -110,6 +112,10 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
         return inst == null ? null : inst.value(value);
+    }
+
+    public <T> Optional<T> optValue(String key) {
+        return Optional.ofNullable(value(key));
     }
 
     public <T> void combine(String key, Stat.Instance<T> instance) {

@@ -4,7 +4,9 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 import org.spongepowered.configurate.objectmapping.meta.Required;
 
+import java.util.Collections;
 import java.util.Objects;
+import java.util.Set;
 
 public final class ComponentRule {
     private ComponentRule() {}
@@ -19,8 +21,8 @@ public final class ComponentRule {
         @Override public String type() { return TYPE; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            return tree.complete();
+        public boolean applies(TreeNode node) {
+            return node.complete();
         }
 
         @Override
@@ -42,24 +44,24 @@ public final class ComponentRule {
     }
 
     @ConfigSerializable
-    public static final class HasTag implements Rule {
-        public static final String TYPE = "has_tag";
+    public static final class HasTags implements Rule {
+        public static final String TYPE = "has_tags";
 
-        @Required private final String tag;
+        @Required private final Set<String> tags;
 
-        public HasTag(String tag) {
-            this.tag = tag;
+        public HasTags(Set<String> tags) {
+            this.tags = tags;
         }
 
-        private HasTag() { this(null); }
+        private HasTags() { this(null); }
 
         @Override public String type() { return TYPE; }
 
-        public String tag() { return tag; }
+        public Set<String> tags() { return tags; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            return tree.value().tagged(tag);
+        public boolean applies(TreeNode node) {
+            return !Collections.disjoint(node.value().tags(), tags);
         }
 
         @Override
@@ -69,42 +71,42 @@ public final class ComponentRule {
 
         @Override
         public String toString() {
-            return TYPE + ":" + tag;
+            return "#" + tags;
         }
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            HasTag tagged = (HasTag) o;
-            return tag.equals(tagged.tag);
+            HasTags tagged = (HasTags) o;
+            return tags.equals(tagged.tags);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(tag);
+            return Objects.hash(tags);
         }
     }
 
     @ConfigSerializable
-    public static final class HasSystem implements Rule {
-        public static final String TYPE = "has_system";
+    public static final class HasSystems implements Rule {
+        public static final String TYPE = "has_systems";
 
-        @Required private final String system;
+        @Required private final Set<String> systems;
 
-        public HasSystem(String system) {
-            this.system = system;
+        public HasSystems(Set<String> systems) {
+            this.systems = systems;
         }
 
-        private HasSystem() { this(null); }
+        private HasSystems() { this(null); }
 
         @Override public String type() { return TYPE; }
 
-        public String system() { return system; }
+        public Set<String> systems() { return systems; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            return tree.value().baseSystem(system) != null;
+        public boolean applies(TreeNode node) {
+            return !Collections.disjoint(node.value().baseSystems().keySet(), systems);
         }
 
         @Override
@@ -114,20 +116,20 @@ public final class ComponentRule {
 
         @Override
         public String toString() {
-            return TYPE + ":" + system;
+            return TYPE + ":" + systems;
         }
 
         @Override
         public boolean equals(Object o) {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
-            HasSystem hasSystem = (HasSystem) o;
-            return system.equals(hasSystem.system);
+            HasSystems hasSystems = (HasSystems) o;
+            return systems.equals(hasSystems.systems);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(system);
+            return Objects.hash(systems);
         }
     }
 }

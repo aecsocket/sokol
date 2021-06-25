@@ -2,19 +2,17 @@ package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
-import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
-public abstract class SlotInfoSystem<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends AbstractSystem<N> {
+public abstract class SlotInfoSystem extends AbstractSystem {
     public static final String ID = "slot_info";
 
-    public static abstract class Instance<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends AbstractSystem.Instance<N> {
-        public Instance(N parent) {
+    public static abstract class Instance extends AbstractSystem.Instance {
+        public Instance(TreeNode parent) {
             super(parent);
         }
 
@@ -23,7 +21,7 @@ public abstract class SlotInfoSystem<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> e
             parent.events().register(ItemSystem.Events.CreateItem.class, this::event);
         }
 
-        private void addLore(Locale locale, List<Component> lore, Slot slot, N node, Component indent, int pathLength) {
+        private void addLore(Locale locale, List<Component> lore, Slot slot, TreeNode node, Component indent, int pathLength) {
             String slotType = slot.required() ? "required"
                     : slot.internal() ? "internal" : "default";
             lore.add(Components.BLANK.append(platform().localize(locale, "system.slot_info.lore",
@@ -34,7 +32,7 @@ public abstract class SlotInfoSystem<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> e
 
             if (node != null) {
                 for (var entry : node.slotChildren().entrySet()) {
-                    addLore(locale, lore, entry.getValue().slot(), entry.getValue().child(), indent, pathLength + 1);
+                    addLore(locale, lore, entry.getValue().slot(), entry.getValue().child().orElse(null), indent, pathLength + 1);
                 }
             }
         }
@@ -45,13 +43,11 @@ public abstract class SlotInfoSystem<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> e
             List<Component> lore = new ArrayList<>();
             Component indent = platform().localize(event.locale(), "system.slot_info.indent");
             for (var entry : parent.slotChildren().entrySet()) {
-                addLore(event.locale(), lore, entry.getValue().slot(), entry.getValue().child(), indent, 0);
+                addLore(event.locale(), lore, entry.getValue().slot(), entry.getValue().child().orElse(null), indent, 0);
             }
             event.item().addLore(lore);
         }
     }
 
     @Override public @NotNull String id() { return ID; }
-    @Override public @NotNull Map<String, Stat<?>> baseStats() { return Collections.emptyMap(); }
-    @Override public @NotNull Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
 }

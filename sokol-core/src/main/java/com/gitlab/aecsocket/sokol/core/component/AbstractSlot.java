@@ -60,7 +60,7 @@ public abstract class AbstractSlot<C extends Component> implements Slot {
 
     @Override
     public int hashCode() {
-        return Objects.hash(tags, key, parent);
+        return Objects.hash(tags, key);
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.github.stefvanschie.inventoryframework.gui.type.ChestGui;
+import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.event.inventory.InventoryClickEvent;
 
@@ -17,7 +18,7 @@ public final class SlotViewGuis {
 
     public ChestGui create(SlotViewPane pane, Consumer<InventoryClickEvent> onGlobalClick) {
         // todo components
-        ChestGui gui = new ChestGui(6, LegacyComponentSerializer.legacySection().serialize(pane.tree().value().name(pane.locale())));
+        ChestGui gui = new ChestGui(6, LegacyComponentSerializer.legacySection().serialize(pane.node().value().name(pane.locale())));
         Consumer<PaperTreeNode> treeModifyCallback = pane.treeModifyCallback();
         pane.treeModifyCallback(node -> {
             gui.update();

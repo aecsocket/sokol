@@ -12,6 +12,8 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 import java.lang.reflect.Type;
 import java.util.*;
 
+import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.require;
+
 public interface Rule {
     Map<String, Class<? extends Rule>> BASE_RULE_TYPES = CollectionBuilder.map(new HashMap<String, Class<? extends Rule>>())
             .put(Constant.TYPE, Constant.class)
@@ -28,8 +30,8 @@ public interface Rule {
             .put(NavigationRule.AsParent.TYPE, NavigationRule.AsParent.class)
 
             .put(ComponentRule.Complete.TYPE, ComponentRule.Complete.class)
-            .put(ComponentRule.HasTag.TYPE, ComponentRule.HasTag.class)
-            .put(ComponentRule.HasSystem.TYPE, ComponentRule.HasSystem.class)
+            .put(ComponentRule.HasTags.TYPE, ComponentRule.HasTags.class)
+            .put(ComponentRule.HasSystems.TYPE, ComponentRule.HasSystems.class)
             .build();
 
     final class Serializer implements TypeSerializer<Rule> {
@@ -41,10 +43,10 @@ public interface Rule {
         @Override
         public void serialize(Type type, @Nullable Rule obj, ConfigurationNode node) throws SerializationException {}
 
-        private List<Rule> terms(List<? extends ConfigurationNode> children, int start) throws SerializationException {
-            List<Rule> terms = new ArrayList<>();
+        private <T> List<T> terms(Class<T> type, List<? extends ConfigurationNode> children, int start) throws SerializationException {
+            List<T> terms = new ArrayList<>();
             for (int i = start; i < children.size(); i++) {
-                terms.add(children.get(i).require(Rule.class));
+                terms.add(require(children.get(i), type));
             }
             return terms;
         }
@@ -64,43 +66,45 @@ public interface Rule {
                 if (children.size() < 2)
                     throw new SerializationException(node, type, "Operator rules require at least an operator and operand");
 
-                String operator = children.get(0).require(String.class);
+                String operator = require(children.get(0), String.class);
                 return switch (operator) {
                     case "!" -> {
                         if (children.size() != 2)
                             throw new SerializationException(node, type, "Operator NOT requires [NOT, term], gave " + children.size());
-                        yield new LogicRule.Not(children.get(1).require(Rule.class));
+                        yield new LogicRule.Not(require(children.get(1), Rule.class));
                     }
-                    case "&" -> new LogicRule.And(terms(children, 1));
-                    case "|" -> new LogicRule.Or(terms(children, 1));
+                    case "&" -> new LogicRule.And(terms(Rule.class, children, 1));
+                    case "|" -> new LogicRule.Or(terms(Rule.class, children, 1));
 
-                    case "#" -> {
+                    case "?" -> {
                         if (children.size() != 2)
                             throw new SerializationException(node, type, "Operator HAS requires [HAS, path], gave " + children.size());
-                        yield new NavigationRule.Has(children.get(1).require(String[].class));
+                        yield new NavigationRule.Has(require(children.get(1), String[].class));
                     }
                     case "$" -> {
                         if (children.size() != 3)
                             throw new SerializationException(node, type, "Operator AS requires [AS, path, term], gave " + children.size());
                         yield new NavigationRule.As(
-                                children.get(1).require(String[].class),
-                                children.get(2).require(Rule.class)
+                                require(children.get(1), String[].class),
+                                require(children.get(2), Rule.class)
                         );
                     }
                     case "/" -> {
                         if (children.size() != 3)
                             throw new SerializationException(node, type, "Operator AS_ROOT requires [AS_ROOT, path, term], gave " + children.size());
                         yield new NavigationRule.AsRoot(
-                                children.get(1).require(String[].class),
-                                children.get(2).require(Rule.class)
+                                require(children.get(1), String[].class),
+                                require(children.get(2), Rule.class)
                         );
                     }
                     case "/?" -> NavigationRule.IsRoot.INSTANCE;
+
+                    case "#" -> new ComponentRule.HasTags(new HashSet<>(terms(String.class, children, 1)));
                     default -> throw new SerializationException(node, type, "Invalid logical operator [" + operator + "]");
                 };
             }
 
-            String typeName = node.node("type").require(String.class);
+            String typeName = require(node.node("type"), String.class);
             Class<? extends Rule> typeClass = ruleTypes.get(typeName);
             if (typeClass == null)
                 throw new SerializationException(node, type, "Invalid rule type [" + typeName + "]");
@@ -131,7 +135,7 @@ public interface Rule {
         public boolean value() { return value; }
 
         @Override
-        public boolean applies(TreeNode tree) {
+        public boolean applies(TreeNode node) {
             return value;
         }
 
@@ -158,6 +162,6 @@ public interface Rule {
     }
 
     String type();
-    boolean applies(TreeNode tree);
+    boolean applies(TreeNode node);
     void visit(Visitor visitor);
 }

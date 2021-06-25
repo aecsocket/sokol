@@ -1,13 +1,16 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper;
 
+import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
+import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.stat.BasicStat;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import io.leangen.geantyref.TypeToken;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
+import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.meta.Damageable;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -46,7 +49,7 @@ public record ItemDescriptor(
         public ItemDescriptor deserialize(Type type, ConfigurationNode node) throws SerializationException {
             try {
                 return ItemDescriptor.of(plugin,
-                        node.node("id").require(String.class),
+                        Serializers.require(node.node("id"), String.class),
                         node.node("model_data").getInt(0),
                         node.node("damage").getInt(0),
                         node.node("unbreakable").getBoolean(false)
@@ -59,7 +62,7 @@ public record ItemDescriptor(
 
     public static final class Stat extends BasicStat<ItemDescriptor> {
         public Stat(ItemDescriptor defaultValue) {
-            super(ItemDescriptor.class, defaultValue, (a, b) -> b, i -> i);
+            super(new TypeToken<ItemDescriptor>() {}, defaultValue, (a, b) -> b, i -> i);
         }
     }
 
@@ -71,13 +74,12 @@ public record ItemDescriptor(
     }
 
     public org.bukkit.inventory.ItemStack createRaw() {
-        org.bukkit.inventory.ItemStack item = new org.bukkit.inventory.ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.setCustomModelData(modelData);
-        if (meta instanceof Damageable damageable)
-            damageable.setDamage(damage);
-        item.setItemMeta(meta);
-        return item;
+        return PaperUtils.modify(new org.bukkit.inventory.ItemStack(material), meta -> {
+            meta.addItemFlags(ItemFlag.values());
+            meta.setCustomModelData(modelData);
+            if (meta instanceof Damageable damageable)
+                damageable.setDamage(damage);
+        });
     }
 
     @Override

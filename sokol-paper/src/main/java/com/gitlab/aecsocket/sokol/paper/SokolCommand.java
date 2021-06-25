@@ -10,7 +10,8 @@ import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.paper.command.ComponentArgument;
 import com.gitlab.aecsocket.sokol.paper.command.TreeArgument;
-import com.gitlab.aecsocket.sokol.paper.system.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
+import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -42,7 +43,7 @@ import java.util.*;
         manager.command(root
                 .literal("create", ArgumentDescription.of("Creates a tree of, and gives, an item-applicable component to players, using HOCON syntax."))
                 .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the component to."))
-                .argument(TreeArgument.<CommandSender>newBuilder(plugin, "tree")
+                .argument(TreeArgument.<CommandSender>newBuilder(plugin, "node")
                         .test(c -> c.value().baseSystems().containsKey(ItemSystem.ID))
                         .asOptional(), ArgumentDescription.of("The component tree to give, or the currently held component tree if not specified."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the component to give."))
@@ -51,7 +52,7 @@ import java.util.*;
         manager.command(root
                 .literal("gui", ArgumentDescription.of("Opens the slot view GUI for a component."))
                 .argument(MultiplePlayerSelectorArgument.optional("targets"), ArgumentDescription.of("The players to open the GUI for."))
-                .argument(TreeArgument.<CommandSender>newBuilder(plugin, "tree")
+                .argument(TreeArgument.<CommandSender>newBuilder(plugin, "node")
                         .test(c -> c.value().baseSystems().containsKey(ItemSystem.ID))
                         .asOptional(), ArgumentDescription.of("The component tree to open, or the currently held component if not specified."))
                 .flag(CommandFlag.newBuilder("modification")
@@ -63,10 +64,9 @@ import java.util.*;
 
     // Command-specific Utils
 
-    private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender, PaperTreeNode tree) {
-        ItemStack item = tree
-                .<PaperItemSystem.Instance>systemOf(ItemSystem.ID)
-                .create(locale).handle();
+    private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender, PaperTreeNode node) {
+        ItemStack item = node.<PaperItemSystem.Instance>system(ItemSystem.ID)
+                .orElseThrow().create(locale).handle();
         int amount = ctx.getOrDefault("amount", 1);
         List<Player> targets = targets(ctx, "targets", pSender);
 
@@ -78,7 +78,7 @@ import java.util.*;
         }
         sender.sendMessage(localize(locale, "chat.give",
                 "amount", Integer.toString(amount),
-                "component", tree.value().name(locale),
+                "component", node.value().name(locale),
                 "target", targets.size() == 1 ? targets.get(0).displayName() : Integer.toString(targets.size())));
     }
 
@@ -91,18 +91,18 @@ import java.util.*;
     }
 
     private void create(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
-        give(ctx, sender, locale, pSender, defaultedArg(ctx, "tree", pSender,
+        give(ctx, sender, locale, pSender, defaultedArg(ctx, "node", pSender,
                 () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())));
     }
 
     private void gui(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
         List<Player> targets = targets(ctx, "targets", pSender);
-        PaperTreeNode tree = defaultedArg(ctx, "tree", pSender,
+        PaperTreeNode node = defaultedArg(ctx, "node", pSender,
                 () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand()));
 
         for (Player target : targets) {
             plugin.slotViewGuis()
-                    .create(new SlotViewPane(plugin, 9, 6, target.locale(), tree)
+                    .create(new SlotViewPane(plugin, 9, 6, target.locale(), node)
                             .modification(ctx.flags().isPresent("modification"))
                             .limited(ctx.flags().isPresent("limited")), evt -> {})
                     .show(target);

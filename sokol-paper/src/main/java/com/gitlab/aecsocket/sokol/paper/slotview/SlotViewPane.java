@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.paper;
+package com.gitlab.aecsocket.sokol.paper.slotview;
 
 import com.github.stefvanschie.inventoryframework.gui.GuiItem;
 import com.github.stefvanschie.inventoryframework.gui.InventoryComponent;
@@ -8,12 +8,14 @@ import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Point2;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
-import com.gitlab.aecsocket.sokol.paper.system.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.PaperSlot;
+import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;
-import org.bukkit.entity.HumanEntity;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.InventoryView;
@@ -25,25 +27,27 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public class SlotViewPane extends Pane {
-    public class SlotGuiItem extends GuiItem {
+    public class Item extends GuiItem {
         private final PaperSlot slot;
         private final PaperTreeNode parent;
-        private PaperTreeNode node;
+        private PaperTreeNode child;
 
-        public SlotGuiItem(PaperSlot slot, PaperTreeNode parent, PaperTreeNode node, PaperTreeNode cursor) {
-            super(slot == null ? item(node) : createItem(slot, parent, node, cursor));
+        public Item(PaperSlot slot, PaperTreeNode parent, PaperTreeNode child, PaperTreeNode cursor) {
+            super(slot == null ? item(child) : createItem(slot, parent, child, cursor));
             this.slot = slot;
             this.parent = parent;
-            this.node = node;
+            this.child = child;
             setAction(slot == null ? event -> event.setCancelled(true) : this::event);
         }
+
+        public SlotViewPane pane() { return SlotViewPane.this; }
 
         public PaperSlot slot() { return slot; }
         public PaperTreeNode parent() { return parent; }
 
-        public PaperTreeNode node() { return node; }
-        public void node(PaperTreeNode node) {
-            this.node = node;
+        public PaperTreeNode child() { return child; }
+        public void child(PaperTreeNode node) {
+            this.child = node;
             parent.child(slot.key(), node);
         }
 
@@ -58,49 +62,67 @@ public class SlotViewPane extends Pane {
 
             InventoryView view = event.getView();
             ItemStack cursor = view.getCursor();
-            if (event.getClick() == ClickType.LEFT) {
-                PaperTreeNode node = this.node == null ? null : this.node.asRoot();
-                PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
-                PaperItemSystem.Instance itemSystem = node == null ? null : node.systemOf(ItemSystem.ID);
+            PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
+            if (!new SlotViewModifyEvent(event, this, cursorNode).callEvent())
+                return;
 
-                if (node == null) {
+            /*
+            _, _ -> []
+            slotNode, _ -> [
+                parent: SlotModify[oldNode=slotNode, newNode=null],
+                slotNode: RemoveFrom[slot, key, parent, replacement=null]
+            ]
+            _, cursorNode -> [
+                parent: SlotModify[oldNode=null, newNode=cursorNode],
+                cursorNode: PlaceInto[slot, key, parent, replacing=null]
+            ]
+            slotNode, cursorNode -> [
+                parent: SlotModify[oldNode=slotNode, newNode=cursorNode],
+                slotNode: RemoveFrom[slot, key, parent, replacement=cursorNode]
+                cursorNode: PlaceInto[slot, key, parent, replacing=slotNode]
+            ]
+            TODO
+             */
+            if (event.getClick() == ClickType.LEFT) {
+                if (child == null) {
                     if (cursorNode == null || !slot.compatible(parent, cursorNode))
                         return;
                     // Put the cursor into the slot
-                    // TODO play sound
-                    node(cursorNode);
+                    child(cursorNode);
                     cursor.subtract();
                 } else {
+                    PaperTreeNode child = this.child.asRoot();
+                    PaperItemSystem.Instance itemSystem = child.<PaperItemSystem.Instance>system(ItemSystem.ID).orElse(null);
                     if (itemSystem == null)
                         return;
 
                     ItemStack nodeItem = itemSystem.create(locale).handle();
                     if (PaperUtils.empty(cursor)) {
                         // Put the slot item into the cursor
-                        node(null);
+                        child(null);
                         view.setCursor(nodeItem);
                     } else {
                         if (nodeItem.isSimilar(cursor)) {
                             // Add the slot item into the current cursor
-                            node(null);
+                            child(null);
                             cursor.add();
                         } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1) {
                             // Swap the cursor and slot item
-                            node(cursorNode);
+                            child(cursorNode);
                             view.setCursor(nodeItem);
                         } else
                             return;
                     }
                 }
 
-                tree.build();
+                SlotViewPane.this.node.build();
                 updateItems(plugin.persistenceManager().load(view.getCursor()));
                 callTreeModify();
             }
         }
 
         public void updateItem(PaperTreeNode cursor) {
-            ItemStack item = createItem(slot, parent, node, cursor);
+            ItemStack item = createItem(slot, parent, child, cursor);
             if (item == null)
                 return;
             ItemStack handle = getItem();
@@ -112,41 +134,41 @@ public class SlotViewPane extends Pane {
 
     private final SokolPlugin plugin;
     private Locale locale;
-    private PaperTreeNode tree;
+    private PaperTreeNode node;
 
     private final Point2 center;
-    private final SlotGuiItem[] items;
+    private final Item[] items;
     private boolean modification;
     private boolean limited;
     private Consumer<PaperTreeNode> treeModifyCallback;
 
-    public SlotViewPane(SokolPlugin plugin, int x, int y, int length, int height, @NotNull Priority priority, Locale locale, PaperTreeNode tree) {
+    public SlotViewPane(SokolPlugin plugin, int x, int y, int length, int height, @NotNull Priority priority, Locale locale, PaperTreeNode node) {
         super(x, y, length, height, priority);
         this.plugin = plugin;
         this.locale = locale;
-        this.tree = tree;
+        this.node = node;
         center = new Point2(length / 2, height / 2);
-        items = new SlotGuiItem[length * height];
+        items = new Item[length * height];
         updateItems(null);
     }
 
-    public SlotViewPane(SokolPlugin plugin, int length, int height, Locale locale, PaperTreeNode tree) {
+    public SlotViewPane(SokolPlugin plugin, int length, int height, Locale locale, PaperTreeNode node) {
         super(length, height);
         this.plugin = plugin;
         this.locale = locale;
-        this.tree = tree;
+        this.node = node;
         center = new Point2(length / 2, height / 2);
-        items = new SlotGuiItem[length * height];
+        items = new Item[length * height];
         updateItems(null);
     }
 
-    public SlotViewPane(SokolPlugin plugin, int x, int y, int length, int height, Locale locale, PaperTreeNode tree) {
+    public SlotViewPane(SokolPlugin plugin, int x, int y, int length, int height, Locale locale, PaperTreeNode node) {
         super(x, y, length, height);
         this.plugin = plugin;
         this.locale = locale;
-        this.tree = tree;
+        this.node = node;
         center = new Point2(length / 2, height / 2);
-        items = new SlotGuiItem[length * height];
+        items = new Item[length * height];
         updateItems(null);
     }
 
@@ -155,8 +177,8 @@ public class SlotViewPane extends Pane {
     public Locale locale() { return locale; }
     public SlotViewPane locale(Locale locale) { this.locale = locale; return this; }
 
-    public PaperTreeNode tree() { return tree; }
-    public SlotViewPane tree(PaperTreeNode tree) { this.tree = tree; return this; }
+    public PaperTreeNode node() { return node; }
+    public SlotViewPane node(PaperTreeNode node) { this.node = node; return this; }
 
     public boolean modification() { return modification; }
     public SlotViewPane modification(boolean modification) { this.modification = modification; return this; }
@@ -168,7 +190,7 @@ public class SlotViewPane extends Pane {
     public SlotViewPane treeModifyCallback(Consumer<PaperTreeNode> treeModifyCallback) { this.treeModifyCallback = treeModifyCallback; return this; }
     public void callTreeModify() {
         if (treeModifyCallback != null)
-            treeModifyCallback.accept(tree);
+            treeModifyCallback.accept(node);
     }
 
     private ItemStack createItem(PaperSlot slot, PaperTreeNode parent, PaperTreeNode node, PaperTreeNode cursor) {
@@ -205,17 +227,17 @@ public class SlotViewPane extends Pane {
         }
     }
 
-    private void put(SlotGuiItem item, int x, int y) {
+    private void put(Item item, int x, int y) {
         if (x <= length && y <= height)
             items[(y * length) + x] = item;
     }
 
     private void updateItems(PaperTreeNode cursor, @NotNull PaperSlot slot, @NotNull PaperTreeNode parent, @Nullable PaperTreeNode node, int cx, int cy) {
         int x = cx + slot.offset().x(), y = cy + slot.offset().y();
-        put(new SlotGuiItem(slot, parent, node, cursor), x, y);
+        put(new Item(slot, parent, node, cursor), x, y);
         if (node != null) {
             for (var entry : node.slotChildren().entrySet()) {
-                updateItems(cursor, entry.getValue().slot(), node, entry.getValue().child(), x, y);
+                updateItems(cursor, entry.getValue().slot(), node, entry.getValue().child().orElse(null), x, y);
             }
         }
     }
@@ -224,32 +246,28 @@ public class SlotViewPane extends Pane {
         Arrays.fill(items, null);
 
         boolean showInternal = true;
-        for (var entry : tree.slotChildren().entrySet()) {
-            if (!entry.getValue().slot().internal() && entry.getValue().child() != null) {
+        for (var entry : node.slotChildren().entrySet()) {
+            if (!entry.getValue().slot().internal() && entry.getValue().child().isPresent()) {
                 showInternal = false;
                 break;
             }
         }
 
         int x = center.x(), y = center.y();
-        put(new SlotGuiItem(null, null, tree, null), x, y);
-        for (var entry : tree.slotChildren().entrySet()) {
+        put(new Item(null, null, node, null), x, y);
+        for (var entry : node.slotChildren().entrySet()) {
             PaperSlot slot = entry.getValue().slot();
             if (slot.internal() && !showInternal)
                 continue;
-            updateItems(cursor, slot, tree, entry.getValue().child(), x, y);
+            updateItems(cursor, slot, node, entry.getValue().child().orElse(null), x, y);
         }
     }
 
     private ItemStack item(PaperTreeNode node) {
-        PaperItemSystem.Instance itemSystem = node.systemOf(ItemSystem.ID);
-        if (itemSystem == null) {
-            return PaperUtils.modify(plugin.invalidItem().createRaw(), meta -> {
-                meta.displayName(Components.BLANK.append(node.value().name(locale)));
-            });
-        } else {
-            return itemSystem.create(locale).handle();
-        }
+        return node.<PaperItemSystem.Instance>system(ItemSystem.ID)
+                .map(is -> is.create(locale).handle())
+                .orElse(PaperUtils.modify(plugin.invalidItem().createRaw(), meta ->
+                        meta.displayName(Components.BLANK.append(node.value().name(locale)))));
     }
 
     private Component slotText(PaperSlot slot) {
@@ -262,7 +280,7 @@ public class SlotViewPane extends Pane {
 
     private Collection<GuiItem> toItems() {
         Collection<GuiItem> result = new ArrayList<>();
-        for (SlotGuiItem item : items) {
+        for (Item item : items) {
             if (item != null)
                 result.add(item);
         }

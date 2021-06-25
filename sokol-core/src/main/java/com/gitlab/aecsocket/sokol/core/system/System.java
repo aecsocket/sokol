@@ -7,19 +7,20 @@ import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Collections;
 import java.util.Map;
 
-public interface System<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> {
-    interface Instance<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> {
-        @NotNull N parent();
-        @NotNull System<N> base();
+public interface System {
+    interface Instance {
+        @NotNull TreeNode parent();
+        @NotNull System base();
         @NotNull SokolPlatform platform();
 
-        void build();
+        default void build() {}
     }
 
     @NotNull String id();
-    @NotNull Map<String, Stat<?>> baseStats();
-    @NotNull Map<String, Class<? extends Rule>> ruleTypes();
-    @NotNull Instance<N> create(N node, Component component);
+    default @NotNull Map<String, Stat<?>> baseStats() { return Collections.emptyMap(); }
+    default @NotNull Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
+    @NotNull Instance create(TreeNode node, Component component);
 }

@@ -1,8 +1,8 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
-import java.util.Optional;
+import io.leangen.geantyref.TypeToken;
 
-public interface Stat<T> {
+public interface Stat<T> extends Copier<T>, Combiner<T> {
     final class Instance<T> {
         private final Stat<T> stat;
         private T value;
@@ -36,10 +36,8 @@ public interface Stat<T> {
         @Override public String toString() { return "{%s}={%s}".formatted(stat, value); }
     }
 
-    Class<T> type();
+    TypeToken<T> type();
     T defaultValue();
-    T copy(T v);
-    T combine(T a, T b);
 
     default Instance<T> instance(T value) {
         return new Instance<>(this, value);

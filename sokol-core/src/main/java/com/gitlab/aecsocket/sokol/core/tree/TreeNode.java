@@ -8,9 +8,10 @@ import com.gitlab.aecsocket.sokol.core.system.System;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
+import java.util.Optional;
 
 public interface TreeNode {
-    interface Scoped<N extends Scoped<N, C, S, B, Y>, C extends Component.Scoped<C, S, B>, S extends Slot, B extends System<N>, Y extends System.Instance<N>>
+    interface Scoped<N extends Scoped<N, C, S, B, Y>, C extends Component.Scoped<C, S, B>, S extends Slot, B extends System, Y extends System.Instance>
             extends TreeNode {
 
         @Override @NotNull C value();
@@ -18,35 +19,33 @@ public interface TreeNode {
 
         @Override @NotNull Map<String, N> children();
 
-        @Override N child(String key);
-        @NotNull N child(String key, N child);
+        @Override Optional<N> child(String key);
+        void child(String key, N child);
 
-        @Override N node(String... path);
+        @Override Optional<N> node(String... path);
 
         boolean combine(N node, boolean limited);
 
         @Override @NotNull Map<String, ChildSlot<S, N>> slotChildren();
 
         @Override @NotNull Map<String, Y> systems();
-        @Override Y system(String id);
-        @SuppressWarnings("unchecked")
-        default <T extends Y> T systemOf(String id) { return (T) system(id); }
+        <T extends Y> Optional<T> system(String id);
         void system(Y system);
 
         @NotNull N build();
         void visitScoped(Visitor<N, S> visitor, String... path);
 
-        @Override N parent();
-        @Override S slot();
+        @Override Optional<N> parent();
+        @Override Optional<S> slot();
 
-        @Override N root();
-        @Override N asRoot();
+        @Override @NotNull N root();
+        @Override @NotNull N asRoot();
     }
 
-    record ChildSlot<S, N>(S slot, N child) {}
+    record ChildSlot<S extends Slot, N extends TreeNode>(S slot, Optional<N> child) {}
 
     interface Visitor<N extends TreeNode, S extends Slot> {
-        void visit(N parent, S slot, N child, String... path);
+        void visit(N parent, S slot, Optional<? extends N> child, String... path);
     }
 
     @NotNull Component value();
@@ -55,24 +54,23 @@ public interface TreeNode {
     boolean complete();
 
     @NotNull Map<String, ? extends TreeNode> children();
-    TreeNode child(String key);
+    Optional<? extends TreeNode> child(String key);
 
-    TreeNode node(String... path);
+    Optional<? extends TreeNode> node(String... path);
 
     @NotNull Map<String, ? extends ChildSlot<?, ?>> slotChildren();
 
-    @NotNull Map<String, ? extends System.Instance<?>> systems();
-    System.Instance<?> system(String id);
+    @NotNull Map<String, ? extends System.Instance> systems();
 
     @NotNull TreeNode build();
     void visit(Visitor<TreeNode, Slot> visitor, String... path);
 
-    String key();
-    TreeNode parent();
-    Slot slot();
-    String[] path();
+    Optional<String> key();
+    Optional<? extends TreeNode> parent();
+    Optional<? extends Slot> slot();
+    @NotNull String[] path();
 
-    TreeNode root();
-    default boolean isRoot() { return key() == null; }
-    TreeNode asRoot();
+    default boolean isRoot() { return key().isEmpty(); }
+    @NotNull TreeNode root();
+    @NotNull TreeNode asRoot();
 }

@@ -27,8 +27,8 @@ public final class LogicRule {
         public Rule term() { return term; }
 
         @Override
-        public boolean applies(TreeNode tree) {
-            return !term.applies(tree);
+        public boolean applies(TreeNode node) {
+            return !term.applies(node);
         }
 
         @Override
@@ -103,9 +103,9 @@ public final class LogicRule {
         @Override public String type() { return TYPE; }
 
         @Override
-        public boolean applies(TreeNode tree) {
+        public boolean applies(TreeNode node) {
             for (Rule rule : terms) {
-                if (!rule.applies(tree)) {
+                if (!rule.applies(node)) {
                     return false;
                 }
             }
@@ -129,9 +129,9 @@ public final class LogicRule {
         @Override public String type() { return TYPE; }
 
         @Override
-        public boolean applies(TreeNode tree) {
+        public boolean applies(TreeNode node) {
             for (Rule rule : terms) {
-                if (rule.applies(tree)) {
+                if (rule.applies(node)) {
                     return true;
                 }
             }

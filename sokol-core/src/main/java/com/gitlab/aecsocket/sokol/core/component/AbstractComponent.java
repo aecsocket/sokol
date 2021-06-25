@@ -7,7 +7,7 @@ import org.spongepowered.configurate.objectmapping.meta.NodeKey;
 
 import java.util.*;
 
-public abstract class AbstractComponent<C extends AbstractComponent<C, S, B>, S extends Slot, B extends System<?>> implements Component.Scoped<C, S, B> {
+public abstract class AbstractComponent<C extends AbstractComponent<C, S, B>, S extends Slot, B extends System> implements Component.Scoped<C, S, B> {
     protected @NodeKey final String id;
     protected final Map<String, S> slots;
     protected final Map<String, B> baseSystems;

@@ -12,7 +12,7 @@ import org.jetbrains.annotations.NotNull;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>, C extends Component.Scoped<C, S, B>, S extends Slot, B extends System<N>, Y extends System.Instance<N>>
+public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>, C extends Component.Scoped<C, S, B>, S extends Slot, B extends System, Y extends System.Instance>
         implements TreeNode.Scoped<N, C, S, B, Y> {
     protected final C value;
     protected EventDispatcher<TreeEvent> events = new EventDispatcher<>();
@@ -41,9 +41,9 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     @Override public boolean complete() { return complete.get(); }
 
     @Override public @NotNull Map<String, N> children() { return children; }
-    @Override public N child(String key) { return children.get(key); }
+    @Override public Optional<N> child(String key) { return Optional.ofNullable(children.get(key)); }
     @Override
-    public @NotNull N child(String key, N child) {
+    public void child(String key, N child) {
         S slot = value.slot(key);
         if (slot == null)
             throw new IllegalArgumentException("Cannot add child into slot [" + key + "] to tree node without corresponding slot in component");
@@ -55,17 +55,14 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
             children.put(key, child);
             child.parent(key, self(), slot);
         }
-        return self();
     }
 
     @Override
-    public N node(String... path) {
+    public Optional<N> node(String... path) {
         if (path.length == 0)
-            return self();
-        N next = child(path[0]);
-        if (next == null)
-            return null;
-        return next.node(Arrays.copyOfRange(path, 1, path.length));
+            return Optional.of(self());
+        return child(path[0])
+                .flatMap(next -> next.node(Arrays.copyOfRange(path, 1, path.length)));
     }
 
     @Override
@@ -74,7 +71,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         visitScoped((parent, slot, child, path) -> {
             if (success.get())
                 return;
-            if (child == null && slot.compatible(parent, node) && (!limited || slot.fieldModifiable())) {
+            if (child.isEmpty() && slot.compatible(parent, node) && (!limited || slot.fieldModifiable())) {
                 success.set(true);
                 parent.child(slot.key(), node);
             }
@@ -93,7 +90,8 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override public @NotNull Map<String, Y> systems() { return systems; }
-    @Override public Y system(String id) { return systems.get(id); }
+    @SuppressWarnings("unchecked")
+    @Override public <T extends Y> Optional<T> system(String id) { return Optional.ofNullable((T) systems.get(id)); }
     @Override
     public void system(Y system) {
         String id = system.base().id();
@@ -130,17 +128,16 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         StatLists stats = value.stats();
         forwardStats.add(new StatsPair(this, stats.forward()));
         reverseStats.add(0, new StatsPair(this, stats.reverse()));
-        for (System.Instance<N> system : systems.values()) {
+        for (System.Instance system : systems.values()) {
             system.build();
         }
         for (var entry : slotChildren().entrySet()) {
-            N child;
-            if ((child = entry.getValue().child()) == null) {
+            entry.getValue().child().ifPresentOrElse(child -> {
+                child.build0(forwardStats, reverseStats, entry.getKey(), self(), entry.getValue().slot());
+            }, () -> {
                 if (entry.getValue().slot().required())
                     complete.set(false);
-            } else {
-                child.build0(forwardStats, reverseStats, entry.getKey(), self(), entry.getValue().slot());
-            }
+            });
         }
         parent(key, parent, slot);
     }
@@ -169,24 +166,24 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     @Override
     public void visitScoped(Visitor<N, S> visitor, String... path) {
-        visitor.visit(parent, slot, self(), path);
+        visitor.visit(parent, slot, Optional.of(self()), path);
         for (var entry : slotChildren().entrySet()) {
             String[] newPath = new String[path.length + 1];
             java.lang.System.arraycopy(path, 0, newPath, 0, path.length);
             newPath[path.length] = entry.getKey();
-            if (entry.getValue().child() == null)
-                visitor.visit(self(), entry.getValue().slot(), null, newPath);
-            else
-                entry.getValue().child().visitScoped(visitor, newPath);
+            entry.getValue().child().ifPresentOrElse(
+                    child -> child.visitScoped(visitor, newPath),
+                    () -> visitor.visit(self(), entry.getValue().slot(), Optional.empty(), newPath)
+            );
         }
     }
 
-    @Override public String key() { return key; }
-    @Override public N parent() { return parent; }
-    @Override public S slot() { return slot; }
+    @Override public Optional<String> key() { return Optional.ofNullable(key); }
+    @Override public Optional<N> parent() { return Optional.ofNullable(parent); }
+    @Override public Optional<S> slot() { return Optional.ofNullable(slot); }
 
     @Override
-    public String[] path() {
+    public @NotNull String[] path() {
         List<String> result = new ArrayList<>();
         N current = self();
         while (current != null && current.key != null) {
@@ -197,7 +194,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override
-    public N root() {
+    public @NotNull N root() {
         return parent == null ? self() : parent.root();
     }
 
@@ -211,7 +208,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     @Override
     public int hashCode() {
-        return Objects.hash(value, children, systems, key, parent);
+        return Objects.hash(value, children, systems, key);
     }
 
     @Override

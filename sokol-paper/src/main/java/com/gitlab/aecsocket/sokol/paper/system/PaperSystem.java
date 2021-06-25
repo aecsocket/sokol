@@ -14,7 +14,7 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 
 import java.util.Objects;
 
-public interface PaperSystem extends System<PaperTreeNode> {
+public interface PaperSystem extends System {
     final class Serializer implements TypeSerializer<PaperSystem.Instance> {
         private final SokolPlugin plugin;
         private PaperTreeNode base;
@@ -49,11 +49,11 @@ public interface PaperSystem extends System<PaperTreeNode> {
         }
     }
 
-    interface Instance extends System.Instance<PaperTreeNode> {
+    interface Instance extends System.Instance {
         @Override @NotNull PaperSystem base();
 
-        PersistentDataContainer save(PersistentDataAdapterContext ctx) throws IllegalArgumentException;
-        void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException;
+        default PersistentDataContainer save(PersistentDataAdapterContext ctx) throws IllegalArgumentException { return null; }
+        default void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException {}
     }
 
     interface Type {
