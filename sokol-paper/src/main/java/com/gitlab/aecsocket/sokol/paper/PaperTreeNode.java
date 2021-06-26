@@ -2,11 +2,9 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
-import com.gitlab.aecsocket.sokol.core.tree.BasicTreeNode;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.units.qual.C;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -17,13 +15,13 @@ import java.util.Collections;
 import java.util.Map;
 
 /**
- * Paper platform-specific concrete implementation of a tree node.
+ * Paper platform-specific implementation of a tree node.
  */
 public final class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponent, PaperSlot, PaperSystem, PaperSystem.Instance> {
     /**
      * Type serializer for a {@link PaperTreeNode}.
      */
-    public static class Serializer implements TypeSerializer<PaperTreeNode> {
+    public static final class Serializer implements TypeSerializer<PaperTreeNode> {
         private final SokolPlugin plugin;
 
         public Serializer(SokolPlugin plugin) {

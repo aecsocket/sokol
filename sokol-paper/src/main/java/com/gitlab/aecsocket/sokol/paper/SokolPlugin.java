@@ -7,8 +7,6 @@ import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
-import com.gitlab.aecsocket.sokol.core.component.Blueprint;
-import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
@@ -34,9 +32,6 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
 /**
  * Sokol's main plugin class. Use {@link #instance()} to get the singleton instance.
  */
@@ -65,6 +60,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public static final String FILE_EXTENSION = "conf";
     /** The path, from the plugin's data folder, from which components will be loaded. */
     public static final String PATH_COMPONENT = "component";
+    /** The path, from the plugin's data folder, from which blueprints will be loaded. */
+    public static final String PATH_BLUEPRINT = "blueprint";
 
     /**
      * Gets the singleton instance of this plugin.
@@ -73,7 +70,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public static SokolPlugin instance() { return getPlugin(SokolPlugin.class); }
 
     private final Registry<PaperComponent> components = new Registry<>();
-    private final Registry<Blueprint> blueprints = new Registry<>();
+    private final Registry<PaperBlueprint> blueprints = new Registry<>();
     private final Registry<PaperSystem.KeyedType> systemTypes = new Registry<>();
     private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
@@ -93,7 +90,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     }
 
     @Override public @NotNull Registry<PaperComponent> components() { return components; }
-    @Override public @NotNull Registry<Blueprint> blueprints() { return blueprints; }
+    @Override public @NotNull Registry<PaperBlueprint> blueprints() { return blueprints; }
     public @NotNull Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public @NotNull PersistenceManager persistenceManager() { return persistenceManager; }
     public @NotNull SlotViewGuis slotViewGuis() { return slotViewGuis; }
@@ -144,33 +141,50 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         serializers.registerExact(Rule.class, ruleSerializer);
         serializers.register(PaperSystem.Instance.class, systemSerializer);
         serializers.register(PaperTreeNode.class, new PaperTreeNode.Serializer(this));
+        serializers.register(PaperBlueprint.class, new PaperBlueprint.Serializer(this));
+
         serializers.register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, new Descriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
+    }
+
+    private <T extends Keyed> void loadRegistry(String root, Class<T> type, Registry<T> registry) {
+        String name = type.getSimpleName();
+        registry.clear();
+        Files.recursively(file(root), (file, path) -> {
+            if (!FILE_EXTENSION.equals(Files.extension(file.getName()))) return;
+            ConfigurationNode node;
+            try {
+                node = loader(file).load();
+            } catch (ConfigurateException e) {
+                log(Logging.Level.WARNING, e, "Could not load %s objects from %s", name, path);
+                return;
+            }
+
+            for (var entry : node.node("entries").childrenMap().entrySet()) {
+                T object;
+                try {
+                    object = entry.getValue().get(type);
+                } catch (SerializationException e) {
+                    log(Logging.Level.WARNING, e, "Could not load %s at %s", name, entry.getValue().path(), path);
+                    continue;
+                }
+                if (object != null)
+                    registry.register(object);
+            }
+        });
+
+        for (T o : registry.values()) {
+            log(Logging.Level.VERBOSE, "Registered %s [%s]", name, o.id());
+        }
+        log(Logging.Level.INFO, "Registered %d of %s", registry.size(), name);
     }
 
     @Override
     public boolean load() {
         if (super.load()) {
-            components.clear();
+            loadRegistry(PATH_COMPONENT, PaperComponent.class, components);
+            loadRegistry(PATH_BLUEPRINT, PaperBlueprint.class, blueprints);
 
-            Files.recursively(file(PATH_COMPONENT), (file, path) -> {
-                if (!FILE_EXTENSION.equals(Files.extension(file.getName()))) return;
-                try {
-                    Map<?, PaperComponent> loaded = loader(file).load().node("entries").get(new TypeToken<Map<String, PaperComponent>>() {});
-                    if (loaded == null)
-                        return;
-                    for (PaperComponent o : loaded.values()) {
-                        components.register(o);
-                    }
-                } catch (ConfigurateException e) {
-                    log(Logging.Level.WARNING, e, "Could not load items from %s", path);
-                }
-            });
-
-            for (Component o : components.values()) {
-                log(Logging.Level.VERBOSE, "Registered component [%s]", o.id());
-            }
-            log(Logging.Level.INFO, "Registered %d objects", components.size());
             return true;
         }
         return false;

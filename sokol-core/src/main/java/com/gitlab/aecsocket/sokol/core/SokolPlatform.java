@@ -21,7 +21,7 @@ public interface SokolPlatform {
      * Gets all registered blueprints.
      * @return The blueprints.
      */
-    @NotNull Registry<Blueprint> blueprints();
+    @NotNull Registry<? extends Blueprint<?>> blueprints();
 
     /**
      * Gets the default locale that this platform localizes in.

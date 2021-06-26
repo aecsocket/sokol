@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper.system.impl;
 
-import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
