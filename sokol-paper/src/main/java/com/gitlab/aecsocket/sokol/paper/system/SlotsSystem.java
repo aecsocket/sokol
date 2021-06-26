@@ -69,7 +69,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             Location location = event.handle.getWhoClicked().getLocation();
             // create our own root because, at this point, the removing node is still attached to the parent
             // so it will use its parent's stats
-            parent.asRoot().stats().<Descriptor<List<PreciseSound>>>value("remove_sound")
+            event.node.asRoot().stats().<Descriptor<List<PreciseSound>>>value("remove_sound")
                     .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
     }

@@ -84,48 +84,56 @@ public class SlotViewPane extends Pane {
             ]
              */
             if (event.getClick() == ClickType.LEFT) {
-                SlotsSystem.Events.SlotModify slotModify = new SlotsSystem.Events.SlotModify(event, parent, slot, child, cursorNode);
-                SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, cursorNode);
-                SlotsSystem.Events.InsertInto insertInto = new SlotsSystem.Events.InsertInto(event, cursorNode, parent, slot, child);
                 if (child == null) {
                     if (cursorNode == null || !slot.compatible(parent, cursorNode))
                         return;
                     // cursorNode -> [slot]
                     // _, cursorNode
+                    SlotsSystem.Events.SlotModify slotModify = new SlotsSystem.Events.SlotModify(event, parent, slot, null, cursorNode);
+                    SlotsSystem.Events.InsertInto insertInto = new SlotsSystem.Events.InsertInto(event, cursorNode, parent, slot, null);
                     if (slotModify.call() | insertInto.call())
                         return;
                     child(slotModify.newChild());
                     cursor.subtract();
                 } else {
-                    PaperTreeNode child = this.child.asRoot();
-                    PaperItemSystem.Instance itemSystem = child.<PaperItemSystem.Instance>system(ItemSystem.ID).orElse(null);
+                    PaperTreeNode orphanChild = child.asRoot();
+                    PaperItemSystem.Instance itemSystem = orphanChild.<PaperItemSystem.Instance>system(ItemSystem.ID).orElse(null);
                     if (itemSystem == null)
                         return;
 
                     ItemStack nodeItem = itemSystem.create(locale).handle();
-                    boolean similar = nodeItem.isSimilar(cursor);
-                    if (PaperUtils.empty(cursor) || similar) {
+                    if (PaperUtils.empty(cursor)) {
                         // child -> [cursor]
                         // slotNode, _
-                        // to prevent dupe bugs, we remove the child from the slot
-                        // otherwise, when `similar`, the item will be put into cursor AND stay in the slot
-                        slotModify.newChild(null);
+                        SlotsSystem.Events.SlotModify slotModify = new SlotsSystem.Events.SlotModify(event, parent, slot, child, null);
+                        SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, null);
                         if (slotModify.call() | removeFrom.call())
                             return;
                         child(slotModify.newChild());
-                        if (similar)
+                        event.getView().setCursor(nodeItem);
+                    } else {
+                        if (cursor.isSimilar(nodeItem)) {
+                            // child -> [cursor]
+                            // slotNode, _
+                            SlotsSystem.Events.SlotModify slotModify = new SlotsSystem.Events.SlotModify(event, parent, slot, child, null);
+                            SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, null);
+                            if (slotModify.call() | removeFrom.call())
+                                return;
+                            child(slotModify.newChild());
                             cursor.add();
-                        else
+                        } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1)  {
+                            // cursorNode -> [slot], child -> [cursor]
+                            // slotNode, cursorNode
+                            SlotsSystem.Events.SlotModify slotModify = new SlotsSystem.Events.SlotModify(event, parent, slot, child, cursorNode);
+                            SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, cursorNode);
+                            SlotsSystem.Events.InsertInto insertInto = new SlotsSystem.Events.InsertInto(event, cursorNode, parent, slot, child);
+                            if (slotModify.call() | removeFrom.call() | insertInto.call())
+                                return;
+                            child(slotModify.newChild());
                             view.setCursor(nodeItem);
-                    } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1)  {
-                        // cursorNode -> [slot], child -> [cursor]
-                        // slotNode, cursorNode
-                        if (slotModify.call() | removeFrom.call() | insertInto.call())
+                        } else
                             return;
-                        child(slotModify.newChild());
-                        view.setCursor(nodeItem);
-                    } else
-                        return;
+                    }
                 }
 
                 node.build();
