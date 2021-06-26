@@ -33,6 +33,9 @@ import java.util.*;
         captions.registerMessageFactory(TreeArgument.ARGUMENT_PARSE_FAILURE_TREE, (c, s) -> "Could not create tree: {exception}");
         captions.registerMessageFactory(TreeArgument.ARGUMENT_PARSE_FAILURE_TREE_INVALID, (c, s) -> "Tree of component [{id}] does not meet requirements of command");
 
+        captions.registerMessageFactory(BlueprintArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT, (c, s) -> "No blueprint with ID [{input}]");
+        captions.registerMessageFactory(BlueprintArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_INVALID, (c, s) -> "Blueprint [{input}] does not meet requirements of command");
+
         manager.command(root
                 .literal("give", ArgumentDescription.of("Gives an item-applicable component to players."))
                 .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the component to."))
