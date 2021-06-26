@@ -85,10 +85,10 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
 
     public SokolPlugin platform() { return platform; }
 
-    @Override public @NotNull Map<String, Stat<?>> baseStats() { return STATS; }
+    @Override public @NotNull Map<String, Stat<?>> statTypes() { return STATS; }
 
     @Override
-    public @NotNull Instance create(TreeNode node, Component component) {
+    public @NotNull Instance create(TreeNode node) {
         return new Instance(node);
     }
 

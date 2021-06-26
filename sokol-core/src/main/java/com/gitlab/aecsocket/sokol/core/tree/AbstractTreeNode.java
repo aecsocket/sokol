@@ -8,10 +8,19 @@ import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+/**
+ * An abstract tree node with default implementations for methods.
+ * @param <N> The type of this node.
+ * @param <C> The component type.
+ * @param <S> The slot type.
+ * @param <B> The base system type.
+ * @param <Y> The system instance type.
+ */
 public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>, C extends Component.Scoped<C, S, B>, S extends Slot, B extends System, Y extends System.Instance>
         implements TreeNode.Scoped<N, C, S, B, Y> {
     protected final C value;
@@ -27,11 +36,15 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         this.value = value;
         for (var entry : value.baseSystems().entrySet()) {
             @SuppressWarnings("unchecked")
-            Y instance = (Y) entry.getValue().create(self(), value);
+            Y instance = (Y) entry.getValue().create(self());
             systems.put(entry.getKey(), instance);
         }
     }
 
+    /**
+     * Returns this instance as a {@link N}.
+     * @return This instance.
+     */
     protected abstract N self();
 
     @Override public @NotNull C value() { return value; }
@@ -41,11 +54,11 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     @Override public @NotNull Map<String, N> children() { return children; }
     @Override public Optional<N> child(String key) { return Optional.ofNullable(children.get(key)); }
+
     @Override
-    public void child(String key, N child) {
-        S slot = value.slot(key);
-        if (slot == null)
-            throw new IllegalArgumentException("Cannot add child into slot [" + key + "] to tree node without corresponding slot in component");
+    public void child(@NotNull String key, @Nullable N child) throws IllegalArgumentException {
+        S slot = value.slot(key)
+                .orElseThrow(() -> new IllegalArgumentException("Cannot add child into slot [" + key + "] to tree node without corresponding slot in component"));
         if (!slot.compatible(this, child))
             throw new IllegalArgumentException("Cannot add child [" + child.value.id() + "] into slot [" + key + "] as it is not compatible");
         if (child == null)
@@ -65,7 +78,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override
-    public boolean combine(N node, boolean limited) {
+    public boolean combine(@NotNull N node, boolean limited) {
         AtomicBoolean success = new AtomicBoolean(false);
         visitScoped((parent, slot, child, path) -> {
             if (success.get())
@@ -92,14 +105,22 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     @SuppressWarnings("unchecked")
     @Override public <T extends Y> Optional<T> system(String id) { return Optional.ofNullable((T) systems.get(id)); }
     @Override
-    public void system(Y system) {
+    public void system(Y system) throws IllegalArgumentException {
         String id = system.base().id();
         if (!value.baseSystems().containsKey(id))
             throw new IllegalArgumentException("Cannot add system [" + id + "] to tree node without corresponding base system in component");
         systems.put(id, system);
     }
 
-    public N parent(N parent, S slot) {
+    /**
+     * Parents this node to a parent node.
+     * <p>
+     * Note: If {@code parent} is null, then {@code slot} must be null as well, and vice versa.
+     * @param parent The parent node, or null if this node should become the root.
+     * @param slot The parent slot, or null if this node should become the root.
+     * @return This instance.
+     */
+    public @NotNull N parent(@Nullable N parent, @Nullable S slot) {
         this.parent = parent;
         this.slot = slot;
         if (parent != null) {

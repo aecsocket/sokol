@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import net.kyori.adventure.text.Component;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
@@ -17,17 +18,17 @@ public record PaperItemStack(
     @Override public PaperItemStack amount(int amount) { handle.setAmount(amount); return this; }
 
     @Override
-    public void save(TreeNode node) {
+    public void save(@NotNull TreeNode node) {
         PaperUtils.modify(handle, meta -> plugin.persistenceManager().save(meta.getPersistentDataContainer(), node));
     }
 
     @Override
-    public void name(Component name) {
+    public void name(@NotNull Component name) {
         PaperUtils.modify(handle, meta -> meta.displayName(Components.BLANK.append(name)));
     }
 
     @Override
-    public void addLore(Collection<Component> add) {
+    public void addLore(@NotNull Collection<Component> add) {
         PaperUtils.modify(handle, meta -> {
             List<Component> lore = meta.lore();
             if (lore == null)

@@ -8,9 +8,16 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+/**
+ * Displays info about a node's children in item lore, by hooking into {@link ItemSystem.Events.CreateItem}.
+ */
 public abstract class SlotInfoSystem extends AbstractSystem {
+    /** The system ID. */
     public static final String ID = "slot_info";
 
+    /**
+     * See {@link SlotInfoSystem}.
+     */
     public static abstract class Instance extends AbstractSystem.Instance {
         public Instance(TreeNode parent) {
             super(parent);

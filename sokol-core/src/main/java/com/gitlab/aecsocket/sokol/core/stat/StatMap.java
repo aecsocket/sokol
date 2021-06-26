@@ -49,10 +49,10 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
     }
 
     public static final class Serializer implements TypeSerializer<StatMap> {
-        private Map<String, Stat<?>> base;
+        private Map<String, Stat<?>> types;
 
-        public Map<String, Stat<?>> base() { return base; }
-        public void base(Map<String, Stat<?>> base) { this.base = base; }
+        public Map<String, Stat<?>> types() { return types; }
+        public void types(Map<String, Stat<?>> types) { this.types = types; }
 
         @Override
         public void serialize(Type type, @Nullable StatMap obj, ConfigurationNode node) throws SerializationException {
@@ -69,8 +69,8 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
 
         @Override
         public StatMap deserialize(Type type, ConfigurationNode node) throws SerializationException {
-            if (base == null)
-                throw new SerializationException(node, type, "No base map provided");
+            if (types == null)
+                throw new SerializationException(node, type, "No types provided");
 
             Map<Object, ? extends ConfigurationNode> nodes = new HashMap<>(node.childrenMap());
             StatMap result = new StatMap(
@@ -82,7 +82,7 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
 
             for (var entry : nodes.entrySet()) {
                 String key = entry.getKey().toString();
-                Stat<?> stat = base.get(key);
+                Stat<?> stat = types.get(key);
                 if (stat == null)
                     continue;
                 add(key, entry.getValue(), stat, result);

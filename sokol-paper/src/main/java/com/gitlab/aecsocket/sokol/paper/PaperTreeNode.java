@@ -16,7 +16,7 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
 
-public class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponent, PaperSlot, PaperSystem, PaperSystem.Instance> {
+public final class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponent, PaperSlot, PaperSystem, PaperSystem.Instance> {
     public static class Serializer implements TypeSerializer<PaperTreeNode> {
         private final SokolPlugin plugin;
 

@@ -12,9 +12,14 @@ import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
 import java.util.function.Function;
 
+/**
+ * Manages saving and loading {@link PaperTreeNode}s into/out of {@link PersistentDataContainer}s.
+ */
 public final class PersistenceManager {
     private final class GetTreeNodeDataType implements PersistentDataType<PersistentDataContainer, PaperTreeNode> {
         @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
@@ -119,21 +124,40 @@ public final class PersistenceManager {
 
     public SokolPlugin plugin() { return plugin; }
 
-    public PersistentDataContainer save(PersistentDataContainer data, TreeNode node) {
+    /**
+     * Saves a tree into a data container.
+     * @param data The data container.
+     * @param node The tree.
+     * @return The data container passed in.
+     */
+    public @NotNull PersistentDataContainer save(@NotNull PersistentDataContainer data, @NotNull TreeNode node) {
         data.set(key, setDataType, node);
         return data;
     }
 
-    public boolean isTree(PersistentDataContainer data) {
+    /**
+     * Gets if a data container has a tree stored in it.
+     * @param data The data container.
+     * @return The result.
+     */
+    public boolean isTree(@NotNull PersistentDataContainer data) {
         return data.getKeys().contains(key);
     }
 
-    public PaperTreeNode load(PersistentDataContainer data) {
+    /**
+     * Loads a tree from a data container.
+     * <p>
+     * Note that this method will not throw an exception; instead, it will log failures
+     * to the plugin.
+     * @param data The data container.
+     * @return An Optional of the result.
+     */
+    public Optional<PaperTreeNode> load(@NotNull PersistentDataContainer data) {
         try {
-            return data.get(key, getDataType);
+            return Optional.ofNullable(data.get(key, getDataType));
         } catch (IllegalArgumentException e) {
             plugin.log(Logging.Level.WARNING, e, "Could not load tree node from item stack");
-            return null;
+            return Optional.empty();
         }
     }
 
@@ -146,12 +170,27 @@ public final class PersistenceManager {
         return dataFunction.apply(meta.getPersistentDataContainer());
     }
 
-    public boolean isTree(ItemStack item) {
+    /**
+     * Gets if an item stack has a tree stored in it.
+     * @param item The item stack.
+     * @return The result.
+     * @see #isTree(PersistentDataContainer)
+     */
+    public boolean isTree(@Nullable ItemStack item) {
         return use(item, this::isTree, false);
     }
 
+    /**
+     * Loads a tree from an item stack.
+     * <p>
+     * Note that this method will not throw an exception; instead, it will log failures
+     * to the plugin.
+     * @param item The item stack.
+     * @return An Optional of the result.
+     * @see #load(PersistentDataContainer)
+     */
     @Contract("null -> null")
-    public PaperTreeNode load(ItemStack item) {
+    public Optional<PaperTreeNode> load(@Nullable ItemStack item) {
         return use(item, this::load, null);
     }
 }

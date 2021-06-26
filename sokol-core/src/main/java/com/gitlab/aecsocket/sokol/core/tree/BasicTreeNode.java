@@ -5,7 +5,14 @@ import com.gitlab.aecsocket.sokol.core.component.Slot;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import org.jetbrains.annotations.NotNull;
 
-public class BasicTreeNode<C extends Component.Scoped<C, S, B>, S extends Slot, B extends System, Y extends System.Instance>
+/**
+ * A basic, concrete implementation of a tree node.
+ * @param <C> The component type.
+ * @param <S> The slot type.
+ * @param <B> The base system type.
+ * @param <Y> The system instance type.
+ */
+public final class BasicTreeNode<C extends Component.Scoped<C, S, B>, S extends Slot, B extends System, Y extends System.Instance>
         extends AbstractTreeNode<BasicTreeNode<C, S, B, Y>, C, S, B, Y> {
     public BasicTreeNode(C value) {
         super(value);

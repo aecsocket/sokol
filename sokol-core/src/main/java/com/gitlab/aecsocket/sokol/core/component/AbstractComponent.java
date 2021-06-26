@@ -7,6 +7,12 @@ import org.spongepowered.configurate.objectmapping.meta.NodeKey;
 
 import java.util.*;
 
+/**
+ * An abstract component with default implementations for methods.
+ * @param <C> The type of this component.
+ * @param <S> The slot type.
+ * @param <B> The base system type.
+ */
 public abstract class AbstractComponent<C extends AbstractComponent<C, S, B>, S extends Slot, B extends System> implements Component.Scoped<C, S, B> {
     protected @NodeKey final String id;
     protected final Map<String, S> slots;
@@ -26,18 +32,24 @@ public abstract class AbstractComponent<C extends AbstractComponent<C, S, B>, S 
         this(o.id(), o.slots(), o.baseSystems(), o.tags(), o.stats());
     }
 
+    /**
+     * Returns this instance as a {@link C}.
+     * @return This instance.
+     */
+    public abstract C self();
+
     @Override @NotNull public String id() { return id; }
 
     @Override @NotNull public Map<String, S> slots() { return slots; }
-    @Override public S slot(String key) { return slots.get(key); }
+    @Override public Optional<S> slot(@NotNull String key) { return Optional.ofNullable(slots.get(key)); }
 
     @Override @NotNull public Map<String, B> baseSystems() { return baseSystems; }
-    @Override public B baseSystem(String id) { return baseSystems.get(id); }
+    @Override public Optional<B> baseSystem(@NotNull String id) { return Optional.ofNullable(baseSystems.get(id)); }
 
     @Override public @NotNull StatLists stats() { return stats; }
 
     @Override @NotNull public Set<String> tags() { return tags; }
-    @Override public boolean tagged(String tag) { return tags.contains(tag); }
+    @Override public boolean tagged(@NotNull String tag) { return tags.contains(tag); }
 
     @Override
     public boolean equals(Object o) {

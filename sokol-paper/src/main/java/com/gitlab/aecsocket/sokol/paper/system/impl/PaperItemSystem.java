@@ -43,7 +43,7 @@ public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     public SokolPlugin platform() { return platform; }
 
     @Override
-    public @NotNull Instance create(TreeNode node, Component component) {
+    public @NotNull Instance create(TreeNode node) {
         return new Instance(node);
     }
 

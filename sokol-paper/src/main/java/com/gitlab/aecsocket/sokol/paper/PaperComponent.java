@@ -56,14 +56,14 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 }
             }
 
-            Map<String, Stat<?>> baseStats = new HashMap<>();
+            Map<String, Stat<?>> statTypes = new HashMap<>();
             Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>(Rule.BASE_RULE_TYPES);
             for (PaperSystem system : systems.values()) {
-                baseStats.putAll(system.baseStats());
+                statTypes.putAll(system.statTypes());
                 ruleTypes.putAll(system.ruleTypes());
             }
-            plugin.statMapSerializer().base(baseStats);
-            plugin.ruleSerializer().ruleTypes(ruleTypes);
+            plugin.statMapSerializer().types(statTypes);
+            plugin.ruleSerializer().types(ruleTypes);
 
             PaperComponent result = new PaperComponent(plugin,
                     Objects.toString(node.key()),
@@ -72,6 +72,11 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                     node.node("tags").get(new TypeToken<Set<String>>() {}, Collections.emptySet()),
                     node.node("stats").get(StatLists.class, new StatLists())
             );
+
+            // Reset the types, so that future deserialization calls *have* to provide types.
+            plugin.statMapSerializer().types(null);
+            plugin.ruleSerializer().types(null);
+
             for (var entry : result.slots.entrySet()) {
                 String key = entry.getKey();
                 if (!Keyed.validKey(key))

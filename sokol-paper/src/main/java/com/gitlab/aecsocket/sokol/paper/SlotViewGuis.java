@@ -4,9 +4,13 @@ import com.github.stefvanschie.inventoryframework.gui.type.ChestGui;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.function.Consumer;
 
+/**
+ * Handles the creation of GUIs which use {@link SlotViewPane}.
+ */
 public final class SlotViewGuis {
     private final SokolPlugin plugin;
 
@@ -16,7 +20,16 @@ public final class SlotViewGuis {
 
     public SokolPlugin plugin() { return plugin; }
 
-    public ChestGui create(SlotViewPane pane, Consumer<InventoryClickEvent> onGlobalClick) {
+    /**
+     * Creates a GUI from an existing pane.
+     * <p>
+     * Note that the created GUI's {@link com.github.stefvanschie.inventoryframework.gui.type.util.Gui#onGlobalClick} must <b>not</b>
+     * be overwritten. Use this method's {@code onGlobalClick} parameter instead.
+     * @param pane The pane.
+     * @param onGlobalClick The function to run on global click.
+     * @return The GUI.
+     */
+    public @NotNull ChestGui create(@NotNull SlotViewPane pane, @NotNull Consumer<InventoryClickEvent> onGlobalClick) {
         // todo components
         ChestGui gui = new ChestGui(6, LegacyComponentSerializer.legacySection().serialize(pane.node().value().name(pane.locale())));
         Consumer<PaperTreeNode> treeModifyCallback = pane.treeModifyCallback();

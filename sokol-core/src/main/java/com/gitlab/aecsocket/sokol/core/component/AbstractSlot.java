@@ -9,6 +9,10 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
 import java.util.*;
 
+/**
+ * An abstract slot with default implementations for methods.
+ * @param <C> The type component this holds.
+ */
 @ConfigSerializable
 public abstract class AbstractSlot<C extends Component> implements Slot {
     protected final Set<String> tags;
@@ -27,12 +31,16 @@ public abstract class AbstractSlot<C extends Component> implements Slot {
         this(tags, rule, null, null);
     }
 
-    @Override public Collection<String> tags() { return tags; }
-    @Override public boolean tagged(String tag) { return tags.contains(tag); }
+    @Override public @NotNull Collection<String> tags() { return tags; }
+    @Override public boolean tagged(@NotNull String tag) { return tags.contains(tag); }
     @Override public @NotNull Rule rule() { return rule; }
-    @Override @NotNull public String key() { return key; }
-    @Override @NotNull public C parent() { return parent; }
+    @Override public @NotNull String key() { return key; }
+    @Override public @NotNull C parent() { return parent; }
 
+    /**
+     * Gets the type of component this accepts.
+     * @return The type.
+     */
     protected abstract @NotNull Class<C> componentType();
 
     @Override
@@ -45,7 +53,12 @@ public abstract class AbstractSlot<C extends Component> implements Slot {
         return rule.applies(child);
     }
 
-    public void parent(String key, C parent) {
+    /**
+     * Parents this slot to a component. This should not normally be used, unless a component is being initialized.
+     * @param key The key of this slot.
+     * @param parent The parent component of this slot.
+     */
+    public void parent(@NotNull String key, @NotNull C parent) {
         this.key = key;
         this.parent = parent;
     }

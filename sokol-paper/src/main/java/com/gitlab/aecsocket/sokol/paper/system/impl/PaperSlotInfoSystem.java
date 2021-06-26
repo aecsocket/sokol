@@ -32,7 +32,7 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSy
     public SokolPlugin platform() { return platform; }
 
     @Override
-    public @NotNull Instance create(TreeNode node, Component component) {
+    public @NotNull Instance create(TreeNode node) {
         return new Instance(node);
     }
 

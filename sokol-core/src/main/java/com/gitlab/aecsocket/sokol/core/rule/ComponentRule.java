@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 import org.spongepowered.configurate.objectmapping.meta.Required;
 
@@ -8,25 +9,33 @@ import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
+/**
+ * Rules concerning components and tree nodes.
+ */
 public final class ComponentRule {
     private ComponentRule() {}
 
+    /**
+     * Gets if a tree is complete.
+     */
     @ConfigSerializable
     public static final class Complete implements Rule {
+        /** The rule type. */
         public static final String TYPE = "complete";
+        /** A pre-made instance. */
         public static final Complete INSTANCE = new Complete();
 
         private Complete() {}
 
-        @Override public String type() { return TYPE; }
+        @Override public @NotNull String type() { return TYPE; }
 
         @Override
-        public boolean applies(TreeNode node) {
+        public boolean applies(@NotNull TreeNode node) {
             return node.complete();
         }
 
         @Override
-        public void visit(Visitor visitor) {
+        public void visit(@NotNull Visitor visitor) {
             visitor.visit(this);
         }
 
@@ -43,8 +52,12 @@ public final class ComponentRule {
         public String toString() { return TYPE; }
     }
 
+    /**
+     * Gets if a tree node's component value has any of the specified tags.
+     */
     @ConfigSerializable
     public static final class HasTags implements Rule {
+        /** The rule type. */
         public static final String TYPE = "has_tags";
 
         @Required private final Set<String> tags;
@@ -55,17 +68,17 @@ public final class ComponentRule {
 
         private HasTags() { this(null); }
 
-        @Override public String type() { return TYPE; }
+        @Override public @NotNull String type() { return TYPE; }
 
         public Set<String> tags() { return tags; }
 
         @Override
-        public boolean applies(TreeNode node) {
+        public boolean applies(@NotNull TreeNode node) {
             return !Collections.disjoint(node.value().tags(), tags);
         }
 
         @Override
-        public void visit(Visitor visitor) {
+        public void visit(@NotNull Visitor visitor) {
             visitor.visit(this);
         }
 
@@ -88,8 +101,12 @@ public final class ComponentRule {
         }
     }
 
+    /**
+     * Gets if a tree node's component value has any of the specified systems.
+     */
     @ConfigSerializable
     public static final class HasSystems implements Rule {
+        /** The rule type. */
         public static final String TYPE = "has_systems";
 
         @Required private final Set<String> systems;
@@ -100,17 +117,17 @@ public final class ComponentRule {
 
         private HasSystems() { this(null); }
 
-        @Override public String type() { return TYPE; }
+        @Override public @NotNull String type() { return TYPE; }
 
         public Set<String> systems() { return systems; }
 
         @Override
-        public boolean applies(TreeNode node) {
+        public boolean applies(@NotNull TreeNode node) {
             return !Collections.disjoint(node.value().baseSystems().keySet(), systems);
         }
 
         @Override
-        public void visit(Visitor visitor) {
+        public void visit(@NotNull Visitor visitor) {
             visitor.visit(this);
         }
 

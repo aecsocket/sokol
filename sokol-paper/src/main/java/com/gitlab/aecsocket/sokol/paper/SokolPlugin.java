@@ -36,15 +36,39 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Sokol's main plugin class. Use {@link #instance()} to get the singleton instance.
+ */
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
+    /**
+     * A function which sets up the serializers and object mapper factories, when making the config options.
+     */
+    @FunctionalInterface
     public interface ConfigOptionInitializer {
+        /**
+         * Runs before default Sokol serializers are registered.
+         * @param serializers The serializers.
+         * @param mapperFactory The object mapper factory builder.
+         */
         default void pre(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {}
+
+        /**
+         * Runs after default Sokol serializers are registered.
+         * @param serializers The serializers.
+         * @param mapperFactory The object mapper factory builder.
+         */
         void post(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory);
     }
 
+    /** The file extension required for files to have, so that they are loaded. */
     public static final String FILE_EXTENSION = "conf";
+    /** The path, from the plugin's data folder, from which components will be loaded. */
     public static final String PATH_COMPONENT = "component";
 
+    /**
+     * Gets the singleton instance of this plugin.
+     * @return The plugin.
+     */
     public static SokolPlugin instance() { return getPlugin(SokolPlugin.class); }
 
     private final Registry<PaperComponent> components = new Registry<>();
@@ -66,17 +90,22 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         registerSystemType(SlotsSystem.ID, SlotsSystem.TYPE);
     }
 
-    @Override public Registry<PaperComponent> components() { return components; }
-    public Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
-    public PersistenceManager persistenceManager() { return persistenceManager; }
-    public SlotViewGuis slotViewGuis() { return slotViewGuis; }
-    public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
-    public Rule.Serializer ruleSerializer() { return ruleSerializer; }
-    public PaperSystem.Serializer systemSerializer() { return systemSerializer; }
-    public ItemDescriptor invalidItem() { return invalidItem; }
+    @Override public @NotNull Registry<PaperComponent> components() { return components; }
+    public @NotNull Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
+    public @NotNull PersistenceManager persistenceManager() { return persistenceManager; }
+    public @NotNull SlotViewGuis slotViewGuis() { return slotViewGuis; }
+    public @NotNull StatMap.Serializer statMapSerializer() { return statMapSerializer; }
+    public @NotNull Rule.Serializer ruleSerializer() { return ruleSerializer; }
+    public @NotNull PaperSystem.Serializer systemSerializer() { return systemSerializer; }
+    public @NotNull ItemDescriptor invalidItem() { return invalidItem; }
 
     @Override public Optional<PaperComponent> component(String id) { return components.getOpt(id); }
 
+    /**
+     * Registers a system type, which is looked up when deserializing the data files.
+     * @param id The system's ID.
+     * @param type The system creator.
+     */
     public void registerSystemType(String id, PaperSystem.Type type) {
         Validation.notNull(id, "id");
         Validation.notNull(type, "type");
@@ -91,6 +120,12 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         });
     }
 
+    /**
+     * Adds a function to run when setting up the config options.
+     * <p>
+     * This should be used to inject custom type serializers and object mapper settings.
+     * @param init The function to apply.
+     */
     public void configOptionInitializer(ConfigOptionInitializer init) {
         configOptionInitializers.add(init);
     }
