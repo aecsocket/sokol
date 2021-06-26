@@ -60,15 +60,6 @@ import java.util.*;
                 .flag(CommandFlag.newBuilder("limited")
                         .withAliases("l").withDescription(ArgumentDescription.of("If only field-modifiable slots can be modified.")))
                 .handler(c -> handle(c, this::gui)));
-
-        manager.command(root
-                .literal("indoor")
-                .handler(c -> {
-                    Player p = (Player) c.getSender();
-                    byte light = p.getLocation().getBlock().getLightFromSky();
-                    p.sendMessage("indoors? " + (light > 7 ? "no" : "yes"));
-                })
-        ); // todo remove
     }
 
     // Command-specific Utils
