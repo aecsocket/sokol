@@ -63,7 +63,7 @@ public class SlotViewPane extends Pane {
 
             InventoryView view = event.getView();
             ItemStack cursor = PaperUtils.normalize(view.getCursor());
-            PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
+            PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor).orElse(null);
             if (!new SlotViewModifyEvent(event, this, cursorNode).callEvent())
                 return;
 
@@ -129,7 +129,7 @@ public class SlotViewPane extends Pane {
                 }
 
                 node.build();
-                updateItems(plugin.persistenceManager().load(view.getCursor()));
+                updateItems(plugin.persistenceManager().load(view.getCursor()).orElse(null));
                 callTreeModify();
             }
         }
@@ -316,7 +316,7 @@ public class SlotViewPane extends Pane {
 
     public void handleGlobalClick(Gui gui, InventoryClickEvent event) {
         ItemStack clicked = event.getCurrentItem();
-        PaperTreeNode clickedNode = plugin.persistenceManager().load(clicked);
+        PaperTreeNode clickedNode = plugin.persistenceManager().load(clicked).orElse(null);
         if (event.getClickedInventory() == event.getView().getTopInventory()) {
             if (PaperUtils.empty(clicked))
                 event.setCancelled(true);
@@ -329,7 +329,7 @@ public class SlotViewPane extends Pane {
                 return;
 
             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> {
-                updateItems(plugin.persistenceManager().load(event.getCursor()));
+                updateItems(plugin.persistenceManager().load(event.getCursor()).orElse(null));
                 gui.update();
             });
         }

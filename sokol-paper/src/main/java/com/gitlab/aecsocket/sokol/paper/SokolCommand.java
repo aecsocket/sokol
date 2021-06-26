@@ -8,6 +8,7 @@ import cloud.commandframework.captions.SimpleCaptionRegistry;
 import cloud.commandframework.context.CommandContext;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
+import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
 import com.gitlab.aecsocket.sokol.paper.command.ComponentArgument;
 import com.gitlab.aecsocket.sokol.paper.command.TreeArgument;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
@@ -86,19 +87,23 @@ import java.util.*;
 
     private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
         give(ctx, sender, locale, pSender, defaultedArg(ctx, "component", pSender,
-                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand()).value())
+                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())
+                        .map(AbstractTreeNode::value)
+                        .orElse(null))
                 .asTree());
     }
 
     private void create(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
         give(ctx, sender, locale, pSender, defaultedArg(ctx, "node", pSender,
-                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())));
+                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())
+                        .orElse(null)));
     }
 
     private void gui(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
         List<Player> targets = targets(ctx, "targets", pSender);
         PaperTreeNode node = defaultedArg(ctx, "node", pSender,
-                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand()));
+                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())
+                        .orElse(null));
 
         for (Player target : targets) {
             plugin.slotViewGuis()

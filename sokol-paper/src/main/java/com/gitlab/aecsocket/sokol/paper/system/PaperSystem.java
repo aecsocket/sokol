@@ -42,9 +42,8 @@ public interface PaperSystem extends System {
                 throw new SerializationException("No base component provided");
 
             String id = Objects.toString(node.key());
-            PaperSystem system = base.value().baseSystem(id);
-            if (system == null)
-                throw new SerializationException("No system with ID [" + id + "] on component [" + base.value().id() + "]");
+            PaperSystem system = base.value().baseSystem(id)
+                    .orElseThrow(() -> new SerializationException("No system with ID [" + id + "] on component [" + base.value().id() + "]"));
             return system.load(base, type, node);
         }
     }

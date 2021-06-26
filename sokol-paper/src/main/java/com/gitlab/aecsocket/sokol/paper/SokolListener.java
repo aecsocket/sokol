@@ -37,9 +37,9 @@ import java.util.Locale;
         Locale locale = plugin.locale(human);
 
         ItemStack clicked = event.getCurrentItem();
-        PaperTreeNode clickedNode = plugin.persistenceManager().load(clicked);
+        PaperTreeNode clickedNode = plugin.persistenceManager().load(clicked).orElse(null);
         ItemStack cursor = event.getCursor();
-        PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
+        PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor).orElse(null);
         if (clickedNode == null)
             return;
         if (event.getClick() == ClickType.RIGHT && PaperUtils.empty(cursor) && plugin.setting(true, ConfigurationNode::getBoolean, "slot_view", "field_modify", "enabled")) {

@@ -189,8 +189,7 @@ public final class PersistenceManager {
      * @return An Optional of the result.
      * @see #load(PersistentDataContainer)
      */
-    @Contract("null -> null")
     public Optional<PaperTreeNode> load(@Nullable ItemStack item) {
-        return use(item, this::load, null);
+        return use(item, this::load, Optional.empty());
     }
 }

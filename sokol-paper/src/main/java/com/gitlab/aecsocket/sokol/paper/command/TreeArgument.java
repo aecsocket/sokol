@@ -159,7 +159,7 @@ public final class TreeArgument<C> extends CommandArgument<C, PaperTreeNode> {
             PaperTreeNode value;
             if (SELF.equals(input)
                     && ctx.getSender() instanceof Player player
-                    && (value = plugin.persistenceManager().load(player.getInventory().getItemInMainHand())) != null) {
+                    && (value = plugin.persistenceManager().load(player.getInventory().getItemInMainHand()).orElse(null)) != null) {
                 return ArgumentParseResult.success(value);
             }
 
