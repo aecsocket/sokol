@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
+import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
@@ -30,16 +31,25 @@ import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
+    public interface ConfigOptionInitializer {
+        default void pre(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {}
+        void post(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory);
+    }
+
     public static final String FILE_EXTENSION = "conf";
     public static final String PATH_COMPONENT = "component";
 
+    public static SokolPlugin instance() { return getPlugin(SokolPlugin.class); }
+
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperSystem.KeyedType> systemTypes = new Registry<>();
+    private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
     private final SlotViewGuis slotViewGuis = new SlotViewGuis(this);
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
@@ -68,6 +78,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override public Optional<PaperComponent> component(String id) { return components.getOpt(id); }
 
     public void registerSystemType(String id, PaperSystem.Type type) {
+        Validation.notNull(id, "id");
+        Validation.notNull(type, "type");
         if (!Keyed.validKey(id))
             throw new IllegalArgumentException("Invalid system ID [" + id + "], must be " + Keyed.VALID_KEY);
         systemTypes.put(id, new PaperSystem.KeyedType() {
@@ -79,9 +91,14 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         });
     }
 
+    public void configOptionInitializer(ConfigOptionInitializer init) {
+        configOptionInitializers.add(init);
+    }
+
     @Override
     protected void configOptionsDefaults(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {
         super.configOptionsDefaults(serializers, mapperFactory);
+        configOptionInitializers.forEach(i -> i.pre(serializers, mapperFactory));
         serializers.register(StatMap.Priority.class, new StatMap.Priority.Serializer());
         serializers.register(StatMap.class, statMapSerializer);
         serializers.register(StatLists.class, new StatLists.Serializer());
@@ -92,6 +109,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         serializers.register(PaperSystem.Instance.class, systemSerializer);
         serializers.register(PaperTreeNode.class, new PaperTreeNode.Serializer(this));
         serializers.register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, new Descriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
+        configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 
     @Override
