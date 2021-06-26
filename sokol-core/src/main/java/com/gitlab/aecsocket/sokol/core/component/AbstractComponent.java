@@ -14,7 +14,7 @@ import java.util.*;
  * @param <B> The base system type.
  */
 public abstract class AbstractComponent<C extends AbstractComponent<C, S, B>, S extends Slot, B extends System> implements Component.Scoped<C, S, B> {
-    protected @NodeKey final String id;
+    protected final String id;
     protected final Map<String, S> slots;
     protected final Map<String, B> baseSystems;
     protected final Set<String> tags;

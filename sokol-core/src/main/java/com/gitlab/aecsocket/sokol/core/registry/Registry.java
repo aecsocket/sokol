@@ -21,7 +21,7 @@ public class Registry<T extends Keyed> extends HashMap<String, T> {
      * @param key The key.
      * @return An Optional of the result.
      */
-    public Optional<T> getOpt(@NotNull String key) { return Optional.ofNullable(get(key)); }
+    public Optional<T> of(@NotNull String key) { return Optional.ofNullable(get(key)); }
 
     /**
      * Puts a keyed element in, using its ID as a key.

@@ -1,11 +1,11 @@
 package com.gitlab.aecsocket.sokol.core;
 
+import com.gitlab.aecsocket.sokol.core.component.Blueprint;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
-import java.util.Optional;
 
 /**
  * A platform which provides core functionality.
@@ -18,11 +18,10 @@ public interface SokolPlatform {
     @NotNull Registry<? extends Component> components();
 
     /**
-     * Gets a registered component by its ID.
-     * @param id The ID of the component.
-     * @return An Optional of the result.
+     * Gets all registered blueprints.
+     * @return The blueprints.
      */
-    Optional<? extends Component> component(String id);
+    @NotNull Registry<Blueprint> blueprints();
 
     /**
      * Gets the default locale that this platform localizes in.

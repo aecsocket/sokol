@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.sokol.core.stat.StringStat;
+import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
 import com.gitlab.aecsocket.sokol.core.tree.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
@@ -52,12 +52,11 @@ public abstract class ItemSystem extends AbstractSystem {
          * @return The item stack.
          */
         public ItemStack create(Locale locale) {
-            ItemStack.Factory factory = parent.stats().value("item");
-            if (factory == null)
-                throw new IllegalArgumentException("No item provided");
+            ItemStack.Factory factory = parent.stats().<ItemStack.Factory>value("item")
+                    .orElseThrow(() -> new IllegalArgumentException("No item provided"));
             ItemStack item = factory.create();
             item.save(parent);
-            item.name(parent.stats().<String>optValue("item_name")
+            item.name(parent.stats().<String>value("item_name")
                     .map(k -> platform().localize(locale, k))
                     .orElse(parent.value().name(locale)));
             new Events.CreateItem(this, locale, item).call();

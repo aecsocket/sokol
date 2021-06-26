@@ -17,7 +17,13 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 import java.lang.reflect.Type;
 import java.util.*;
 
+/**
+ * Paper platform-specific concrete implementation of a component.
+ */
 public final class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot, PaperSystem> {
+    /**
+     * Type serializer for a {@link PaperComponent}.
+     */
     public static final class Serializer implements TypeSerializer<PaperComponent> {
         private final SokolPlugin plugin;
 

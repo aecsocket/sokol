@@ -12,7 +12,13 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Stores lists of {@link StatMap}s, in forward and reverse order, for use in {@link TreeNode#build()}.
+ */
 public final class StatLists {
+    /**
+     * A serializer for a {@link StatLists}.
+     */
     public static final class Serializer implements TypeSerializer<StatLists> {
         @Override
         public void serialize(Type type, @Nullable StatLists obj, ConfigurationNode node) throws SerializationException {
@@ -58,6 +64,10 @@ public final class StatLists {
     public List<StatMap> forward() { return forward; }
     public List<StatMap> reverse() { return reverse; }
 
+    /**
+     * Gets {@link #forward()} and {@link #reverse()} joined.
+     * @return The joined maps.
+     */
     public List<StatMap> joined() {
         List<StatMap> result = new ArrayList<>();
         result.addAll(forward);

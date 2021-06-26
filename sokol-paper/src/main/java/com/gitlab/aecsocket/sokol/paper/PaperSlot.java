@@ -13,10 +13,13 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 import java.lang.reflect.Type;
 import java.util.*;
 
-@ConfigSerializable
+/**
+ * Paper platform-specific concrete implementation of a slot.
+ */
 public final class PaperSlot extends AbstractSlot<PaperComponent> {
-    public static final String TAG_INTERNAL = "internal";
-
+    /**
+     * Type serializer for a {@link PaperSlot}.
+     */
     public static final class Serializer implements TypeSerializer<PaperSlot> {
         private final SokolPlugin plugin;
 

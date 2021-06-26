@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper.system;
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
-import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeEvent;
@@ -52,7 +51,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<Descriptor<List<PreciseSound>>>optValue("combine_sound")
+            parent.stats().<Descriptor<List<PreciseSound>>>value("combine_sound")
                     .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
 
@@ -60,7 +59,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<Descriptor<List<PreciseSound>>>optValue("insert_sound")
+            parent.stats().<Descriptor<List<PreciseSound>>>value("insert_sound")
                     .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
 
@@ -70,7 +69,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             Location location = event.handle.getWhoClicked().getLocation();
             // create our own root because, at this point, the removing node is still attached to the parent
             // so it will use its parent's stats
-            parent.asRoot().stats().<Descriptor<List<PreciseSound>>>optValue("remove_sound")
+            parent.asRoot().stats().<Descriptor<List<PreciseSound>>>value("remove_sound")
                     .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
     }

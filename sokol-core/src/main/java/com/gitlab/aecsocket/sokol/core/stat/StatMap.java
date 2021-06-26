@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
@@ -14,8 +15,17 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * A map of string names to stat instances.
+ */
 public class StatMap extends HashMap<String, Stat.Instance<?>> {
+    /**
+     * The priority of a map, determining when it should be applied in a tree node's build process.
+     */
     public record Priority(int value, boolean reverse) {
+        /**
+         * The default priority of {@code 0}.
+         */
         public static final Priority DEFAULT = new Priority(0, false);
 
         public Priority {
@@ -27,6 +37,13 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
             return reverse ? "[" + value + "]" : Integer.toString(value);
         }
 
+        /**
+         * Type serializer for a {@link Priority}.
+         * <p>
+         * Positive value: {@code priority}
+         * <p>
+         * Negative value: {@code [priority]}
+         */
         public static final class Serializer implements TypeSerializer<Priority> {
             @Override
             public void serialize(Type type, @Nullable Priority obj, ConfigurationNode node) throws SerializationException {
@@ -48,6 +65,11 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
         }
     }
 
+    /**
+     * Serializer for a {@link StatMap}.
+     * <p>
+     * For deserialization, requires the base stat types to be specified using {@link #types(Map)}.
+     */
     public static final class Serializer implements TypeSerializer<StatMap> {
         private Map<String, Stat<?>> types;
 
@@ -58,7 +80,7 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
         public void serialize(Type type, @Nullable StatMap obj, ConfigurationNode node) throws SerializationException {
             if (obj == null) node.set(null);
             else {
-                node.set(obj.toBase());
+                node.set(obj.toTypes());
                 node.node("priority").set(obj.priority);
             }
         }
@@ -102,23 +124,44 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
     public Priority priority() { return priority; }
     public Rule rule() { return rule; }
 
-    public <T> T value(String key) {
+    /**
+     * Gets a value of a stat instance by its stat key.
+     * @param key The key.
+     * @param <T> The type of value.
+     * @return An Optional of the result.
+     */
+    public <T> Optional<T> value(@NotNull String key) {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
-        return inst == null ? null : inst.value();
+        return inst == null ? Optional.empty() : Optional.ofNullable(inst.value());
     }
 
-    public <T> T value(String key, T value) {
+    /**
+     * Sets a value of a stat instance by its stat key.
+     * <p>
+     * If the stat instance is not present, no action will be performed.
+     * @param key The key.
+     * @param value The value to set the instance to.
+     * @param <T> The type of value.
+     */
+    public <T> void value(@NotNull String key, @Nullable T value) {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
-        return inst == null ? null : inst.value(value);
+        if (inst != null)
+            inst.value(value);
     }
 
-    public <T> Optional<T> optValue(String key) {
-        return Optional.ofNullable(value(key));
-    }
-
-    public <T> void combine(String key, Stat.Instance<T> instance) {
+    /**
+     * Combines another stat instance with an instance in this map.
+     * <p>
+     * If an entry exists in this map, the existing entry's value will be set using {@link Stat.Instance#combineFrom(Stat.Instance)}.
+     * <p>
+     * If no entry exists in the map, the instance passed will be put.
+     * @param key The key of the stat.
+     * @param instance The instance to combine with.
+     * @param <T> The type of value.
+     */
+    public <T> void combine(@NotNull String key, @NotNull Stat.Instance<T> instance) {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> existing = (Stat.Instance<T>) get(key);
         if (existing == null)
@@ -127,24 +170,27 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
             existing.combineFrom(instance);
     }
 
+    /**
+     * Combines all entries of another stat map with this map.
+     * @param o The other stat map.
+     * @see #combine(String, Stat.Instance)
+     */
     public void combineAll(Map<? extends String, ? extends Stat.Instance<?>> o) {
         for (var entry : o.entrySet()) {
             combine(entry.getKey(), entry.getValue());
         }
     }
 
-    public Map<String, Stat<?>> toBase() {
+    /**
+     * Converts this map into a map of stat types.
+     * @return The result.
+     */
+    public Map<String, Stat<?>> toTypes() {
         Map<String, Stat<?>> base = new HashMap<>();
         for (var entry : entrySet()) {
             base.put(entry.getKey(), entry.getValue().stat());
         }
         return base;
-    }
-
-    public void fromBase(Map<String, Stat<?>> base) {
-        for (var entry : base.entrySet()) {
-            put(entry.getKey(), entry.getValue().instance(null));
-        }
     }
 
     @Override

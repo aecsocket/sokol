@@ -25,9 +25,16 @@ import java.util.Queue;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
+/**
+ * Command argument which parses a {@link PaperTreeNode}.
+ * @param <C> The command sender type.
+ */
 public final class TreeArgument<C> extends CommandArgument<C, PaperTreeNode> {
+    /** When a node tree cannot be parsed. */
     public static final Caption ARGUMENT_PARSE_FAILURE_TREE = Caption.of("argument.parse.failure.tree");
+    /** When a parsed node tree is not considered valid. */
     public static final Caption ARGUMENT_PARSE_FAILURE_TREE_INVALID = Caption.of("argument.parse.failure.tree.invalid");
+    /** The token used for referencing the currently held tree. */
     public static final String SELF = ".";
 
     private final Predicate<PaperTreeNode> test;
@@ -111,6 +118,11 @@ public final class TreeArgument<C> extends CommandArgument<C, PaperTreeNode> {
             this.plugin = plugin;
         }
 
+        /**
+         * Specifies a test that a node tree must pass to be considered valid.
+         * @param test The test.
+         * @return This instance.
+         */
         public Builder<C> test(Predicate<PaperTreeNode> test) { this.test = test; return this; }
 
         /**

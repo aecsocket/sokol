@@ -10,6 +10,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+/**
+ * Wrapper around an item stack which uses an underlying Bukkit {@link org.bukkit.inventory.ItemStack}.
+ */
 public record PaperItemStack(
         SokolPlugin plugin,
         org.bukkit.inventory.ItemStack handle

@@ -18,6 +18,9 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 
 import java.lang.reflect.Type;
 
+/**
+ * Serializable data class for creating a {@link PaperItemStack}, using a Bukkit {@link org.bukkit.inventory.ItemStack}.
+ */
 public record ItemDescriptor(
         SokolPlugin plugin,
         Material material,
@@ -25,6 +28,9 @@ public record ItemDescriptor(
         int damage,
         boolean unbreakable
 ) implements ItemStack.Factory {
+    /**
+     * Type serializer for a {@link ItemDescriptor}.
+     */
     public static final class Serializer implements TypeSerializer<ItemDescriptor> {
         private final SokolPlugin plugin;
 
@@ -60,12 +66,24 @@ public record ItemDescriptor(
         }
     }
 
+    /**
+     * A stat type which stores an item descriptor.
+     */
     public static final class Stat extends BasicStat<ItemDescriptor> {
         public Stat(ItemDescriptor defaultValue) {
             super(new TypeToken<ItemDescriptor>() {}, defaultValue, (a, b) -> b, i -> i);
         }
     }
 
+    /**
+     * Creates an item descriptor from a string ID instead of a material.
+     * @param plugin The platform plugin.
+     * @param id The ID.
+     * @param modelData The model data.
+     * @param damage The damage.
+     * @param unbreakable If the item is unbreakable or not.
+     * @return The descriptor.
+     */
     public static ItemDescriptor of(SokolPlugin plugin, String id, int modelData, int damage, boolean unbreakable) {
         Material material = Registry.MATERIAL.get(NamespacedKey.minecraft(id));
         if (material == null)
@@ -73,6 +91,10 @@ public record ItemDescriptor(
         return new ItemDescriptor(plugin, material, modelData, damage, unbreakable);
     }
 
+    /**
+     * Creates a Bukkit item stack.
+     * @return The item stack.
+     */
     public org.bukkit.inventory.ItemStack createRaw() {
         return PaperUtils.modify(new org.bukkit.inventory.ItemStack(material), meta -> {
             meta.addItemFlags(ItemFlag.values());

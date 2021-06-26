@@ -2,6 +2,10 @@ package com.gitlab.aecsocket.sokol.core.stat;
 
 import io.leangen.geantyref.TypeToken;
 
+/**
+ * A basic stat implementation.
+ * @param <T> The value type.
+ */
 public class BasicStat<T> implements Stat<T> {
     private final TypeToken<T> type;
     private final T def;

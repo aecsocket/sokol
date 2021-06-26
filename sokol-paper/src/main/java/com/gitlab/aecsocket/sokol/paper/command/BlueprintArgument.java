@@ -9,6 +9,7 @@ import cloud.commandframework.captions.CaptionVariable;
 import cloud.commandframework.context.CommandContext;
 import cloud.commandframework.exceptions.parsing.NoInputProvidedException;
 import cloud.commandframework.exceptions.parsing.ParserException;
+import com.gitlab.aecsocket.sokol.core.component.Blueprint;
 import com.gitlab.aecsocket.sokol.paper.PaperComponent;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -22,32 +23,32 @@ import java.util.function.BiFunction;
 import java.util.function.Predicate;
 
 /**
- * Command argument which parses a {@link PaperComponent}.
+ * Command argument which parses a {@link Blueprint}.
  * @param <C> The command sender type.
  */
-public final class ComponentArgument<C> extends CommandArgument<C, PaperComponent> {
-    /** When a component ID cannot be parsed. */
-    public static final Caption ARGUMENT_PARSE_FAILURE_COMPONENT = Caption.of("argument.parse.failure.component");
-    /** When a parsed component is not considered valid. */
-    public static final Caption ARGUMENT_PARSE_FAILURE_COMPONENT_INVALID = Caption.of("argument.parse.failure.component.invalid");
+public final class BlueprintArgument<C> extends CommandArgument<C, Blueprint> {
+    /** When a blueprint ID cannot be parsed. */
+    public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT = Caption.of("argument.parse.failure.blueprint");
+    /** When a parsed blueprint is not considered valid. */
+    public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_INVALID = Caption.of("argument.parse.failure.blueprint.invalid");
 
-    private final Predicate<PaperComponent> test;
+    private final Predicate<Blueprint> test;
 
-    private ComponentArgument(
+    private BlueprintArgument(
             final SokolPlugin plugin,
             final boolean required,
             final @NonNull String name,
-            final @NotNull Predicate<PaperComponent> test,
+            final @NotNull Predicate<Blueprint> test,
             final @NonNull String defaultValue,
             final @Nullable BiFunction<@NonNull CommandContext<C>,
                     @NonNull String, @NonNull List<@NonNull String>> suggestionsProvider,
             final @NonNull ArgumentDescription defaultDescription
     ) {
-        super(required, name, new ComponentParser<>(plugin, test), defaultValue, PaperComponent.class, suggestionsProvider, defaultDescription);
+        super(required, name, new ComponentParser<>(plugin, test), defaultValue, Blueprint.class, suggestionsProvider, defaultDescription);
         this.test = test;
     }
 
-    public Predicate<PaperComponent> test() { return test; }
+    public Predicate<Blueprint> test() { return test; }
 
     /**
      * Create a new builder
@@ -69,8 +70,8 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
      * @param <C>    Command sender type
      * @return Created component
      */
-    public static <C> @NonNull CommandArgument<C, PaperComponent> of(final @NonNull SokolPlugin plugin, final @NonNull String name) {
-        return ComponentArgument.<C>newBuilder(plugin, name).asRequired().build();
+    public static <C> @NonNull CommandArgument<C, Blueprint> of(final @NonNull SokolPlugin plugin, final @NonNull String name) {
+        return BlueprintArgument.<C>newBuilder(plugin, name).asRequired().build();
     }
 
     /**
@@ -81,8 +82,8 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
      * @param <C>    Command sender type
      * @return Created component
      */
-    public static <C> @NonNull CommandArgument<C, PaperComponent> optional(final @NonNull SokolPlugin plugin, final @NonNull String name) {
-        return ComponentArgument.<C>newBuilder(plugin, name).asOptional().build();
+    public static <C> @NonNull CommandArgument<C, Blueprint> optional(final @NonNull SokolPlugin plugin, final @NonNull String name) {
+        return BlueprintArgument.<C>newBuilder(plugin, name).asOptional().build();
     }
 
     /**
@@ -94,21 +95,21 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
      * @param <C>          Command sender type
      * @return Created component
      */
-    public static <C> @NonNull CommandArgument<C, PaperComponent> optional(
+    public static <C> @NonNull CommandArgument<C, Blueprint> optional(
             final @NonNull SokolPlugin plugin,
             final @NonNull String name,
             final @NonNull PaperComponent defaultValue
     ) {
-        return ComponentArgument.<C>newBuilder(plugin, name).asOptionalWithDefault(defaultValue.toString()).build();
+        return BlueprintArgument.<C>newBuilder(plugin, name).asOptionalWithDefault(defaultValue.toString()).build();
     }
 
 
-    public static final class Builder<C> extends CommandArgument.Builder<C, PaperComponent> {
+    public static final class Builder<C> extends CommandArgument.Builder<C, Blueprint> {
         private final SokolPlugin plugin;
-        private Predicate<PaperComponent> test;
+        private Predicate<Blueprint> test;
 
         private Builder(final @NonNull SokolPlugin plugin, final @NonNull String name) {
-            super(PaperComponent.class, name);
+            super(Blueprint.class, name);
             this.plugin = plugin;
         }
 
@@ -117,7 +118,7 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
          * @param test The test.
          * @return This instance.
          */
-        public Builder<C> test(Predicate<PaperComponent> test) { this.test = test; return this; }
+        public Builder<C> test(Predicate<Blueprint> test) { this.test = test; return this; }
 
         /**
          * Builder a new example component
@@ -125,8 +126,8 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
          * @return Constructed component
          */
         @Override
-        public @NonNull ComponentArgument<C> build() {
-            return new ComponentArgument<>(
+        public @NonNull BlueprintArgument<C> build() {
+            return new BlueprintArgument<>(
                     plugin,
                     this.isRequired(),
                     this.getName(),
@@ -139,17 +140,17 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
 
     }
 
-    public static final class ComponentParser<C> implements ArgumentParser<C, PaperComponent> {
+    public static final class ComponentParser<C> implements ArgumentParser<C, Blueprint> {
         private final SokolPlugin plugin;
-        private final Predicate<PaperComponent> test;
+        private final Predicate<Blueprint> test;
 
-        public ComponentParser(SokolPlugin plugin, Predicate<PaperComponent> test) {
+        public ComponentParser(SokolPlugin plugin, Predicate<Blueprint> test) {
             this.plugin = plugin;
             this.test = test;
         }
 
         @Override
-        public @NonNull ArgumentParseResult<PaperComponent> parse(
+        public @NonNull ArgumentParseResult<Blueprint> parse(
                 final @NonNull CommandContext<C> ctx,
                 final @NonNull Queue<@NonNull String> inputQueue
         ) {
@@ -162,8 +163,8 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
             }
             inputQueue.remove();
 
-            return plugin.components().of(input)
-                    .<ArgumentParseResult<PaperComponent>>map(value -> {
+            return plugin.blueprints().of(input)
+                    .<ArgumentParseResult<Blueprint>>map(value -> {
                         if (test != null && !test.test(value))
                             return ArgumentParseResult.failure(new InvalidException(input, ctx));
                         return ArgumentParseResult.success(value);
@@ -179,7 +180,7 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
         @Override
         public @NonNull List<@NonNull String> suggestions(@NonNull CommandContext<C> ctx, @NonNull String input) {
             List<String> result = new ArrayList<>();
-            for (var entry : plugin.components().entrySet()) {
+            for (var entry : plugin.blueprints().entrySet()) {
                 if (test == null || test.test(entry.getValue()))
                     result.add(entry.getKey());
             }
@@ -189,14 +190,14 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
 
     public static final class ParseException extends ParserException {
         public ParseException(String input, CommandContext<?> ctx) {
-            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_COMPONENT,
+            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT,
                     CaptionVariable.of("input", input));
         }
     }
 
     public static final class InvalidException extends ParserException {
         public InvalidException(String input, CommandContext<?> ctx) {
-            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_COMPONENT_INVALID,
+            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT_INVALID,
                     CaptionVariable.of("input", input));
         }
     }

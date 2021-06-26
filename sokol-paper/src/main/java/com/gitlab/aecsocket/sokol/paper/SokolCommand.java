@@ -7,8 +7,10 @@ import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgu
 import cloud.commandframework.captions.SimpleCaptionRegistry;
 import cloud.commandframework.context.CommandContext;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
+import com.gitlab.aecsocket.sokol.core.component.Blueprint;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
+import com.gitlab.aecsocket.sokol.paper.command.BlueprintArgument;
 import com.gitlab.aecsocket.sokol.paper.command.ComponentArgument;
 import com.gitlab.aecsocket.sokol.paper.command.TreeArgument;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
@@ -49,6 +51,15 @@ import java.util.*;
                         .asOptional(), ArgumentDescription.of("The component tree to give, or the currently held component tree if not specified."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the component to give."))
                 .handler(c -> handle(c, this::create)));
+
+        manager.command(root
+                .literal("build", ArgumentDescription.of("Builds and gives an item-applicable blueprint to players."))
+                .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the component to."))
+                .argument(BlueprintArgument.<CommandSender>newBuilder(plugin, "blueprint")
+                        .test(b -> b.node().value().baseSystems().containsKey(ItemSystem.ID)),
+                        ArgumentDescription.of("The blueprint to give."))
+                .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the component to give."))
+                .handler(c -> handle(c, this::build)));
 
         manager.command(root
                 .literal("gui", ArgumentDescription.of("Opens the slot view GUI for a component."))
@@ -97,6 +108,10 @@ import java.util.*;
         give(ctx, sender, locale, pSender, defaultedArg(ctx, "node", pSender,
                 () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())
                         .orElse(null)));
+    }
+
+    private void build(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
+        give(ctx, sender, locale, pSender, ctx.<Blueprint>get("blueprint").node());
     }
 
     private void gui(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {

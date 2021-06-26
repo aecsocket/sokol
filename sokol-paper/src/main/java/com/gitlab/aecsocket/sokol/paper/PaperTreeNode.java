@@ -16,7 +16,13 @@ import java.lang.reflect.Type;
 import java.util.Collections;
 import java.util.Map;
 
+/**
+ * Paper platform-specific concrete implementation of a tree node.
+ */
 public final class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperComponent, PaperSlot, PaperSystem, PaperSystem.Instance> {
+    /**
+     * Type serializer for a {@link PaperTreeNode}.
+     */
     public static class Serializer implements TypeSerializer<PaperTreeNode> {
         private final SokolPlugin plugin;
 
@@ -42,7 +48,7 @@ public final class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperCo
 
         private PaperTreeNode deserialize0(Type type, ConfigurationNode node) throws SerializationException {
             String id = Serializers.require(node.isMap() ? node.node("id") : node, String.class);
-            PaperComponent component = plugin.component(id)
+            PaperComponent component = plugin.components().of(id)
                     .orElseThrow(() -> new SerializationException(node, type, "No component with ID [" + id + "]"));
 
             PaperTreeNode tree = new PaperTreeNode(component);

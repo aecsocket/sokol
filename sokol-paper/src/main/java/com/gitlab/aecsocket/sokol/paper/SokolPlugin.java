@@ -7,6 +7,7 @@ import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
+import com.gitlab.aecsocket.sokol.core.component.Blueprint;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
@@ -72,6 +73,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public static SokolPlugin instance() { return getPlugin(SokolPlugin.class); }
 
     private final Registry<PaperComponent> components = new Registry<>();
+    private final Registry<Blueprint> blueprints = new Registry<>();
     private final Registry<PaperSystem.KeyedType> systemTypes = new Registry<>();
     private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
@@ -91,6 +93,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     }
 
     @Override public @NotNull Registry<PaperComponent> components() { return components; }
+    @Override public @NotNull Registry<Blueprint> blueprints() { return blueprints; }
     public @NotNull Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public @NotNull PersistenceManager persistenceManager() { return persistenceManager; }
     public @NotNull SlotViewGuis slotViewGuis() { return slotViewGuis; }
@@ -98,8 +101,6 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public @NotNull Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public @NotNull PaperSystem.Serializer systemSerializer() { return systemSerializer; }
     public @NotNull ItemDescriptor invalidItem() { return invalidItem; }
-
-    @Override public Optional<PaperComponent> component(String id) { return components.getOpt(id); }
 
     /**
      * Registers a system type, which is looked up when deserializing the data files.

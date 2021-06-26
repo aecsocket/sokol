@@ -10,7 +10,6 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,7 +33,7 @@ public final class PersistenceManager {
             String id = data.get(plugin.key("id"), PersistentDataType.STRING);
             if (id == null)
                 throw new IllegalArgumentException("No ID in data");
-            PaperComponent component = plugin.component(id)
+            PaperComponent component = plugin.components().of(id)
                     .orElseThrow(() -> new IllegalArgumentException("No component with ID [" + id + "]"));
 
             PaperTreeNode node = new PaperTreeNode(component);
