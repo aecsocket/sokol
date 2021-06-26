@@ -13,7 +13,6 @@ import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.paper.stat.SoundsStat;
-import org.apache.commons.lang.builder.ReflectionToStringBuilder;
 import org.bukkit.Location;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -29,8 +28,9 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "slots";
     public static final PaperSystem.Type TYPE = (plugin, node) -> new SlotsSystem(plugin);
     public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("combine_onto_sound", new SoundsStat())
-            .put("combine_from_sound", new SoundsStat())
+            .put("combine_sound", new SoundsStat())
+            .put("insert_sound", new SoundsStat())
+            .put("remove_sound", new SoundsStat())
             .build();
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
@@ -44,37 +44,34 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
         @Override
         public void build() {
             parent.events().register(Events.CombineNodeOntoParent.class, this::event);
-            parent.events().register(Events.CombineChildOntoNode.class, this::event);
-            parent.events().register(Events.SlotA.class, this::event);
-            parent.events().register(Events.SlotB.class, this::event);
+            parent.events().register(Events.InsertInto.class, this::event);
+            parent.events().register(Events.RemoveFrom.class, this::event);
         }
 
         private void event(Events.CombineNodeOntoParent event) {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<Descriptor<List<PreciseSound>>>optValue("combine_onto_sound")
+            parent.stats().<Descriptor<List<PreciseSound>>>optValue("combine_sound")
                     .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
 
-        private void event(Events.CombineChildOntoNode event) {
+        private void event(Events.InsertInto event) {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<Descriptor<List<PreciseSound>>>optValue("combine_from_sound")
+            parent.stats().<Descriptor<List<PreciseSound>>>optValue("insert_sound")
                     .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
 
-        private void event(Events.SlotA event) {
+        private void event(Events.RemoveFrom event) {
             if (!parent.isRoot())
                 return;
-            System.out.println("slotA = " + new ReflectionToStringBuilder(event));
-        }
-
-        private void event(Events.SlotB event) {
-            if (!parent.isRoot())
-                return;
-            System.out.println("slotB = " + new ReflectionToStringBuilder(event));
+            Location location = event.handle.getWhoClicked().getLocation();
+            // create our own root because, at this point, the removing node is still attached to the parent
+            // so it will use its parent's stats
+            parent.asRoot().stats().<Descriptor<List<PreciseSound>>>optValue("remove_sound")
+                    .ifPresent(d -> d.value().forEach(s -> s.play(platform, location)));
         }
     }
 
@@ -109,80 +106,120 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
         private Events() {}
 
         public static final class CombineNodeOntoParent implements TreeEvent, Cancellable {
+            private final InventoryClickEvent handle;
             private final PaperTreeNode node;
             private final PaperTreeNode parent;
-            private final InventoryClickEvent handle;
             private boolean cancelled;
 
-            public CombineNodeOntoParent(PaperTreeNode node, PaperTreeNode parent, InventoryClickEvent handle) {
+            public CombineNodeOntoParent(InventoryClickEvent handle, PaperTreeNode node, PaperTreeNode parent) {
+                this.handle = handle;
                 this.node = node;
                 this.parent = parent;
-                this.handle = handle;
             }
 
+            public InventoryClickEvent handle() { return handle; }
             @Override public PaperTreeNode node() { return node; }
             public PaperTreeNode parent() { return parent; }
-            public InventoryClickEvent handle() { return handle; }
 
             @Override public boolean cancelled() { return cancelled; }
             @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
         }
 
         public static final class CombineChildOntoNode implements TreeEvent, Cancellable {
-            private final PaperTreeNode node;
-            private final PaperTreeNode child;
             private final InventoryClickEvent handle;
+            private final PaperTreeNode node;
+            private final PaperTreeNode child;
             private boolean cancelled;
 
-            public CombineChildOntoNode(PaperTreeNode node, PaperTreeNode child, InventoryClickEvent handle) {
-                this.node = node;
-                this.child = child;
+            public CombineChildOntoNode(InventoryClickEvent handle, PaperTreeNode node, PaperTreeNode child) {
                 this.handle = handle;
+                this.node = node;
+                this.child = child;
             }
 
-            @Override public PaperTreeNode node() { return node; }
-            public PaperTreeNode child() { return child; }
             public InventoryClickEvent handle() { return handle; }
-
-            @Override public boolean cancelled() { return cancelled; }
-            @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
-        }
-
-        public static final class SlotA implements TreeEvent, Cancellable {
-            private final PaperTreeNode node;
-            private final PaperSlot slot;
-            private final PaperTreeNode child;
-            private boolean cancelled;
-
-            public SlotA(PaperTreeNode node, PaperSlot slot, PaperTreeNode child) {
-                this.node = node;
-                this.slot = slot;
-                this.child = child;
-            }
-
             @Override public PaperTreeNode node() { return node; }
-            public PaperSlot slot() { return slot; }
             public PaperTreeNode child() { return child; }
 
             @Override public boolean cancelled() { return cancelled; }
             @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
         }
 
-        public static final class SlotB implements TreeEvent, Cancellable {
+        public static final class SlotModify implements TreeEvent, Cancellable {
+            private final InventoryClickEvent handle;
             private final PaperTreeNode node;
             private final PaperSlot slot;
-            private final PaperTreeNode child;
+            private final PaperTreeNode oldChild;
+            private PaperTreeNode newChild;
             private boolean cancelled;
 
-            public SlotB(PaperTreeNode node, PaperSlot slot, PaperTreeNode child) {
+            public SlotModify(InventoryClickEvent handle, PaperTreeNode node, PaperSlot slot, PaperTreeNode oldChild, PaperTreeNode newChild) {
+                this.handle = handle;
                 this.node = node;
                 this.slot = slot;
-                this.child = child;
+                this.oldChild = oldChild;
+                this.newChild = newChild;
             }
 
+            public InventoryClickEvent handle() { return handle; }
             @Override public PaperTreeNode node() { return node; }
             public PaperSlot slot() { return slot; }
-            public PaperTreeNode child() { return child; }
+            public PaperTreeNode oldChild() { return oldChild; }
+
+            public PaperTreeNode newChild() { return newChild; }
+            public void newChild(PaperTreeNode newChild) { this.newChild = newChild; }
+
+            @Override public boolean cancelled() { return cancelled; }
+            @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
+        }
+
+        public static final class InsertInto implements TreeEvent, Cancellable {
+            private final InventoryClickEvent handle;
+            private final PaperTreeNode node;
+            private final PaperTreeNode parent;
+            private final PaperSlot slot;
+            private final PaperTreeNode replacing;
+            private boolean cancelled;
+
+            public InsertInto(InventoryClickEvent handle, PaperTreeNode node, PaperTreeNode parent, PaperSlot slot, PaperTreeNode replacing) {
+                this.handle = handle;
+                this.node = node;
+                this.parent = parent;
+                this.slot = slot;
+                this.replacing = replacing;
+            }
+
+            public InventoryClickEvent handle() { return handle; }
+            @Override public PaperTreeNode node() { return node; }
+            public PaperTreeNode parent() { return parent; }
+            public PaperSlot slot() { return slot; }
+            public PaperTreeNode replacing() { return replacing; }
+
+            @Override public boolean cancelled() { return cancelled; }
+            @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
+        }
+
+        public static final class RemoveFrom implements TreeEvent, Cancellable {
+            private final InventoryClickEvent handle;
+            private final PaperTreeNode node;
+            private final PaperTreeNode parent;
+            private final PaperSlot slot;
+            private final PaperTreeNode replacement;
+            private boolean cancelled;
+
+            public RemoveFrom(InventoryClickEvent handle, PaperTreeNode node, PaperTreeNode parent, PaperSlot slot, PaperTreeNode replacement) {
+                this.handle = handle;
+                this.node = node;
+                this.parent = parent;
+                this.slot = slot;
+                this.replacement = replacement;
+            }
+
+            public InventoryClickEvent handle() { return handle; }
+            @Override public PaperTreeNode node() { return node; }
+            public PaperTreeNode parent() { return parent; }
+            public PaperSlot slot() { return slot; }
+            public PaperTreeNode replacement() { return replacement; }
 
             @Override public boolean cancelled() { return cancelled; }
             @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }

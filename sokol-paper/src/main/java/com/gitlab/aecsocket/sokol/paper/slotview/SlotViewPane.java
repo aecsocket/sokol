@@ -11,6 +11,7 @@ import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.paper.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import net.kyori.adventure.text.Component;
@@ -46,9 +47,9 @@ public class SlotViewPane extends Pane {
         public PaperTreeNode parent() { return parent; }
 
         public PaperTreeNode child() { return child; }
-        public void child(PaperTreeNode node) {
-            this.child = node;
-            parent.child(slot.key(), node);
+        public void child(PaperTreeNode child) {
+            this.child = child;
+            parent.child(slot.key(), child);
         }
 
         private void event(InventoryClickEvent event) {
@@ -61,7 +62,7 @@ public class SlotViewPane extends Pane {
                 return;
 
             InventoryView view = event.getView();
-            ItemStack cursor = view.getCursor();
+            ItemStack cursor = PaperUtils.normalize(view.getCursor());
             PaperTreeNode cursorNode = plugin.persistenceManager().load(cursor);
             if (!new SlotViewModifyEvent(event, this, cursorNode).callEvent())
                 return;
@@ -70,25 +71,30 @@ public class SlotViewPane extends Pane {
             _, _ -> []
             slotNode, _ -> [
                 parent: SlotModify[oldNode=slotNode, newNode=null],
-                slotNode: RemoveFrom[slot, key, parent, replacement=null]
+                slotNode: RemoveFrom[slot, parent, replacement=null]
             ]
             _, cursorNode -> [
                 parent: SlotModify[oldNode=null, newNode=cursorNode],
-                cursorNode: PlaceInto[slot, key, parent, replacing=null]
+                cursorNode: InsertInto[slot, parent, replacing=null]
             ]
             slotNode, cursorNode -> [
                 parent: SlotModify[oldNode=slotNode, newNode=cursorNode],
-                slotNode: RemoveFrom[slot, key, parent, replacement=cursorNode]
-                cursorNode: PlaceInto[slot, key, parent, replacing=slotNode]
+                slotNode: RemoveFrom[slot, parent, replacement=cursorNode]
+                cursorNode: InsertInto[slot, parent, replacing=slotNode]
             ]
-            TODO
              */
             if (event.getClick() == ClickType.LEFT) {
+                SlotsSystem.Events.SlotModify slotModify = new SlotsSystem.Events.SlotModify(event, parent, slot, child, cursorNode);
+                SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, cursorNode);
+                SlotsSystem.Events.InsertInto insertInto = new SlotsSystem.Events.InsertInto(event, cursorNode, parent, slot, child);
                 if (child == null) {
                     if (cursorNode == null || !slot.compatible(parent, cursorNode))
                         return;
-                    // Put the cursor into the slot
-                    child(cursorNode);
+                    // cursorNode -> [slot]
+                    // _, cursorNode
+                    if (slotModify.call() | insertInto.call())
+                        return;
+                    child(slotModify.newChild());
                     cursor.subtract();
                 } else {
                     PaperTreeNode child = this.child.asRoot();
@@ -97,38 +103,35 @@ public class SlotViewPane extends Pane {
                         return;
 
                     ItemStack nodeItem = itemSystem.create(locale).handle();
-                    if (PaperUtils.empty(cursor)) {
-                        // Put the slot item into the cursor
-                        child(null);
-                        view.setCursor(nodeItem);
-                    } else {
-                        if (nodeItem.isSimilar(cursor)) {
-                            // Add the slot item into the current cursor
-                            child(null);
-                            cursor.add();
-                        } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1) {
-                            // Swap the cursor and slot item
-                            child(cursorNode);
-                            view.setCursor(nodeItem);
-                        } else
+                    boolean similar = nodeItem.isSimilar(cursor);
+                    if (PaperUtils.empty(cursor) || similar) {
+                        // child -> [cursor]
+                        // slotNode, _
+                        // to prevent dupe bugs, we remove the child from the slot
+                        // otherwise, when `similar`, the item will be put into cursor AND stay in the slot
+                        slotModify.newChild(null);
+                        if (slotModify.call() | removeFrom.call())
                             return;
-                    }
+                        child(slotModify.newChild());
+                        if (similar)
+                            cursor.add();
+                        else
+                            view.setCursor(nodeItem);
+                    } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1)  {
+                        // cursorNode -> [slot], child -> [cursor]
+                        // slotNode, cursorNode
+                        if (slotModify.call() | removeFrom.call() | insertInto.call())
+                            return;
+                        child(slotModify.newChild());
+                        view.setCursor(nodeItem);
+                    } else
+                        return;
                 }
 
-                SlotViewPane.this.node.build();
+                node.build();
                 updateItems(plugin.persistenceManager().load(view.getCursor()));
                 callTreeModify();
             }
-        }
-
-        public void updateItem(PaperTreeNode cursor) {
-            ItemStack item = createItem(slot, parent, child, cursor);
-            if (item == null)
-                return;
-            ItemStack handle = getItem();
-            handle.setType(item.getType());
-            handle.setItemMeta(item.getItemMeta());
-            applyUUID();
         }
     }
 

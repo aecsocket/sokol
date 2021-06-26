@@ -20,7 +20,6 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     protected AtomicBoolean complete = new AtomicBoolean();
     protected final Map<String, N> children = new HashMap<>();
     protected final Map<String, Y> systems = new HashMap<>();
-    protected String key;
     protected N parent;
     protected S slot;
 
@@ -53,7 +52,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
             children.remove(key);
         else {
             children.put(key, child);
-            child.parent(key, self(), slot);
+            child.parent(self(), slot);
         }
     }
 
@@ -100,8 +99,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         systems.put(id, system);
     }
 
-    public N parent(String key, N parent, S slot) {
-        this.key = key;
+    public N parent(N parent, S slot) {
         this.parent = parent;
         this.slot = slot;
         if (parent != null) {
@@ -124,7 +122,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         }
     }
 
-    protected void build0(List<StatsPair> forwardStats, List<StatsPair> reverseStats, String key, N parent, S slot) {
+    protected void build0(List<StatsPair> forwardStats, List<StatsPair> reverseStats, N parent, S slot) {
         StatLists stats = value.stats();
         forwardStats.add(new StatsPair(this, stats.forward()));
         reverseStats.add(0, new StatsPair(this, stats.reverse()));
@@ -133,13 +131,13 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         }
         for (var entry : slotChildren().entrySet()) {
             entry.getValue().child().ifPresentOrElse(child -> {
-                child.build0(forwardStats, reverseStats, entry.getKey(), self(), entry.getValue().slot());
+                child.build0(forwardStats, reverseStats, self(), entry.getValue().slot());
             }, () -> {
                 if (entry.getValue().slot().required())
                     complete.set(false);
             });
         }
-        parent(key, parent, slot);
+        parent(parent, slot);
     }
 
     @Override
@@ -151,7 +149,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         List<StatsPair> forwardStats = new ArrayList<>();
         List<StatsPair> reverseStats = new ArrayList<>();
 
-        build0(forwardStats, reverseStats, null, null, null);
+        build0(forwardStats, reverseStats, null, null);
 
         add(forwardStats);
         add(reverseStats);
@@ -178,7 +176,6 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         }
     }
 
-    @Override public Optional<String> key() { return Optional.ofNullable(key); }
     @Override public Optional<N> parent() { return Optional.ofNullable(parent); }
     @Override public Optional<S> slot() { return Optional.ofNullable(slot); }
 
@@ -186,8 +183,8 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     public @NotNull String[] path() {
         List<String> result = new ArrayList<>();
         N current = self();
-        while (current != null && current.key != null) {
-            result.add(0, current.key);
+        while (current != null && current.slot != null) {
+            result.add(0, current.slot.key());
             current = current.parent;
         }
         return result.toArray(new String[0]);
@@ -203,12 +200,12 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         AbstractTreeNode<?, ?, ?, ?, ?> that = (AbstractTreeNode<?, ?, ?, ?, ?>) o;
-        return value.equals(that.value) && children.equals(that.children) && systems.equals(that.systems) && Objects.equals(key, that.key) && Objects.equals(parent, that.parent);
+        return value.equals(that.value) && children.equals(that.children) && systems.equals(that.systems) && Objects.equals(parent, that.parent);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(value, children, systems, key);
+        return Objects.hash(value, children, systems);
     }
 
     @Override

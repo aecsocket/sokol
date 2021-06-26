@@ -41,7 +41,7 @@ public abstract class ItemSystem extends AbstractSystem {
             item.name(parent.stats().<String>optValue("item_name")
                     .map(k -> platform().localize(locale, k))
                     .orElse(parent.value().name(locale)));
-            parent.events().call(new Events.CreateItem(this, locale, item));
+            new Events.CreateItem(this, locale, item).call();
             return item;
         }
     }

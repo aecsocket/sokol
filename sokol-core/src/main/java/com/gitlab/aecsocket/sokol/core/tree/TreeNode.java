@@ -65,12 +65,11 @@ public interface TreeNode {
     @NotNull TreeNode build();
     void visit(Visitor<TreeNode, Slot> visitor, String... path);
 
-    Optional<String> key();
     Optional<? extends TreeNode> parent();
     Optional<? extends Slot> slot();
     @NotNull String[] path();
 
-    default boolean isRoot() { return key().isEmpty(); }
+    default boolean isRoot() { return slot().isEmpty(); }
     @NotNull TreeNode root();
     @NotNull TreeNode asRoot();
 }

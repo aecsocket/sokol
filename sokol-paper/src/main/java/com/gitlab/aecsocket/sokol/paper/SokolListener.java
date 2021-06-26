@@ -68,8 +68,8 @@ import java.util.Locale;
             PaperTreeNode oldCursorNode = cursorNode.asRoot();
             if (clickedNode.combine(cursorNode, plugin.setting(true, ConfigurationNode::getBoolean, "combine", "limited"))) {
                 if (
-                        clickedNode.events().call(new SlotsSystem.Events.CombineChildOntoNode(clickedNode, cursorNode, event)).cancelled()
-                        | oldCursorNode.events().call(new SlotsSystem.Events.CombineNodeOntoParent(oldCursorNode, clickedNode, event)).cancelled()
+                        new SlotsSystem.Events.CombineChildOntoNode(event, clickedNode, cursorNode).call()
+                        | new SlotsSystem.Events.CombineNodeOntoParent(event, oldCursorNode, clickedNode).call()
                 )
                     return;
                 event.setCancelled(true);

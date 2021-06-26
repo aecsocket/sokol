@@ -151,14 +151,13 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
             }
             inputQueue.remove();
 
-            PaperComponent value = plugin.component(input);
-            if (value == null)
-                return ArgumentParseResult.failure(new ParseException(input, ctx));
-
-            if (test != null && !test.test(value))
-                return ArgumentParseResult.failure(new InvalidException(input, ctx));
-
-            return ArgumentParseResult.success(value);
+            return plugin.component(input)
+                    .<ArgumentParseResult<PaperComponent>>map(value -> {
+                        if (test != null && !test.test(value))
+                            return ArgumentParseResult.failure(new InvalidException(input, ctx));
+                        return ArgumentParseResult.success(value);
+                    })
+                    .orElse(ArgumentParseResult.failure(new ParseException(input, ctx)));
         }
 
         @Override
