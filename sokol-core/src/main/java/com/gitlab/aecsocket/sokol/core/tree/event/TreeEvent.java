@@ -1,7 +1,10 @@
-package com.gitlab.aecsocket.sokol.core.tree;
+package com.gitlab.aecsocket.sokol.core.tree.event;
 
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.sokol.core.system.System;
+import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 
 /**
  * An event concerning a {@link TreeNode}.
@@ -36,5 +39,10 @@ public interface TreeEvent {
         Y system();
 
         @Override default TreeNode node() { return system().parent(); }
+    }
+
+    interface ItemEvent<U extends ItemUser, S extends ItemSlot<?>> extends TreeEvent {
+        U user();
+        S slot();
     }
 }

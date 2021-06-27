@@ -1,11 +1,13 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
+import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Material;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
@@ -17,6 +19,10 @@ public record PaperItemStack(
         SokolPlugin plugin,
         org.bukkit.inventory.ItemStack handle
 ) implements ItemStack {
+    public PaperItemStack {
+        Validation.is(handle.getType() == Material.AIR, "Item must be non-air");
+    }
+
     @Override public int amount() { return handle.getAmount(); }
     @Override public PaperItemStack amount(int amount) { handle.setAmount(amount); return this; }
 

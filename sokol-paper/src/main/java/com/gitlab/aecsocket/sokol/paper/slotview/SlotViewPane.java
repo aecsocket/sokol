@@ -93,7 +93,7 @@ public class SlotViewPane extends Pane {
                     SlotsSystem.Events.InsertInto insertInto = new SlotsSystem.Events.InsertInto(event, cursorNode, parent, slot, null);
                     if (slotModify.call() | insertInto.call())
                         return;
-                    child(slotModify.newChild());
+                    child(slotModify.newChild().orElse(null));
                     cursor.subtract();
                 } else {
                     PaperTreeNode orphanChild = child.asRoot();
@@ -109,7 +109,7 @@ public class SlotViewPane extends Pane {
                         SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, null);
                         if (slotModify.call() | removeFrom.call())
                             return;
-                        child(slotModify.newChild());
+                        child(slotModify.newChild().orElse(null));
                         event.getView().setCursor(nodeItem);
                     } else {
                         if (cursor.isSimilar(nodeItem)) {
@@ -119,7 +119,7 @@ public class SlotViewPane extends Pane {
                             SlotsSystem.Events.RemoveFrom removeFrom = new SlotsSystem.Events.RemoveFrom(event, child, parent, slot, null);
                             if (slotModify.call() | removeFrom.call())
                                 return;
-                            child(slotModify.newChild());
+                            child(slotModify.newChild().orElse(null));
                             cursor.add();
                         } else if (cursorNode != null && slot.compatible(parent, cursorNode) && cursor.getAmount() == 1)  {
                             // cursorNode -> [slot], child -> [cursor]
@@ -129,7 +129,7 @@ public class SlotViewPane extends Pane {
                             SlotsSystem.Events.InsertInto insertInto = new SlotsSystem.Events.InsertInto(event, cursorNode, parent, slot, child);
                             if (slotModify.call() | removeFrom.call() | insertInto.call())
                                 return;
-                            child(slotModify.newChild());
+                            child(slotModify.newChild().orElse(null));
                             view.setCursor(nodeItem);
                         } else
                             return;

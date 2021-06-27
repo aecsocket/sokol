@@ -5,7 +5,7 @@ import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
-import com.gitlab.aecsocket.sokol.core.tree.TreeEvent;
+import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
@@ -22,6 +22,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "slots";
@@ -165,7 +166,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             public PaperSlot slot() { return slot; }
             public PaperTreeNode oldChild() { return oldChild; }
 
-            public PaperTreeNode newChild() { return newChild; }
+            public Optional<PaperTreeNode> newChild() { return Optional.ofNullable(newChild); }
             public void newChild(PaperTreeNode newChild) { this.newChild = newChild; }
 
             @Override public boolean cancelled() { return cancelled; }

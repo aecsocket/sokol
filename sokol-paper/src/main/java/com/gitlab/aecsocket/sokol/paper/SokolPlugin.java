@@ -2,10 +2,16 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
+import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.core.Validation;
+import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
+import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
+import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
+import com.gitlab.aecsocket.minecommons.paper.inputs.PacketInputs;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
+import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
@@ -14,15 +20,21 @@ import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
+import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
+import com.gitlab.aecsocket.sokol.paper.event.PaperEvent;
 import com.gitlab.aecsocket.sokol.paper.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperSlotInfoSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
+import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import io.leangen.geantyref.TypeToken;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -32,6 +44,9 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Sokol's main plugin class. Use {@link #instance()} to get the singleton instance.
  */
@@ -74,6 +89,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<PaperSystem.KeyedType> systemTypes = new Registry<>();
     private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
+    private final SokolSchedulers schedulers = new SokolSchedulers(this);
     private final SlotViewGuis slotViewGuis = new SlotViewGuis(this);
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
@@ -84,15 +100,50 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public void onEnable() {
         super.onEnable();
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
+        PacketInputs inputs = new PacketInputs(this);
+        protocol.manager().addPacketListener(inputs);
+        inputs.events().register(Inputs.Events.Input.class, event -> {
+            Player player = event.player();
+            ItemTreeEvent.HeldClickEvent.Type type = switch (event.input()) {
+                case Inputs.LEFT -> ItemTreeEvent.HeldClickEvent.Type.LEFT;
+                case Inputs.RIGHT -> ItemTreeEvent.HeldClickEvent.Type.RIGHT;
+                default -> null;
+            };
+            if (type == null)
+                return;
+            if (
+                    handleInput(player, type, EquipmentSlot.HAND)
+                    | handleInput(player, type, EquipmentSlot.OFF_HAND)
+            )
+                event.cancel();
+        });
         registerSystemType(ItemSystem.ID, PaperItemSystem.TYPE);
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.TYPE);
         registerSystemType(SlotsSystem.ID, SlotsSystem.TYPE);
+        schedulers.setup();
+    }
+
+    @Override
+    public void onDisable() {
+        schedulers.stop();
+    }
+
+    private boolean handleInput(Player player, ItemTreeEvent.HeldClickEvent.Type type, EquipmentSlot slot) {
+        AtomicBoolean result = new AtomicBoolean();
+        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node -> {
+            result.set(new PaperEvent.HeldClickEvent(node,
+                    PlayerUser.of(this, player),
+                    EquipSlot.of(this, player, slot),
+                    type).call());
+        });
+        return result.get();
     }
 
     @Override public @NotNull Registry<PaperComponent> components() { return components; }
     @Override public @NotNull Registry<PaperBlueprint> blueprints() { return blueprints; }
     public @NotNull Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public @NotNull PersistenceManager persistenceManager() { return persistenceManager; }
+    public @NotNull SokolSchedulers schedulers() { return schedulers; }
     public @NotNull SlotViewGuis slotViewGuis() { return slotViewGuis; }
     public @NotNull StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public @NotNull Rule.Serializer ruleSerializer() { return ruleSerializer; }

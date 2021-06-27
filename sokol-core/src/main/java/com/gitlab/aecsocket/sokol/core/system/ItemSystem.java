@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core.system;
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
-import com.gitlab.aecsocket.sokol.core.tree.TreeEvent;
+import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import org.jetbrains.annotations.NotNull;
