@@ -2,16 +2,12 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
-import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.core.Validation;
-import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
-import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.PacketInputs;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
-import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
@@ -31,6 +27,7 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import io.leangen.geantyref.TypeToken;
+import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -44,13 +41,15 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Sokol's main plugin class. Use {@link #instance()} to get the singleton instance.
  */
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
+    /** The ID for this plugin on https://bstats.org. */
+    public static final int BSTATS_ID = 11870;
+
     /**
      * A function which sets up the serializers and object mapper factories, when making the config options.
      */
@@ -233,6 +232,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override
     public boolean load() {
         if (super.load()) {
+            if (setting(true, ConfigurationNode::getBoolean, "enable_bstats")) {
+                Metrics metrics = new Metrics(this, BSTATS_ID);
+            }
+
             loadRegistry(PATH_COMPONENT, PaperComponent.class, components);
             loadRegistry(PATH_BLUEPRINT, PaperBlueprint.class, blueprints);
 

@@ -1,6 +1,6 @@
 # Sokol
 
-Platform-agnostic, data-driven item framework
+Minecraft: Platform-agnostic, data-driven item framework
 
 ---
 

@@ -7,7 +7,7 @@
     <parent>
         <groupId>com.gitlab.aecsocket.sokol</groupId>
         <artifactId>sokol-parent</artifactId>
-        <version>1.0-SNAPSHOT</version>
+        <version>1.1-SNAPSHOT</version>
     </parent>
 
     <artifactId>sokol-paper</artifactId>
@@ -68,6 +68,12 @@
             <artifactId>ProtocolLib</artifactId>
             <version>4.6.0</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bstats</groupId>
+            <artifactId>bstats-bukkit</artifactId>
+            <version>2.2.1</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 
