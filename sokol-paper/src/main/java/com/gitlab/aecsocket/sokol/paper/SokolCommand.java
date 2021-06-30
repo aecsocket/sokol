@@ -43,6 +43,7 @@ import java.util.*;
                         .test(c -> c.baseSystems().containsKey(ItemSystem.ID))
                         .asOptional(), ArgumentDescription.of("The component to give, or the currently held component if not specified."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the component to give."))
+                .permission("%s.command.give".formatted(rootName))
                 .handler(c -> handle(c, this::give)));
 
         manager.command(root
@@ -52,6 +53,7 @@ import java.util.*;
                         .test(c -> c.value().baseSystems().containsKey(ItemSystem.ID))
                         .asOptional(), ArgumentDescription.of("The component tree to give, or the currently held component tree if not specified."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the component to give."))
+                .permission("%s.command.create".formatted(rootName))
                 .handler(c -> handle(c, this::create)));
 
         manager.command(root
@@ -61,6 +63,7 @@ import java.util.*;
                         .test(b -> b.node().value().baseSystems().containsKey(ItemSystem.ID)),
                         ArgumentDescription.of("The blueprint to give."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the component to give."))
+                .permission("%s.command.build".formatted(rootName))
                 .handler(c -> handle(c, this::build)));
 
         manager.command(root
@@ -73,6 +76,7 @@ import java.util.*;
                         .withAliases("m").withDescription(ArgumentDescription.of("If the component should be able to be modified by modifying slots.")))
                 .flag(CommandFlag.newBuilder("limited")
                         .withAliases("l").withDescription(ArgumentDescription.of("If only field-modifiable slots can be modified.")))
+                .permission("%s.command.gui".formatted(rootName))
                 .handler(c -> handle(c, this::gui)));
     }
 
