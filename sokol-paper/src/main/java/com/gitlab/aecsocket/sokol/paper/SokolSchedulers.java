@@ -5,7 +5,6 @@ import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
 import com.gitlab.aecsocket.minecommons.core.scheduler.TaskContext;
 import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
-import com.gitlab.aecsocket.sokol.paper.event.PaperEvent;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.Bukkit;

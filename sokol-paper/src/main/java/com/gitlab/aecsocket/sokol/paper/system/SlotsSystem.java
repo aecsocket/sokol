@@ -26,7 +26,6 @@ import java.util.Optional;
 
 public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "slots";
-    public static final PaperSystem.Type TYPE = (plugin, node) -> new SlotsSystem(plugin);
     public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
             .put("combine_sound", new SoundsStat())
             .put("insert_sound", new SoundsStat())

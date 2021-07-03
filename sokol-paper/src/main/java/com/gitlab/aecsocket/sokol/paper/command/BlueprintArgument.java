@@ -45,7 +45,7 @@ public final class BlueprintArgument<C> extends CommandArgument<C, PaperBlueprin
                     @NonNull String, @NonNull List<@NonNull String>> suggestionsProvider,
             final @NonNull ArgumentDescription defaultDescription
     ) {
-        super(required, name, new ComponentParser<>(plugin, test), defaultValue, PaperBlueprint.class, suggestionsProvider, defaultDescription);
+        super(required, name, new BlueprintParser<>(plugin, test), defaultValue, PaperBlueprint.class, suggestionsProvider, defaultDescription);
         this.test = test;
     }
 
@@ -141,11 +141,11 @@ public final class BlueprintArgument<C> extends CommandArgument<C, PaperBlueprin
 
     }
 
-    public static final class ComponentParser<C> implements ArgumentParser<C, PaperBlueprint> {
+    public static final class BlueprintParser<C> implements ArgumentParser<C, PaperBlueprint> {
         private final SokolPlugin plugin;
         private final Predicate<PaperBlueprint> test;
 
-        public ComponentParser(SokolPlugin plugin, Predicate<PaperBlueprint> test) {
+        public BlueprintParser(SokolPlugin plugin, Predicate<PaperBlueprint> test) {
             this.plugin = plugin;
             this.test = test;
         }

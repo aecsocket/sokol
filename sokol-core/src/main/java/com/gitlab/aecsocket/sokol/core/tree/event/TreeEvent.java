@@ -41,8 +41,8 @@ public interface TreeEvent {
         @Override default TreeNode node() { return system().parent(); }
     }
 
-    interface ItemEvent<U extends ItemUser, S extends ItemSlot<?>> extends TreeEvent {
-        U user();
-        S slot();
+    interface ItemEvent extends TreeEvent {
+        ItemUser user();
+        ItemSlot<?> slot();
     }
 }

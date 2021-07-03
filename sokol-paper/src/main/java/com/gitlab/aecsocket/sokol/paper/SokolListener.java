@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
-import com.gitlab.aecsocket.sokol.paper.event.PaperEvent;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;

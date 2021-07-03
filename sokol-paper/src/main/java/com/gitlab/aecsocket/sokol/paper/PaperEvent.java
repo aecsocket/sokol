@@ -1,24 +1,21 @@
-package com.gitlab.aecsocket.sokol.paper.event;
+package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
-import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
-import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
-import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
 
-public interface PaperEvent extends TreeEvent.ItemEvent<PaperUser, PaperSlot> {
+public interface PaperEvent extends TreeEvent.ItemEvent {
     @Override PaperTreeNode node();
 
     interface FromServer extends PaperEvent {
         Event handle();
     }
 
-    final class Holding implements ItemTreeEvent.Holding<PaperUser, PaperSlot>, PaperEvent {
+    final class Holding implements ItemTreeEvent.Holding, PaperEvent {
         private final PaperTreeNode node;
         private final PlayerUser user;
         private final PaperSlot slot;
@@ -46,7 +43,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent<PaperUser, PaperSlot> {
         @Override public int iteration() { return iteration; }
     }
 
-    final class ClickedSlotClickEvent implements ItemTreeEvent.ClickedSlotClickEvent<PaperUser, PaperSlot>, FromServer {
+    final class ClickedSlotClickEvent implements ItemTreeEvent.ClickedSlotClickEvent, FromServer {
         private final InventoryClickEvent handle;
         private final PaperTreeNode node;
         private final LivingEntityUser user;
@@ -75,7 +72,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent<PaperUser, PaperSlot> {
         @Override public boolean shift() { return handle.isShiftClick(); }
     }
 
-    final class CursorSlotClickEvent implements ItemTreeEvent.CursorSlotClickEvent<PaperUser, PaperSlot>, FromServer {
+    final class CursorSlotClickEvent implements ItemTreeEvent.CursorSlotClickEvent, FromServer {
         private final InventoryClickEvent handle;
         private final PaperTreeNode node;
         private final LivingEntityUser user;
@@ -104,7 +101,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent<PaperUser, PaperSlot> {
         @Override public boolean shift() { return handle.isShiftClick(); }
     }
 
-    final class HeldClickEvent implements ItemTreeEvent.HeldClickEvent<PaperUser, PaperSlot>, PaperEvent {
+    final class HeldClickEvent implements ItemTreeEvent.HeldClickEvent, PaperEvent {
         private final PaperTreeNode node;
         private final PlayerUser user;
         private final PaperSlot slot;

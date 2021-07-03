@@ -11,8 +11,6 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSystem {
-    public static final Type TYPE = (plugin, node) -> new PaperSlotInfoSystem(plugin);
-
     public final class Instance extends SlotInfoSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {
             super(parent);

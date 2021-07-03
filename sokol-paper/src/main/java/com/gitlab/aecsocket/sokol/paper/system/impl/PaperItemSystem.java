@@ -16,7 +16,6 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import java.util.Locale;
 
 public final class PaperItemSystem extends ItemSystem implements PaperSystem {
-    public static final PaperSystem.Type TYPE = (plugin, node) -> new PaperItemSystem(plugin);
     private static final Stat<ItemDescriptor> stat = new ItemDescriptor.Stat(null);
 
     public final class Instance extends ItemSystem.Instance implements PaperSystem.Instance {

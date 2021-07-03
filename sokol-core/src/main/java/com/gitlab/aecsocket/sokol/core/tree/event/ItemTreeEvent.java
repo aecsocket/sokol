@@ -7,28 +7,28 @@ import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 public final class ItemTreeEvent {
     private ItemTreeEvent() {}
 
-    public interface Holding<U extends ItemUser, S extends ItemSlot<?>> extends TreeEvent.ItemEvent<U, S> {
+    public interface Holding extends TreeEvent.ItemEvent {
         boolean sync();
         long elapsed();
         long delta();
         int iteration();
     }
 
-    public interface SlotClickEvent<U extends ItemUser, S extends ItemSlot<?>> extends TreeEvent.ItemEvent<U, S>, Cancellable {
+    public interface SlotClickEvent extends TreeEvent.ItemEvent, Cancellable {
         boolean left();
         boolean right();
         boolean shift();
     }
 
-    public interface ClickedSlotClickEvent<U extends ItemUser, S extends ItemSlot<?>> extends SlotClickEvent<U, S> {
-        S cursor();
+    public interface ClickedSlotClickEvent extends SlotClickEvent {
+        ItemSlot<?> cursor();
     }
 
-    public interface CursorSlotClickEvent<U extends ItemUser, S extends ItemSlot<?>> extends SlotClickEvent<U, S> {
-        S clicked();
+    public interface CursorSlotClickEvent extends SlotClickEvent {
+        ItemSlot<?> clicked();
     }
 
-    public interface HeldClickEvent<U extends ItemUser, S extends ItemSlot<?>> extends TreeEvent.ItemEvent<U, S>, Cancellable {
+    public interface HeldClickEvent extends TreeEvent.ItemEvent, Cancellable {
         enum Type {
             LEFT, RIGHT
         }

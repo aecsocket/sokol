@@ -95,7 +95,7 @@ public class TestSystem extends AbstractSystem implements PaperSystem {
     public SokolPlugin platform() { return platform; }
 
     @Override
-    public @NotNull Instance create(TreeNode node, Component component) {
+    public @NotNull Instance create(TreeNode node) {
         return new Instance(node);
     }
 
@@ -108,6 +108,7 @@ public class TestSystem extends AbstractSystem implements PaperSystem {
     public @NotNull Instance load(PaperTreeNode node, PersistentDataContainer data) throws IllegalArgumentException {
         return new Instance(node);
     }
+}
 ```
 
 To register this system type in your plugin, you must:

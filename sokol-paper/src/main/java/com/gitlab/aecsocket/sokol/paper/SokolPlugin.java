@@ -17,7 +17,6 @@ import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
-import com.gitlab.aecsocket.sokol.paper.event.PaperEvent;
 import com.gitlab.aecsocket.sokol.paper.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
@@ -116,9 +115,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             )
                 event.cancel();
         });
-        registerSystemType(ItemSystem.ID, PaperItemSystem.TYPE);
-        registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.TYPE);
-        registerSystemType(SlotsSystem.ID, SlotsSystem.TYPE);
+        registerSystemType(ItemSystem.ID, (platform, node) -> new PaperItemSystem(platform));
+        registerSystemType(SlotInfoSystem.ID, (platform, node) -> new PaperSlotInfoSystem(platform));
+        registerSystemType(SlotsSystem.ID, (platform, node) -> new SlotsSystem(platform));
         schedulers.setup();
     }
 
