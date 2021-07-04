@@ -1,7 +1,10 @@
 package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
+import net.kyori.adventure.text.Component;
 import org.jetbrains.annotations.NotNull;
+
+import java.util.Locale;
 
 /**
  * An abstract system with some methods implemented.
@@ -18,6 +21,10 @@ public abstract class AbstractSystem implements System {
         }
 
         @Override public @NotNull TreeNode parent() { return parent; }
+
+        protected Component localize(Locale locale, String key, Object... args) {
+            return platform().localize(locale, "system." + base().id() + "." + key, args);
+        }
 
         @Override public String toString() {
             return "<%s>".formatted(base().id());

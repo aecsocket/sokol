@@ -31,11 +31,11 @@ public abstract class SlotInfoSystem extends AbstractSystem {
         private void addLore(Locale locale, List<Component> lore, Slot slot, TreeNode node, Component indent, int pathLength) {
             String slotType = slot.required() ? "required"
                     : slot.internal() ? "internal" : "default";
-            lore.add(Components.BLANK.append(platform().localize(locale, "system.slot_info.lore",
+            lore.add(Components.BLANK.append(localize(locale, "lore",
                     "indent", Components.repeat(indent, pathLength),
-                    "slot", platform().localize(locale, "system.slot_info." + slotType,
+                    "slot", localize(locale, slotType,
                             "slot", slot.name(locale)),
-                    "component", node == null ? platform().localize(locale, "system.slot_info.empty") : node.value().name(locale))));
+                    "component", node == null ? localize(locale, "empty") : node.value().name(locale))));
 
             if (node != null) {
                 for (var entry : node.slotChildren().entrySet()) {
@@ -48,7 +48,7 @@ public abstract class SlotInfoSystem extends AbstractSystem {
             if (!parent.isRoot())
                 return;
             List<Component> lore = new ArrayList<>();
-            Component indent = platform().localize(event.locale(), "system.slot_info.indent");
+            Component indent = localize(event.locale(), "indent");
             for (var entry : parent.slotChildren().entrySet()) {
                 addLore(event.locale(), lore, entry.getValue().slot(), entry.getValue().child().orElse(null), indent, 0);
             }

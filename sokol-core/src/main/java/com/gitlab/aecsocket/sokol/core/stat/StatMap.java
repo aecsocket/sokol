@@ -125,18 +125,6 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
     public Rule rule() { return rule; }
 
     /**
-     * Gets a value of a stat instance by its stat key.
-     * @param key The key.
-     * @param <T> The type of value.
-     * @return An Optional of the result.
-     */
-    public <T> Optional<T> value(@NotNull String key) {
-        @SuppressWarnings("unchecked")
-        Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
-        return inst == null ? Optional.empty() : Optional.ofNullable(inst.value());
-    }
-
-    /**
      * Sets a value of a stat instance by its stat key.
      * <p>
      * If the stat instance is not present, no action will be performed.
@@ -144,11 +132,59 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
      * @param value The value to set the instance to.
      * @param <T> The type of value.
      */
-    public <T> void value(@NotNull String key, @Nullable T value) {
+    public <T> void set(@NotNull String key, @Nullable T value) {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
         if (inst != null)
             inst.value(value);
+    }
+
+    /**
+     * Gets a value of a stat instance by its stat key.
+     * @param key The key.
+     * @param <T> The type of value.
+     * @return An Optional of the result.
+     */
+    public <T> Optional<T> val(@NotNull String key) {
+        @SuppressWarnings("unchecked")
+        Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
+        return inst == null ? Optional.empty() : Optional.ofNullable(inst.value());
+    }
+
+    /**
+     * Gets a value of a stat instance's stat descriptor by its stat key.
+     * @param key The key.
+     * @param <T> The type of value.
+     * @return An Optional of the result.
+     */
+    public <T> Optional<T> descVal(@NotNull String key) {
+        @SuppressWarnings("unchecked")
+        Stat.Instance<StatDescriptor<T>> inst = (Stat.Instance<StatDescriptor<T>>) get(key);
+        return inst == null ? Optional.empty() : Optional.ofNullable(inst.value().value());
+    }
+
+    /**
+     * Gets a value of a stat instance by its stat key.
+     * <p>
+     * If there is no value, an exception is thrown.
+     * @param key The key.
+     * @param <T> The type of value.
+     * @return The result.
+     */
+    public <T> T require(@NotNull String key) {
+        return this.<T>val(key).orElseThrow(() -> new IllegalStateException("No value for key [" + key + "]"));
+    }
+
+    /**
+     * Gets a value of a stat instance's stat descriptor by its stat key.
+     * <p>
+     * If there is no value, an exception is thrown.
+     * @param key The key.
+     * @param <T> The type of value.
+     * @return An Optional of the result.
+     */
+    public <T> T descRequire(@NotNull String key) {
+        return this.<T>descVal(key).orElseThrow(() -> new IllegalStateException("No value for key [" + key + "]"));
     }
 
     /**

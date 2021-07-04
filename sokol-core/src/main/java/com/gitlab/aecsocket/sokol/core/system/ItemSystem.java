@@ -52,11 +52,11 @@ public abstract class ItemSystem extends AbstractSystem {
          * @return The item stack.
          */
         public ItemStack create(Locale locale) {
-            ItemStack.Factory factory = parent.stats().<ItemStack.Factory>value("item")
+            ItemStack.Factory factory = parent.stats().<ItemStack.Factory>val("item")
                     .orElseThrow(() -> new IllegalArgumentException("No item provided"));
             ItemStack item = factory.create();
             item.save(parent);
-            item.name(parent.stats().<String>value("item_name")
+            item.name(parent.stats().<String>val("item_name")
                     .map(k -> platform().localize(locale, k))
                     .orElse(parent.value().name(locale)));
             new Events.CreateItem(this, locale, item).call();

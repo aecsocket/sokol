@@ -17,7 +17,7 @@ import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
-import com.gitlab.aecsocket.sokol.paper.stat.Descriptor;
+import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperSlotInfoSystem;
@@ -192,7 +192,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         serializers.register(PaperTreeNode.class, new PaperTreeNode.Serializer(this));
         serializers.register(PaperBlueprint.class, new PaperBlueprint.Serializer(this));
 
-        serializers.register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, new Descriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
+        serializers.register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}));
+        serializers.register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}));
+        serializers.register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 
