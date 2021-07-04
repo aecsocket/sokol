@@ -21,11 +21,11 @@ public final class ItemTreeEvent {
     }
 
     public interface ClickedSlotClickEvent extends SlotClickEvent {
-        ItemSlot<?> cursor();
+        ItemSlot cursor();
     }
 
     public interface CursorSlotClickEvent extends SlotClickEvent {
-        ItemSlot<?> clicked();
+        ItemSlot clicked();
     }
 
     public interface HeldClickEvent extends TreeEvent.ItemEvent, Cancellable {

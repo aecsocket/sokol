@@ -43,6 +43,6 @@ public interface TreeEvent {
 
     interface ItemEvent extends TreeEvent {
         ItemUser user();
-        ItemSlot<?> slot();
+        ItemSlot slot();
     }
 }

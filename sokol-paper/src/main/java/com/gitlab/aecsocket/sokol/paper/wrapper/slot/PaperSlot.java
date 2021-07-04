@@ -12,7 +12,7 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-public interface PaperSlot extends ItemSlot<PaperItemStack> {
+public interface PaperSlot extends ItemSlot {
     SokolPlugin plugin();
 
     @Override
@@ -24,8 +24,11 @@ public interface PaperSlot extends ItemSlot<PaperItemStack> {
     ItemStack paperGet();
 
     @Override
-    default void set(@Nullable PaperItemStack item) {
-        paperSet(item == null ? new ItemStack(Material.AIR) : item.handle());
+    default void set(com.gitlab.aecsocket.sokol.core.wrapper.@Nullable ItemStack item) {
+        if (item == null)
+            paperSet(new ItemStack(Material.AIR));
+        else if (item instanceof PaperItemStack paperItem)
+            paperSet(paperItem.handle());
     }
 
     void paperSet(ItemStack item);

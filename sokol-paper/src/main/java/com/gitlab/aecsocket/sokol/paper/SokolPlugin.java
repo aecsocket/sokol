@@ -88,7 +88,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
     private final SokolSchedulers schedulers = new SokolSchedulers(this);
-    private final SlotViewGuis slotViewGuis = new SlotViewGuis(this);
+    private final Guis guis = new Guis(this);
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
@@ -142,7 +142,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public @NotNull Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public @NotNull PersistenceManager persistenceManager() { return persistenceManager; }
     public @NotNull SokolSchedulers schedulers() { return schedulers; }
-    public @NotNull SlotViewGuis slotViewGuis() { return slotViewGuis; }
+    public @NotNull Guis guis() { return guis; }
     public @NotNull StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public @NotNull Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public @NotNull PaperSystem.Serializer systemSerializer() { return systemSerializer; }

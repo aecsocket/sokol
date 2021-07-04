@@ -19,6 +19,7 @@ public interface InventorySlot extends PaperSlot {
             @Override public SokolPlugin plugin() { return plugin; }
             @Override public @NotNull Inventory inventory() { return inventory; }
             @Override public int slot() { return slot; }
+            @Override public String toString() { return slot + " @ " + inventory; }
         };
     }
 }

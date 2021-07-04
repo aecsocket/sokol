@@ -66,14 +66,14 @@ import java.util.function.Function;
                 return;
             int clickedSlot = event.getSlot();
             boolean clickedTop = event.getClickedInventory() == event.getView().getTopInventory();
-            plugin.slotViewGuis()
+            plugin.guis()
                     .create(new SlotViewPane(plugin, 9, 6, locale, clickedNode)
                             .modification(plugin.setting(true, ConfigurationNode::getBoolean, "slot_view", "field_modify", "modification"))
                             .limited(plugin.setting(true, ConfigurationNode::getBoolean, "slot_view", "field_modify", "limited"))
                             .treeModifyCallback(node -> {
                                 event.setCurrentItem(node.<PaperItemSystem.Instance>system(ItemSystem.ID).orElseThrow().create(locale).handle());
                             }), evt -> {
-                        if (evt.getSlot() == clickedSlot && evt.getClickedInventory() == evt.getView().getTopInventory() == clickedTop)
+                        if (Guis.isInvalid(evt, clickedTop, clickedSlot))
                             evt.setCancelled(true);
                     })
                     .show(human);

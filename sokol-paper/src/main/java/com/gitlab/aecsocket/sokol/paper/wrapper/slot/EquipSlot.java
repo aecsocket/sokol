@@ -18,6 +18,7 @@ public interface EquipSlot extends PaperSlot {
             @Override public SokolPlugin plugin() { return plugin; }
             @Override public @NotNull LivingEntity entity() { return entity; }
             @Override public @NotNull EquipmentSlot slot() { return slot; }
+            @Override public String toString() { return slot + " @ " + entity; }
         };
     }
 }

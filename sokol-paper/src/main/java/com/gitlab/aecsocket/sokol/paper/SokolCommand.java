@@ -127,7 +127,7 @@ import java.util.*;
                         .orElse(null));
 
         for (Player target : targets) {
-            plugin.slotViewGuis()
+            plugin.guis()
                     .create(new SlotViewPane(plugin, 9, 6, target.locale(), node)
                             .modification(ctx.flags().isPresent("modification"))
                             .limited(ctx.flags().isPresent("limited")), evt -> {})
