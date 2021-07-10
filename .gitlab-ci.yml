@@ -1,21 +1,74 @@
-image: "maven:latest"
+image: gradle:jdk16
 
-cache:
-  paths:
-    - "maven.repository/"
+stages:
+  - build
+  - test
+  - deploy
 
 variables:
-  MAVEN_OPTS: "-Dmaven.repo.local=maven.repository"
+  GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dmaven.repo.local=${CI_PROJECT_DIR}/.m2/repository"
+  GRADLE_USER_HOME: "${CI_PROJECT_DIR}/.gradle"
 
 build:
+  stage: build
   script:
-    - "mvn package"
+    - "gradle --build-cache assemble"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull-push
+    paths:
+      - "*/build"
+      - ".gradle"
+      - ".m2/repository"
   artifacts:
     paths:
-      - "*/target"
+      - ".gradle"
+      - "*/build/libs/*.jar"
+    expire_in: 1 week
 
-deploy:
+test:
+  stage: test
   script:
-    - "mvn deploy -s ci_settings.xml"
+    - "gradle check"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - "*/build"
+      - ".gradle"
+      - ".m2/repository"
+
+publish:
+  stage: deploy
+  script:
+    - "gradle publish"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - "*/build"
+      - ".gradle"
+      - ".m2/repository"
   only:
-    - "master"
+    - master
+
+pages:
+  stage: deploy
+  script:
+    - "gradle javadoc"
+    - "mv src/site public"
+    - "mkdir -p public/javadoc"
+    - "mv core/build/docs/javadoc public/javadoc/core"
+    - "mv paper/build/docs/javadoc public/javadoc/paper"
+  cache:
+    key: "$CI_COMMIT_REF_NAME"
+    policy: pull
+    paths:
+      - "*/build"
+      - ".gradle"
+      - ".m2/repository"
+  artifacts:
+    paths:
+      - "public"
+  only:
+    - master

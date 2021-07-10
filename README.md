@@ -1,58 +1,66 @@
 # Sokol
 
-Minecraft: Platform-agnostic, data-driven item framework
+Platform-agnostic data-driven item framework, allowing server owners to configure items
+and plugin developers to register custom item behaviour.
 
 ---
 
-Platforms:
-* Paper
+## Paper
 
-## Setup
+Sokol is exposed as a Paper plugin. It has its own configurations and allows other plugins
+to depend on it.
 
 ### Dependencies
 
 * [Java >=16](https://adoptopenjdk.net/?variant=openjdk16&jvmVariant=hotspot)
+* [Paper >=1.17.1](https://papermc.io/)
+* [ProtocolLib >=4.7.0](https://www.spigotmc.org/resources/protocollib.1997/)
 
-### Coordinates
-
-Repository
-```xml
-<repository>
-    <id>gitlab-maven-sokol</id>
-    <url>https://gitlab.com/api/v4/projects/27149151/packages/maven</url>
-</repository>
-```
-
-Dependency
-```xml
-<dependency>
-    <groupId>com.gitlab.aecsocket.sokol</groupId>
-    <artifactId>sokol-[MODULE]</artifactId>
-    <version>[VERSION]</version>
-</dependency>
-```
-
-Modules:
-* `core` Core classes, such as components and systems
-* `paper` [Paper >=1.16.5](https://papermc.io/) platform implementation
-
-### API
-
-## Paper
-
-### Dependencies
-
-* Core dependencies
-* [Paper >=1.16.5](https://papermc.io/)
-* [ProtocolLib >=4.6.0 Dev](https://ci.dmulloy2.net/job/ProtocolLib/lastSuccessfulBuild/)
-
-### [Download](https://gitlab.com/aecsocket/sokol/-/jobs/artifacts/master/raw/sokol-paper/target/Sokol-Paper.jar?job=build)
+### [Download](https://gitlab.com/api/v4/projects/27149151/jobs/artifacts/master/raw/paper/build/libs/sokol-paper-1.2-SNAPSHOT.jar?job=build)
 
 ### Documentation
 
 TODO
 
-### API
+## Development Setup
+
+### Coordinates
+
+#### Maven
+
+Repository
+```xml
+<repository>
+    <id>gitlab-sokol-minecommons</id>
+    <url>https://gitlab.com/api/v4/projects/27149151/packages/maven</url>
+</repository>
+```
+Dependency
+```xml
+<dependency>
+    <groupId>com.gitlab.aecsocket.sokol</groupId>
+    <artifactId>[MODULE]</artifactId>
+    <version>[VERSION]</version>
+</dependency>
+```
+
+#### Gradle
+
+Repository
+```kotlin
+maven("https://gitlab.com/api/v4/projects/27149151/packages/maven")
+```
+
+Dependency
+```kotlin
+implementation("com.gitlab.aecsocket.sokol", "[MODULE]", "[VERSION]")
+```
+
+### Usage
+
+#### [Javadoc](https://aecsocket.gitlab.io/sokol)
+
+#### API
 
 The main way to interact with the API is by registering a custom system type, and placing that on a
 component in your configuration. Your system will be able to react to component and item events.
@@ -69,8 +77,8 @@ public class TestSystem extends AbstractSystem implements PaperSystem {
             super(parent);
         }
 
-        @Override public @NotNull TestSystem base() { return TestSystem.this; }
-        @Override public @NotNull SokolPlugin platform() { return platform; }
+        @Override public TestSystem base() { return TestSystem.this; }
+        @Override public SokolPlugin platform() { return platform; }
 
         @Override
         public void build() {
@@ -90,22 +98,22 @@ public class TestSystem extends AbstractSystem implements PaperSystem {
         this.platform = platform;
     }
 
-    @Override public @NotNull String id() { return ID; }
+    @Override public String id() { return ID; }
 
     public SokolPlugin platform() { return platform; }
 
     @Override
-    public @NotNull Instance create(TreeNode node) {
+    public Instance create(TreeNode node) {
         return new Instance(node);
     }
 
     @Override
-    public @NotNull Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
+    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
         return new Instance(node);
     }
 
     @Override
-    public @NotNull Instance load(PaperTreeNode node, PersistentDataContainer data) throws IllegalArgumentException {
+    public Instance load(PaperTreeNode node, PersistentDataContainer data) throws IllegalArgumentException {
         return new Instance(node);
     }
 }
@@ -138,3 +146,11 @@ public void onEnable() {
 sokol.configOptionInitializer((serializers, mapperFactory) -> serializers
         .register(MyCustomType.class, new MyCustomTypeSerializer()));
 ```
+
+
+### Modules
+
+* Core `core`
+
+Implementations:
+* Paper `paper`

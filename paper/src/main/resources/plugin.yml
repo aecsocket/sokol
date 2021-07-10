@@ -1,0 +1,13 @@
+# TODO https://github.com/Minecrell/plugin-yml when it adds `libraries` support
+name: "Sokol"
+version: "1.2-SNAPSHOT"
+description: "Platform-agnostic, data-driven item framework"
+url: "https://gitlab.com/aecsocket/sokol"
+author: "aecsocket"
+
+main: "com.gitlab.aecsocket.sokol.paper.SokolPlugin"
+api-version: "1.17"
+
+depend:
+  - "Minecommons"
+  - "ProtocolLib"

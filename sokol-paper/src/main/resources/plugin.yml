@@ -1,8 +1,0 @@
-name: "Sokol"
-description: "${project.description}"
-author: "aecsocket"
-version: "${project.version}"
-api-version: "1.16"
-main: "${project.groupId}.paper.SokolPlugin"
-depend:
-  - "ProtocolLib"
