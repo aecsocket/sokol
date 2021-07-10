@@ -5,7 +5,7 @@ plugins {
     id("xyz.jpenilla.run-paper") version "1.0.3"
 }
 
-val minecraftVersion = "1.17.1"
+val minecraftVersion = "1.17"
 
 repositories {
     maven("https://papermc.io/repo/repository/maven-public/")
@@ -18,17 +18,10 @@ dependencies {
         exclude("junit", "junit")
     }
 
-    compileOnly("org.spongepowered", "configurate-hocon", "4.1.1")
-    val cloudVersion = "1.5.0"
-    compileOnly("cloud.commandframework", "cloud-paper", cloudVersion)
-    compileOnly("cloud.commandframework", "cloud-minecraft-extras", cloudVersion)
-    compileOnly("com.github.stefvanschie.inventoryframework", "IF", "0.10.0")
-    compileOnly("com.google.code.findbugs", "jsr305", "3.0.2")
-    compileOnly("org.bstats", "bstats-bukkit", "2.2.1")
     implementation("org.bstats", "bstats-bukkit", "2.2.1")
 
     // Plugins
-    compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.2-SNAPSHOT")
+    compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.2")
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
 }
 
