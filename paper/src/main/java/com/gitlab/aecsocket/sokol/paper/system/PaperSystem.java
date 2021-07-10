@@ -51,7 +51,7 @@ public interface PaperSystem extends System {
         @Override PaperSystem base();
 
         default PersistentDataContainer save(PersistentDataAdapterContext ctx) throws IllegalArgumentException { return null; }
-        default void save(java.lang.reflect.Type type, ConfigurationNode node) {}
+        default void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException {}
     }
 
     interface Type {
