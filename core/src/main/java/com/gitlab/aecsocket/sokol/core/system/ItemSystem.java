@@ -56,7 +56,7 @@ public abstract class ItemSystem extends AbstractSystem {
             ItemStack item = factory.create();
             item.save(parent);
             item.name(parent.stats().<String>val("item_name")
-                    .map(k -> platform().localize(locale, k))
+                    .map(k -> platform().lc().safe(locale, k))
                     .orElse(parent.value().name(locale)));
             new Events.CreateItem(this, locale, item).call();
             return item;

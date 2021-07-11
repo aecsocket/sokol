@@ -283,11 +283,11 @@ public class SlotViewPane extends Pane {
     }
 
     private Component slotText(PaperSlot slot) {
-        return plugin.localize(locale, "slot.meta.name",
+        return plugin.lc().safe(locale, "slot.meta.name",
                 "name", slot.name(locale),
-                "required", plugin.localize(locale, "slot.meta." + (slot.required() ? "" : "not_") + "required"),
-                "internal", plugin.localize(locale, "slot.meta." + (slot.internal() ? "" : "not_") + "internal"),
-                "field_modifiable", plugin.localize(locale, "slot.meta." + (slot.fieldModifiable() ? "" : "not_") + "field_modifiable"));
+                "required", plugin.lc().safe(locale, "slot.meta." + (slot.required() ? "" : "not_") + "required"),
+                "internal", plugin.lc().safe(locale, "slot.meta." + (slot.internal() ? "" : "not_") + "internal"),
+                "field_modifiable", plugin.lc().safe(locale, "slot.meta." + (slot.fieldModifiable() ? "" : "not_") + "field_modifiable"));
     }
 
     private Collection<GuiItem> toItems() {

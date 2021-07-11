@@ -40,7 +40,7 @@ public interface Component extends Keyed {
      * @return The name.
      */
     default net.kyori.adventure.text.Component name(Locale locale) {
-        return platform().localize(locale, "component." + id());
+        return platform().lc().safe(locale, "component." + id());
     }
 
     /**

@@ -3,8 +3,10 @@ package com.gitlab.aecsocket.sokol.core.component;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
+import net.kyori.adventure.text.Component;
 
 import java.util.Locale;
+import java.util.Optional;
 
 public class Blueprint<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> implements Keyed {
     protected final SokolPlatform platform;
@@ -25,8 +27,8 @@ public class Blueprint<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> implements Keye
      * @param locale The locale to localize for.
      * @return The name.
      */
-    public net.kyori.adventure.text.Component name(Locale locale) {
-        return platform.localize(locale, "blueprint." + id);
+    public Component name(Locale locale) {
+        return platform.lc().safe(locale, "blueprint." + id);
     }
 
     public N node() { return node; }

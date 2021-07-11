@@ -230,6 +230,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
     @Override
     public void load() {
+        super.load();
         if (setting(true, ConfigurationNode::getBoolean, "enable_bstats")) {
             Metrics metrics = new Metrics(this, BSTATS_ID);
         }

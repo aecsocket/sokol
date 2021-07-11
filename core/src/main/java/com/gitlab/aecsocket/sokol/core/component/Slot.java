@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * Metadata for a slot in a {@link Component}.
@@ -32,7 +33,7 @@ public interface Slot {
      * @return The name.
      */
     default net.kyori.adventure.text.Component name(Locale locale) {
-        return platform().localize(locale, "slot." + key());
+        return platform().lc().safe(locale, "slot." + key());
     }
 
     /**

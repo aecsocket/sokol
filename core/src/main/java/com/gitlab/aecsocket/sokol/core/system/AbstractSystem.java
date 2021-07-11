@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
 
 import java.util.Locale;
+import java.util.Optional;
 
 /**
  * An abstract system with some methods implemented.
@@ -21,10 +22,6 @@ public abstract class AbstractSystem implements System {
         }
 
         @Override public TreeNode parent() { return parent; }
-
-        protected Component localize(Localizer localizer, Locale locale, String key, Object... args) {
-            return localizer.localize(locale, "system." + base().id() + "." + key, args);
-        }
 
         @Override public String toString() {
             return "<%s>".formatted(base().id());

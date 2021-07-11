@@ -95,10 +95,12 @@ import java.util.*;
                 inventory.addItem(item);
             }
         }
-        sender.sendMessage(localize(locale, "chat.give",
-                "amount", Integer.toString(amount),
+        send(sender, locale, "give",
+                "amount", ""+amount,
                 "component", node.value().name(locale),
-                "target", targets.size() == 1 ? targets.get(0).displayName() : Integer.toString(targets.size())));
+                "target", targets.size() == 1
+                        ? targets.get(0).displayName()
+                        : ""+targets.size());
     }
 
     // Commands
