@@ -55,7 +55,7 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 if (systemType == null)
                     throw new SerializationException(node, type, "Could not find system [" + systemId + "]");
                 try {
-                    systems.put(systemId, systemType.create(plugin, entry.getValue()));
+                    systems.put(systemId, systemType.create(entry.getValue()));
                 } catch (SerializationException e) {
                     throw new SerializationException(node, type, "Could not create system [" + systemId + "]", e);
                 }

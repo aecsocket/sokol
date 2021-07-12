@@ -43,7 +43,8 @@ public record PaperItemStack(
                 lore = new ArrayList<>();
             else
                 lore.add(Component.empty());
-            lore.addAll(add);
+            for (Component component : add)
+                lore.add(Components.BLANK.append(component));
             meta.lore(lore);
         });
     }
@@ -56,7 +57,8 @@ public record PaperItemStack(
                 lore = new ArrayList<>();
             else
                 lore.add(Component.empty());
-            lore.addAll(Arrays.asList(add));
+            for (Component component : add)
+                lore.add(Components.BLANK.append(component));
             meta.lore(lore);
         });
     }

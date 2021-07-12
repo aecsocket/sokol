@@ -41,4 +41,8 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSy
     public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
         return new Instance(node);
     }
+
+    public static PaperSystem.Type type(SokolPlugin platform) {
+        return config -> new PaperSlotInfoSystem(platform);
+    }
 }

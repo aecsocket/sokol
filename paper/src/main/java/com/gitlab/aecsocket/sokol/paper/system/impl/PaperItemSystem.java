@@ -53,4 +53,8 @@ public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
         return new Instance(node);
     }
+
+    public static PaperSystem.Type type(SokolPlugin platform) {
+        return config -> new PaperItemSystem(platform);
+    }
 }

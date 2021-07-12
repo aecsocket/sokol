@@ -14,7 +14,6 @@ import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
@@ -70,7 +69,7 @@ public final class Guis {
      * @param callback The function to run when the confirmation (resultant) item is clicked.
      * @return The GUI.
      */
-    public AnvilGui textInput(Component title, @Nullable Component input, Consumer<ItemMeta> resultBuilder, BiConsumer<InventoryClickEvent, String> callback) {
+    public AnvilGui textInput(Component title, Component input, Consumer<ItemMeta> resultBuilder, BiConsumer<InventoryClickEvent, String> callback) {
         AnvilGui gui = new AnvilGui(holder(title));
 
         ItemStack placeholder = plugin.setting(plugin.invalidItem(), (n, d) -> n.get(ItemDescriptor.class, d), "text_input_placeholder")
@@ -79,10 +78,8 @@ public final class Guis {
         gui.setOnTopClick(evt -> evt.setCancelled(true));
 
         StaticPane firstPane = new StaticPane(1, 1);
-        firstPane.addItem(new GuiItem(PaperUtils.modify(placeholder.clone(), meta -> {
-            if (input != null)
-                meta.displayName(Components.BLANK.append(input));
-        }), evt -> evt.setCancelled(true)), 0, 0);
+        firstPane.addItem(new GuiItem(PaperUtils.modify(placeholder.clone(), meta ->
+                meta.displayName(Components.BLANK.append(input))), evt -> evt.setCancelled(true)), 0, 0);
         gui.getFirstItemComponent().addPane(firstPane);
 
         StaticPane resultPane = new StaticPane(1, 1);

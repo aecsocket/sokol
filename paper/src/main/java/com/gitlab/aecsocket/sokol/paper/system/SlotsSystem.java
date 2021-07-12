@@ -100,6 +100,10 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
         return new Instance(node);
     }
 
+    public static PaperSystem.Type type(SokolPlugin platform) {
+        return config -> new SlotsSystem(platform);
+    }
+
     public static final class Events {
         private Events() {}
 

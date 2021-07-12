@@ -23,6 +23,10 @@ public abstract class AbstractSystem implements System {
 
         @Override public TreeNode parent() { return parent; }
 
+        protected String lck(String key) {
+            return "system." + base().id() + "." + key;
+        }
+
         @Override public String toString() {
             return "<%s>".formatted(base().id());
         }

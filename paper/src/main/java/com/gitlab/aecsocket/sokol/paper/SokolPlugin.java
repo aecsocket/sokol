@@ -114,9 +114,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             )
                 event.cancel();
         });
-        registerSystemType(ItemSystem.ID, (platform, node) -> new PaperItemSystem(platform));
-        registerSystemType(SlotInfoSystem.ID, (platform, node) -> new PaperSlotInfoSystem(platform));
-        registerSystemType(SlotsSystem.ID, (platform, node) -> new SlotsSystem(platform));
+        registerSystemType(ItemSystem.ID, PaperItemSystem.type(this));
+        registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this));
+        registerSystemType(SlotsSystem.ID, SlotsSystem.type(this));
         schedulers.setup();
     }
 
@@ -127,11 +127,12 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
     private boolean handleInput(Player player, ItemTreeEvent.HeldClickEvent.Type type, EquipmentSlot slot) {
         AtomicBoolean result = new AtomicBoolean();
-        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node ->
-                result.set(new PaperEvent.HeldClickEvent(node,
+        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node -> {
+            result.set(new PaperEvent.HeldClickEvent(node,
                     PlayerUser.of(this, player),
                     EquipSlot.of(this, player, slot),
-                    type).call()));
+                    type).call());
+        });
         return result.get();
     }
 
@@ -151,7 +152,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
      * @param id The system's ID.
      * @param type The system creator.
      */
-    public void registerSystemType(String id, PaperSystem.Type type) {
+    public SokolPlugin registerSystemType(String id, PaperSystem.Type type) {
         Validation.notNull("id", id);
         Validation.notNull("type", type);
         if (!Keyed.validKey(id))
@@ -159,10 +160,11 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         systemTypes.put(id, new PaperSystem.KeyedType() {
             @Override public String id() { return id; }
             @Override
-            public PaperSystem create(SokolPlugin plugin, ConfigurationNode node) throws SerializationException {
-                return type.create(plugin, node);
+            public PaperSystem create(ConfigurationNode config) throws SerializationException {
+                return type.create(config);
             }
         });
+        return this;
     }
 
     /**

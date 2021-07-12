@@ -47,7 +47,7 @@ tasks {
         ).forEach { relocate(it, "${rootProject.group}.lib.$it") }
     }
 
-    build {
+    assemble {
         dependsOn(shadowJar)
     }
 

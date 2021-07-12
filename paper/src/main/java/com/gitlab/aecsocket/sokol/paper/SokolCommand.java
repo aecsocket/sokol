@@ -6,6 +6,7 @@ import cloud.commandframework.arguments.standard.IntegerArgument;
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument;
 import cloud.commandframework.captions.SimpleCaptionRegistry;
 import cloud.commandframework.context.CommandContext;
+import com.gitlab.aecsocket.minecommons.core.Text;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.tree.AbstractTreeNode;
@@ -114,9 +115,14 @@ import java.util.*;
     }
 
     private void create(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {
-        give(ctx, sender, locale, pSender, defaultedArg(ctx, "node", pSender,
-                () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())
-                        .orElse(null)));
+        try {
+            give(ctx, sender, locale, pSender, defaultedArg(ctx, "node", pSender,
+                    () -> plugin.persistenceManager().load(pSender.getInventory().getItemInMainHand())
+                            .orElse(null)));
+        } catch (Exception e) {
+            throw error("cant_create_item",
+                    "message", Text.mergeMessages(e));
+        }
     }
 
     private void build(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender) {

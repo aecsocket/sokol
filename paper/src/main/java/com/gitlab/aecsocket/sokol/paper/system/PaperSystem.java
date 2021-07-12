@@ -55,7 +55,7 @@ public interface PaperSystem extends System {
     }
 
     interface Type {
-        PaperSystem create(SokolPlugin plugin, ConfigurationNode node) throws SerializationException;
+        PaperSystem create(ConfigurationNode config) throws SerializationException;
     }
 
     interface KeyedType extends Type, Keyed {}
