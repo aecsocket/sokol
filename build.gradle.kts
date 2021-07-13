@@ -18,7 +18,7 @@ subprojects {
     }
 
     repositories {
-        mavenLocal()
+        //mavenLocal()
         mavenCentral()
         maven("https://oss.sonatype.org/content/repositories/snapshots/")
         maven("https://gitlab.com/api/v4/projects/27049637/packages/maven") // Minecommons

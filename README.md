@@ -14,6 +14,7 @@ to depend on it.
 
 * [Java >=16](https://adoptopenjdk.net/?variant=openjdk16&jvmVariant=hotspot)
 * [Paper >=1.17.1](https://papermc.io/)
+* [Minecommons >=1.2](https://gitlab.com/aecsocket/minecommons)
 * [ProtocolLib >=4.7.0](https://www.spigotmc.org/resources/protocollib.1997/)
 
 ### [Download](https://gitlab.com/api/v4/projects/27149151/jobs/artifacts/master/raw/paper/build/libs/sokol-paper-1.2-SNAPSHOT.jar?job=build)
