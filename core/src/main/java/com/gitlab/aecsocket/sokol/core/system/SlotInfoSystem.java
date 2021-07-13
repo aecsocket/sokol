@@ -31,14 +31,14 @@ public abstract class SlotInfoSystem extends AbstractSystem {
         private void addLore(Locale locale, List<Component> lore, Slot slot, @Nullable TreeNode node, Component indent, int pathLength) {
             String slotType = slot.required() ? "required"
                     : slot.internal() ? "internal" : "default";
-            platform().lc().get(locale, lck("lore"),
+            platform().lc().lines(locale, lck("lore"),
                     "indent", Components.repeat(indent, pathLength),
                     "slot", platform().lc().safe(locale, lck("slot." + slotType),
                             "slot", slot.name(locale)),
                     "component", node == null
                             ? platform().lc().safe(locale, lck("empty"))
                             : node.value().name(locale))
-                    .ifPresent(lore::add);
+                    .ifPresent(lore::addAll);
 
             if (node != null) {
                 for (var entry : node.slotChildren().entrySet()) {

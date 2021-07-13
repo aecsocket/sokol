@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.tree.event;
 
+import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 
@@ -27,11 +28,7 @@ public final class ItemTreeEvent {
         ItemSlot clicked();
     }
 
-    public interface HeldClickEvent extends TreeEvent.ItemEvent, Cancellable {
-        enum Type {
-            LEFT, RIGHT
-        }
-
-        Type type();
+    public interface InputEvent extends TreeEvent.ItemEvent, Cancellable {
+        InputType input();
     }
 }

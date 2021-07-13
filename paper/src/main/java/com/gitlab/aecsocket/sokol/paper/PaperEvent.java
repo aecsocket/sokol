@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper;
 
+import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
@@ -101,24 +102,24 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public boolean shift() { return handle.isShiftClick(); }
     }
 
-    final class HeldClickEvent implements ItemTreeEvent.HeldClickEvent, PaperEvent {
+    final class InputEvent implements ItemTreeEvent.InputEvent, PaperEvent {
         private final PaperTreeNode node;
         private final PlayerUser user;
         private final PaperSlot slot;
-        private final Type type;
+        private final InputType input;
         private boolean cancelled;
 
-        public HeldClickEvent(PaperTreeNode node, PlayerUser user, PaperSlot slot, Type type) {
+        public InputEvent(PaperTreeNode node, PlayerUser user, PaperSlot slot, InputType input) {
             this.node = node;
             this.user = user;
             this.slot = slot;
-            this.type = type;
+            this.input = input;
         }
 
         @Override public PaperTreeNode node() { return node; }
         @Override public LivingEntityUser user() { return user; }
         @Override public PaperSlot slot() { return slot; }
-        @Override public Type type() { return type; }
+        @Override public InputType input() { return input; }
 
         @Override public boolean cancelled() { return cancelled; }
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }

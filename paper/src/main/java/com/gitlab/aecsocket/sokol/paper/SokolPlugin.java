@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
+import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Logging;
 import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
@@ -16,7 +17,6 @@ import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
-import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
@@ -101,16 +101,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         protocol.manager().addPacketListener(inputs);
         inputs.events().register(Inputs.Events.Input.class, event -> {
             Player player = event.player();
-            ItemTreeEvent.HeldClickEvent.Type type = switch (event.input()) {
-                case Inputs.LEFT -> ItemTreeEvent.HeldClickEvent.Type.LEFT;
-                case Inputs.RIGHT -> ItemTreeEvent.HeldClickEvent.Type.RIGHT;
-                default -> null;
-            };
-            if (type == null)
-                return;
+            InputType input = event.input();
             if (
-                    handleInput(player, type, EquipmentSlot.HAND)
-                    | handleInput(player, type, EquipmentSlot.OFF_HAND)
+                    handleInput(player, input, EquipmentSlot.HAND)
+                    | handleInput(player, input, EquipmentSlot.OFF_HAND)
             )
                 event.cancel();
         });
@@ -125,14 +119,13 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         schedulers.stop();
     }
 
-    private boolean handleInput(Player player, ItemTreeEvent.HeldClickEvent.Type type, EquipmentSlot slot) {
+    private boolean handleInput(Player player, InputType input, EquipmentSlot slot) {
         AtomicBoolean result = new AtomicBoolean();
-        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node -> {
-            result.set(new PaperEvent.HeldClickEvent(node,
+        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node ->
+                result.set(new PaperEvent.InputEvent(node,
                     PlayerUser.of(this, player),
                     EquipSlot.of(this, player, slot),
-                    type).call());
-        });
+                    input).call()));
         return result.get();
     }
 
