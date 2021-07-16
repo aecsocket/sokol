@@ -70,9 +70,12 @@ public record ItemDescriptor(
      * A stat type which stores an item descriptor.
      */
     public static final class Stat extends BasicStat<ItemDescriptor> {
-        public Stat(@Nullable ItemDescriptor defaultValue) {
-            super(new TypeToken<ItemDescriptor>() {}, defaultValue, (a, b) -> b, i -> i);
+        private Stat(@Nullable ItemDescriptor def, boolean required) {
+            super(new TypeToken<ItemDescriptor>() {}, def, required, (a, b) -> b, i -> i);
         }
+
+        public static Stat itemStat(@Nullable ItemDescriptor def) { return new Stat(def, false); }
+        public static Stat itemStat() { return new Stat(null, true); }
     }
 
     /**

@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.core.component;
 
-import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.jetbrains.annotations.Contract;
@@ -8,7 +7,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.Locale;
-import java.util.Optional;
 
 /**
  * Metadata for a slot in a {@link Component}.
@@ -22,19 +20,11 @@ public interface Slot {
     String TAG_FIELD_MODIFIABLE = "field_modifiable";
 
     /**
-     * Gets the platform that this slot uses.
-     * @return The platform.
-     */
-    SokolPlatform platform();
-
-    /**
      * Gets the localized name of this slot.
      * @param locale The locale to localize for.
      * @return The name.
      */
-    default net.kyori.adventure.text.Component name(Locale locale) {
-        return platform().lc().safe(locale, "slot." + key());
-    }
+    net.kyori.adventure.text.Component name(Locale locale);
 
     /**
      * Gets all of the tags of this slot.

@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.component;
 
+import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.rule.Visitor;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
@@ -41,6 +42,17 @@ public abstract class AbstractSlot<C extends Component> implements Slot {
      * @return The type.
      */
     protected abstract Class<C> componentType();
+
+    /**
+     * Gets the platform used.
+     * @return The platform.
+     */
+    protected abstract SokolPlatform platform();
+
+    @Override
+    public net.kyori.adventure.text.Component name(Locale locale) {
+        return platform().lc().safe(locale, "slot." + key());
+    }
 
     @Override
     public boolean compatible(@Nullable TreeNode parent, @Nullable TreeNode child) {

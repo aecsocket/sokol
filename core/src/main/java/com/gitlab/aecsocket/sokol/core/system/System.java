@@ -14,6 +14,12 @@ import java.util.Map;
  */
 public interface System {
     /**
+     * A descriptor of a system instance, used in getting a system from a node.
+     * @param <S> The system instance type.
+     */
+    record Key<S extends System.Instance>(String id, Class<S> instanceType) {}
+
+    /**
      * A system instance which is applicable to a {@link TreeNode}, and interacts with the
      * node by intercepting events.
      */

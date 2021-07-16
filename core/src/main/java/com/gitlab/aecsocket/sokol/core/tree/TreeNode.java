@@ -42,25 +42,9 @@ public interface TreeNode {
 
         @Override Optional<N> node(String... path);
 
-        /**
-         * Combines a child node into the first empty slot of this (parent) node.
-         * @param node The child node.
-         * @param limited If the slot must be {@link Slot#fieldModifiable()} to be valid.
-         * @return If the child node was placed into this tree.
-         */
-        boolean combine(N node, boolean limited);
-
         @Override Map<String, ChildSlot<S, N>> slotChildren();
 
         @Override Map<String, Y> systems();
-
-        /**
-         * Gets a system by its ID.
-         * @param id The ID.
-         * @param <T> The type of the system.
-         * @return An Optional of the result.
-         */
-        <T extends Y> Optional<T> system(String id);
 
         /**
          * Sets a system instance on this node.
@@ -70,8 +54,9 @@ public interface TreeNode {
          */
         void system(Y system) throws IllegalArgumentException;
 
-        N build();
+        @Override N build();
 
+        @Override N combine(TreeNode node, boolean limited);
         /**
          * Recursively visits this node and its children (or slot if no child is present).
          * @param visitor The visitor function.
@@ -177,6 +162,8 @@ public interface TreeNode {
      */
     Map<String, ? extends System.Instance> systems();
 
+    <S extends System.Instance> Optional<S> system(System.Key<S> key);
+
     /**
      * Completes the node tree by:
      * <ul>
@@ -188,6 +175,14 @@ public interface TreeNode {
      * @return This instance.
      */
     TreeNode build();
+
+    /**
+     * Places a child node into the first empty slot of this (parent) node.
+     * @param node The child node.
+     * @param limited If the slot must be {@link Slot#fieldModifiable()} to be valid.
+     * @return The parent tree node that the child was placed into.
+     */
+    TreeNode combine(TreeNode node, boolean limited);
 
     /**
      * Recursively visits this node and its children (or slot if no child is present).

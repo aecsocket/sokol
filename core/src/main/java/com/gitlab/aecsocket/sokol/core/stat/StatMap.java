@@ -108,6 +108,10 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
                     continue;
                 add(key, entry.getValue(), stat, result);
             }
+            for (var entry : types.entrySet()) {
+                if (!result.containsKey(entry.getKey()) && entry.getValue().required())
+                    throw new SerializationException(node, type, "Value for stat [" + entry.getKey() + "] must be provided");
+            }
             return result;
         }
     }
@@ -142,48 +146,48 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
      * Gets a value of a stat instance by its stat key.
      * @param key The key.
      * @param <T> The type of value.
-     * @return An Optional of the result.
+     * @return The result.
      */
     public <T> Optional<T> val(String key) {
         @SuppressWarnings("unchecked")
         Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
-        return inst == null ? Optional.empty() : Optional.ofNullable(inst.value());
+        return inst == null ? Optional.empty() : inst.value();
     }
 
     /**
      * Gets a value of a stat instance's stat descriptor by its stat key.
      * @param key The key.
      * @param <T> The type of value.
-     * @return An Optional of the result.
+     * @return The result.
      */
-    public <T> Optional<T> descVal(String key) {
+    public <T> Optional<T> desc(String key) {
         @SuppressWarnings("unchecked")
         Stat.Instance<StatDescriptor<T>> inst = (Stat.Instance<StatDescriptor<T>>) get(key);
-        return inst == null ? Optional.empty() : Optional.ofNullable(inst.value().value());
+        return inst == null ? Optional.empty() : inst.value().map(StatDescriptor::value);
     }
 
     /**
      * Gets a value of a stat instance by its stat key.
      * <p>
-     * If there is no value, an exception is thrown.
+     * If there is no value, an exception will be thrown.
      * @param key The key.
      * @param <T> The type of value.
      * @return The result.
      */
-    public <T> T require(String key) {
-        return this.<T>val(key).orElseThrow(() -> new IllegalStateException("No value for key [" + key + "]"));
+    public <T> T req(String key) {
+        return this.<T>val(key).orElseThrow(() -> new IllegalStateException("No value for stat [" + key + "]"));
     }
 
     /**
      * Gets a value of a stat instance's stat descriptor by its stat key.
      * <p>
-     * If there is no value, an exception is thrown.
+     * If there is no value, an exception will be thrown.
      * @param key The key.
      * @param <T> The type of value.
-     * @return An Optional of the result.
+     * @return The result.
      */
-    public <T> T descRequire(String key) {
-        return this.<T>descVal(key).orElseThrow(() -> new IllegalStateException("No value for key [" + key + "]"));
+    public <T> T reqDesc(String key) {
+        return this.<T>desc(key).orElseThrow(() -> new IllegalStateException("No value for stat [" + key + "]"));
     }
 
     /**

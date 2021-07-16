@@ -14,8 +14,12 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.Locale;
 
+import static com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor.Stat.*;
+
 public final class PaperItemSystem extends ItemSystem implements PaperSystem {
-    private static final Stat<ItemDescriptor> stat = new ItemDescriptor.Stat(null);
+    public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
+
+    private static final Stat<ItemDescriptor> stat = itemStat();
 
     public final class Instance extends ItemSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {
@@ -55,6 +59,6 @@ public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     }
 
     public static PaperSystem.Type type(SokolPlugin platform) {
-        return config -> new PaperItemSystem(platform);
+        return cfg -> new PaperItemSystem(platform);
     }
 }

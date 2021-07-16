@@ -7,7 +7,6 @@ import com.github.stefvanschie.inventoryframework.pane.Pane;
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Point2;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
-import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.paper.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
@@ -97,7 +96,7 @@ public class SlotViewPane extends Pane {
                     cursor.subtract();
                 } else {
                     PaperTreeNode orphanChild = child.asRoot();
-                    PaperItemSystem.Instance itemSystem = orphanChild.<PaperItemSystem.Instance>system(ItemSystem.ID).orElse(null);
+                    PaperItemSystem.Instance itemSystem = orphanChild.system(PaperItemSystem.KEY).orElse(null);
                     if (itemSystem == null)
                         return;
 
@@ -276,7 +275,7 @@ public class SlotViewPane extends Pane {
     private ItemStack item(@Nullable PaperTreeNode node) {
         return node == null
                 ? plugin.invalidItem().createRaw()
-                : node.<PaperItemSystem.Instance>system(ItemSystem.ID)
+                : node.system(PaperItemSystem.KEY)
                     .map(is -> is.create(locale).handle())
                     .orElse(PaperUtils.modify(plugin.invalidItem().createRaw(), meta ->
                             meta.displayName(Components.BLANK.append(node.value().name(locale)))));

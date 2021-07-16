@@ -27,7 +27,6 @@ import java.util.*;
         super(plugin, "sokol",
                 (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
 
-        SimpleCaptionRegistry<CommandSender> captions = (SimpleCaptionRegistry<CommandSender>) manager.getCaptionRegistry();
         captions.registerMessageFactory(ComponentArgument.ARGUMENT_PARSE_FAILURE_COMPONENT, (c, s) -> "No component with ID [{input}]");
         captions.registerMessageFactory(ComponentArgument.ARGUMENT_PARSE_FAILURE_COMPONENT_INVALID, (c, s) -> "Component [{input}] does not meet requirements of command");
 
@@ -84,7 +83,7 @@ import java.util.*;
     // Command-specific Utils
 
     private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, Player pSender, PaperTreeNode node) {
-        ItemStack item = node.<PaperItemSystem.Instance>system(ItemSystem.ID)
+        ItemStack item = node.system(PaperItemSystem.KEY)
                 .orElseThrow().create(locale).handle();
         //noinspection ConstantConditions
         int amount = ctx.getOrDefault("amount", 1);

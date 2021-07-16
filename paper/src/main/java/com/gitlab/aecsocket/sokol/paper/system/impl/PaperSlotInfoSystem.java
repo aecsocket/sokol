@@ -10,6 +10,8 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSystem {
+    public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
+
     public final class Instance extends SlotInfoSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {
             super(parent);
@@ -43,6 +45,6 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSy
     }
 
     public static PaperSystem.Type type(SokolPlugin platform) {
-        return config -> new PaperSlotInfoSystem(platform);
+        return cfg -> new PaperSlotInfoSystem(platform);
     }
 }

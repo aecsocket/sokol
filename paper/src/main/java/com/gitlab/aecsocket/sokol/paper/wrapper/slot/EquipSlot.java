@@ -17,13 +17,4 @@ public interface EquipSlot extends PaperSlot {
         //noinspection ConstantConditions - equipment is never going to be null. Bukkit is stupid.
         entity().getEquipment().setItem(slot(), item);
     }
-
-    static EquipSlot of(SokolPlugin plugin, LivingEntity entity, EquipmentSlot slot) {
-        return new EquipSlot() {
-            @Override public SokolPlugin plugin() { return plugin; }
-            @Override public LivingEntity entity() { return entity; }
-            @Override public EquipmentSlot slot() { return slot; }
-            @Override public String toString() { return slot + " @ " + entity; }
-        };
-    }
 }

@@ -2,33 +2,38 @@ package com.gitlab.aecsocket.sokol.paper.system;
 
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
+import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
+import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
-import com.gitlab.aecsocket.sokol.paper.PaperSlot;
-import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
-import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
-import com.gitlab.aecsocket.sokol.paper.stat.SoundsStat;
+import com.gitlab.aecsocket.sokol.paper.*;
+import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
+import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
+import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
+import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+
+import static com.gitlab.aecsocket.sokol.paper.stat.SoundsStat.*;
 
 public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "slots";
+    public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
     public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("combine_sound", new SoundsStat())
-            .put("insert_sound", new SoundsStat())
-            .put("remove_sound", new SoundsStat())
+            .put("combine_sound", soundsStat(null))
+            .put("insert_sound", soundsStat(null))
+            .put("remove_sound", soundsStat(null))
             .build();
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
@@ -44,13 +49,20 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             parent.events().register(Events.CombineNodeOntoParent.class, this::event);
             parent.events().register(Events.InsertInto.class, this::event);
             parent.events().register(Events.RemoveFrom.class, this::event);
+            parent.events().register(PaperEvent.ClickedSlotClickEvent.class, this::event);
+            parent.events().register(ItemTreeEvent.InputEvent.class, event -> {
+                PlayerUser user = (PlayerUser) event.user();
+                user.sendMessage(Component.text(event.input()+""));
+                event.cancel();
+                event.updateItem();
+            });
         }
 
         private void event(Events.CombineNodeOntoParent event) {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<List<PreciseSound>>descVal("combine_sound")
+            parent.stats().<List<PreciseSound>>desc("combine_sound")
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
         }
 
@@ -58,7 +70,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<List<PreciseSound>>descVal("insert_sound")
+            parent.stats().<List<PreciseSound>>desc("insert_sound")
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
         }
 
@@ -68,20 +80,89 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             Location location = event.handle.getWhoClicked().getLocation();
             // create our own root because, at this point, the removing node is still attached to the parent
             // so it will use its parent's stats
-            event.node.asRoot().stats().<List<PreciseSound>>descVal("remove_sound")
+            event.node.asRoot().stats().<List<PreciseSound>>desc("remove_sound")
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
+        }
+
+        private void event(PaperEvent.ClickedSlotClickEvent event) {
+            if (!parent.isRoot())
+                return;
+            InventoryClickEvent handle = event.handle();
+            Locale locale = event.user().locale();
+            PaperTreeNode root = event.node();
+
+            ItemStack clickedStack = event.slot().paperGet();
+            ItemStack cursorStack = event.cursor().paperGet();
+
+            // Combining
+            if (handle.getClick() == ClickType.LEFT && combine) {
+                if (!PaperUtils.empty(cursorStack)) {
+                    platform.persistenceManager().load(cursorStack).ifPresent(cursor -> {
+                        PaperTreeNode oldCursor = cursor.asRoot();
+                        if (parent.root().combine(cursor, combineLimited) != null) {
+                            if (
+                                    new Events.CombineChildOntoNode(handle, root, cursor).call()
+                                    | new Events.CombineNodeOntoParent(handle, oldCursor, root).call()
+                            ) return;
+                            event.cancel();
+
+                            int cursorAmount = cursorStack.getAmount();
+                            int clickedAmount = clickedStack.getAmount();
+                            if (cursorAmount >= clickedAmount) {
+                                event.updateItem(is -> is.amount(clickedAmount));
+                                cursorStack.subtract(clickedAmount);
+                            } else {
+                                event.cursor().set(root, locale, is -> is.amount(cursorAmount));
+                                clickedStack.subtract(cursorAmount);
+                            }
+                        }
+                    });
+                    return;
+                }
+            }
+
+            // Slot view
+            if (!slotView || handle.getClick() != ClickType.RIGHT || !PaperUtils.empty(handle.getCursor()))
+                return;
+            int clickedSlot = handle.getSlot();
+            boolean clickedTop = handle.getClickedInventory() == handle.getView().getTopInventory();
+            platform.guis()
+                    .create(new SlotViewPane(platform, 9, 6, locale, root)
+                            .modification(clickedStack.getAmount() == 1 && slotViewModification) // todo
+                            .limited(slotViewLimited)
+                            .treeModifyCallback(node ->
+                                    handle.setCurrentItem(node.system(PaperItemSystem.KEY).orElseThrow().create(locale).handle())), evt -> {
+                        if (Guis.isInvalid(evt, clickedTop, clickedSlot))
+                            evt.setCancelled(true);
+                    })
+                    .show(handle.getWhoClicked());
         }
     }
 
     private final SokolPlugin platform;
+    private final boolean slotView;
+    private final boolean slotViewModification;
+    private final boolean slotViewLimited;
+    private final boolean combine;
+    private final boolean combineLimited;
 
-    public SlotsSystem(SokolPlugin platform) {
+    public SlotsSystem(SokolPlugin platform, boolean slotView, boolean slotViewModification, boolean slotViewLimited, boolean combine, boolean combineLimited) {
         this.platform = platform;
+        this.slotView = slotView;
+        this.slotViewModification = slotViewModification;
+        this.slotViewLimited = slotViewLimited;
+        this.combine = combine;
+        this.combineLimited = combineLimited;
     }
 
     @Override public String id() { return ID; }
 
     public SokolPlugin platform() { return platform; }
+    public boolean slotView() { return slotView; }
+    public boolean slotViewModification() { return slotViewModification; }
+    public boolean slotViewLimited() { return slotViewLimited; }
+    public boolean combine() { return combine; }
+    public boolean combineLimited() { return combineLimited; }
 
     @Override public Map<String, Stat<?>> statTypes() { return STATS; }
 
@@ -101,7 +182,12 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
     }
 
     public static PaperSystem.Type type(SokolPlugin platform) {
-        return config -> new SlotsSystem(platform);
+        return cfg -> new SlotsSystem(platform,
+                cfg.node("slot_view").getBoolean(true),
+                cfg.node("slot_view_modification").getBoolean(true),
+                cfg.node("slot_view_limited").getBoolean(true),
+                cfg.node("combine").getBoolean(true),
+                cfg.node("combine_limited").getBoolean(true));
     }
 
     public static final class Events {

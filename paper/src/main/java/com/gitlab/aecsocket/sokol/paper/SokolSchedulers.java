@@ -5,8 +5,6 @@ import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
 import com.gitlab.aecsocket.minecommons.core.scheduler.TaskContext;
 import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
-import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
-import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
@@ -14,6 +12,9 @@ import org.bukkit.inventory.EquipmentSlot;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+
+import static com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser.*;
+import static com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot.*;
 
 public class SokolSchedulers {
     private final SokolPlugin plugin;
@@ -55,7 +56,7 @@ public class SokolSchedulers {
                     playerCache.put(slot, node);
                     if (node != null) {
                         new PaperEvent.Holding(
-                                node, PlayerUser.of(plugin, player), EquipSlot.of(plugin, player, slot),
+                                node, player(plugin, player), equip(plugin, player, slot),
                                 true, ctx.elapsed(), ctx.delta(), ctx.iteration()
                         ).call();
                     }
@@ -80,7 +81,7 @@ public class SokolSchedulers {
                 for (var cache : entry.getValue().entrySet()) {
                     if (cache.getValue() != null) {
                         new PaperEvent.Holding(
-                                cache.getValue(), PlayerUser.of(plugin, player), EquipSlot.of(plugin, player, cache.getKey()),
+                                cache.getValue(), player(plugin, player), equip(plugin, player, cache.getKey()),
                                 false, ctx.elapsed(), ctx.delta(), ctx.iteration()
                         ).call();
                     }

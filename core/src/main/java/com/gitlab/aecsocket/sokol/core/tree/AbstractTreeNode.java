@@ -12,6 +12,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * An abstract tree node with default implementations for methods.
@@ -78,17 +79,19 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override
-    public boolean combine(N node, boolean limited) {
-        AtomicBoolean success = new AtomicBoolean(false);
+    public N combine(TreeNode node, boolean limited) {
+        @SuppressWarnings("unchecked")
+        N nNode = (N) node;
+        AtomicReference<N> result = new AtomicReference<>();
         visitScoped((parent, slot, child, path) -> {
-            if (success.get())
+            if (result.get() != null)
                 return;
             if (child == null && slot.compatible(parent, node) && (!limited || slot.fieldModifiable())) {
-                success.set(true);
-                parent.child(slot.key(), node);
+                result.set(parent);
+                parent.child(slot.key(), nNode);
             }
         });
-        return success.get();
+        return result.get();
     }
 
     @Override
@@ -103,7 +106,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     @Override public Map<String, Y> systems() { return systems; }
     @SuppressWarnings("unchecked")
-    @Override public <T extends Y> Optional<T> system(String id) { return Optional.ofNullable((T) systems.get(id)); }
+    @Override public <T extends System.Instance> Optional<T> system(System.Key<T> key) { return Optional.ofNullable((T) systems.get(key.id())); }
     @Override
     public void system(Y system) throws IllegalArgumentException {
         String id = system.base().id();

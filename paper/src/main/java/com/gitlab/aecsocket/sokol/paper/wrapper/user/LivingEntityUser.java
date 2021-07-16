@@ -11,11 +11,4 @@ public interface LivingEntityUser extends EntityUser {
 
     @Override default Location location() { return handle().getEyeLocation(); }
     @Override default Locale locale() { return platform().defaultLocale(); }
-
-    static LivingEntityUser of(SokolPlugin platform, LivingEntity entity) {
-        return new LivingEntityUser() {
-            @Override public SokolPlugin platform() { return platform; }
-            @Override public LivingEntity handle() { return entity; }
-        };
-    }
 }

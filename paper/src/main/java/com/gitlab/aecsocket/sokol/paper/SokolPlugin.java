@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.minecommons.core.Logging;
 import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
+import com.gitlab.aecsocket.minecommons.paper.inputs.ListenerInputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.PacketInputs;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
@@ -18,17 +19,19 @@ import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
+import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
+import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.system.impl.PaperSlotInfoSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
-import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import io.leangen.geantyref.TypeToken;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.spongepowered.configurate.ConfigurateException;
@@ -39,7 +42,10 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiFunction;
+
+import static com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser.*;
+import static com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot.*;
 
 /**
  * Sokol's main plugin class. Use {@link #instance()} to get the singleton instance.
@@ -88,6 +94,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
     private final SokolSchedulers schedulers = new SokolSchedulers(this);
     private final Guis guis = new Guis(this);
+    private final PacketInputs packetInputs = new PacketInputs(this);
+    private final ListenerInputs listenerInputs = new ListenerInputs();
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
@@ -97,17 +105,46 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public void onEnable() {
         super.onEnable();
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
-        PacketInputs inputs = new PacketInputs(this);
-        protocol.manager().addPacketListener(inputs);
-        inputs.events().register(Inputs.Events.Input.class, event -> {
+
+        protocol.manager().addPacketListener(packetInputs);
+        packetInputs.events().register(Inputs.Events.Input.class, event -> {
             Player player = event.player();
-            InputType input = event.input();
-            if (
-                    handleInput(player, input, EquipmentSlot.HAND)
-                    | handleInput(player, input, EquipmentSlot.OFF_HAND)
-            )
-                event.cancel();
+            PlayerUser user = player(this, player);
+            callItemEvent(player, EquipmentSlot.HAND, (node, slot) ->
+                    new PaperEvent.RawInputEvent(node, user, equip(this, player, slot), event));
+            callItemEvent(player, EquipmentSlot.OFF_HAND, (node, slot) ->
+                    new PaperEvent.RawInputEvent(node, user, equip(this, player, slot), event));
+
+            if (event.input() == InputType.DROP)
+                // drops are handled by listenerInputs
+                return;
+            handlePacketInput(player, user, event, EquipmentSlot.HAND);
+            handlePacketInput(player, user, event, EquipmentSlot.OFF_HAND);
         });
+
+        Bukkit.getPluginManager().registerEvents(listenerInputs, this);
+        listenerInputs.events().register(Inputs.Events.Input.class, event -> {
+            Player player = event.player();
+            PlayerUser user = player(this, player);
+            callItemEvent(player, EquipmentSlot.HAND, (node, slot) ->
+                    new PaperEvent.RawInputEvent(node, user, equip(this, player, slot), event));
+            callItemEvent(player, EquipmentSlot.OFF_HAND, (node, slot) ->
+                    new PaperEvent.RawInputEvent(node, user, equip(this, player, slot), event));
+            if (event.input() != InputType.DROP)
+                // other event types are handled by packetInputs
+                return;
+            if (event instanceof ListenerInputs.Events.DropInput drop) {
+                Item itemDrop = drop.event().getItemDrop();
+                persistenceManager.load(itemDrop.getItemStack()).ifPresent(node -> {
+                    if (new PaperEvent.InputEvent(node,
+                            player(this, player),
+                            slot(this, itemDrop::getItemStack, itemDrop::setItemStack),
+                            event).call())
+                        event.cancel();
+                });
+            }
+        });
+
         registerSystemType(ItemSystem.ID, PaperItemSystem.type(this));
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this));
         registerSystemType(SlotsSystem.ID, SlotsSystem.type(this));
@@ -119,14 +156,18 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         schedulers.stop();
     }
 
-    private boolean handleInput(Player player, InputType input, EquipmentSlot slot) {
-        AtomicBoolean result = new AtomicBoolean();
-        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node ->
-                result.set(new PaperEvent.InputEvent(node,
-                    PlayerUser.of(this, player),
-                    EquipSlot.of(this, player, slot),
-                    input).call()));
-        return result.get();
+    private void callItemEvent(Player player, EquipmentSlot slot, BiFunction<PaperTreeNode, EquipmentSlot, TreeEvent> event) {
+        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node -> event.apply(node, slot).call());
+    }
+
+    private void handlePacketInput(Player player, PlayerUser user, Inputs.Events.Input event, EquipmentSlot slot) {
+        persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node -> {
+            if (new PaperEvent.InputEvent(node,
+                    user,
+                    equip(this, player, slot),
+                    event).call())
+                event.cancel();
+        });
     }
 
     @Override public Registry<PaperComponent> components() { return components; }
@@ -153,8 +194,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         systemTypes.put(id, new PaperSystem.KeyedType() {
             @Override public String id() { return id; }
             @Override
-            public PaperSystem create(ConfigurationNode config) throws SerializationException {
-                return type.create(config);
+            public PaperSystem create(ConfigurationNode cfg) throws SerializationException {
+                return type.create(cfg);
             }
         });
         return this;
@@ -174,20 +215,21 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     protected void configOptionsDefaults(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {
         super.configOptionsDefaults(serializers, mapperFactory);
         configOptionInitializers.forEach(i -> i.pre(serializers, mapperFactory));
-        serializers.register(StatMap.Priority.class, new StatMap.Priority.Serializer());
-        serializers.register(StatMap.class, statMapSerializer);
-        serializers.register(StatLists.class, new StatLists.Serializer());
-        serializers.register(ItemDescriptor.class, new ItemDescriptor.Serializer(this));
-        serializers.register(PaperSlot.class, new PaperSlot.Serializer(this));
-        serializers.register(PaperComponent.class, new PaperComponent.Serializer(this));
-        serializers.registerExact(Rule.class, ruleSerializer);
-        serializers.register(PaperSystem.Instance.class, systemSerializer);
-        serializers.register(PaperTreeNode.class, new PaperTreeNode.Serializer(this));
-        serializers.register(PaperBlueprint.class, new PaperBlueprint.Serializer(this));
+        serializers.register(InputMapper.class, InputMapper.Serializer.INSTANCE)
+            .register(StatMap.Priority.class, new StatMap.Priority.Serializer())
+            .register(StatMap.class, statMapSerializer)
+            .register(StatLists.class, new StatLists.Serializer())
+            .register(ItemDescriptor.class, new ItemDescriptor.Serializer(this))
+            .register(PaperSlot.class, new PaperSlot.Serializer(this))
+            .register(PaperComponent.class, new PaperComponent.Serializer(this))
+            .registerExact(Rule.class, ruleSerializer)
+            .register(PaperSystem.Instance.class, systemSerializer)
+            .register(PaperTreeNode.class, new PaperTreeNode.Serializer(this))
+            .register(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
 
-        serializers.register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}));
-        serializers.register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}));
-        serializers.register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
+            .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
+            .register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}))
+            .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 

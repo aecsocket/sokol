@@ -3,6 +3,8 @@ package com.gitlab.aecsocket.sokol.core.stat;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Optional;
+
 /**
  * Represents a type of value, dictating behaviour for an {@link Instance}.
  * @param <T> The stored value type.
@@ -16,8 +18,10 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
         private final Stat<T> stat;
         private T value;
 
-        public Instance(Stat<T> stat, T value) {
+        public Instance(Stat<T> stat, @Nullable T value) {
             this.stat = stat;
+            if (value == null && stat.required())
+                throw new IllegalArgumentException("Non-null value must be passed because stat is required");
             this.value = value;
         }
 
@@ -42,7 +46,9 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
          * Gets the value if it is present, otherwise {@link Stat#defaultValue()}.
          * @return The value.
          */
-        public T value() { return value == null ? stat.defaultValue() : value; }
+        public Optional<T> value() {
+            return value == null ? stat.defaultValue() : Optional.of(value);
+        }
 
         /**
          * Sets the value of this instance.
@@ -75,9 +81,15 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
 
     /**
      * Gets the default value to be used, in the absence of another value.
-     * @return The value.
+     * @return An Optional of the default value.
      */
-    T defaultValue();
+    Optional<T> defaultValue();
+
+    /**
+     * Gets if this stat is required to be set in a stat map.
+     * @return The status.
+     */
+    boolean required();
 
     /**
      * Creates an instance from this stat.

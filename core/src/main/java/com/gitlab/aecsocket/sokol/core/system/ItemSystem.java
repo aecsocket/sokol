@@ -11,12 +11,15 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
+import static com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat.*;
+
 /**
  * A system which can represent a tree node as an {@link ItemStack}.
  */
 public abstract class ItemSystem extends AbstractSystem {
     /** The system ID. */
     public static final String ID = "item";
+    public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
     /**
      * The stat types.
      * <ul>
@@ -25,7 +28,7 @@ public abstract class ItemSystem extends AbstractSystem {
      * </ul>
      */
     public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("item_name", new StringStat())
+            .put("item_name", stringStat(null))
             .build();
 
     private final Map<String, Stat<?>> baseStats;
@@ -51,8 +54,7 @@ public abstract class ItemSystem extends AbstractSystem {
          * @return The item stack.
          */
         public ItemStack create(Locale locale) {
-            ItemStack.Factory factory = parent.stats().<ItemStack.Factory>val("item")
-                    .orElseThrow(() -> new IllegalArgumentException("No item provided"));
+            ItemStack.Factory factory = parent.stats().req("item");
             ItemStack item = factory.create();
             item.save(parent);
             item.name(parent.stats().<String>val("item_name")

@@ -14,6 +14,7 @@ import java.util.*;
 public abstract class SlotInfoSystem extends AbstractSystem {
     /** The system ID. */
     public static final String ID = "slot_info";
+    public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
 
     /**
      * See {@link SlotInfoSystem}.

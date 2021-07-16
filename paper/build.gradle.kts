@@ -2,6 +2,7 @@ plugins {
     id("java-library")
     id("maven-publish")
     id("com.github.johnrengelman.shadow") version "7.0.0"
+    id("net.minecrell.plugin-yml.bukkit") version "0.4.0"
     id("xyz.jpenilla.run-paper") version "1.0.3"
 }
 
@@ -54,6 +55,15 @@ tasks {
     runServer {
         minecraftVersion(minecraftVersion)
     }
+}
+
+bukkit {
+    name = "Sokol"
+    main = "${project.group}.paper.SokolPlugin"
+    apiVersion = "1.17"
+    depend = listOf("Minecommons", "ProtocolLib")
+    website = "https://gitlab.com/aecsocket/sokol"
+    authors = listOf("aecsocket")
 }
 
 publishing {

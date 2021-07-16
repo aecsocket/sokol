@@ -71,7 +71,7 @@ Example system implementation:
 ```java
 public class TestSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "test_system";
-    public static final PaperSystem.Type TYPE = (plugin, node) -> new TestSystem(plugin);
+    public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {

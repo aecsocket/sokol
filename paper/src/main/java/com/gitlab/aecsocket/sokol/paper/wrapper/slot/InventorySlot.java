@@ -10,13 +10,4 @@ public interface InventorySlot extends PaperSlot {
 
     @Override default ItemStack paperGet() { return inventory().getItem(slot()); }
     @Override default void paperSet(ItemStack item) { inventory().setItem(slot(), item); }
-
-    static InventorySlot of(SokolPlugin plugin, Inventory inventory, int slot) {
-        return new InventorySlot() {
-            @Override public SokolPlugin plugin() { return plugin; }
-            @Override public Inventory inventory() { return inventory; }
-            @Override public int slot() { return slot; }
-            @Override public String toString() { return slot + " @ " + inventory; }
-        };
-    }
 }

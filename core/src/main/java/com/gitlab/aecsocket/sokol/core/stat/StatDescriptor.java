@@ -59,6 +59,10 @@ public record StatDescriptor<T>(
         this(null, value);
     }
 
+    public static <T> StatDescriptor<T> desc(@Nullable T value) {
+        return value == null ? null : new StatDescriptor<>(value);
+    }
+
     public StatDescriptor<T> operate(Map<String, Combiner<T>> operations, String defaultOperator, StatDescriptor<T> v) {
         Combiner<T> combiner = operations.getOrDefault(operator, operations.get(defaultOperator));
         if (combiner == null)

@@ -55,7 +55,7 @@ public interface PaperSystem extends System {
     }
 
     interface Type {
-        PaperSystem create(ConfigurationNode config) throws SerializationException;
+        PaperSystem create(ConfigurationNode cfg) throws SerializationException;
     }
 
     interface KeyedType extends Type, Keyed {}

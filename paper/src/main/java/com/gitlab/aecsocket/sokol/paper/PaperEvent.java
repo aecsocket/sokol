@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.InputType;
+import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
@@ -8,6 +9,8 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
+
+import static com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser.*;
 
 public interface PaperEvent extends TreeEvent.ItemEvent {
     @Override PaperTreeNode node();
@@ -54,9 +57,9 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         public ClickedSlotClickEvent(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
             this.handle = handle;
             this.node = node;
-            user = LivingEntityUser.of(plugin, handle.getWhoClicked());
-            slot = PaperSlot.of(plugin, handle::getCurrentItem, handle::setCurrentItem);
-            cursor = PaperSlot.of(plugin, handle.getView()::getCursor, handle.getView()::setCursor);
+            user = living(plugin, handle.getWhoClicked());
+            slot = PaperSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem);
+            cursor = PaperSlot.slot(plugin, handle.getView()::getCursor, handle.getView()::setCursor);
         }
 
         @Override public InventoryClickEvent handle() { return handle; }
@@ -83,9 +86,9 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         public CursorSlotClickEvent(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
             this.handle = handle;
             this.node = node;
-            user = LivingEntityUser.of(plugin, handle.getWhoClicked());
-            slot = PaperSlot.of(plugin, handle.getView()::getCursor, handle.getView()::setCursor);
-            clicked = PaperSlot.of(plugin, handle::getCurrentItem, handle::setCurrentItem);
+            user = living(plugin, handle.getWhoClicked());
+            slot = PaperSlot.slot(plugin, handle.getView()::getCursor, handle.getView()::setCursor);
+            clicked = PaperSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem);
         }
 
         @Override public InventoryClickEvent handle() { return handle; }
@@ -106,22 +109,30 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         private final PaperTreeNode node;
         private final PlayerUser user;
         private final PaperSlot slot;
-        private final InputType input;
+        private final Inputs.Events.Input event;
         private boolean cancelled;
 
-        public InputEvent(PaperTreeNode node, PlayerUser user, PaperSlot slot, InputType input) {
+        public InputEvent(PaperTreeNode node, PlayerUser user, PaperSlot slot, Inputs.Events.Input event) {
             this.node = node;
             this.user = user;
             this.slot = slot;
-            this.input = input;
+            this.event = event;
         }
 
         @Override public PaperTreeNode node() { return node; }
         @Override public LivingEntityUser user() { return user; }
         @Override public PaperSlot slot() { return slot; }
-        @Override public InputType input() { return input; }
+        @Override public InputType input() { return event.input(); }
+        public Inputs.Events.Input event() { return event; }
 
         @Override public boolean cancelled() { return cancelled; }
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
     }
+
+    record RawInputEvent(
+            PaperTreeNode node,
+            PlayerUser user,
+            PaperSlot slot,
+            Inputs.Events.Input event
+    ) implements TreeEvent.ItemEvent, PaperEvent {}
 }
