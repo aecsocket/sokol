@@ -11,7 +11,7 @@ import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.*;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
-import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
@@ -54,7 +54,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
                 PlayerUser user = (PlayerUser) event.user();
                 user.sendMessage(Component.text(event.input()+""));
                 event.cancel();
-                event.updateItem();
+                event.queueUpdate();
             });
         }
 
@@ -109,7 +109,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
                             int cursorAmount = cursorStack.getAmount();
                             int clickedAmount = clickedStack.getAmount();
                             if (cursorAmount >= clickedAmount) {
-                                event.updateItem(is -> is.amount(clickedAmount));
+                                event.queueUpdate(is -> is.amount(clickedAmount));
                                 cursorStack.subtract(clickedAmount);
                             } else {
                                 event.cursor().set(root, locale, is -> is.amount(cursorAmount));
@@ -146,7 +146,8 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
     private final boolean combine;
     private final boolean combineLimited;
 
-    public SlotsSystem(SokolPlugin platform, boolean slotView, boolean slotViewModification, boolean slotViewLimited, boolean combine, boolean combineLimited) {
+    public SlotsSystem(SokolPlugin platform, int listenerPriority, boolean slotView, boolean slotViewModification, boolean slotViewLimited, boolean combine, boolean combineLimited) {
+        super(listenerPriority);
         this.platform = platform;
         this.slotView = slotView;
         this.slotViewModification = slotViewModification;
@@ -183,6 +184,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
 
     public static PaperSystem.Type type(SokolPlugin platform) {
         return cfg -> new SlotsSystem(platform,
+                cfg.node("listener_priority").getInt(),
                 cfg.node("slot_view").getBoolean(true),
                 cfg.node("slot_view_modification").getBoolean(true),
                 cfg.node("slot_view_limited").getBoolean(true),

@@ -1,7 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.tree.event;
 
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
-import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
@@ -49,14 +48,14 @@ public interface TreeEvent {
         ItemUser user();
         ItemSlot slot();
 
-        default void updateItem(Function<ItemStack, ItemStack> function) {
-            slot().set(node(), user().locale(), function);
+        void queueUpdate(Function<ItemStack, ItemStack> function);
+
+        default void queueUpdate() {
+            queueUpdate(is -> is);
         }
 
-        default void updateItem() {
-            updateItem(is -> is.amount(slot().get()
-                    .orElseThrow(() -> new IllegalStateException("Updating slot with no item"))
-                    .amount()));
+        default void forceUpdate(Function<ItemStack, ItemStack> function) {
+            slot().set(node(), user().locale(), function);
         }
     }
 }

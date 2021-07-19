@@ -1,7 +1,8 @@
-package com.gitlab.aecsocket.sokol.core.system;
+package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
+import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -16,17 +17,21 @@ public abstract class SlotInfoSystem extends AbstractSystem {
     public static final String ID = "slot_info";
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
 
+    public SlotInfoSystem(int listenerPriority) {
+        super(listenerPriority);
+    }
+
     /**
      * See {@link SlotInfoSystem}.
      */
-    public static abstract class Instance extends AbstractSystem.Instance {
+    public abstract class Instance extends AbstractSystem.Instance {
         public Instance(TreeNode parent) {
             super(parent);
         }
 
         @Override
         public void build() {
-            parent.events().register(ItemSystem.Events.CreateItem.class, this::event);
+            parent.events().register(ItemSystem.Events.CreateItem.class, this::event, listenerPriority);
         }
 
         private void addLore(Locale locale, List<Component> lore, Slot slot, @Nullable TreeNode node, Component indent, int pathLength) {

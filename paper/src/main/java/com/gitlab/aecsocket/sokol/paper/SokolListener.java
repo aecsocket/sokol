@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -21,13 +20,14 @@ import java.util.function.Function;
 
     public SokolPlugin plugin() { return plugin; }
 
-    private @SafeVarargs void handle(PaperTreeNode node, Function<PaperTreeNode, TreeEvent>... eventFactories) {
+    private @SafeVarargs void handle(PaperTreeNode node, Function<PaperTreeNode, PaperEvent>... eventFactories) {
         for (var eventFactory : eventFactories) {
-            node.events().call(eventFactory.apply(node));
+            PaperEvent event = eventFactory.apply(node);
+            event.call();
         }
     }
 
-    private @SafeVarargs void handle(@Nullable ItemStack item, Function<PaperTreeNode, TreeEvent>... eventFactories) {
+    private @SafeVarargs void handle(@Nullable ItemStack item, Function<PaperTreeNode, PaperEvent>... eventFactories) {
         plugin.persistenceManager().load(item).ifPresent(node -> handle(node, eventFactories));
     }
 

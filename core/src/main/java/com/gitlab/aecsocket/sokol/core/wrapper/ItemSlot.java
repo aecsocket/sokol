@@ -1,6 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.wrapper;
 
-import com.gitlab.aecsocket.sokol.core.system.ItemSystem;
+import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 

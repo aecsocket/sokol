@@ -1,8 +1,9 @@
-package com.gitlab.aecsocket.sokol.core.system;
+package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
+import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
@@ -34,6 +35,7 @@ public abstract class ItemSystem extends AbstractSystem {
     private final Map<String, Stat<?>> baseStats;
 
     public ItemSystem(Stat<? extends ItemStack.Factory> itemStat) {
+        super(0);
         baseStats = CollectionBuilder.map(new HashMap<String, Stat<?>>())
                 .put(STATS)
                 .put("item", itemStat)

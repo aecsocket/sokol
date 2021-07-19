@@ -11,7 +11,7 @@ import com.gitlab.aecsocket.sokol.paper.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
-import com.gitlab.aecsocket.sokol.paper.system.impl.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
