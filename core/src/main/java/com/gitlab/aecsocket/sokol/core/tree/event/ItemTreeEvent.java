@@ -7,7 +7,7 @@ import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 public final class ItemTreeEvent {
     private ItemTreeEvent() {}
 
-    public interface Holding extends TreeEvent.ItemEvent {
+    public interface Hold extends TreeEvent.ItemEvent {
         boolean sync();
         long elapsed();
         long delta();
@@ -30,5 +30,13 @@ public final class ItemTreeEvent {
 
     public interface InputEvent extends TreeEvent.ItemEvent, Cancellable {
         InputType input();
+    }
+
+    public interface Equip extends TreeEvent.ItemEvent, Cancellable {
+        ItemSlot oldSlot();
+    }
+
+    public interface Unequip extends TreeEvent.ItemEvent, Cancellable {
+        ItemSlot newSlot();
     }
 }

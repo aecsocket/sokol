@@ -107,6 +107,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     @Override public Map<String, Y> systems() { return systems; }
     @SuppressWarnings("unchecked")
     @Override public <T extends System.Instance> Optional<T> system(System.Key<T> key) { return Optional.ofNullable((T) systems.get(key.id())); }
+    @Override public Optional<? extends System.Instance> system(String id) { return Optional.ofNullable(systems.get(id)); }
     @Override
     public void system(Y system) throws IllegalArgumentException {
         String id = system.base().id();

@@ -1,12 +1,18 @@
 package com.gitlab.aecsocket.sokol.paper;
 
+import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
+import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.inventory.BlockInventoryHolder;
-import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.Function;
@@ -36,6 +42,11 @@ import java.util.function.Function;
         plugin.schedulers().remove(event.getPlayer());
     }
 
+    @EventHandler
+    private void event(PlayerDeathEvent event) {
+        plugin.schedulers().remove(event.getEntity());
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     private void event(InventoryClickEvent event) {
         if (
@@ -45,5 +56,50 @@ import java.util.function.Function;
 
         handle(event.getCurrentItem(), n -> new PaperEvent.ClickedSlotClickEvent(plugin, event, n));
         handle(event.getCursor(), n -> new PaperEvent.CursorSlotClickEvent(plugin, event, n));
+
+        if (event.getWhoClicked() instanceof Player player) {
+            PlayerInventory inv = player.getInventory();
+            PlayerUser user = PaperUser.player(plugin, player);
+            PaperSlot clickedSlot = PaperSlot.slot(plugin, event::getCurrentItem, event::setCurrentItem);
+            if (event.getSlot() == inv.getHeldItemSlot()) {
+                PaperSlot cursorSlot = PaperSlot.slot(plugin, event.getView()::getCursor, event.getView()::setCursor);
+                handle(event.getCursor(),
+                        n -> new PaperEvent.Equip(n, cursorSlot, user, clickedSlot));
+                handle(event.getCurrentItem(),
+                        n -> new PaperEvent.Unequip(n, clickedSlot, user, cursorSlot));
+            }
+        }
+    }
+
+    @EventHandler
+    private void event(PlayerArmorChangeEvent event) {
+        Player player = event.getPlayer();
+        EquipmentSlot slot = switch (event.getSlotType()) {
+            case HEAD -> EquipmentSlot.HEAD;
+            case CHEST -> EquipmentSlot.CHEST;
+            case LEGS -> EquipmentSlot.LEGS;
+            case FEET -> EquipmentSlot.FEET;
+        };
+        PlayerInventory inv = player.getInventory();
+        PlayerUser user = PaperUser.player(plugin, player);
+        PaperSlot newSlot = PaperSlot.slot(plugin, event::getNewItem, s -> inv.setItem(slot, s));
+        PaperSlot oldSlot = PaperSlot.slot(plugin, event::getOldItem, s -> inv.setItem(slot, s));
+        handle(event.getNewItem(),
+                n -> new PaperEvent.Equip(n, newSlot, user, oldSlot));
+        handle(event.getOldItem(),
+                n -> new PaperEvent.Unequip(n, oldSlot, user, newSlot));
+    }
+
+    @EventHandler
+    private void event(PlayerItemHeldEvent event) {
+        Player player = event.getPlayer();
+        PlayerInventory inv = player.getInventory();
+        PlayerUser user = PaperUser.player(plugin, player);
+        PaperSlot newSlot = PaperSlot.inventory(plugin, inv, event.getNewSlot());
+        PaperSlot oldSlot = PaperSlot.inventory(plugin, inv, event.getPreviousSlot());
+        handle(inv.getItem(event.getNewSlot()),
+                n -> new PaperEvent.Equip(n, newSlot, user, oldSlot));
+        handle(inv.getItem(event.getPreviousSlot()),
+                n -> new PaperEvent.Unequip(n, oldSlot, user, newSlot));
     }
 }

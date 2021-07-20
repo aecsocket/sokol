@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.Function;
 
@@ -48,10 +49,10 @@ public interface TreeEvent {
         ItemUser user();
         ItemSlot slot();
 
-        void queueUpdate(Function<ItemStack, ItemStack> function);
+        void queueUpdate(@Nullable Function<ItemStack, ItemStack> function);
 
         default void queueUpdate() {
-            queueUpdate(is -> is);
+            queueUpdate(null);
         }
 
         default void forceUpdate(Function<ItemStack, ItemStack> function) {

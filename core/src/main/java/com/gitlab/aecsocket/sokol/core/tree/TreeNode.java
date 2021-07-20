@@ -162,6 +162,8 @@ public interface TreeNode {
      */
     Map<String, ? extends System.Instance> systems();
 
+    Optional<? extends System.Instance> system(String id);
+
     <S extends System.Instance> Optional<S> system(System.Key<S> key);
 
     /**

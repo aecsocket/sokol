@@ -11,6 +11,7 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.Function;
 
@@ -39,14 +40,19 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public PaperSlot slot() { return slot; }
 
         @Override
-        public void queueUpdate(Function<ItemStack, ItemStack> function) {
-            if (updateQueued == null)
-                updateQueued = is -> function.apply(is.amount(slot.get()
+        public void queueUpdate(@Nullable Function<ItemStack, ItemStack> function) {
+            if (updateQueued == null) {
+                Function<ItemStack, ItemStack> underlying = is -> is.amount(slot.get()
                         .orElseThrow(() -> new IllegalStateException("Updating slot with no item"))
-                        .amount()));
-            else {
-                Function<ItemStack, ItemStack> old = updateQueued;
-                updateQueued = is -> function.apply(old.apply(is));
+                        .amount());
+                updateQueued = function == null
+                        ? underlying
+                        : is -> function.apply(underlying.apply(is));
+            } else {
+                if (function != null) {
+                    Function<ItemStack, ItemStack> old = updateQueued;
+                    updateQueued = is -> function.apply(old.apply(is));
+                }
             }
         }
 
@@ -59,14 +65,14 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         }
     }
 
-    final class Holding extends Base implements ItemTreeEvent.Holding {
+    final class Hold extends Base implements ItemTreeEvent.Hold {
         private final PlayerUser user;
         private final boolean sync;
         private final long elapsed;
         private final long delta;
         private final int iteration;
 
-        public Holding(PaperTreeNode node, PlayerUser user, PaperSlot slot, boolean sync, long elapsed, long delta, int iteration) {
+        public Hold(PaperTreeNode node, PlayerUser user, PaperSlot slot, boolean sync, long elapsed, long delta, int iteration) {
             super(node, slot);
             this.user = user;
             this.sync = sync;
@@ -130,7 +136,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public boolean shift() { return handle.isShiftClick(); }
     }
 
-    final class InputEvent extends Base implements ItemTreeEvent.InputEvent, PaperEvent {
+    final class InputEvent extends Base implements ItemTreeEvent.InputEvent {
         private final PlayerUser user;
         private final Inputs.Events.Input event;
         private boolean cancelled;
@@ -149,7 +155,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
     }
 
-    final class RawInputEvent extends Base implements TreeEvent.ItemEvent, PaperEvent {
+    final class RawInputEvent extends Base implements TreeEvent.ItemEvent {
         private final PlayerUser user;
         private final Inputs.Events.Input event;
 
@@ -161,5 +167,41 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
 
         @Override public PlayerUser user() { return user; }
         public Inputs.Events.Input event() { return event; }
+    }
+
+    final class Equip extends Base implements ItemTreeEvent.Equip {
+        private final PlayerUser user;
+        private final PaperSlot oldSlot;
+        private boolean cancelled;
+
+        public Equip(PaperTreeNode node, PaperSlot slot, PlayerUser user, PaperSlot oldSlot) {
+            super(node, slot);
+            this.user = user;
+            this.oldSlot = oldSlot;
+        }
+
+        @Override public PlayerUser user() { return user; }
+        @Override public PaperSlot oldSlot() { return oldSlot; }
+
+        @Override public boolean cancelled() { return cancelled; }
+        @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
+    }
+
+    final class Unequip extends Base implements ItemTreeEvent.Unequip {
+        private final PlayerUser user;
+        private final PaperSlot newSlot;
+        private boolean cancelled;
+
+        public Unequip(PaperTreeNode node, PaperSlot slot, PlayerUser user, PaperSlot newSlot) {
+            super(node, slot);
+            this.user = user;
+            this.newSlot = newSlot;
+        }
+
+        @Override public PlayerUser user() { return user; }
+        @Override public PaperSlot newSlot() { return newSlot; }
+
+        @Override public boolean cancelled() { return cancelled; }
+        @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
     }
 }

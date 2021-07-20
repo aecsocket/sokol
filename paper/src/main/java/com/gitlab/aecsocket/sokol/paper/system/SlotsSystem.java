@@ -6,14 +6,11 @@ import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
-import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.*;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
-import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
-import net.kyori.adventure.text.Component;
 import org.bukkit.Location;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -50,12 +47,6 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             parent.events().register(Events.InsertInto.class, this::event);
             parent.events().register(Events.RemoveFrom.class, this::event);
             parent.events().register(PaperEvent.ClickedSlotClickEvent.class, this::event);
-            parent.events().register(ItemTreeEvent.InputEvent.class, event -> {
-                PlayerUser user = (PlayerUser) event.user();
-                user.sendMessage(Component.text(event.input()+""));
-                event.cancel();
-                event.queueUpdate();
-            });
         }
 
         private void event(Events.CombineNodeOntoParent event) {

@@ -58,7 +58,6 @@ public interface System {
      * Gets this system's ID.
      * @return The ID.
      */
-
     String id();
 
     /**

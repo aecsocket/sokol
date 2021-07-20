@@ -17,12 +17,14 @@ import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
+import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
 import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperSchedulerSystem;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperSlotInfoSystem;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
@@ -93,6 +95,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
     private final SokolSchedulers schedulers = new SokolSchedulers(this);
+    private final SchedulerSystem.GlobalScheduler<PaperEvent.Hold> systemScheduler = SchedulerSystem.GlobalScheduler.create();
     private final Guis guis = new Guis(this);
     private final PacketInputs packetInputs = new PacketInputs(this);
     private final ListenerInputs listenerInputs = new ListenerInputs();
@@ -147,6 +150,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
         registerSystemType(ItemSystem.ID, PaperItemSystem.type(this));
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this));
+        registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this));
         registerSystemType(SlotsSystem.ID, SlotsSystem.type(this));
         schedulers.setup();
     }
@@ -175,6 +179,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public PersistenceManager persistenceManager() { return persistenceManager; }
     public SokolSchedulers schedulers() { return schedulers; }
+    public SchedulerSystem.GlobalScheduler<PaperEvent.Hold> systemScheduler() { return systemScheduler; }
     public Guis guis() { return guis; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }

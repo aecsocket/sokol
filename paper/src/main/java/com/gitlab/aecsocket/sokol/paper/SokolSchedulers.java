@@ -50,12 +50,14 @@ public class SokolSchedulers {
     public void paperTick(TaskContext ctx) {
         synchronized (nodeCache) {
             for (Player player : Bukkit.getOnlinePlayers()) {
+                if (player.isDead())
+                    continue;
                 var playerCache = nodeCache.computeIfAbsent(player.getUniqueId(), u -> new EnumMap<>(EquipmentSlot.class));
                 for (EquipmentSlot slot : EquipmentSlot.values()) {
                     PaperTreeNode node = plugin.persistenceManager().load(player.getInventory().getItem(slot)).orElse(null);
                     playerCache.put(slot, node);
                     if (node != null) {
-                        new PaperEvent.Holding(
+                        new PaperEvent.Hold(
                                 node, player(plugin, player), equip(plugin, player, slot),
                                 true, ctx.elapsed(), ctx.delta(), ctx.iteration()
                         ).call();
@@ -80,7 +82,7 @@ public class SokolSchedulers {
 
                 for (var cache : entry.getValue().entrySet()) {
                     if (cache.getValue() != null) {
-                        new PaperEvent.Holding(
+                        new PaperEvent.Hold(
                                 cache.getValue(), player(plugin, player), equip(plugin, player, cache.getKey()),
                                 false, ctx.elapsed(), ctx.delta(), ctx.iteration()
                         ).call();

@@ -37,4 +37,12 @@ public interface PaperUser extends ItemUser {
             @Override public Player handle() { return entity; }
         };
     }
+
+    static EntityUser anyEntity(SokolPlugin platform, Entity entity) {
+        if (entity instanceof Player player)
+            return player(platform, player);
+        if (entity instanceof LivingEntity living)
+            return living(platform, living);
+        return entity(platform, entity);
+    }
 }
