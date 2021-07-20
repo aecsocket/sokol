@@ -130,7 +130,7 @@ public interface Rule {
             String typeName = require(node.node("type"), String.class);
             Class<? extends Rule> typeClass = types.get(typeName);
             if (typeClass == null)
-                throw new SerializationException(node, type, "Invalid rule type [" + typeName + "]");
+                throw new SerializationException(node, type, "Invalid rule type [" + typeName + "], accepts: [" + String.join(", ", types.keySet()) + "]");
             return node.get(typeClass);
         }
     }
@@ -193,6 +193,25 @@ public interface Rule {
 
         @Override
         public String toString() { return "<" + value + ">"; }
+    }
+
+    abstract class Singleton implements Rule {
+        @Override
+        public void visit(Visitor visitor) {
+            visitor.visit(this);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            return o != null && getClass() == o.getClass();
+        }
+
+        @Override
+        public int hashCode() { return getClass().hashCode(); }
+
+        @Override
+        public String toString() { return type(); }
     }
 
     /**

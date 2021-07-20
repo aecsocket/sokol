@@ -168,7 +168,7 @@ public final class NavigationRule {
      * Gets if a node is the root node of its tree.
      */
     @ConfigSerializable
-    public static final class IsRoot implements Rule {
+    public static final class IsRoot extends Rule.Singleton {
         /** The rule type. */
         public static final String TYPE = "is_root";
         /** A pre-made instance. */
@@ -181,21 +181,7 @@ public final class NavigationRule {
             return node.isRoot();
         }
 
-        @Override
-        public void visit(Visitor visitor) {
-            visitor.visit(this);
-        }
-
         @Override public String type() { return TYPE; }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            return o != null && getClass() == o.getClass();
-        }
-
-        @Override
-        public int hashCode() { return getClass().hashCode(); }
 
         @Override
         public String toString() { return "/?"; }

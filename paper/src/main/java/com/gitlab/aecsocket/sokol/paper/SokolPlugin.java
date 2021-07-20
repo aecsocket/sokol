@@ -8,6 +8,7 @@ import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.ListenerInputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.PacketInputs;
+import com.gitlab.aecsocket.minecommons.paper.persistence.StringArrayType;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
@@ -21,8 +22,9 @@ import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
 import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
+import com.gitlab.aecsocket.sokol.core.system.util.SystemPath;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
-import com.gitlab.aecsocket.sokol.paper.system.SlotsSystem;
+import com.gitlab.aecsocket.sokol.paper.system.inbuilt.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperSchedulerSystem;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperSlotInfoSystem;
@@ -36,6 +38,10 @@ import org.bukkit.Material;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.persistence.PersistentDataAdapterContext;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
@@ -103,6 +109,26 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
     private final ItemDescriptor invalidItem = new ItemDescriptor(this, Material.BARRIER, 0, 0, false);
+    private final PersistentDataType<PersistentDataContainer, SystemPath> typeSystemPath = new PersistentDataType<>() {
+        @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
+        @Override public @NotNull Class<SystemPath> getComplexType() { return SystemPath.class; }
+
+        @Override
+        public @NotNull PersistentDataContainer toPrimitive(@NotNull SystemPath obj, @NotNull PersistentDataAdapterContext ctx) {
+            PersistentDataContainer data = ctx.newPersistentDataContainer();
+            data.set(key("system"), PersistentDataType.STRING, obj.system());
+            data.set(key("nodes"), StringArrayType.INSTANCE, obj.nodes());
+            return data;
+        }
+
+        @Override
+        public @NotNull SystemPath fromPrimitive(@NotNull PersistentDataContainer obj, @NotNull PersistentDataAdapterContext ctx) {
+            return SystemPath.path(
+                    obj.get(key("system"), PersistentDataType.STRING),
+                    obj.get(key("nodes"), StringArrayType.INSTANCE)
+            );
+        }
+    };
 
     @Override
     public void onEnable() {
@@ -185,6 +211,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public PaperSystem.Serializer systemSerializer() { return systemSerializer; }
     public ItemDescriptor invalidItem() { return invalidItem; }
+    public PersistentDataType<PersistentDataContainer, SystemPath> typeSystemPath() { return typeSystemPath; }
 
     /**
      * Registers a system type, which is looked up when deserializing the data files.
@@ -220,21 +247,23 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     protected void configOptionsDefaults(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {
         super.configOptionsDefaults(serializers, mapperFactory);
         configOptionInitializers.forEach(i -> i.pre(serializers, mapperFactory));
-        serializers.register(InputMapper.class, InputMapper.Serializer.INSTANCE)
-            .register(StatMap.Priority.class, new StatMap.Priority.Serializer())
-            .register(StatMap.class, statMapSerializer)
-            .register(StatLists.class, new StatLists.Serializer())
-            .register(ItemDescriptor.class, new ItemDescriptor.Serializer(this))
-            .register(PaperSlot.class, new PaperSlot.Serializer(this))
-            .register(PaperComponent.class, new PaperComponent.Serializer(this))
-            .registerExact(Rule.class, ruleSerializer)
-            .register(PaperSystem.Instance.class, systemSerializer)
-            .register(PaperTreeNode.class, new PaperTreeNode.Serializer(this))
-            .register(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
+        serializers
+                .register(SystemPath.class, SystemPath.Serializer.INSTANCE)
+                .register(InputMapper.class, InputMapper.Serializer.INSTANCE)
+                .register(StatMap.Priority.class, new StatMap.Priority.Serializer())
+                .register(StatMap.class, statMapSerializer)
+                .register(StatLists.class, new StatLists.Serializer())
+                .register(ItemDescriptor.class, new ItemDescriptor.Serializer(this))
+                .register(PaperSlot.class, new PaperSlot.Serializer(this))
+                .register(PaperComponent.class, new PaperComponent.Serializer(this))
+                .registerExact(Rule.class, ruleSerializer)
+                .register(PaperSystem.Instance.class, systemSerializer)
+                .register(PaperTreeNode.class, new PaperTreeNode.Serializer(this))
+                .register(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
 
-            .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
-            .register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}))
-            .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
+                .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
+                .register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}))
+                .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 

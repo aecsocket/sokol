@@ -3,12 +3,15 @@ package com.gitlab.aecsocket.sokol.core.system.util;
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
+import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.wrapper.PlayerUser;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
+import org.spongepowered.configurate.objectmapping.meta.Required;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
 
@@ -52,34 +55,39 @@ public class InputMapper extends EnumMap<InputType, List<InputMapper.Entry>> {
     }
 
     @ConfigSerializable
-    public record Entry(Map<Condition, Boolean> conditions, Set<String> actions) {}
+    public record Entry(Map<Condition, Boolean> conditions, Rule rule, @Required Set<String> actions, boolean stop) {}
 
     public InputMapper() { super(InputType.class); }
     public InputMapper(EnumMap<InputType, ? extends List<InputMapper.Entry>> m) { super(m); }
     public InputMapper(Map<InputType, ? extends List<InputMapper.Entry>> m) { super(m); }
 
-    public void run(ItemTreeEvent.InputEvent event, Consumer<CollectionBuilder.OfMap<String, Runnable>> handlers) {
+    public void run(System.Instance system, ItemTreeEvent.InputEvent event, Consumer<CollectionBuilder.OfMap<String, Runnable>> handlers) {
         var handlersBuilder = CollectionBuilder.map(new HashMap<String, Runnable>());
         handlers.accept(handlersBuilder);
         Map<String, Runnable> builtHandlers = handlersBuilder.get();
 
         if (!(event.user() instanceof PlayerUser player))
             return;
+        AllEntries:
         for (var entry : getOrDefault(event.input(), Collections.emptyList())) {
-            boolean runActions = true;
-            for (var condition : entry.conditions.entrySet()) {
-                if (condition.getKey().test(player) != condition.getValue()) {
-                    runActions = false;
-                    break;
+            if (entry.conditions != null) {
+                for (var condition : entry.conditions.entrySet()) {
+                    if (condition.getKey().test(player) != condition.getValue()) {
+                        continue AllEntries;
+                    }
                 }
             }
-            if (runActions) {
-                for (var action : entry.actions) {
-                    Runnable runnable = builtHandlers.get(action);
-                    if (runnable == null)
-                        throw new IllegalArgumentException("Invalid action [" + action + "]");
-                    runnable.run();
-                }
+            if (entry.rule != null && !entry.rule.applies(system.parent()))
+                continue;
+
+            for (var action : entry.actions) {
+                Runnable runnable = builtHandlers.get(action);
+                if (runnable == null)
+                    throw new IllegalArgumentException("Invalid action [" + action + "]");
+                runnable.run();
+
+                if (entry.stop)
+                    break AllEntries;
             }
         }
     }

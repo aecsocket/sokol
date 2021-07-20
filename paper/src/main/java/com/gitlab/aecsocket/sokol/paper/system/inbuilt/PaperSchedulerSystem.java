@@ -67,14 +67,14 @@ public final class PaperSchedulerSystem extends SchedulerSystem<PaperEvent.Hold>
     }
 
     @Override
-    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
+    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException {
         return new Instance(node,
-                config.node("tasks").getList(Integer.class, new ArrayList<>()),
-                config.node("available_at").getLong());
+                cfg.node("tasks").getList(Integer.class, new ArrayList<>()),
+                cfg.node("available_at").getLong());
     }
 
     public static Type type(SokolPlugin platform) {
         return cfg -> new PaperSchedulerSystem(platform,
-                cfg.node("listener_priority").getInt());
+                cfg.node(keyListenerPriority).getInt());
     }
 }

@@ -41,12 +41,12 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSy
     }
 
     @Override
-    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
+    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException {
         return new Instance(node);
     }
 
     public static PaperSystem.Type type(SokolPlugin platform) {
         return cfg -> new PaperSlotInfoSystem(platform,
-                cfg.node("listener_priority").getInt());
+                cfg.node(keyListenerPriority).getInt());
     }
 }

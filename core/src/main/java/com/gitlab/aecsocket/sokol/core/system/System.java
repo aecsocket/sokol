@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
+import io.leangen.geantyref.TypeToken;
 
 import java.util.Collections;
 import java.util.Map;
@@ -17,7 +18,11 @@ public interface System {
      * A descriptor of a system instance, used in getting a system from a node.
      * @param <S> The system instance type.
      */
-    record Key<S extends System.Instance>(String id, Class<S> instanceType) {}
+    record Key<S extends System.Instance>(String id, TypeToken<S> instanceType) {
+        public Key(String id, Class<S> instanceType) {
+            this(id, TypeToken.get(instanceType));
+        }
+    }
 
     /**
      * A system instance which is applicable to a {@link TreeNode}, and interacts with the

@@ -6,6 +6,8 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
  * An abstract system with some methods implemented.
  */
 public abstract class AbstractSystem implements System {
+    protected static final String keyListenerPriority = "listener_priority";
+
     protected final int listenerPriority;
 
     public AbstractSystem(int listenerPriority) {

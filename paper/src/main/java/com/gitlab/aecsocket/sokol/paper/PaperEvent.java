@@ -59,8 +59,10 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override
         public boolean call() {
             boolean result = PaperEvent.super.call();
-            if (updateQueued != null)
+            if (updateQueued != null) {
+                node.build();
                 forceUpdate(updateQueued);
+            }
             return result;
         }
     }

@@ -32,7 +32,7 @@ public abstract class ItemSystem extends AbstractSystem {
             .put("item_name", stringStat(null))
             .build();
 
-    private final Map<String, Stat<?>> baseStats;
+    protected final Map<String, Stat<?>> baseStats;
 
     public ItemSystem(Stat<? extends ItemStack.Factory> itemStat) {
         super(0);
@@ -45,7 +45,7 @@ public abstract class ItemSystem extends AbstractSystem {
     /**
      * See {@link ItemSystem}.
      */
-    public static abstract class Instance extends AbstractSystem.Instance {
+    public abstract class Instance extends AbstractSystem.Instance {
         public Instance(TreeNode parent) {
             super(parent);
         }

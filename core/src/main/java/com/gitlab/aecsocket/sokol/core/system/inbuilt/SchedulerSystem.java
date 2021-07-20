@@ -4,10 +4,15 @@ import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
+import io.leangen.geantyref.TypeToken;
 
 import java.util.*;
 
 public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends AbstractSystem {
+    /** The system ID. */
+    public static final String ID = "scheduler";
+    public static final Key<SchedulerSystem<?>.Instance> KEY = new Key<SchedulerSystem<?>.Instance>(ID, new TypeToken<SchedulerSystem<?>.Instance>() {});
+
     public static final long EXPIRE_THRESHOLD = 100;
 
     public interface GlobalScheduler<E extends ItemTreeEvent.Hold> {
@@ -83,9 +88,6 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
         void run(Y self, E event, TaskContext<N, Y> ctx);
     }
 
-    /** The system ID. */
-    public static final String ID = "scheduler";
-
     protected final GlobalScheduler<E> scheduler;
 
     public SchedulerSystem(GlobalScheduler<E> scheduler, int listenerPriority) {
@@ -118,8 +120,8 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
 
         @Override
         public void build() {
-            parent.events().register(eventType(), this::event);
-            parent.events().register(ItemTreeEvent.Unequip.class, this::event);
+            parent.events().register(eventType(), this::event, listenerPriority);
+            parent.events().register(ItemTreeEvent.Unequip.class, this::event, listenerPriority);
         }
 
         public <N extends TreeNode.Scoped<N, ?, ?, ?, Y>, Y extends System.Instance> int schedule(Y system, long delay, SystemTask<E, N, Y> task) {

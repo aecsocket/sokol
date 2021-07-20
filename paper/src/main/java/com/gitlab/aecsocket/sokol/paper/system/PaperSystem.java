@@ -61,5 +61,5 @@ public interface PaperSystem extends System {
     interface KeyedType extends Type, Keyed {}
 
     Instance load(PaperTreeNode node, PersistentDataContainer data) throws IllegalArgumentException;
-    Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException;
+    Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException;
 }

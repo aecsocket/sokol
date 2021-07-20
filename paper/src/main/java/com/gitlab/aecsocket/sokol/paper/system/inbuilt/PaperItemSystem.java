@@ -54,7 +54,7 @@ public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     }
 
     @Override
-    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
+    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException {
         return new Instance(node);
     }
 

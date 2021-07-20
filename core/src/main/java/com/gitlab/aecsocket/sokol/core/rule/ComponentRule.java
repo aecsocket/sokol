@@ -18,7 +18,7 @@ public final class ComponentRule {
      * Gets if a tree is complete.
      */
     @ConfigSerializable
-    public static final class Complete implements Rule {
+    public static final class Complete extends Rule.Singleton {
         /** The rule type. */
         public static final String TYPE = "complete";
         /** A pre-made instance. */
@@ -32,23 +32,6 @@ public final class ComponentRule {
         public boolean applies(TreeNode node) {
             return node.complete();
         }
-
-        @Override
-        public void visit(Visitor visitor) {
-            visitor.visit(this);
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            return o != null && getClass() == o.getClass();
-        }
-
-        @Override
-        public int hashCode() { return getClass().hashCode(); }
-
-        @Override
-        public String toString() { return TYPE; }
     }
 
     /**

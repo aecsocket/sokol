@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.paper.system;
+package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
@@ -10,7 +10,7 @@ import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.*;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
-import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
+import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import org.bukkit.Location;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;
@@ -169,13 +169,13 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
     }
 
     @Override
-    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode config) throws SerializationException {
+    public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException {
         return new Instance(node);
     }
 
     public static PaperSystem.Type type(SokolPlugin platform) {
         return cfg -> new SlotsSystem(platform,
-                cfg.node("listener_priority").getInt(),
+                cfg.node(keyListenerPriority).getInt(),
                 cfg.node("slot_view").getBoolean(true),
                 cfg.node("slot_view_modification").getBoolean(true),
                 cfg.node("slot_view_limited").getBoolean(true),
