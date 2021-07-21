@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
+import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
@@ -29,8 +30,10 @@ public abstract class SlotInfoSystem extends AbstractSystem {
             super(parent);
         }
 
+        @Override public abstract SlotInfoSystem base();
+
         @Override
-        public void build() {
+        public void build(StatLists stats) {
             parent.events().register(ItemSystem.Events.CreateItem.class, this::event, listenerPriority);
         }
 

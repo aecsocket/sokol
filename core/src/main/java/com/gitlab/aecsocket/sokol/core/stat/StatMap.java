@@ -108,10 +108,6 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
                     continue;
                 add(key, entry.getValue(), stat, result);
             }
-            for (var entry : types.entrySet()) {
-                if (!result.containsKey(entry.getKey()) && entry.getValue().required())
-                    throw new SerializationException(node, type, "Value for stat [" + entry.getKey() + "] must be provided");
-            }
             return result;
         }
     }

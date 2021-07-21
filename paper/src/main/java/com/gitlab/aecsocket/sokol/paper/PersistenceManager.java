@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Logging;
+import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
@@ -112,13 +113,15 @@ public final class PersistenceManager {
     }
 
     private final SokolPlugin plugin;
-    private final NamespacedKey key;
+    private final NamespacedKey treeKey;
+    private final NamespacedKey hideUpdateKey;
     private final GetTreeNodeDataType getDataType;
     private final SetTreeNodeDataType setDataType;
 
     PersistenceManager(SokolPlugin plugin) {
         this.plugin = plugin;
-        key = plugin.key("tree");
+        treeKey = plugin.key("tree");
+        hideUpdateKey = plugin.key("hide_update");
         getDataType = new GetTreeNodeDataType();
         setDataType = new SetTreeNodeDataType();
     }
@@ -132,7 +135,7 @@ public final class PersistenceManager {
      * @return The data container passed in.
      */
     public PersistentDataContainer save(PersistentDataContainer data, TreeNode node) {
-        data.set(key, setDataType, node);
+        data.set(treeKey, setDataType, node);
         return data;
     }
 
@@ -142,7 +145,7 @@ public final class PersistenceManager {
      * @return The result.
      */
     public boolean isTree(PersistentDataContainer data) {
-        return data.getKeys().contains(key);
+        return data.getKeys().contains(treeKey);
     }
 
     /**
@@ -155,7 +158,7 @@ public final class PersistenceManager {
      */
     public Optional<PaperTreeNode> load(PersistentDataContainer data) {
         try {
-            return Optional.ofNullable(data.get(key, getDataType));
+            return Optional.ofNullable(data.get(treeKey, getDataType));
         } catch (IllegalArgumentException e) {
             plugin.log(Logging.Level.WARNING, e, "Could not load tree node from item stack");
             return Optional.empty();
@@ -192,5 +195,17 @@ public final class PersistenceManager {
      */
     public Optional<PaperTreeNode> load(@Nullable ItemStack item) {
         return use(item, this::load, Optional.empty());
+    }
+
+    public void hideUpdate(ItemStack item) {
+        PaperUtils.modify(item, meta -> meta.getPersistentDataContainer().set(hideUpdateKey, PersistentDataType.BYTE, (byte) 0));
+    }
+
+    public void showUpdate(ItemStack item) {
+        PaperUtils.modify(item, meta -> meta.getPersistentDataContainer().remove(hideUpdateKey));
+    }
+
+    public boolean updatesHidden(ItemStack item) {
+        return item.getItemMeta().getPersistentDataContainer().has(hideUpdateKey, PersistentDataType.BYTE);
     }
 }

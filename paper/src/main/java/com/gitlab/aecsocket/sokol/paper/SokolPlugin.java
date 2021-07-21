@@ -1,5 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper;
 
+import com.comphenix.protocol.PacketType;
+import com.comphenix.protocol.events.PacketAdapter;
+import com.comphenix.protocol.events.PacketContainer;
+import com.comphenix.protocol.events.PacketEvent;
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Logging;
@@ -38,6 +42,7 @@ import org.bukkit.Material;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -174,6 +179,18 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             }
         });
 
+        protocol.manager().addPacketListener(new PacketAdapter(this, PacketType.Play.Server.SET_SLOT) {
+            @Override
+            public void onPacketSending(PacketEvent event) {
+                PacketContainer packet = event.getPacket();
+
+                ItemStack item = packet.getItemModifier().read(0);
+                if (item.hasItemMeta() && persistenceManager.updatesHidden(item)) {
+                    event.setCancelled(true);
+                }
+            }
+        });
+
         registerSystemType(ItemSystem.ID, PaperItemSystem.type(this));
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this));
         registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this));
@@ -261,8 +278,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .register(PaperTreeNode.class, new PaperTreeNode.Serializer(this))
                 .register(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
 
-                .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
                 .register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}))
+                .register(new TypeToken<StatDescriptor<Long>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Long>() {}))
+                .register(new TypeToken<StatDescriptor<Float>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Float>() {}))
+                .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
                 .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }

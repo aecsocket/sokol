@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
+import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
@@ -110,6 +111,8 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             this.availableAt = availableAt;
         }
 
+        @Override public abstract SchedulerSystem<E> base();
+
         public List<Integer> tasks() { return tasks; }
         public long availableAt() { return availableAt; }
 
@@ -119,7 +122,7 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
         protected abstract Class<E> eventType();
 
         @Override
-        public void build() {
+        public void build(StatLists stats) {
             parent.events().register(eventType(), this::event, listenerPriority);
             parent.events().register(ItemTreeEvent.Unequip.class, this::event, listenerPriority);
         }

@@ -50,6 +50,8 @@ public abstract class ItemSystem extends AbstractSystem {
             super(parent);
         }
 
+        @Override public abstract ItemSystem base();
+
         /**
          * Creates an item stack representation of the parent node.
          * @param locale The locale to create the representation for.

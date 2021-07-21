@@ -64,6 +64,12 @@ public record PaperItemStack(
     }
 
     @Override
+    public ItemStack hideUpdate() {
+        plugin.persistenceManager().hideUpdate(handle);
+        return this;
+    }
+
+    @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;

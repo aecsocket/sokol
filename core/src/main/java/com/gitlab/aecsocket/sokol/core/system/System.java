@@ -4,8 +4,11 @@ import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import io.leangen.geantyref.TypeToken;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.Collections;
 import java.util.Map;
@@ -54,9 +57,11 @@ public interface System {
          * <ul>
          *     <li>registering event listeners using the parent's {@link TreeNode#events()}</li>
          *     <li>setting fields on this system instance, which are obtained from the parent</li>
+         *     <li>adding custom stats built at system-build time</li>
          * </ul>
+         * @param stats The existing stats which can be combined with.
          */
-        default void build() {}
+        default void build(StatLists stats) {}
     }
 
     /**
@@ -83,4 +88,11 @@ public interface System {
      * @return The instance.
      */
     Instance create(TreeNode node);
+
+    /**
+     * Loads this system instance after all proper serializer setup has been complete.
+     * @param cfg The configuration.
+     * @throws SerializationException If serialization failed.
+     */
+    default void loadSelf(ConfigurationNode cfg) throws SerializationException {}
 }

@@ -53,7 +53,7 @@ public final class StatLists {
         forward = new ArrayList<>();
         reverse = new ArrayList<>();
         for (StatMap map : joined) {
-            (map.priority().reverse() ? reverse : forward).add(map);
+            add(map);
         }
     }
 
@@ -63,6 +63,15 @@ public final class StatLists {
 
     public List<StatMap> forward() { return forward; }
     public List<StatMap> reverse() { return reverse; }
+
+    public void add(StatMap map) {
+        (map.priority().reverse() ? reverse : forward).add(map);
+    }
+
+    public void add(StatLists lists) {
+        forward.addAll(lists.forward);
+        reverse.addAll(lists.reverse);
+    }
 
     /**
      * Gets {@link #forward()} and {@link #reverse()} joined.

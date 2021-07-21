@@ -57,13 +57,22 @@ public interface TreeNode {
         @Override N build();
 
         @Override N combine(TreeNode node, boolean limited);
+
         /**
-         * Recursively visits this node and its children (or slot if no child is present).
+         * Recursively visits this node and its children, applying a function on nodes.
          * @param visitor The visitor function.
          * @param path The path to start from. This can be left blank.
-         * @see #visit(Visitor, String...)
+         * @see #visitNodes(NodeVisitor, String...)
          */
-        void visitScoped(Visitor<N, S> visitor, String... path);
+        void visitNodesScoped(NodeVisitor<N> visitor, String... path);
+
+        /**
+         * Recursively visits this node's slots, applying a function on slots.
+         * @param visitor The visitor function.
+         * @param path The path to start from. This can be left blank.
+         * @see #visitNodes(NodeVisitor, String...)
+         */
+        void visitSlotsScoped(SlotVisitor<N, S> visitor, String... path);
 
         @Override Optional<N> parent();
         @Override Optional<S> slot();
@@ -80,12 +89,21 @@ public interface TreeNode {
     record ChildSlot<S extends Slot, N extends TreeNode>(S slot, Optional<N> child) {}
 
     /**
-     * A function which accepts a single node, as well as its parent node and parent slot.
+     * A function which accepts a node.
+     * @param <N> The node type.
+     */
+    @FunctionalInterface
+    interface NodeVisitor<N extends TreeNode> {
+        void visit(N node, String... path);
+    }
+
+    /**
+     * A function which accepts a slot, which may or may not have a child.
      * @param <N> The node type.
      * @param <S> The slot type.
      */
     @FunctionalInterface
-    interface Visitor<N extends TreeNode, S extends Slot> {
+    interface SlotVisitor<N extends TreeNode, S extends Slot> {
         void visit(N parent, S slot, @Nullable N child, String... path);
     }
 
@@ -187,11 +205,18 @@ public interface TreeNode {
     TreeNode combine(TreeNode node, boolean limited);
 
     /**
-     * Recursively visits this node and its children (or slot if no child is present).
+     * Recursively visits this node and its children, applying a function on nodes.
      * @param visitor The visitor function.
      * @param path The path to start from. This can be left blank.
      */
-    void visit(Visitor<TreeNode, Slot> visitor, String... path);
+    void visitNodes(NodeVisitor<TreeNode> visitor, String... path);
+
+    /**
+     * Recursively visits this node's slots, applying a function on slots.
+     * @param visitor The visitor function.
+     * @param path The path to start from. This can be left blank.
+     */
+    void visitSlots(SlotVisitor<TreeNode, Slot> visitor, String... path);
 
     /**
      * Gets this node's parent node.

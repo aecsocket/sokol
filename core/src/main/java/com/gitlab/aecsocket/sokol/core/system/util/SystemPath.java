@@ -41,7 +41,8 @@ public record SystemPath(String system, String[] nodes) {
         return path(system.base().id(), system.parent().path());
     }
 
-    public Optional<? extends System.Instance> get(TreeNode node) {
-        return node.node(nodes).flatMap(n -> n.system(system));
+    @SuppressWarnings("unchecked")
+    public <Y extends System.Instance> Optional<Y> get(TreeNode node) {
+        return node.node(nodes).flatMap(n -> (Optional<Y>) n.system(system));
     }
 }

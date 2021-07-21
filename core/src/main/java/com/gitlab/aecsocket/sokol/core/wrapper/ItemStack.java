@@ -72,4 +72,10 @@ public interface ItemStack {
      * @param add The lore to add.
      */
     void addLore(Component... add);
+
+    /**
+     * Hides any item update to players.
+     * @return An item stack with the new property.
+     */
+    ItemStack hideUpdate();
 }

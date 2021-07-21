@@ -83,7 +83,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         @SuppressWarnings("unchecked")
         N nNode = (N) node;
         AtomicReference<N> result = new AtomicReference<>();
-        visitScoped((parent, slot, child, path) -> {
+        this.visitSlotsScoped((parent, slot, child, path) -> {
             if (result.get() != null)
                 return;
             if (child == null && slot.compatible(parent, node) && (!limited || slot.fieldModifiable())) {
@@ -139,7 +139,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     private void add(List<StatsPair> stats) {
         for (StatsPair pair : stats) {
-            for (StatMap map : pair.stats) {
+            for (StatMap map : new ArrayList<>(pair.stats)) {
                 if (map.rule().applies(pair.node)) {
                     this.stats.combineAll(map);
                 }
@@ -149,11 +149,11 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     protected void build0(List<StatsPair> forwardStats, List<StatsPair> reverseStats, @Nullable N parent, @Nullable S slot) {
         StatLists stats = value.stats();
+        for (System.Instance system : systems.values()) {
+            system.build(stats);
+        }
         forwardStats.add(new StatsPair(this, stats.forward()));
         reverseStats.add(0, new StatsPair(this, stats.reverse()));
-        for (System.Instance system : systems.values()) {
-            system.build();
-        }
         for (var entry : slotChildren().entrySet()) {
             entry.getValue().child().ifPresentOrElse(
                     child -> child.build0(forwardStats, reverseStats, self(), entry.getValue().slot()),() -> {
@@ -182,21 +182,34 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override
-    public void visit(Visitor<TreeNode, Slot> visitor, String... path) {
-        visitScoped(visitor::visit, path);
+    public void visitNodes(NodeVisitor<TreeNode> visitor, String... path) {
+        visitNodesScoped(visitor::visit, path);
     }
 
     @Override
-    public void visitScoped(Visitor<N, S> visitor, String... path) {
-        visitor.visit(parent, slot, self(), path);
+    public void visitNodesScoped(NodeVisitor<N> visitor, String... path) {
+        visitor.visit(self(), path);
         for (var entry : slotChildren().entrySet()) {
             String[] newPath = new String[path.length + 1];
             java.lang.System.arraycopy(path, 0, newPath, 0, path.length);
             newPath[path.length] = entry.getKey();
-            entry.getValue().child().ifPresentOrElse(
-                    child -> child.visitScoped(visitor, newPath),
-                    () -> visitor.visit(self(), entry.getValue().slot(), null, newPath)
-            );
+            entry.getValue().child().ifPresent(child -> child.visitNodesScoped(visitor, newPath));
+        }
+    }
+
+    @Override
+    public void visitSlots(SlotVisitor<TreeNode, Slot> visitor, String... path) {
+        visitSlotsScoped(visitor::visit, path);
+    }
+
+    @Override
+    public void visitSlotsScoped(SlotVisitor<N, S> visitor, String... path) {
+        for (var entry : slotChildren().entrySet()) {
+            String[] newPath = new String[path.length + 1];
+            java.lang.System.arraycopy(path, 0, newPath, 0, path.length);
+            newPath[path.length] = entry.getKey();
+            visitor.visit(self(), entry.getValue().slot(), entry.getValue().child().orElse(null), newPath);
+            entry.getValue().child().ifPresent(child -> child.visitSlotsScoped(visitor, newPath));
         }
     }
 

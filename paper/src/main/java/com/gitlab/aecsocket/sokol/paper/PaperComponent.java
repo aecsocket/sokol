@@ -49,13 +49,16 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 throw new SerializationException(node, type, "Invalid ID [" + id + "], must be " + Keyed.VALID_KEY);
 
             Map<String, PaperSystem> systems = new HashMap<>();
+            Map<PaperSystem, ConfigurationNode> systemConfigs = new HashMap<>();
             for (var entry : node.node("systems").childrenMap().entrySet()) {
-                String systemId = (String) entry.getKey();
+                String systemId = ""+entry.getKey();
                 PaperSystem.KeyedType systemType = plugin.systemTypes().get(systemId);
                 if (systemType == null)
                     throw new SerializationException(node, type, "Could not find system [" + systemId + "]");
                 try {
-                    systems.put(systemId, systemType.create(entry.getValue()));
+                    PaperSystem system = systemType.create(entry.getValue());
+                    systemConfigs.put(system, entry.getValue());
+                    systems.put(systemId, system);
                 } catch (SerializationException e) {
                     throw new SerializationException(node, type, "Could not create system [" + systemId + "]", e);
                 }
@@ -69,6 +72,10 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
             }
             plugin.statMapSerializer().types(statTypes);
             plugin.ruleSerializer().types(ruleTypes);
+
+            for (var entry : systemConfigs.entrySet()) {
+                entry.getKey().loadSelf(entry.getValue());
+            }
 
             PaperComponent result = new PaperComponent(plugin,
                     Objects.toString(node.key()),

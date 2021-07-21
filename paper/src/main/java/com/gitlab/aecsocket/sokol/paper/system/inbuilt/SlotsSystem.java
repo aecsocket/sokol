@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
@@ -42,7 +43,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
         @Override public SokolPlugin platform() { return platform; }
 
         @Override
-        public void build() {
+        public void build(StatLists stats) {
             parent.events().register(Events.CombineNodeOntoParent.class, this::event);
             parent.events().register(Events.InsertInto.class, this::event);
             parent.events().register(Events.RemoveFrom.class, this::event);
