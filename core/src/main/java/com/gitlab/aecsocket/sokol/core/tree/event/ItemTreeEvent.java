@@ -39,4 +39,6 @@ public final class ItemTreeEvent {
     public interface Unequip extends TreeEvent.ItemEvent, Cancellable {
         ItemSlot newSlot();
     }
+
+    public interface ShowItem extends TreeEvent.ItemEvent, Cancellable {}
 }

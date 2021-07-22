@@ -1,9 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.comphenix.protocol.PacketType;
-import com.comphenix.protocol.events.PacketAdapter;
-import com.comphenix.protocol.events.PacketContainer;
-import com.comphenix.protocol.events.PacketEvent;
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Logging;
@@ -157,6 +153,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         });
 
         Bukkit.getPluginManager().registerEvents(listenerInputs, this);
+        protocol.manager().addPacketListener(new SokolPacketListener(this));
         listenerInputs.events().register(Inputs.Events.Input.class, event -> {
             Player player = event.player();
             PlayerUser user = player(this, player);
@@ -176,18 +173,6 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                             event).call())
                         event.cancel();
                 });
-            }
-        });
-
-        protocol.manager().addPacketListener(new PacketAdapter(this, PacketType.Play.Server.SET_SLOT) {
-            @Override
-            public void onPacketSending(PacketEvent event) {
-                PacketContainer packet = event.getPacket();
-
-                ItemStack item = packet.getItemModifier().read(0);
-                if (item.hasItemMeta() && persistenceManager.updatesHidden(item)) {
-                    event.setCancelled(true);
-                }
             }
         });
 

@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.EntityUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
@@ -202,6 +203,21 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
 
         @Override public PlayerUser user() { return user; }
         @Override public PaperSlot newSlot() { return newSlot; }
+
+        @Override public boolean cancelled() { return cancelled; }
+        @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
+    }
+
+    final class ShowItem extends Base implements ItemTreeEvent.ShowItem {
+        private final EntityUser user;
+        private boolean cancelled;
+
+        public ShowItem(PaperTreeNode node, EntityUser user, PaperSlot slot) {
+            super(node, slot);
+            this.user = user;
+        }
+
+        @Override public EntityUser user() { return user; }
 
         @Override public boolean cancelled() { return cancelled; }
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
