@@ -12,7 +12,7 @@ import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.SlotsSystem;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
-import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.ItemDescriptor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.enchantments.Enchantment;

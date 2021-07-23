@@ -8,7 +8,7 @@ import com.github.stefvanschie.inventoryframework.pane.StaticPane;
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
-import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.ItemDescriptor;
 import net.kyori.adventure.text.Component;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.event.inventory.InventoryClickEvent;

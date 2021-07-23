@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.paper.wrapper;
+package com.gitlab.aecsocket.sokol.paper.wrapper.item;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.core.Validation;
@@ -65,8 +65,19 @@ public record PaperItemStack(
 
     @Override
     public ItemStack hideUpdate() {
-        plugin.persistenceManager().hideUpdate(handle);
+        plugin.packetListener().hideUpdate(handle);
         return this;
+    }
+
+    @Override
+    public ItemStack showUpdate() {
+        plugin.packetListener().showUpdate(handle);
+        return this;
+    }
+
+    @Override
+    public boolean updateHidden() {
+        return plugin.packetListener().updatesHidden(handle);
     }
 
     @Override

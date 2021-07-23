@@ -12,8 +12,11 @@ import java.util.Map;
 
 import static com.gitlab.aecsocket.sokol.core.stat.StatDescriptor.desc;
 
-public final class NumberStat {
-    private NumberStat() {}
+public final class PrimitiveStat {
+    private PrimitiveStat() {}
+
+    public static SBoolean booleanStat(@Nullable Boolean def) { return new SBoolean(def, false); }
+    public static SBoolean booleanStat() { return new SBoolean(null, true); }
 
     public static SInteger intStat(@Nullable Integer def) { return new SInteger(def, false); }
     public static SInteger intStat() { return new SInteger(null, true); }
@@ -26,6 +29,16 @@ public final class NumberStat {
 
     public static SDouble doubleStat(@Nullable Double def) { return new SDouble(def, false); }
     public static SDouble doubleStat() { return new SDouble(null, true); }
+
+    public static final class SBoolean extends BasicStat<Boolean> {
+        private SBoolean(@Nullable Boolean def, boolean required) {
+            super(new TypeToken<Boolean>() {},
+                    def,
+                    required,
+                    (a, b) -> b,
+                    v -> v);
+        }
+    }
 
     public static final class SInteger extends BasicStat<StatDescriptor<Integer>> {
         public static final Map<String, Combiner<Integer>> OPERATIONS = CollectionBuilder.map(new HashMap<String, Combiner<Integer>>())

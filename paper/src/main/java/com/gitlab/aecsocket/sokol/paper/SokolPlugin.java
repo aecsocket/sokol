@@ -24,12 +24,10 @@ import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
 import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
 import com.gitlab.aecsocket.sokol.core.system.util.SystemPath;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
-import com.gitlab.aecsocket.sokol.paper.system.inbuilt.SlotsSystem;
-import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperItemSystem;
-import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperSchedulerSystem;
-import com.gitlab.aecsocket.sokol.paper.system.inbuilt.PaperSlotInfoSystem;
+import com.gitlab.aecsocket.sokol.paper.system.inbuilt.*;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
-import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.Animation;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.ItemDescriptor;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import io.leangen.geantyref.TypeToken;
 import org.bstats.bukkit.Metrics;
@@ -38,10 +36,10 @@ import org.bukkit.Material;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
-import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -106,6 +104,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Guis guis = new Guis(this);
     private final PacketInputs packetInputs = new PacketInputs(this);
     private final ListenerInputs listenerInputs = new ListenerInputs();
+    private final SokolPacketListener packetListener = new SokolPacketListener(this);
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
@@ -135,6 +134,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public void onEnable() {
         super.onEnable();
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
+        protocol.manager().addPacketListener(packetListener);
 
         protocol.manager().addPacketListener(packetInputs);
         packetInputs.events().register(Inputs.Events.Input.class, event -> {
@@ -150,10 +150,11 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 return;
             handlePacketInput(player, user, event, EquipmentSlot.HAND);
             handlePacketInput(player, user, event, EquipmentSlot.OFF_HAND);
+            if (event.input() == InputType.SWAP && !event.cancelled())
+                schedulers.playerData(player).stopAnimation();
         });
 
         Bukkit.getPluginManager().registerEvents(listenerInputs, this);
-        protocol.manager().addPacketListener(new SokolPacketListener(this));
         listenerInputs.events().register(Inputs.Events.Input.class, event -> {
             Player player = event.player();
             PlayerUser user = player(this, player);
@@ -167,7 +168,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             if (event instanceof ListenerInputs.Events.DropInput drop) {
                 Item itemDrop = drop.event().getItemDrop();
                 persistenceManager.load(itemDrop.getItemStack()).ifPresent(node -> {
-                    if (new PaperEvent.InputEvent(node,
+                    if (new PaperEvent.Input(node,
                             player(this, player),
                             slot(this, itemDrop::getItemStack, itemDrop::setItemStack),
                             event).call())
@@ -180,6 +181,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this));
         registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this));
         registerSystemType(SlotsSystem.ID, SlotsSystem.type(this));
+        registerSystemType(PropertiesSystem.ID, PropertiesSystem.type(this));
         schedulers.setup();
     }
 
@@ -194,7 +196,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
     private void handlePacketInput(Player player, PlayerUser user, Inputs.Events.Input event, EquipmentSlot slot) {
         persistenceManager.load(player.getInventory().getItem(slot)).ifPresent(node -> {
-            if (new PaperEvent.InputEvent(node,
+            if (new PaperEvent.Input(node,
                     user,
                     equip(this, player, slot),
                     event).call())
@@ -209,6 +211,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public SokolSchedulers schedulers() { return schedulers; }
     public SchedulerSystem.GlobalScheduler<PaperEvent.Hold> systemScheduler() { return systemScheduler; }
     public Guis guis() { return guis; }
+    public PacketInputs packetInputs() { return packetInputs; }
+    public ListenerInputs listenerInputs() { return listenerInputs; }
+    public SokolPacketListener packetListener() { return packetListener; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public PaperSystem.Serializer systemSerializer() { return systemSerializer; }
@@ -252,6 +257,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         serializers
                 .register(SystemPath.class, SystemPath.Serializer.INSTANCE)
                 .register(InputMapper.class, InputMapper.Serializer.INSTANCE)
+                .register(Animation.class, Animation.Serializer.INSTANCE)
+                .register(Animation.Frame.class, Animation.Frame.Serializer.INSTANCE)
+                .register(Animation.NumberProperty.class, Animation.NumberProperty.Serializer.INSTANCE)
                 .register(StatMap.Priority.class, new StatMap.Priority.Serializer())
                 .register(StatMap.class, statMapSerializer)
                 .register(StatLists.class, new StatLists.Serializer())
@@ -267,7 +275,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .register(new TypeToken<StatDescriptor<Long>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Long>() {}))
                 .register(new TypeToken<StatDescriptor<Float>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Float>() {}))
                 .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
-                .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}));
+                .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}))
+                .register(new TypeToken<StatDescriptor<List<PotionEffect>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PotionEffect>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 

@@ -59,4 +59,47 @@ public interface TreeEvent {
             slot().set(node(), user().locale(), function);
         }
     }
+
+    abstract class BaseItemEvent implements ItemEvent {
+        private Function<ItemStack, ItemStack> updateQueued;
+
+        @Override
+        public void queueUpdate(@Nullable Function<ItemStack, ItemStack> function) {
+            if (updateQueued == null) {
+                Function<ItemStack, ItemStack> underlying = is -> is.amount(slot().get()
+                        .orElseThrow(() -> new IllegalStateException("Updating slot with no item"))
+                        .amount());
+                updateQueued = function == null
+                        ? underlying
+                        : is -> function.apply(underlying.apply(is));
+            } else {
+                if (function != null) {
+                    Function<ItemStack, ItemStack> old = updateQueued;
+                    updateQueued = is -> function.apply(old.apply(is));
+                }
+            }
+        }
+
+        @Override
+        public boolean call() {
+            boolean result = ItemEvent.super.call();
+            if (updateQueued != null) {
+                node().build();
+                forceUpdate(updateQueued);
+            }
+            return result;
+        }
+
+        @Override
+        public void forceUpdate(Function<ItemStack, ItemStack> function) {
+            ItemEvent.super.forceUpdate(function);
+            new Update(node(), user(), slot()).call();
+        }
+    }
+
+    record Update(
+            TreeNode node,
+            ItemUser user,
+            ItemSlot slot
+    ) implements TreeEvent {}
 }

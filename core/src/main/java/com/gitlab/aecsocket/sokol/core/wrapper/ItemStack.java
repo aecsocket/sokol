@@ -78,4 +78,16 @@ public interface ItemStack {
      * @return An item stack with the new property.
      */
     ItemStack hideUpdate();
+
+    /**
+     * Shows any item update to players.
+     * @return An item stack with the new property.
+     */
+    ItemStack showUpdate();
+
+    /**
+     * Gets if any updates to this item are hidden to players.
+     * @return The result.
+     */
+    boolean updateHidden();
 }

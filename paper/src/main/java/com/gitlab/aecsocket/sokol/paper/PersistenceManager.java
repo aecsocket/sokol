@@ -114,14 +114,12 @@ public final class PersistenceManager {
 
     private final SokolPlugin plugin;
     private final NamespacedKey treeKey;
-    private final NamespacedKey hideUpdateKey;
     private final GetTreeNodeDataType getDataType;
     private final SetTreeNodeDataType setDataType;
 
     PersistenceManager(SokolPlugin plugin) {
         this.plugin = plugin;
         treeKey = plugin.key("tree");
-        hideUpdateKey = plugin.key("hide_update");
         getDataType = new GetTreeNodeDataType();
         setDataType = new SetTreeNodeDataType();
     }
@@ -195,17 +193,5 @@ public final class PersistenceManager {
      */
     public Optional<PaperTreeNode> load(@Nullable ItemStack item) {
         return use(item, this::load, Optional.empty());
-    }
-
-    public void hideUpdate(ItemStack item) {
-        PaperUtils.modify(item, meta -> meta.getPersistentDataContainer().set(hideUpdateKey, PersistentDataType.BYTE, (byte) 0));
-    }
-
-    public void showUpdate(ItemStack item) {
-        PaperUtils.modify(item, meta -> meta.getPersistentDataContainer().remove(hideUpdateKey));
-    }
-
-    public boolean updatesHidden(ItemStack item) {
-        return item.getItemMeta().getPersistentDataContainer().has(hideUpdateKey, PersistentDataType.BYTE);
     }
 }

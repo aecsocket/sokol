@@ -61,7 +61,7 @@ public class InputMapper extends EnumMap<InputType, List<InputMapper.Entry>> {
     public InputMapper(EnumMap<InputType, ? extends List<InputMapper.Entry>> m) { super(m); }
     public InputMapper(Map<InputType, ? extends List<InputMapper.Entry>> m) { super(m); }
 
-    public void run(System.Instance system, ItemTreeEvent.InputEvent event, Consumer<CollectionBuilder.OfMap<String, Runnable>> handlers) {
+    public void run(System.Instance system, ItemTreeEvent.Input event, Consumer<CollectionBuilder.OfMap<String, Runnable>> handlers) {
         var handlersBuilder = CollectionBuilder.map(new HashMap<String, Runnable>());
         handlers.accept(handlersBuilder);
         Map<String, Runnable> builtHandlers = handlersBuilder.get();

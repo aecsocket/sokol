@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import io.leangen.geantyref.TypeToken;
 
 import java.util.*;
@@ -138,7 +139,7 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             while (iter.hasNext()) {
                 if (scheduler.run(event, iter.next())) {
                     iter.remove();
-                    event.queueUpdate();
+                    event.queueUpdate(ItemStack::hideUpdate);
                 }
             }
         }

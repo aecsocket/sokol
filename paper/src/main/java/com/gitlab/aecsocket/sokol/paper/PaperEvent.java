@@ -4,7 +4,6 @@ import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
-import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.EntityUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
@@ -12,9 +11,6 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.function.Function;
 
 import static com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser.*;
 
@@ -27,10 +23,9 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         Event handle();
     }
 
-    abstract class Base implements PaperEvent {
+    abstract class Base extends TreeEvent.BaseItemEvent implements PaperEvent {
         protected final PaperTreeNode node;
         protected final PaperSlot slot;
-        protected Function<ItemStack, ItemStack> updateQueued;
 
         public Base(PaperTreeNode node, PaperSlot slot) {
             this.node = node;
@@ -39,33 +34,6 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
 
         @Override public PaperTreeNode node() { return node; }
         @Override public PaperSlot slot() { return slot; }
-
-        @Override
-        public void queueUpdate(@Nullable Function<ItemStack, ItemStack> function) {
-            if (updateQueued == null) {
-                Function<ItemStack, ItemStack> underlying = is -> is.amount(slot.get()
-                        .orElseThrow(() -> new IllegalStateException("Updating slot with no item"))
-                        .amount());
-                updateQueued = function == null
-                        ? underlying
-                        : is -> function.apply(underlying.apply(is));
-            } else {
-                if (function != null) {
-                    Function<ItemStack, ItemStack> old = updateQueued;
-                    updateQueued = is -> function.apply(old.apply(is));
-                }
-            }
-        }
-
-        @Override
-        public boolean call() {
-            boolean result = PaperEvent.super.call();
-            if (updateQueued != null) {
-                node.build();
-                forceUpdate(updateQueued);
-            }
-            return result;
-        }
     }
 
     final class Hold extends Base implements ItemTreeEvent.Hold {
@@ -91,12 +59,12 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public int iteration() { return iteration; }
     }
 
-    final class ClickedSlotClickEvent extends Base implements ItemTreeEvent.ClickedSlotClickEvent, FromServer {
+    final class ClickedSlotClick extends Base implements ItemTreeEvent.ClickedSlotClick, FromServer {
         private final InventoryClickEvent handle;
         private final LivingEntityUser user;
         private final PaperSlot cursor;
 
-        public ClickedSlotClickEvent(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
+        public ClickedSlotClick(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
             super(node, PaperSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem));
             this.handle = handle;
             this.user = living(plugin, handle.getWhoClicked());
@@ -115,12 +83,12 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public boolean shift() { return handle.isShiftClick(); }
     }
 
-    final class CursorSlotClickEvent extends Base implements ItemTreeEvent.CursorSlotClickEvent, FromServer {
+    final class CursorSlotClick extends Base implements ItemTreeEvent.CursorSlotClick, FromServer {
         private final InventoryClickEvent handle;
         private final LivingEntityUser user;
         private final PaperSlot clicked;
 
-        public CursorSlotClickEvent(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
+        public CursorSlotClick(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
             super(node, PaperSlot.slot(plugin, handle.getView()::getCursor, handle.getView()::setCursor));
             this.handle = handle;
             user = living(plugin, handle.getWhoClicked());
@@ -139,12 +107,12 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public boolean shift() { return handle.isShiftClick(); }
     }
 
-    final class InputEvent extends Base implements ItemTreeEvent.InputEvent {
+    final class Input extends Base implements ItemTreeEvent.Input {
         private final PlayerUser user;
         private final Inputs.Events.Input event;
         private boolean cancelled;
 
-        public InputEvent(PaperTreeNode node, PlayerUser user, PaperSlot slot, Inputs.Events.Input event) {
+        public Input(PaperTreeNode node, PlayerUser user, PaperSlot slot, Inputs.Events.Input event) {
             super(node, slot);
             this.user = user;
             this.event = event;

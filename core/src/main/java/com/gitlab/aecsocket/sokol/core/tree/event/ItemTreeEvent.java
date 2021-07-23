@@ -14,21 +14,21 @@ public final class ItemTreeEvent {
         int iteration();
     }
 
-    public interface SlotClickEvent extends TreeEvent.ItemEvent, Cancellable {
+    public interface SlotClick extends TreeEvent.ItemEvent, Cancellable {
         boolean left();
         boolean right();
         boolean shift();
     }
 
-    public interface ClickedSlotClickEvent extends SlotClickEvent {
+    public interface ClickedSlotClick extends SlotClick {
         ItemSlot cursor();
     }
 
-    public interface CursorSlotClickEvent extends SlotClickEvent {
+    public interface CursorSlotClick extends SlotClick {
         ItemSlot clicked();
     }
 
-    public interface InputEvent extends TreeEvent.ItemEvent, Cancellable {
+    public interface Input extends TreeEvent.ItemEvent, Cancellable {
         InputType input();
     }
 

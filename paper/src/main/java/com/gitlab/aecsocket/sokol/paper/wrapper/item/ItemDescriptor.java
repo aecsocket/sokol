@@ -1,14 +1,12 @@
-package com.gitlab.aecsocket.sokol.paper.wrapper;
+package com.gitlab.aecsocket.sokol.paper.wrapper.item;
 
 import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
-import com.gitlab.aecsocket.sokol.core.stat.BasicStat;
-import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
-import io.leangen.geantyref.TypeToken;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.meta.Damageable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -27,7 +25,7 @@ public record ItemDescriptor(
         int modelData,
         int damage,
         boolean unbreakable
-) implements ItemStack.Factory {
+) implements com.gitlab.aecsocket.sokol.core.wrapper.ItemStack.Factory {
     /**
      * Type serializer for a {@link ItemDescriptor}.
      */
@@ -67,18 +65,6 @@ public record ItemDescriptor(
     }
 
     /**
-     * A stat type which stores an item descriptor.
-     */
-    public static final class Stat extends BasicStat<ItemDescriptor> {
-        private Stat(@Nullable ItemDescriptor def, boolean required) {
-            super(new TypeToken<ItemDescriptor>() {}, def, required, (a, b) -> b, i -> i);
-        }
-
-        public static Stat itemStat(@Nullable ItemDescriptor def) { return new Stat(def, false); }
-        public static Stat itemStat() { return new Stat(null, true); }
-    }
-
-    /**
      * Creates an item descriptor from a string ID instead of a material.
      * @param plugin The platform plugin.
      * @param id The ID.
@@ -95,16 +81,26 @@ public record ItemDescriptor(
     }
 
     /**
-     * Creates a Bukkit item stack.
-     * @return The item stack.
+     * Applies this descriptor to an existing item.
+     * @param item The item.
+     * @return The item passed.
      */
-    public org.bukkit.inventory.ItemStack createRaw() {
-        return PaperUtils.modify(new org.bukkit.inventory.ItemStack(material), meta -> {
+    public ItemStack apply(ItemStack item) {
+        item.setType(material);
+        return PaperUtils.modify(item, meta -> {
             meta.addItemFlags(ItemFlag.values());
             meta.setCustomModelData(modelData);
             if (meta instanceof Damageable damageable)
                 damageable.setDamage(damage);
         });
+    }
+
+    /**
+     * Creates a Bukkit item stack.
+     * @return The item stack.
+     */
+    public ItemStack createRaw() {
+        return apply(new ItemStack(material));
     }
 
     @Override

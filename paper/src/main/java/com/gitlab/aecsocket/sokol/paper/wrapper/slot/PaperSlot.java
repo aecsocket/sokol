@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.wrapper.slot;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
-import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItemStack;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.PaperItemStack;
 import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.EquipmentSlot;
@@ -30,8 +30,9 @@ public interface PaperSlot extends ItemSlot {
     default void set(com.gitlab.aecsocket.sokol.core.wrapper.@Nullable ItemStack item) {
         if (item == null)
             paperSet(new ItemStack(Material.AIR));
-        else if (item instanceof PaperItemStack paperItem)
+        else if (item instanceof PaperItemStack paperItem) {
             paperSet(paperItem.handle());
+        }
     }
 
     void paperSet(ItemStack item);

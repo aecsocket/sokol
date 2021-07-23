@@ -9,6 +9,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
 
 import java.lang.reflect.Type;
+import java.util.Arrays;
 import java.util.Optional;
 
 public record SystemPath(String system, String[] nodes) {
@@ -45,4 +46,6 @@ public record SystemPath(String system, String[] nodes) {
     public <Y extends System.Instance> Optional<Y> get(TreeNode node) {
         return node.node(nodes).flatMap(n -> (Optional<Y>) n.system(system));
     }
+
+    @Override public String toString() { return Arrays.toString(nodes) + ":" + system; }
 }

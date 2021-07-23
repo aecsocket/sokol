@@ -54,8 +54,8 @@ import java.util.function.Function;
                 && !(event.getView().getTopInventory().getHolder() instanceof BlockInventoryHolder)
         ) return;
 
-        handle(event.getCurrentItem(), n -> new PaperEvent.ClickedSlotClickEvent(plugin, event, n));
-        handle(event.getCursor(), n -> new PaperEvent.CursorSlotClickEvent(plugin, event, n));
+        handle(event.getCurrentItem(), n -> new PaperEvent.ClickedSlotClick(plugin, event, n));
+        handle(event.getCursor(), n -> new PaperEvent.CursorSlotClick(plugin, event, n));
 
         if (event.getWhoClicked() instanceof Player player) {
             PlayerInventory inv = player.getInventory();
@@ -90,7 +90,7 @@ import java.util.function.Function;
                 n -> new PaperEvent.Unequip(n, oldSlot, user, newSlot));
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     private void event(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
         PlayerInventory inv = player.getInventory();
@@ -101,5 +101,6 @@ import java.util.function.Function;
                 n -> new PaperEvent.Equip(n, newSlot, user, oldSlot));
         handle(inv.getItem(event.getPreviousSlot()),
                 n -> new PaperEvent.Unequip(n, oldSlot, user, newSlot));
+
     }
 }

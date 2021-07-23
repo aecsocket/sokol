@@ -6,15 +6,15 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
-import com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor;
-import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItemStack;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.ItemDescriptor;
+import com.gitlab.aecsocket.sokol.paper.wrapper.item.PaperItemStack;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.Locale;
 
-import static com.gitlab.aecsocket.sokol.paper.wrapper.ItemDescriptor.Stat.*;
+import static com.gitlab.aecsocket.sokol.paper.stat.ItemStat.*;
 
 public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);

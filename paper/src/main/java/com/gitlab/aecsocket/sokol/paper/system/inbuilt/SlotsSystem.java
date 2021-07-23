@@ -47,7 +47,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             parent.events().register(Events.CombineNodeOntoParent.class, this::event);
             parent.events().register(Events.InsertInto.class, this::event);
             parent.events().register(Events.RemoveFrom.class, this::event);
-            parent.events().register(PaperEvent.ClickedSlotClickEvent.class, this::event);
+            parent.events().register(PaperEvent.ClickedSlotClick.class, this::event);
         }
 
         private void event(Events.CombineNodeOntoParent event) {
@@ -76,7 +76,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
         }
 
-        private void event(PaperEvent.ClickedSlotClickEvent event) {
+        private void event(PaperEvent.ClickedSlotClick event) {
             if (!parent.isRoot())
                 return;
             InventoryClickEvent handle = event.handle();
