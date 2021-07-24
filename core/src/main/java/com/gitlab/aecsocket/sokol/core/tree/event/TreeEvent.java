@@ -49,6 +49,8 @@ public interface TreeEvent {
         ItemUser user();
         ItemSlot slot();
 
+        boolean updateQueued();
+
         void queueUpdate(@Nullable Function<ItemStack, ItemStack> function);
 
         default void queueUpdate() {
@@ -62,6 +64,9 @@ public interface TreeEvent {
 
     abstract class BaseItemEvent implements ItemEvent {
         private Function<ItemStack, ItemStack> updateQueued;
+
+        @Override
+        public boolean updateQueued() { return updateQueued != null; }
 
         @Override
         public void queueUpdate(@Nullable Function<ItemStack, ItemStack> function) {

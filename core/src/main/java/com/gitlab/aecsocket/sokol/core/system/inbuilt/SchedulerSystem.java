@@ -19,6 +19,7 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
 
     public interface GlobalScheduler<E extends ItemTreeEvent.Hold> {
         <N extends TreeNode.Scoped<N, ?, ?, ?, Y>, Y extends System.Instance> int schedule(Y system, long delay, SystemTask<E, N, Y> task);
+        void unschedule(int taskId);
         boolean run(E event, int id);
 
         static <E extends ItemTreeEvent.Hold> GlobalScheduler<E> create() {
@@ -47,6 +48,11 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             int id = nextId();
             tasks.put(id, inst);
             return id;
+        }
+
+        @Override
+        public void unschedule(int taskId) {
+            tasks.remove(taskId);
         }
 
         @Override
@@ -132,6 +138,11 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             int taskId = scheduler.schedule(system, delay, task);
             tasks.add(taskId);
             return taskId;
+        }
+
+        public void unschedule(int taskId) {
+            scheduler.unschedule(taskId);
+            tasks.remove((Object) taskId);
         }
 
         private void event(E event) {

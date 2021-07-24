@@ -207,13 +207,16 @@ public class Animation extends ArrayList<Animation.Frame> {
         public void tick(TaskContext ctx) {
             // fix timing issues to do with item updates being sent
             ++iterations;
-            if (iterations <= 2)
+            if (finished())
                 return;
-            frameTime += ctx.delta();
-            if (frame == null) {
+            if (frame == null)
                 updateFrame();
+            if (iterations <= 2) {
                 apply();
+                return;
             }
+
+            frameTime += ctx.delta();
             while (!finished() && frameTime >= frame.duration) {
                 frameTime -= frame.duration;
                 nextFrame();
