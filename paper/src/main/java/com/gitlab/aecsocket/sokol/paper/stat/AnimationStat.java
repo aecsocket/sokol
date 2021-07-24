@@ -9,10 +9,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A stat type which stores an {@link Animation}.
  */
 public final class AnimationStat extends BasicStat<Animation> {
-    private AnimationStat(@Nullable Animation def, boolean required) {
-        super(new TypeToken<Animation>() {}, def, required, (a, b) -> b, Animation::new);
+    private AnimationStat(@Nullable Animation def) {
+        super(new TypeToken<>() {}, def, (a, b) -> b, Animation::new);
     }
 
-    public static AnimationStat animationStat(@Nullable Animation def) { return new AnimationStat(def, false); }
-    public static AnimationStat animationStat() { return new AnimationStat(null, true); }
+    public static AnimationStat animationStat(@Nullable Animation def) { return new AnimationStat(def); }
+    public static AnimationStat animationStat() { return new AnimationStat(null); }
 }

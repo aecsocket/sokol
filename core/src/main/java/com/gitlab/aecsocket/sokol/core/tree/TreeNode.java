@@ -184,6 +184,8 @@ public interface TreeNode {
 
     <S extends System.Instance> Optional<S> system(System.Key<S> key);
 
+    <S extends System.Instance> Optional<S> system(Class<S> type);
+
     /**
      * Completes the node tree by:
      * <ul>

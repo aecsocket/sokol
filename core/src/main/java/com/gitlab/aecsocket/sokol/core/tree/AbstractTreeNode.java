@@ -116,6 +116,15 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
         systems.put(id, system);
     }
 
+    @Override
+    public <T extends System.Instance> Optional<T> system(Class<T> type) {
+        for (System.Instance system : systems.values()) {
+            if (type.isInstance(system))
+                return Optional.of(type.cast(system));
+        }
+        return Optional.empty();
+    }
+
     /**
      * Parents this node to a parent node.
      * <p>

@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An abstract system with some methods implemented.
@@ -32,9 +33,22 @@ public abstract class AbstractSystem implements System {
             return "system." + base().id() + "." + key;
         }
 
+        protected <S extends System.Instance> @Nullable S softDepend(Key<S> key) {
+            return parent.system(key).orElse(null);
+        }
+
+        protected <S extends System.Instance> @Nullable S softDepend(Class<S> type) {
+            return parent.system(type).orElse(null);
+        }
+
         protected <S extends System.Instance> S depend(Key<S> key) {
             return parent.system(key)
                     .orElseThrow(() -> new IllegalStateException("System [" + base().id() + "] depends on [" + key.id() + "]"));
+        }
+
+        protected <S extends System.Instance> S depend(Class<S> type) {
+            return parent.system(type)
+                    .orElseThrow(() -> new IllegalStateException("System [" + base().id() + "] depends on [" + type.getSimpleName() + "]"));
         }
 
         @Override public String toString() {

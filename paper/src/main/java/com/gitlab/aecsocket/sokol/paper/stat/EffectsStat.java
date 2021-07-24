@@ -8,11 +8,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.List;
 
 public final class EffectsStat extends ListStat<PotionEffect> {
-    private EffectsStat(@Nullable List<PotionEffect> def, boolean required) {
-        super(def, required);
+    private EffectsStat(@Nullable List<PotionEffect> def) {
+        super(def);
     }
 
     @Override public TypeToken<StatDescriptor<List<PotionEffect>>> type() { return new TypeToken<>() {}; }
-    public static EffectsStat effectsStat(@Nullable List<PotionEffect> def) { return new EffectsStat(def, false); }
-    public static EffectsStat effectsStat() { return new EffectsStat(null, true); }
+    public static EffectsStat effectsStat(@Nullable List<PotionEffect> def) { return new EffectsStat(def); }
+    public static EffectsStat effectsStat() { return new EffectsStat(null); }
 }

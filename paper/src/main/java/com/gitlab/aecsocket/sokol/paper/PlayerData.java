@@ -47,10 +47,13 @@ public final class PlayerData {
 
         synchronized (nodeCache) {
             for (EquipmentSlot slot : EquipmentSlot.values()) {
-                plugin.persistenceManager().load(player.getInventory().getItem(slot)).ifPresent(node -> new PaperEvent.Hold(
-                        node, PaperUser.player(plugin, player), equip(plugin, player, slot),
-                        true, ctx.elapsed(), ctx.delta(), ctx.iteration()
-                ).call());
+                plugin.persistenceManager().load(player.getInventory().getItem(slot)).ifPresent(node -> {
+                    nodeCache.put(slot, node);
+                    new PaperEvent.Hold(
+                            node, PaperUser.player(plugin, player), equip(plugin, player, slot),
+                            true, ctx.elapsed(), ctx.delta(), ctx.iteration()
+                    ).call();
+                });
             }
         }
     }

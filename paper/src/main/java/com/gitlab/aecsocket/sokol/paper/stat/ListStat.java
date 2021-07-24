@@ -21,15 +21,12 @@ public abstract class ListStat<E> implements Stat<StatDescriptor<List<E>>> {
             .build();
 
     private final @Nullable StatDescriptor<List<E>> def;
-    private final boolean required;
 
-    public ListStat(@Nullable List<E> def, boolean required) {
+    public ListStat(@Nullable List<E> def) {
         this.def = desc(def);
-        this.required = required;
     }
 
     @Override public @Nullable Optional<StatDescriptor<List<E>>> defaultValue() { return Optional.ofNullable(def); }
-    @Override public boolean required() { return required; }
 
     @Override
     public StatDescriptor<List<E>> combine(StatDescriptor<List<E>> a, StatDescriptor<List<E>> b) {

@@ -20,8 +20,6 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
 
         public Instance(Stat<T> stat, @Nullable T value) {
             this.stat = stat;
-            if (value == null && stat.required())
-                throw new IllegalArgumentException("Non-null value must be passed because stat is required");
             this.value = value;
         }
 
@@ -84,12 +82,6 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
      * @return An Optional of the default value.
      */
     Optional<T> defaultValue();
-
-    /**
-     * Gets if this stat is required to be set in a stat map.
-     * @return The status.
-     */
-    boolean required();
 
     /**
      * Creates an instance from this stat.

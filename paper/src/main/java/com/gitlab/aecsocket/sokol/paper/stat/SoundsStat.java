@@ -8,11 +8,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.*;
 
 public final class SoundsStat extends ListStat<PreciseSound> {
-    private SoundsStat(@Nullable List<PreciseSound> def, boolean required) {
-        super(def, required);
+    private SoundsStat(@Nullable List<PreciseSound> def) {
+        super(def);
     }
 
     @Override public TypeToken<StatDescriptor<List<PreciseSound>>> type() { return new TypeToken<>() {}; }
-    public static SoundsStat soundsStat(@Nullable List<PreciseSound> def) { return new SoundsStat(def, false); }
-    public static SoundsStat soundsStat() { return new SoundsStat(null, true); }
+    public static SoundsStat soundsStat(@Nullable List<PreciseSound> def) { return new SoundsStat(def); }
+    public static SoundsStat soundsStat() { return new SoundsStat(null); }
 }

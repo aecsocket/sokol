@@ -8,10 +8,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A stat type which stores a string.
  */
 public class StringStat extends BasicStat<String> {
-    private StringStat(@Nullable String def, boolean required) {
-        super(new TypeToken<String>() {}, def, required, (a, b) -> b, v -> v);
+    private StringStat(@Nullable String def) {
+        super(new TypeToken<>() {}, def, (a, b) -> b, v -> v);
     }
 
-    public static StringStat stringStat(@Nullable String def) { return new StringStat(def, false); }
-    public static StringStat stringStat() { return new StringStat(null, true); }
+    public static StringStat stringStat(@Nullable String def) { return new StringStat(def); }
+    public static StringStat stringStat() { return new StringStat(null); }
 }

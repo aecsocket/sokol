@@ -4,6 +4,8 @@ import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Logging;
 import com.gitlab.aecsocket.minecommons.core.Validation;
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.ListenerInputs;
@@ -275,6 +277,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .register(new TypeToken<StatDescriptor<Long>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Long>() {}))
                 .register(new TypeToken<StatDescriptor<Float>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Float>() {}))
                 .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
+                .register(new TypeToken<StatDescriptor<Vector2>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Vector2>() {}))
+                .register(new TypeToken<StatDescriptor<Vector3>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Vector3>() {}))
                 .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}))
                 .register(new TypeToken<StatDescriptor<List<PotionEffect>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PotionEffect>>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
