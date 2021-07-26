@@ -10,10 +10,13 @@ import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.InventorySlot;
 import io.leangen.geantyref.TypeToken;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -28,6 +31,8 @@ import java.util.Collection;
 import java.util.List;
 
 public class Animation extends ArrayList<Animation.Frame> {
+    private static final PotionEffect lowerEffect = new PotionEffect(PotionEffectType.SLOW_DIGGING, 4, 127, false, false, false);
+
     public static final class Serializer implements TypeSerializer<Animation> {
         public static final Serializer INSTANCE = new Serializer();
 
@@ -47,7 +52,10 @@ public class Animation extends ArrayList<Animation.Frame> {
     public Animation(@NotNull Collection<? extends Frame> c) { super(c); }
 
     public void start(SokolPlugin plugin, Player player, int defSlot) {
-        plugin.schedulers().playerData(player).startAnimation(new Instance(plugin, player, defSlot));
+        if (size() == 0)
+            Bukkit.getScheduler().runTask(plugin, () -> player.addPotionEffect(lowerEffect));
+        else
+            plugin.schedulers().playerData(player).startAnimation(new Instance(plugin, player, defSlot));
     }
 
     public void start(SokolPlugin plugin, Player player, EquipmentSlot defSlot) {

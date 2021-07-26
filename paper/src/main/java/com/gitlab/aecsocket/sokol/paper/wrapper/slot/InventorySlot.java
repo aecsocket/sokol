@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper.slot;
 
-import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 

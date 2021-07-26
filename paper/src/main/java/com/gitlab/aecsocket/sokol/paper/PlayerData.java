@@ -15,6 +15,7 @@ public final class PlayerData {
     private final SokolPlugin plugin;
     private final Player player;
     private final Map<EquipmentSlot, PaperTreeNode> nodeCache = new ConcurrentHashMap<>();
+    private int lastSlot;
     private Animation.Instance animation;
 
     PlayerData(SokolPlugin plugin, Player player) {
@@ -41,32 +42,32 @@ public final class PlayerData {
 
         if (animation != null) {
             animation.tick(ctx);
-            if (animation.finished())
-                animation = null;
         }
 
-        synchronized (nodeCache) {
-            for (EquipmentSlot slot : EquipmentSlot.values()) {
-                plugin.persistenceManager().load(player.getInventory().getItem(slot)).ifPresent(node -> {
-                    nodeCache.put(slot, node);
-                    new PaperEvent.Hold(
-                            node, PaperUser.player(plugin, player), equip(plugin, player, slot),
-                            true, ctx.elapsed(), ctx.delta(), ctx.iteration()
-                    ).call();
-                });
+        lastSlot = player.getInventory().getHeldItemSlot();
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            PaperTreeNode node = plugin.persistenceManager().load(player.getInventory().getItem(slot)).orElse(null);
+            if (node == null)
+                nodeCache.remove(slot);
+            else {
+                nodeCache.put(slot, node);
+                new PaperEvent.Hold(
+                        node, PaperUser.player(plugin, player), equip(plugin, player, slot),
+                        true, ctx.elapsed(), ctx.delta(), ctx.iteration()
+                ).call();
             }
         }
     }
 
     public void threadTick(TaskContext ctx) {
-        synchronized (nodeCache) {
-            for (var cache : nodeCache.entrySet()) {
-                if (cache.getValue() != null) {
-                    new PaperEvent.Hold(
-                            cache.getValue(), PaperUser.player(plugin, player), equip(plugin, player, cache.getKey()),
-                            false, ctx.elapsed(), ctx.delta(), ctx.iteration()
-                    ).call();
-                }
+        if (player.getInventory().getHeldItemSlot() != lastSlot)
+            return;
+        for (var cache : nodeCache.entrySet()) {
+            if (cache.getValue() != null) {
+                new PaperEvent.Hold(
+                        cache.getValue(), PaperUser.player(plugin, player), equip(plugin, player, cache.getKey()),
+                        false, ctx.elapsed(), ctx.delta(), ctx.iteration()
+                ).call();
             }
         }
     }

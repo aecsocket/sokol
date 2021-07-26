@@ -146,6 +146,8 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
         }
 
         private void event(E event) {
+            if (!event.sync())
+                return;
             var iter = tasks.iterator();
             while (iter.hasNext()) {
                 if (scheduler.run(event, iter.next())) {
@@ -155,7 +157,9 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             }
         }
 
-        private void event(ItemTreeEvent.Unequip event) {
+        protected void event(ItemTreeEvent.Unequip event) {
+            for (int task : tasks)
+                scheduler.unschedule(task);
             tasks.clear();
             event.queueUpdate();
         }

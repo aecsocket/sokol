@@ -14,13 +14,20 @@ import java.util.*;
 /**
  * Wrapper around an item stack which uses an underlying Bukkit {@link org.bukkit.inventory.ItemStack}.
  */
-public record PaperItemStack(
-        SokolPlugin plugin,
-        org.bukkit.inventory.ItemStack handle
-) implements ItemStack {
-    public PaperItemStack {
+public final class PaperItemStack implements ItemStack {
+    private final SokolPlugin plugin;
+    private final org.bukkit.inventory.ItemStack handle;
+    private boolean hidden;
+
+    public PaperItemStack(SokolPlugin plugin, org.bukkit.inventory.ItemStack handle) {
         Validation.assertNot(handle.getType() == Material.AIR, "Item must be non-air");
+        this.plugin = plugin;
+        this.handle = handle;
+        hidden = plugin.packetListener().updatesHidden(handle);
     }
+
+    public SokolPlugin plugin() { return plugin; }
+    public org.bukkit.inventory.ItemStack handle() { return handle; }
 
     @Override public int amount() { return handle.getAmount(); }
     @Override public PaperItemStack amount(int amount) { handle.setAmount(amount); return this; }
@@ -65,19 +72,25 @@ public record PaperItemStack(
 
     @Override
     public ItemStack hideUpdate() {
-        plugin.packetListener().hideUpdate(handle);
+        if (!hidden) {
+            plugin.packetListener().hideUpdate(handle);
+            hidden = true;
+        }
         return this;
     }
 
     @Override
     public ItemStack showUpdate() {
-        plugin.packetListener().showUpdate(handle);
+        if (hidden) {
+            plugin.packetListener().showUpdate(handle);
+            hidden = false;
+        }
         return this;
     }
 
     @Override
     public boolean updateHidden() {
-        return plugin.packetListener().updatesHidden(handle);
+        return hidden;
     }
 
     @Override

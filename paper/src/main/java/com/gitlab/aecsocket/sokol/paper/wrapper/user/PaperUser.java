@@ -38,6 +38,12 @@ public interface PaperUser extends ItemUser {
         };
     }
 
+    static LivingEntityUser anyLiving(SokolPlugin platform, LivingEntity living) {
+        if (living instanceof Player player)
+            return player(platform, player);
+        return living(platform, living);
+    }
+
     static EntityUser anyEntity(SokolPlugin platform, Entity entity) {
         if (entity instanceof Player player)
             return player(platform, player);

@@ -9,7 +9,6 @@ import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
-import com.gitlab.aecsocket.sokol.core.wrapper.PlayerUser;
 import io.leangen.geantyref.TypeToken;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -68,7 +67,7 @@ public interface System {
         default void build(StatLists stats) {}
 
         default void runAction(SchedulerSystem<?>.Instance scheduler, ItemUser user, ItemSlot slot, String key) {
-            parent().stats().<Long>val(key + "_delay").ifPresent(scheduler::delay);
+            parent().stats().<Long>desc(key + "_delay").ifPresent(scheduler::delay);
         }
     }
 

@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core.tree.event;
 
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 
 public final class ItemTreeEvent {
@@ -38,6 +39,14 @@ public final class ItemTreeEvent {
 
     public interface Unequip extends TreeEvent.ItemEvent, Cancellable {
         ItemSlot newSlot();
+    }
+
+    public interface BlockBreak extends TreeEvent.ItemEvent, Cancellable {
+        Vector3 position();
+    }
+
+    public interface BlockPlace extends TreeEvent.ItemEvent, Cancellable {
+        Vector3 position();
     }
 
     public interface ShowItem extends TreeEvent.ItemEvent, Cancellable {}

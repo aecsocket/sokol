@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
+import com.gitlab.aecsocket.sokol.core.wrapper.PlayerUser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.Function;
@@ -58,6 +59,10 @@ public interface TreeEvent {
         }
 
         default void forceUpdate(Function<ItemStack, ItemStack> function) {
+            if (user() instanceof PlayerUser player && player.inAnimation()) {
+                var oldFunction = function;
+                function = is -> oldFunction.apply(is.hideUpdate());
+            }
             slot().set(node(), user().locale(), function);
         }
     }
@@ -97,12 +102,37 @@ public interface TreeEvent {
 
         @Override
         public void forceUpdate(Function<ItemStack, ItemStack> function) {
-            ItemEvent.super.forceUpdate(function);
-            new Update(node(), user(), slot()).call();
+            var event = new PreUpdate(node(), user(), slot(), function);
+            event.call();
+            ItemEvent.super.forceUpdate(event.function);
+            new PostUpdate(node(), user(), slot()).call();
         }
     }
 
-    record Update(
+    final class PreUpdate implements TreeEvent {
+        private final TreeNode node;
+        private final ItemUser user;
+        private final ItemSlot slot;
+        private Function<ItemStack, ItemStack> function;
+
+        public PreUpdate(TreeNode node, ItemUser user, ItemSlot slot, Function<ItemStack, ItemStack> function) {
+            this.node = node;
+            this.user = user;
+            this.slot = slot;
+            this.function = function;
+        }
+
+        public TreeNode node() { return node; }
+        public ItemUser user() { return user; }
+        public ItemSlot slot() { return slot; }
+
+        public void queueUpdate(Function<ItemStack, ItemStack> function) {
+            var oldFunction = this.function;
+            this.function = is -> function.apply(oldFunction.apply(is));
+        }
+    }
+
+    record PostUpdate(
             TreeNode node,
             ItemUser user,
             ItemSlot slot

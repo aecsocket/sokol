@@ -4,11 +4,16 @@ import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.item.PaperItemStack;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Optional;
@@ -54,9 +59,35 @@ public interface PaperSlot extends ItemSlot {
         };
     }
 
+    static PlayerInventorySlot playerInventory(SokolPlugin plugin, Player player, PlayerInventory inventory, int slot, int heldSlot) {
+        PlayerUser user = PaperUser.player(plugin, player);
+        return new PlayerInventorySlot() {
+            @Override public SokolPlugin plugin() { return plugin; }
+            @Override public PlayerUser user() { return user; }
+            @Override public PlayerInventory inventory() { return inventory; }
+            @Override public int slot() { return slot; }
+            @Override public int heldSlot() { return heldSlot; }
+            @Override public String toString() { return slot + " @ " + inventory; }
+        };
+    }
+
+    static PlayerInventorySlot playerInventory(SokolPlugin plugin, Player player, PlayerInventory inventory, int slot) {
+        PlayerUser user = PaperUser.player(plugin, player);
+        return new PlayerInventorySlot() {
+            @Override public SokolPlugin plugin() { return plugin; }
+            @Override public PlayerUser user() { return user; }
+            @Override public PlayerInventory inventory() { return inventory; }
+            @Override public int slot() { return slot; }
+            @Override public int heldSlot() { return inventory.getHeldItemSlot(); }
+            @Override public String toString() { return slot + " @ " + inventory; }
+        };
+    }
+
     static EquipSlot equip(SokolPlugin plugin, LivingEntity entity, EquipmentSlot slot) {
+        LivingEntityUser user = PaperUser.anyLiving(plugin, entity);
         return new EquipSlot() {
             @Override public SokolPlugin plugin() { return plugin; }
+            @Override public LivingEntityUser user() { return user; }
             @Override public LivingEntity entity() { return entity; }
             @Override public EquipmentSlot slot() { return slot; }
             @Override public String toString() { return slot + " @ " + entity; }

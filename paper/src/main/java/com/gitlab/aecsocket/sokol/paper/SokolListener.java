@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.destroystokyo.paper.event.player.PlayerArmorChangeEvent;
+import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquipSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
@@ -8,13 +9,17 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /* package */ class SokolListener implements Listener {
@@ -35,6 +40,21 @@ import java.util.function.Function;
 
     private @SafeVarargs void handle(@Nullable ItemStack item, Function<PaperTreeNode, PaperEvent>... eventFactories) {
         plugin.persistenceManager().load(item).ifPresent(node -> handle(node, eventFactories));
+    }
+
+    private void handleHands(Player player, BiFunction<PaperTreeNode, EquipSlot, PaperEvent> eventFactory) {
+        handle(player.getInventory().getItemInMainHand(), n -> eventFactory.apply(n, PaperSlot.equip(plugin, player, EquipmentSlot.HAND)));
+        handle(player.getInventory().getItemInOffHand(), n -> eventFactory.apply(n, PaperSlot.equip(plugin, player, EquipmentSlot.OFF_HAND)));
+    }
+
+    @EventHandler
+    private void event(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        PlayerInventory inv = player.getInventory();
+        PlayerUser user = PaperUser.player(plugin, player);
+        for (EquipmentSlot slot : EquipmentSlot.values()) {
+            handle(inv.getItem(slot), n -> new PaperEvent.Equip(n, PaperSlot.equip(plugin, player, slot), user, null));
+        }
     }
 
     @EventHandler
@@ -95,12 +115,25 @@ import java.util.function.Function;
         Player player = event.getPlayer();
         PlayerInventory inv = player.getInventory();
         PlayerUser user = PaperUser.player(plugin, player);
-        PaperSlot newSlot = PaperSlot.inventory(plugin, inv, event.getNewSlot());
-        PaperSlot oldSlot = PaperSlot.inventory(plugin, inv, event.getPreviousSlot());
+        PaperSlot newSlot = PaperSlot.playerInventory(plugin, player, inv, event.getNewSlot(), event.getNewSlot());
+        PaperSlot oldSlot = PaperSlot.playerInventory(plugin, player, inv, event.getPreviousSlot(), event.getNewSlot());
         handle(inv.getItem(event.getNewSlot()),
                 n -> new PaperEvent.Equip(n, newSlot, user, oldSlot));
         handle(inv.getItem(event.getPreviousSlot()),
                 n -> new PaperEvent.Unequip(n, oldSlot, user, newSlot));
+    }
 
+    @EventHandler
+    private void event(BlockBreakEvent event) {
+        Player player = event.getPlayer();
+        PlayerUser user = PaperUser.player(plugin, player);
+        handleHands(player, (n, s) -> new PaperEvent.BlockBreak(n, s, event, user));
+    }
+
+    @EventHandler
+    private void event(BlockPlaceEvent event) {
+        Player player = event.getPlayer();
+        PlayerUser user = PaperUser.player(plugin, player);
+        handleHands(player, (n, s) -> new PaperEvent.BlockPlace(n, s, event, user));
     }
 }

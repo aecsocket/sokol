@@ -56,7 +56,7 @@ public abstract class SlotInfoSystem extends AbstractSystem {
             }
         }
 
-        private void event(ItemSystem.Events.CreateItem event) {
+        protected void event(ItemSystem.Events.CreateItem event) {
             if (!parent.isRoot())
                 return;
             List<Component> lore = new ArrayList<>();

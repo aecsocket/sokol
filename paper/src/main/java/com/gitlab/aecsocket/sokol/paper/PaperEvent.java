@@ -1,6 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.InputType;
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
+import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
@@ -10,7 +12,10 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import static com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser.*;
 
@@ -142,17 +147,17 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
 
     final class Equip extends Base implements ItemTreeEvent.Equip {
         private final PlayerUser user;
-        private final PaperSlot oldSlot;
+        private final @Nullable PaperSlot oldSlot;
         private boolean cancelled;
 
-        public Equip(PaperTreeNode node, PaperSlot slot, PlayerUser user, PaperSlot oldSlot) {
+        public Equip(PaperTreeNode node, PaperSlot slot, PlayerUser user, @Nullable PaperSlot oldSlot) {
             super(node, slot);
             this.user = user;
             this.oldSlot = oldSlot;
         }
 
         @Override public PlayerUser user() { return user; }
-        @Override public PaperSlot oldSlot() { return oldSlot; }
+        @Override public @Nullable PaperSlot oldSlot() { return oldSlot; }
 
         @Override public boolean cancelled() { return cancelled; }
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
@@ -174,6 +179,46 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
 
         @Override public boolean cancelled() { return cancelled; }
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
+    }
+
+    final class BlockBreak extends Base implements ItemTreeEvent.BlockBreak, FromServer {
+        private final BlockBreakEvent handle;
+        private final PlayerUser user;
+        private final Vector3 position;
+
+        public BlockBreak(PaperTreeNode node, PaperSlot slot, BlockBreakEvent handle, PlayerUser user) {
+            super(node, slot);
+            this.handle = handle;
+            this.user = user;
+            position = PaperUtils.toCommons(handle.getBlock().getLocation());
+        }
+
+        @Override public BlockBreakEvent handle() { return handle; }
+        @Override public PlayerUser user() { return user; }
+        @Override public Vector3 position() { return position; }
+
+        @Override public boolean cancelled() { return handle.isCancelled(); }
+        @Override public void cancelled(boolean cancelled) { handle.setCancelled(cancelled); }
+    }
+
+    final class BlockPlace extends Base implements ItemTreeEvent.BlockPlace, FromServer {
+        private final BlockPlaceEvent handle;
+        private final PlayerUser user;
+        private final Vector3 position;
+
+        public BlockPlace(PaperTreeNode node, PaperSlot slot, BlockPlaceEvent handle, PlayerUser user) {
+            super(node, slot);
+            this.handle = handle;
+            this.user = user;
+            position = PaperUtils.toCommons(handle.getBlock().getLocation());
+        }
+
+        @Override public BlockPlaceEvent handle() { return handle; }
+        @Override public PlayerUser user() { return user; }
+        @Override public Vector3 position() { return position; }
+
+        @Override public boolean cancelled() { return handle.isCancelled(); }
+        @Override public void cancelled(boolean cancelled) { handle.setCancelled(cancelled); }
     }
 
     final class ShowItem extends Base implements ItemTreeEvent.ShowItem {
