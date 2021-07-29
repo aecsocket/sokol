@@ -20,7 +20,7 @@ public class SokolSchedulers {
     public SokolSchedulers(SokolPlugin plugin) {
         this.plugin = plugin;
         paperScheduler = new PaperScheduler(plugin);
-        threadScheduler = new ThreadScheduler(Executors.newFixedThreadPool(1));
+        threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
     }
 
     public SokolPlugin plugin() { return plugin; }

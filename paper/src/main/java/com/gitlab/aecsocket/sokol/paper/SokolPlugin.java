@@ -1,9 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.gitlab.aecsocket.minecommons.core.Files;
-import com.gitlab.aecsocket.minecommons.core.InputType;
-import com.gitlab.aecsocket.minecommons.core.Logging;
-import com.gitlab.aecsocket.minecommons.core.Validation;
+import com.gitlab.aecsocket.minecommons.core.*;
+import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
+import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.minecommons.paper.display.Particles;
@@ -14,6 +13,7 @@ import com.gitlab.aecsocket.minecommons.paper.inputs.PacketInputs;
 import com.gitlab.aecsocket.minecommons.paper.persistence.StringArrayType;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
+import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
@@ -51,8 +51,8 @@ import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 
 import static com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser.*;
@@ -103,7 +103,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<PaperSystem.KeyedType> systemTypes = new Registry<>();
     private final List<ConfigOptionInitializer> configOptionInitializers = new ArrayList<>();
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
-    private final SokolSchedulers schedulers = new SokolSchedulers(this);
+    private final PaperScheduler paperScheduler = new PaperScheduler(this);
+    private final ThreadScheduler threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
+    private final Map<UUID, PlayerData> playerData = new HashMap<>();
     private final SchedulerSystem.GlobalScheduler<PaperEvent.Hold> systemScheduler = SchedulerSystem.GlobalScheduler.create();
     private final Guis guis = new Guis(this);
     private final PacketInputs packetInputs = new PacketInputs(this);
@@ -140,6 +142,15 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
         protocol.manager().addPacketListener(packetListener);
 
+        paperScheduler.run(Task.repeating(ctx -> {
+            for (var data : playerData.values())
+                ctx.run(Task.single(data::paperTick));
+        }, Ticks.MSPT));
+        threadScheduler.run(Task.repeating(ctx -> {
+            for (var data : playerData.values())
+                ctx.run(Task.single(data::threadTick));
+        }, 10));
+
         protocol.manager().addPacketListener(packetInputs);
         packetInputs.events().register(Inputs.Events.Input.class, event -> {
             Player player = event.player();
@@ -155,7 +166,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             handlePacketInput(player, user, event, EquipmentSlot.HAND);
             handlePacketInput(player, user, event, EquipmentSlot.OFF_HAND);
             if (event.input() == InputType.SWAP && !event.cancelled())
-                schedulers.playerData(player).stopAnimation();
+                playerData(player).stopAnimation();
         });
 
         Bukkit.getPluginManager().registerEvents(listenerInputs, this);
@@ -186,12 +197,12 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this), () -> PaperSchedulerSystem.LOAD_PROVIDER);
         registerSystemType(SlotsSystem.ID, SlotsSystem.type(this), () -> SlotsSystem.LOAD_PROVIDER);
         registerSystemType(PropertiesSystem.ID, PropertiesSystem.type(this), () -> PropertiesSystem.LOAD_PROVIDER);
-        schedulers.setup();
     }
 
     @Override
     public void onDisable() {
-        schedulers.stop();
+        paperScheduler.cancel();
+        threadScheduler.cancel();
     }
 
     private void callItemEvent(Player player, EquipmentSlot slot, BiFunction<PaperTreeNode, EquipmentSlot, TreeEvent> event) {
@@ -212,7 +223,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override public Registry<PaperBlueprint> blueprints() { return blueprints; }
     public Registry<PaperSystem.KeyedType> systemTypes() { return systemTypes; }
     public PersistenceManager persistenceManager() { return persistenceManager; }
-    public SokolSchedulers schedulers() { return schedulers; }
+    public PlayerData playerData(Player player) { return playerData.computeIfAbsent(player.getUniqueId(), u -> new PlayerData(this, player)); }
     public SchedulerSystem.GlobalScheduler<PaperEvent.Hold> systemScheduler() { return systemScheduler; }
     public Guis guis() { return guis; }
     public PacketInputs packetInputs() { return packetInputs; }
@@ -326,6 +337,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             log(Logging.Level.VERBOSE, "Registered %s [%s]", name, o.id());
         }
         log(Logging.Level.INFO, "Registered %d of %s", registry.size(), name);
+    }
+
+    void remove(Player player) {
+        playerData.remove(player.getUniqueId());
     }
 
     @Override

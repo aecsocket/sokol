@@ -16,5 +16,5 @@ public interface PlayerUser extends LivingEntityUser, com.gitlab.aecsocket.sokol
     @Override default boolean sprinting() { return handle().isSprinting(); }
     @Override default boolean leftHanded() { return handle().getMainHand() == MainHand.LEFT; }
 
-    @Override default boolean inAnimation() { return platform().schedulers().playerData(handle()).animation() != null; }
+    @Override default boolean inAnimation() { return platform().playerData(handle()).animation() != null; }
 }

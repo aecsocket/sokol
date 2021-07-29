@@ -55,7 +55,7 @@ public class Animation extends ArrayList<Animation.Frame> {
         if (size() == 0)
             Bukkit.getScheduler().runTask(plugin, () -> player.addPotionEffect(lowerEffect));
         else
-            plugin.schedulers().playerData(player).startAnimation(new Instance(plugin, player, defSlot));
+            plugin.playerData(player).startAnimation(new Instance(plugin, player, defSlot));
     }
 
     public void start(SokolPlugin plugin, Player player, EquipmentSlot defSlot) {

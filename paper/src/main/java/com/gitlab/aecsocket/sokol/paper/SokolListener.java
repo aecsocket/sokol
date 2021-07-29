@@ -62,12 +62,12 @@ import java.util.function.Supplier;
 
     @EventHandler
     private void event(PlayerQuitEvent event) {
-        plugin.schedulers().remove(event.getPlayer());
+        plugin.remove(event.getPlayer());
     }
 
     @EventHandler
     private void event(PlayerDeathEvent event) {
-        plugin.schedulers().remove(event.getEntity());
+        plugin.remove(event.getEntity());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
