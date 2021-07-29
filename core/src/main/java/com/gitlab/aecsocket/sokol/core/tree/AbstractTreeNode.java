@@ -55,6 +55,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
 
     @Override public Map<String, N> children() { return children; }
     @Override public Optional<N> child(String key) { return Optional.ofNullable(children.get(key)); }
+    @Override public void removeChild(String key) { children.remove(key); }
 
     @Override
     public void child(String key, @Nullable N child) throws IllegalArgumentException {

@@ -155,6 +155,12 @@ public interface TreeNode {
     Optional<? extends TreeNode> child(String key);
 
     /**
+     * Removes a child of this node.
+     * @param key The key of the slot to get the child from.
+     */
+    void removeChild(String key);
+
+    /**
      * Gets a child of this node, or child nodes, according to the path.
      * @param path The path to the child.
      * @return An Optional of the result.

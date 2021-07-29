@@ -64,7 +64,7 @@ public record StatDescriptor<T>(
     }
 
     public StatDescriptor<T> operate(Map<String, Combiner<T>> operations, String defaultOperator, StatDescriptor<T> v) {
-        Combiner<T> combiner = operations.getOrDefault(operator, operations.get(defaultOperator));
+        Combiner<T> combiner = operations.getOrDefault(v.operator, operations.get(defaultOperator));
         if (combiner == null)
             throw new IllegalStateException("Invalid operator [" + operator + "], valid: " + operations.keySet());
         return new StatDescriptor<>(null, combiner.combine(value, v.value));

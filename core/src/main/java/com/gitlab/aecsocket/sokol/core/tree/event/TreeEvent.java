@@ -82,11 +82,12 @@ public interface TreeEvent {
                 updateQueued = function == null
                         ? underlying
                         : is -> function.apply(underlying.apply(is));
-            } else {
-                if (function != null) {
-                    Function<ItemStack, ItemStack> old = updateQueued;
-                    updateQueued = is -> function.apply(old.apply(is));
-                }
+            } else if (function != null) {
+                Function<ItemStack, ItemStack> old = updateQueued;
+                updateQueued = is -> {
+                    ItemStack item = old.apply(is);
+                    return item == null ? null : function.apply(item);
+                };
             }
         }
 

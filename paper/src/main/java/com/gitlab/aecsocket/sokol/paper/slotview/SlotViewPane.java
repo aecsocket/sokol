@@ -282,11 +282,16 @@ public class SlotViewPane extends Pane {
     }
 
     private Component slotText(PaperSlot slot) {
+        Collection<String> tags = slot.tags();
+        Component[] components = new Component[tags.size()];
+        int i = 0;
+        for (String tag : tags) {
+            components[i] = plugin.lc().safe(locale, "slot.meta.tag." + tag);
+            ++i;
+        }
         return plugin.lc().safe(locale, "slot.meta.name",
                 "name", slot.name(locale),
-                "required", plugin.lc().safe(locale, "slot.meta." + (slot.required() ? "" : "not_") + "required"),
-                "internal", plugin.lc().safe(locale, "slot.meta." + (slot.internal() ? "" : "not_") + "internal"),
-                "field_modifiable", plugin.lc().safe(locale, "slot.meta." + (slot.fieldModifiable() ? "" : "not_") + "field_modifiable"));
+                "tags", Component.join(plugin.lc().safe(locale, "slot.meta.tag_separator"), components));
     }
 
     private Collection<GuiItem> toItems() {

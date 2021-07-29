@@ -13,6 +13,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -20,7 +21,9 @@ import org.bukkit.inventory.*;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /* package */ class SokolListener implements Listener {
     private final SokolPlugin plugin;
@@ -69,6 +72,9 @@ import java.util.function.Function;
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     private void event(InventoryClickEvent event) {
+        if (event instanceof InventoryCreativeEvent)
+            return;
+
         if (
                 event.getClickedInventory() == event.getView().getTopInventory()
                 && !(event.getView().getTopInventory().getHolder() instanceof BlockInventoryHolder)
@@ -80,9 +86,30 @@ import java.util.function.Function;
         if (event.getWhoClicked() instanceof Player player) {
             PlayerInventory inv = player.getInventory();
             PlayerUser user = PaperUser.player(plugin, player);
-            PaperSlot clickedSlot = PaperSlot.slot(plugin, event::getCurrentItem, event::setCurrentItem);
+
+            class Slot implements PaperSlot {
+                final Supplier<ItemStack> paperGet;
+                final Consumer<ItemStack> paperSet;
+                final String name;
+
+                Slot(Supplier<ItemStack> paperGet, Consumer<ItemStack> paperSet, String name) {
+                    this.paperGet = paperGet;
+                    this.paperSet = paperSet;
+                    this.name = name;
+                }
+
+                @Override public SokolPlugin plugin() { return plugin; }
+                @Override public ItemStack paperGet() { return paperGet.get(); }
+                @Override public void paperSet(ItemStack item) { paperSet.accept(item); }
+                @Override
+                public String toString() {
+                    return "%s: InventoryClick [%s] @ %d".formatted(event.getWhoClicked(), name, event.getSlot());
+                }
+            }
+
+            PaperSlot clickedSlot = new Slot(event::getCurrentItem, event::setCurrentItem, "clicked");
             if (event.getSlot() == inv.getHeldItemSlot()) {
-                PaperSlot cursorSlot = PaperSlot.slot(plugin, event.getView()::getCursor, event.getView()::setCursor);
+                PaperSlot cursorSlot = new Slot(event.getView()::getCursor, event.getView()::setCursor, "cursor");
                 handle(event.getCursor(),
                         n -> new PaperEvent.Equip(n, cursorSlot, user, clickedSlot));
                 handle(event.getCurrentItem(),

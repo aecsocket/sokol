@@ -51,10 +51,12 @@ public final class PlayerData {
                 nodeCache.remove(slot);
             else {
                 nodeCache.put(slot, node);
-                new PaperEvent.Hold(
-                        node, PaperUser.player(plugin, player), equip(plugin, player, slot),
-                        true, ctx.elapsed(), ctx.delta(), ctx.iteration()
-                ).call();
+                synchronized (node) {
+                    new PaperEvent.Hold(
+                            node, PaperUser.player(plugin, player), equip(plugin, player, slot),
+                            true, ctx.elapsed(), ctx.delta(), ctx.iteration()
+                    ).call();
+                }
             }
         }
     }
@@ -63,11 +65,14 @@ public final class PlayerData {
         if (player.getInventory().getHeldItemSlot() != lastSlot)
             return;
         for (var cache : nodeCache.entrySet()) {
-            if (cache.getValue() != null) {
-                new PaperEvent.Hold(
-                        cache.getValue(), PaperUser.player(plugin, player), equip(plugin, player, cache.getKey()),
-                        false, ctx.elapsed(), ctx.delta(), ctx.iteration()
-                ).call();
+            PaperTreeNode node = cache.getValue();
+            if (node != null) {
+                synchronized (node) {
+                    new PaperEvent.Hold(
+                            cache.getValue(), PaperUser.player(plugin, player), equip(plugin, player, cache.getKey()),
+                            false, ctx.elapsed(), ctx.delta(), ctx.iteration()
+                    ).call();
+                }
             }
         }
     }

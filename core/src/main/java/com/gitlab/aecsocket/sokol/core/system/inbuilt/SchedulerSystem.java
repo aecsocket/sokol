@@ -118,6 +118,11 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             this.availableAt = availableAt;
         }
 
+        public Instance(TreeNode parent) {
+            super(parent);
+            tasks = new ArrayList<>();
+        }
+
         @Override public abstract SchedulerSystem<E> base();
 
         public List<Integer> tasks() { return tasks; }

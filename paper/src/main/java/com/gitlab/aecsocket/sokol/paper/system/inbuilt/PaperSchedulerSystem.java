@@ -25,6 +25,10 @@ public final class PaperSchedulerSystem extends SchedulerSystem<PaperEvent.Hold>
             super(parent, tasks, availableAt);
         }
 
+        public Instance(TreeNode parent) {
+            super(parent);
+        }
+
         @Override public PaperSchedulerSystem base() { return PaperSchedulerSystem.this; }
         @Override public SokolPlugin platform() { return platform; }
         @Override protected Class<PaperEvent.Hold> eventType() { return PaperEvent.Hold.class; }
@@ -52,7 +56,7 @@ public final class PaperSchedulerSystem extends SchedulerSystem<PaperEvent.Hold>
 
     @Override
     public Instance create(TreeNode node) {
-        return new Instance(node, new ArrayList<>(), 0);
+        return new Instance(node);
     }
 
     @Override

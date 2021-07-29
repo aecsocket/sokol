@@ -35,7 +35,8 @@ public class InputMapper extends EnumMap<InputType, List<InputMapper.Entry>> {
 
         @Override
         public InputMapper deserialize(Type type, ConfigurationNode node) throws SerializationException {
-            return new InputMapper(Serializers.require(node, new TypeToken<Map<InputType, List<Entry>>>() {}));
+            var map = Serializers.require(node, new TypeToken<Map<InputType, List<Entry>>>() {});
+            return map.size() == 0 ? new InputMapper() : new InputMapper(map);
         }
     }
 
