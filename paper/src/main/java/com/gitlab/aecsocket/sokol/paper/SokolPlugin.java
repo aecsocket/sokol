@@ -20,6 +20,7 @@ import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
@@ -180,11 +181,11 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
             }
         });
 
-        registerSystemType(ItemSystem.ID, PaperItemSystem.type(this));
-        registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this));
-        registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this));
-        registerSystemType(SlotsSystem.ID, SlotsSystem.type(this));
-        registerSystemType(PropertiesSystem.ID, PropertiesSystem.type(this));
+        registerSystemType(ItemSystem.ID, PaperItemSystem.type(this), () -> PaperItemSystem.LOAD_PROVIDER);
+        registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this), () -> PaperSlotInfoSystem.LOAD_PROVIDER);
+        registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this), () -> PaperSchedulerSystem.LOAD_PROVIDER);
+        registerSystemType(SlotsSystem.ID, SlotsSystem.type(this), () -> SlotsSystem.LOAD_PROVIDER);
+        registerSystemType(PropertiesSystem.ID, PropertiesSystem.type(this), () -> PropertiesSystem.LOAD_PROVIDER);
         schedulers.setup();
     }
 
@@ -226,18 +227,27 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     /**
      * Registers a system type, which is looked up when deserializing the data files.
      * @param id The system's ID.
-     * @param type The system creator.
+     * @param configType The system creator, for creating systems on deserialization.
+     * @param loadProviderType The load provider creator, for adding load-systems on deserialization, but not creating a system.
      */
-    public SokolPlugin registerSystemType(String id, PaperSystem.Type type) {
+    public SokolPlugin registerSystemType(String id, PaperSystem.ConfigType configType, PaperSystem.LoadProviderType loadProviderType) {
         Validation.notNull("id", id);
-        Validation.notNull("type", type);
+        Validation.notNull("configType", configType);
+        Validation.notNull("loadProviderType", loadProviderType);
         if (!Keyed.validKey(id))
-            throw new IllegalArgumentException("Invalid system ID [" + id + "], must be " + Keyed.VALID_KEY);
+            throw new IllegalArgumentException("Invalid system ID [" + id + "], must match " + Keyed.VALID_KEY);
         systemTypes.put(id, new PaperSystem.KeyedType() {
-            @Override public String id() { return id; }
             @Override
-            public PaperSystem create(ConfigurationNode cfg) throws SerializationException {
-                return type.create(cfg);
+            public String id() { return id; }
+
+            @Override
+            public PaperSystem createSystem(ConfigurationNode cfg) throws SerializationException {
+                return configType.createSystem(cfg);
+            }
+
+            @Override
+            public LoadProvider createLoadProvider() {
+                return loadProviderType.createLoadProvider();
             }
         });
         return this;

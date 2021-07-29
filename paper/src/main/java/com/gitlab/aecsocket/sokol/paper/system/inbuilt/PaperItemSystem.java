@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
@@ -18,6 +19,7 @@ import static com.gitlab.aecsocket.sokol.paper.stat.ItemStat.*;
 
 public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
 
     private static final Stat<ItemDescriptor> stat = itemStat();
 
@@ -58,7 +60,7 @@ public final class PaperItemSystem extends ItemSystem implements PaperSystem {
         return new Instance(node);
     }
 
-    public static PaperSystem.Type type(SokolPlugin platform) {
+    public static ConfigType type(SokolPlugin platform) {
         return cfg -> new PaperItemSystem(platform);
     }
 }

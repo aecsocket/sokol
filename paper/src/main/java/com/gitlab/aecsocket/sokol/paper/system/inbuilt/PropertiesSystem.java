@@ -5,9 +5,11 @@ import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
@@ -56,6 +58,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             .put("sprint_stop_sound", soundsStat())
             .put("sprint_stop_animation", animationStat())
             .build();
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
     public static final UUID MOVE_SPEED_ATTRIBUTE = UUID.randomUUID();
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
@@ -71,7 +74,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
         @Override
         public void build(StatLists stats) {
             scheduler = depend(SchedulerSystem.KEY);
-            parent.events().register(TreeEvent.PostUpdate.class, this::event);
+            parent.events().register(TreeEvent.Update.class, this::event);
             parent.events().register(ItemSystem.Events.CreateItem.class, this::event);
             parent.events().register(ItemTreeEvent.Input.class, this::event);
             parent.events().register(ItemTreeEvent.Equip.class, this::event);
@@ -92,7 +95,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             }
         }
 
-        private void event(TreeEvent.PostUpdate event) {
+        private void event(TreeEvent.Update event) {
             if (!parent.isRoot())
                 return;
             update(event.user());
@@ -134,7 +137,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                             (int) Ticks.ticks(delay), 127, false, false, false));
                 });
             }
-            event.queueUpdate();
+            event.update();
         }
 
         protected void event(ItemTreeEvent.Unequip event) {
@@ -202,7 +205,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
         return new Instance(node);
     }
 
-    public static Type type(SokolPlugin platform) {
+    public static ConfigType type(SokolPlugin platform) {
         return cfg -> new PropertiesSystem(platform,
                 cfg.node(keyListenerPriority).getInt());
     }

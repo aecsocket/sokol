@@ -50,43 +50,35 @@ public interface TreeEvent {
         ItemUser user();
         ItemSlot slot();
 
-        boolean updateQueued();
+        boolean updated();
 
-        void queueUpdate(@Nullable Function<ItemStack, ItemStack> function);
+        void update(@Nullable Function<ItemStack, ItemStack> function);
 
-        default void queueUpdate() {
-            queueUpdate(null);
-        }
-
-        default void forceUpdate(Function<ItemStack, ItemStack> function) {
-            if (user() instanceof PlayerUser player && player.inAnimation()) {
-                var oldFunction = function;
-                function = is -> oldFunction.apply(is.hideUpdate());
-            }
-            slot().set(node(), user().locale(), function);
+        default void update() {
+            update(null);
         }
     }
 
     abstract class BaseItemEvent implements ItemEvent {
-        private Function<ItemStack, ItemStack> updateQueued;
+        private Function<ItemStack, ItemStack> update;
+
+        @Override public boolean updated() { return update != null; }
 
         @Override
-        public boolean updateQueued() { return updateQueued != null; }
-
-        @Override
-        public void queueUpdate(@Nullable Function<ItemStack, ItemStack> function) {
-            if (updateQueued == null) {
-                Function<ItemStack, ItemStack> underlying = is -> is.amount(slot().get()
-                        .orElseThrow(() -> new IllegalStateException("Updating slot with no item"))
-                        .amount());
-                updateQueued = function == null
-                        ? underlying
-                        : is -> function.apply(underlying.apply(is));
+        public void update(@Nullable Function<ItemStack, ItemStack> function) {
+            if (update == null) {
+                update = is -> {
+                    ItemStack is2 = is.amount(slot().get()
+                            .orElseThrow(() -> new IllegalStateException("Updating slot with no item")).amount());
+                    if (user() instanceof PlayerUser player && player.inAnimation())
+                        is2 = is2.hideUpdate();
+                    return function == null ? is2 : function.apply(is2);
+                };
             } else if (function != null) {
-                Function<ItemStack, ItemStack> old = updateQueued;
-                updateQueued = is -> {
-                    ItemStack item = old.apply(is);
-                    return item == null ? null : function.apply(item);
+                var old = update;
+                update = is -> {
+                    is = old.apply(is);
+                    return is == null ? null : function.apply(is);
                 };
             }
         }
@@ -94,46 +86,15 @@ public interface TreeEvent {
         @Override
         public boolean call() {
             boolean result = ItemEvent.super.call();
-            if (updateQueued != null) {
-                node().build();
-                forceUpdate(updateQueued);
+            if (update != null) {
+                slot().set(node(), user().locale(), update);
+                new Update(node(), user(), slot()).call();
             }
             return result;
         }
-
-        @Override
-        public void forceUpdate(Function<ItemStack, ItemStack> function) {
-            var event = new PreUpdate(node(), user(), slot(), function);
-            event.call();
-            ItemEvent.super.forceUpdate(event.function);
-            new PostUpdate(node(), user(), slot()).call();
-        }
     }
 
-    final class PreUpdate implements TreeEvent {
-        private final TreeNode node;
-        private final ItemUser user;
-        private final ItemSlot slot;
-        private Function<ItemStack, ItemStack> function;
-
-        public PreUpdate(TreeNode node, ItemUser user, ItemSlot slot, Function<ItemStack, ItemStack> function) {
-            this.node = node;
-            this.user = user;
-            this.slot = slot;
-            this.function = function;
-        }
-
-        public TreeNode node() { return node; }
-        public ItemUser user() { return user; }
-        public ItemSlot slot() { return slot; }
-
-        public void queueUpdate(Function<ItemStack, ItemStack> function) {
-            var oldFunction = this.function;
-            this.function = is -> function.apply(oldFunction.apply(is));
-        }
-    }
-
-    record PostUpdate(
+    record Update(
             TreeNode node,
             ItemUser user,
             ItemSlot slot

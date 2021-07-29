@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperEvent;
@@ -17,6 +18,7 @@ import java.util.List;
 
 public final class PaperSchedulerSystem extends SchedulerSystem<PaperEvent.Hold> implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty();
     private static final String keyTasks = "tasks";
     private static final String keyAvailableAt = "available_at";
 
@@ -77,7 +79,7 @@ public final class PaperSchedulerSystem extends SchedulerSystem<PaperEvent.Hold>
                 cfg.node("available_at").getLong());
     }
 
-    public static Type type(SokolPlugin platform) {
+    public static ConfigType type(SokolPlugin platform) {
         return cfg -> new PaperSchedulerSystem(platform,
                 cfg.node(keyListenerPriority).getInt());
     }

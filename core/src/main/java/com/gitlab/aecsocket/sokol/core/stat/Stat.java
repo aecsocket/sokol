@@ -68,7 +68,7 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
          */
         public Instance<T> copy() { return new Instance<>(this); }
 
-        @Override public String toString() { return "{%s}={%s}".formatted(stat, value); }
+        @Override public String toString() { return ""+value; }
     }
 
     /**

@@ -2,8 +2,6 @@ package com.gitlab.aecsocket.sokol.core.system;
 
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.Component;
-import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
@@ -19,7 +17,7 @@ import java.util.Map;
 /**
  * A system which is applicable to a {@link Component}, and creates {@link System.Instance}s.
  */
-public interface System {
+public interface System extends LoadProvider {
     /**
      * A descriptor of a system instance, used in getting a system from a node.
      * @param <S> The system instance type.
@@ -76,18 +74,6 @@ public interface System {
      * @return The ID.
      */
     String id();
-
-    /**
-     * Gets the stat types that this system defines, used for deserialization.
-     * @return The stat types.
-     */
-    default Map<String, Stat<?>> statTypes() { return Collections.emptyMap(); }
-
-    /**
-     * Gets the rule types that this system defines, used for deserialization.
-     * @return The rule types.
-     */
-    default Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
 
     /**
      * Creates an instance of this system, applicable on {@link TreeNode}s.

@@ -1,7 +1,10 @@
 package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
@@ -157,7 +160,7 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             while (iter.hasNext()) {
                 if (scheduler.run(event, iter.next())) {
                     iter.remove();
-                    event.queueUpdate(ItemStack::hideUpdate);
+                    event.update(ItemStack::hideUpdate);
                 }
             }
         }
@@ -166,7 +169,7 @@ public abstract class SchedulerSystem<E extends ItemTreeEvent.Hold> extends Abst
             for (int task : tasks)
                 scheduler.unschedule(task);
             tasks.clear();
-            event.queueUpdate();
+            event.update();
         }
     }
 

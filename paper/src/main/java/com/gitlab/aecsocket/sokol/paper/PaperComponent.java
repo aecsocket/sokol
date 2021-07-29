@@ -1,11 +1,13 @@
 package com.gitlab.aecsocket.sokol.paper;
 
+import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.AbstractComponent;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -46,29 +48,44 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
         public PaperComponent deserialize(Type type, ConfigurationNode node) throws SerializationException {
             String id = Objects.toString(node.key());
             if (!Keyed.validKey(id))
-                throw new SerializationException(node, type, "Invalid ID [" + id + "], must be " + Keyed.VALID_KEY);
+                throw new SerializationException(node, type, "Invalid ID [" + id + "], must match " + Keyed.VALID_KEY);
 
+            List<LoadProvider> loadProviders = new ArrayList<>();
             Map<String, PaperSystem> systems = new HashMap<>();
             Map<PaperSystem, ConfigurationNode> systemConfigs = new HashMap<>();
             for (var entry : node.node("systems").childrenMap().entrySet()) {
                 String systemId = ""+entry.getKey();
+                ConfigurationNode child = entry.getValue();
                 PaperSystem.KeyedType systemType = plugin.systemTypes().get(systemId);
                 if (systemType == null)
                     throw new SerializationException(node, type, "Could not find system [" + systemId + "]");
                 try {
-                    PaperSystem system = systemType.create(entry.getValue());
-                    systemConfigs.put(system, entry.getValue());
+                    PaperSystem system = systemType.createSystem(child);
+                    if (system == null)
+                        throw new SerializationException(child, type, "Null system");
+                    loadProviders.add(system);
                     systems.put(systemId, system);
+                    systemConfigs.put(system, entry.getValue());
                 } catch (SerializationException e) {
-                    throw new SerializationException(node, type, "Could not create system [" + systemId + "]", e);
+                    throw new SerializationException(child, type, "Could not create system [" + systemId + "]", e);
                 }
+            }
+            for (var child : node.node("load_systems").childrenList()) {
+                String systemId = Serializers.require(child, String.class);
+                PaperSystem.KeyedType systemType = plugin.systemTypes().get(systemId);
+                if (systemType == null)
+                    throw new SerializationException(child, type, "Could not find system [" + systemId + "]");
+                LoadProvider provider = systemType.createLoadProvider();
+                if (provider == null)
+                    throw new SerializationException(child, type, "Null provider for [" + systemId + "]");
+                loadProviders.add(provider);
             }
 
             Map<String, Stat<?>> statTypes = new HashMap<>();
             Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>(Rule.BASE_RULE_TYPES);
-            for (PaperSystem system : systems.values()) {
-                statTypes.putAll(system.statTypes());
-                ruleTypes.putAll(system.ruleTypes());
+            for (var provider : loadProviders) {
+                statTypes.putAll(provider.statTypes());
+                ruleTypes.putAll(provider.ruleTypes());
             }
             plugin.statMapSerializer().types(statTypes);
             plugin.ruleSerializer().types(ruleTypes);

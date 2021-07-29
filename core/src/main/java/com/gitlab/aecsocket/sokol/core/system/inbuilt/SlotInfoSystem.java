@@ -2,8 +2,11 @@ package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;

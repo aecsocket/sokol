@@ -7,6 +7,7 @@ import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.*;
@@ -33,6 +34,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             .put("insert_sound", soundsStat(null))
             .put("remove_sound", soundsStat(null))
             .build();
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {
@@ -87,47 +89,46 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             ItemStack cursorStack = event.cursor().paperGet();
 
             // Combining
-            if (handle.getClick() == ClickType.LEFT && combine) {
-                if (!PaperUtils.empty(cursorStack)) {
-                    platform.persistenceManager().load(cursorStack).ifPresent(cursor -> {
-                        PaperTreeNode oldCursor = cursor.asRoot();
-                        if (parent.root().combine(cursor, combineLimited) != null) {
-                            if (
-                                    new Events.CombineChildOntoNode(handle, root, cursor).call()
-                                    | new Events.CombineNodeOntoParent(handle, oldCursor, root).call()
-                            ) return;
-                            event.cancel();
+            if (handle.getClick() == ClickType.LEFT && combine && !PaperUtils.empty(cursorStack)) {
+                platform.persistenceManager().load(cursorStack).ifPresent(cursor -> {
+                    PaperTreeNode oldCursor = cursor.asRoot();
+                    if (parent.root().combine(cursor, combineLimited) != null) {
+                        if (
+                                new Events.CombineChildOntoNode(handle, root, cursor).call()
+                                | new Events.CombineNodeOntoParent(handle, oldCursor, root).call()
+                        ) return;
 
-                            int cursorAmount = cursorStack.getAmount();
-                            int clickedAmount = clickedStack.getAmount();
-                            if (cursorAmount >= clickedAmount) {
-                                event.queueUpdate(is -> is.amount(clickedAmount));
-                                cursorStack.subtract(clickedAmount);
-                            } else {
-                                event.cursor().set(root, locale, is -> is.amount(cursorAmount));
-                                clickedStack.subtract(cursorAmount);
-                            }
+                        int cursorAmount = cursorStack.getAmount();
+                        int clickedAmount = clickedStack.getAmount();
+                        if (cursorAmount >= clickedAmount) {
+                            event.update(is -> is.amount(clickedAmount));
+                            cursorStack.subtract(clickedAmount);
+                        } else {
+                            event.cursor().set(root, locale, is -> is.amount(cursorAmount));
+                            clickedStack.subtract(cursorAmount);
                         }
-                    });
-                    return;
-                }
+                    }
+                });
+                return;
             }
 
             // Slot view
-            if (!slotView || handle.getClick() != ClickType.RIGHT || !PaperUtils.empty(handle.getCursor()))
-                return;
-            int clickedSlot = handle.getSlot();
-            boolean clickedTop = handle.getClickedInventory() == handle.getView().getTopInventory();
-            platform.guis()
-                    .create(new SlotViewPane(platform, 9, 6, locale, root)
-                            .modification(clickedStack.getAmount() == 1 && slotViewModification) // todo
-                            .limited(slotViewLimited)
-                            .treeModifyCallback(node ->
-                                    handle.setCurrentItem(node.system(PaperItemSystem.KEY).orElseThrow().create(locale).handle())), evt -> {
-                        if (Guis.isInvalid(evt, clickedTop, clickedSlot))
-                            evt.setCancelled(true);
-                    })
-                    .show(handle.getWhoClicked());
+            if (slotView && handle.getClick() == ClickType.RIGHT && PaperUtils.empty(handle.getCursor())) {
+                handle.getView().setCursor(null);
+                int clickedSlot = handle.getSlot();
+                boolean clickedTop = handle.getClickedInventory() == handle.getView().getTopInventory();
+                event.cancel();
+                platform.guis()
+                        .create(new SlotViewPane(platform, 9, 6, locale, root)
+                                .modification(clickedStack.getAmount() == 1 && slotViewModification) // todo
+                                .limited(slotViewLimited)
+                                .treeModifyCallback(node ->
+                                        handle.setCurrentItem(node.system(PaperItemSystem.KEY).orElseThrow().create(locale).handle())), evt -> {
+                            if (Guis.isInvalid(evt, clickedTop, clickedSlot))
+                                evt.setCancelled(true);
+                        })
+                        .show(handle.getWhoClicked());
+            }
         }
     }
 
@@ -174,7 +175,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
         return new Instance(node);
     }
 
-    public static PaperSystem.Type type(SokolPlugin platform) {
+    public static ConfigType type(SokolPlugin platform) {
         return cfg -> new SlotsSystem(platform,
                 cfg.node(keyListenerPriority).getInt(),
                 cfg.node("slot_view").getBoolean(true),

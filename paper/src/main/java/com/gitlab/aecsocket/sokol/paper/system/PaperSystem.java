@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.system;
 
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
@@ -74,11 +75,15 @@ public interface PaperSystem extends System {
         default void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException {}
     }
 
-    interface Type {
-        PaperSystem create(ConfigurationNode cfg) throws SerializationException;
+    interface ConfigType {
+        PaperSystem createSystem(ConfigurationNode cfg) throws SerializationException;
     }
 
-    interface KeyedType extends Type, Keyed {}
+    interface LoadProviderType {
+        LoadProvider createLoadProvider();
+    }
+
+    interface KeyedType extends ConfigType, LoadProviderType, Keyed {}
 
     Instance load(PaperTreeNode node, PersistentDataContainer data) throws IllegalArgumentException;
     Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException;

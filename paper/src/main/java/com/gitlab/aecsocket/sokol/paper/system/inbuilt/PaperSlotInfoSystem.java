@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
+import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
@@ -11,6 +12,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty();
 
     public final class Instance extends SlotInfoSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {
@@ -45,7 +47,7 @@ public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSy
         return new Instance(node);
     }
 
-    public static PaperSystem.Type type(SokolPlugin platform) {
+    public static ConfigType type(SokolPlugin platform) {
         return cfg -> new PaperSlotInfoSystem(platform,
                 cfg.node(keyListenerPriority).getInt());
     }
