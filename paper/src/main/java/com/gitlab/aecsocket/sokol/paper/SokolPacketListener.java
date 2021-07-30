@@ -58,8 +58,6 @@ public class SokolPacketListener extends PacketAdapter {
             for (var entry : packet.getSlotStackPairLists().read(0)) {
                 if (!entry.getSecond().hasItemMeta())
                     continue;
-                if (updatesHidden(entry.getSecond()))
-                    event.setCancelled(true);
                 PaperSlot slot = PaperSlot.slot(plugin, entry::getSecond, entry::setSecond);
                 plugin.persistenceManager().load(entry.getSecond()).ifPresent(node -> {
                     if (new PaperEvent.ShowItem(node, user, slot).call())

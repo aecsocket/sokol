@@ -1,17 +1,26 @@
 package com.gitlab.aecsocket.sokol.core.stat.inbuilt;
 
 import com.gitlab.aecsocket.sokol.core.stat.BasicStat;
+import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
+import com.gitlab.aecsocket.sokol.core.stat.Operator;
+import com.gitlab.aecsocket.sokol.core.stat.Operators;
 import io.leangen.geantyref.TypeToken;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A stat type which stores a string.
  */
-public class StringStat extends BasicStat<String> {
-    private StringStat(@Nullable String def) {
-        super(new TypeToken<>() {}, def, (a, b) -> b, v -> v);
+public final class StringStat extends BasicStat<String> {
+    public static final Operator<String> OP_SET = op("=", c -> c.arg(0), String.class);
+    public static final Operator<String> OP_ADD = op("+", c -> c.base() + c.arg(0), String.class);
+
+    public static final Operator<String> OP_DEF = OP_SET;
+    public static final Operators<String> OPERATORS = Operators.operators(OP_DEF, OP_SET, OP_ADD);
+
+    public static final class Serializer extends Descriptor.Serializer<String> {
+        public static final Serializer INSTANCE = new Serializer();
+        @Override protected Operators<String> operators() { return OPERATORS; }
     }
 
-    public static StringStat stringStat(@Nullable String def) { return new StringStat(def); }
-    public static StringStat stringStat() { return new StringStat(null); }
+    private StringStat() { super(new TypeToken<>() {}, OP_DEF); }
+    public static StringStat stringStat() { return new StringStat(); }
 }

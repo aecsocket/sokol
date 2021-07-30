@@ -258,11 +258,9 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     @Override
     public String toString() {
         StringJoiner details = new StringJoiner(", ");
-        if (systems.size() > 0)
-            details.add("systems=" + systems);
         if (children.size() > 0)
             details.add("children=" + children);
         String[] path = path();
-        return value.id() + ":" + (path.length == 0 ? "<root>" : String.join("/", path)) + '{' + details + '}';
+        return String.join("/", path) + "/" + value.id() + '{' + details + '}';
     }
 }

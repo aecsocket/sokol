@@ -103,10 +103,11 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
 
             for (var entry : nodes.entrySet()) {
                 String key = entry.getKey().toString();
+                ConfigurationNode child = entry.getValue();
                 Stat<?> stat = types.get(key);
                 if (stat == null)
-                    continue;
-                add(key, entry.getValue(), stat, result);
+                    throw new SerializationException(child, type, "Invalid stat [" + key + "]");
+                add(key, child, stat, result);
             }
             return result;
         }
@@ -139,31 +140,19 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
     }
 
     /**
-     * Gets a value of a stat instance by its stat key.
+     * Gets a value of a stat instance by its stat key, as a {@link Descriptor}.
      * @param key The key.
      * @param <T> The type of value.
      * @return The result.
      */
     public <T> Optional<T> val(String key) {
         @SuppressWarnings("unchecked")
-        Stat.Instance<T> inst = (Stat.Instance<T>) get(key);
-        return inst == null ? Optional.empty() : inst.value();
+        var inst = (Stat.Instance<Descriptor<T>>) get(key);
+        return inst == null ? Optional.empty() : inst.value().map(d -> d.combine(null));
     }
 
     /**
-     * Gets a value of a stat instance's stat descriptor by its stat key.
-     * @param key The key.
-     * @param <T> The type of value.
-     * @return The result.
-     */
-    public <T> Optional<T> desc(String key) {
-        @SuppressWarnings("unchecked")
-        Stat.Instance<StatDescriptor<T>> inst = (Stat.Instance<StatDescriptor<T>>) get(key);
-        return inst == null ? Optional.empty() : inst.value().map(StatDescriptor::value);
-    }
-
-    /**
-     * Gets a value of a stat instance by its stat key.
+     * Gets a value of a stat instance by its stat key, as a {@link Descriptor}.
      * <p>
      * If there is no value, an exception will be thrown.
      * @param key The key.
@@ -172,18 +161,6 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
      */
     public <T> T req(String key) {
         return this.<T>val(key).orElseThrow(() -> new IllegalStateException("No value for stat [" + key + "]"));
-    }
-
-    /**
-     * Gets a value of a stat instance's stat descriptor by its stat key.
-     * <p>
-     * If there is no value, an exception will be thrown.
-     * @param key The key.
-     * @param <T> The type of value.
-     * @return The result.
-     */
-    public <T> T reqDesc(String key) {
-        return this.<T>desc(key).orElseThrow(() -> new IllegalStateException("No value for stat [" + key + "]"));
     }
 
     /**

@@ -5,7 +5,6 @@ import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
-import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
@@ -106,7 +105,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                 return;
             if (event.item() instanceof PaperItemStack item) {
                 PaperUtils.modify(item.handle(), meta -> {
-                    parent.stats().<Double>desc("walk_speed").ifPresent(walkSpeed ->
+                    parent.stats().<Double>val("walk_speed").ifPresent(walkSpeed ->
                             meta.addAttributeModifier(Attribute.GENERIC_MOVEMENT_SPEED, new AttributeModifier(MOVE_SPEED_ATTRIBUTE,
                             "moveSpeed", walkSpeed - 1, AttributeModifier.Operation.MULTIPLY_SCALAR_1)));
                 });
@@ -129,7 +128,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             update(event.user());
             runAction(scheduler, event.user(), event.slot(), "equip");
             if (event.user() instanceof PlayerUser player && event.slot() instanceof UserSlot slot && slot.inHand()) {
-                parent.stats().<Long>desc("equip_delay").ifPresent(delay -> {
+                parent.stats().<Long>val("equip_delay").ifPresent(delay -> {
                     player.handle().setCooldown(slot.get()
                             .map(s -> s instanceof PaperItemStack paper ? paper.handle().getType() : null)
                             .orElseThrow(IllegalStateException::new), (int) Ticks.ticks(delay));
@@ -153,7 +152,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                 return;
 
             if (event.user() instanceof LivingEntityUser living) {
-                parent.stats().<List<PotionEffect>>desc("hold_effects")
+                parent.stats().<List<PotionEffect>>val("hold_effects")
                         .ifPresent(living.handle()::addPotionEffects);
             }
         }

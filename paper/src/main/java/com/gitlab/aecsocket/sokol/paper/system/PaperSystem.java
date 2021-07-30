@@ -64,7 +64,7 @@ public interface PaperSystem extends System {
         default void runAction(SchedulerSystem<?>.Instance scheduler, ItemUser user, ItemSlot slot, String key) {
             System.Instance.super.runAction(scheduler, user, slot, key);
             if (user instanceof PaperUser paper)
-                parent().stats().<List<PreciseSound>>desc(key + "_sound")
+                parent().stats().<List<PreciseSound>>val(key + "_sound")
                         .ifPresent(v -> v.forEach(s -> s.play(platform(), paper.location())));
             if (user instanceof PlayerUser player) {
                 parent().stats().<Animation>val(key + "_animation").ifPresent(anim -> anim.start(platform(), player.handle(), slot));

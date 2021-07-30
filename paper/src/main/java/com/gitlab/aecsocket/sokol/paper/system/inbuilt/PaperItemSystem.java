@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
+import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
@@ -21,7 +22,7 @@ public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
     public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
 
-    private static final Stat<ItemDescriptor> stat = itemStat();
+    private static final Stat<Descriptor<ItemDescriptor>> stat = itemStat();
 
     public final class Instance extends ItemSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {

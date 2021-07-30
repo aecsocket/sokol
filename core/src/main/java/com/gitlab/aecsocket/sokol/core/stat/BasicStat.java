@@ -1,34 +1,52 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
 import io.leangen.geantyref.TypeToken;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Optional;
+import java.util.function.Function;
 
 /**
- * A basic stat implementation.
- * @param <T> The value type.
+ * An abstract base stat type, supporting operations.
+ * <p>
+ * An implementation must provide, through a {@code #super} constructor call:
+ * <ul>
+ *     <li>a {@link TypeToken}</li>
+ *     <li>a default {@link Operator}</li>
+ * </ul>
+ * An implementation should, if possible, also provide:
+ * <ul>
+ *     <li>all {@link Operator}s as public static fields, in the format {@code OP_[name of operator]}</li>
+ *     <li>a public static field of the default operator, in the name {@code OP_DEF}</li>
+ *     <li>a publicly accessible {@link Operators} instance, with all the defined operators and defined operator specified</li>
+ *     <li>an implementation of {@link Descriptor.Serializer} for the type of the stat</li>
+ * </ul>
+ * A basic example implementation can be found in {@link com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat}.
  */
-public class BasicStat<T> implements Stat<T> {
-    private final TypeToken<T> type;
-    private final @Nullable T def;
-    private final Combiner<T> combiner;
-    private final Copier<T> copier;
+public abstract class BasicStat<T> implements Stat<Descriptor<T>> {
 
-    public BasicStat(TypeToken<T> type, @Nullable T def, Combiner<T> combiner, Copier<T> copier) {
+    public static <T> Operator<T> op(String key, Function<OperatorContext<T>, T> function, TypeToken<?>... args) {
+        return new Operator<>(key, args, function);
+    }
+
+    public static <T> Operator<T> op(String key, Function<OperatorContext<T>, T> function, Class<?>... args) {
+        TypeToken<?>[] argTypes = new TypeToken[args.length];
+        for (int i = 0; i < args.length; i++)
+            argTypes[i] = TypeToken.get(args[i]);
+        return new Operator<>(key, argTypes, function);
+    }
+
+    private final TypeToken<Descriptor<T>> type;
+    private final Operator<T> defaultOperator;
+
+    public BasicStat(TypeToken<Descriptor<T>> type, Operator<T> defaultOperator) {
         this.type = type;
-        this.def = def;
-        this.combiner = combiner;
-        this.copier = copier;
+        this.defaultOperator = defaultOperator;
     }
 
-    @Override public TypeToken<T> type() { return type; }
-    @Override public @Nullable Optional<T> defaultValue() { return Optional.ofNullable(def); }
-    @Override public T combine(T a, T b) { return combiner.combine(a, b); }
-    @Override public T copy(T v) { return copier.copy(v); }
-
-    @Override
-    public String toString() {
-        return "<%s> (%s)".formatted(type, def);
+    public Descriptor<T> desc(T val) {
+        return Descriptor.single(defaultOperator, val);
     }
+
+    @Override public TypeToken<Descriptor<T>> type() { return type; }
+    @Override public Descriptor<T> combine(Descriptor<T> a, Descriptor<T> b) { return desc(b.combine(a.combine(null))); }
+    @Override public Descriptor<T> copy(Descriptor<T> v) { return v.copy(); }
 }

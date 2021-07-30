@@ -30,9 +30,9 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "slots";
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
     public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("combine_sound", soundsStat(null))
-            .put("insert_sound", soundsStat(null))
-            .put("remove_sound", soundsStat(null))
+            .put("combine_sound", soundsStat())
+            .put("insert_sound", soundsStat())
+            .put("remove_sound", soundsStat())
             .build();
     public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
 
@@ -56,7 +56,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<List<PreciseSound>>desc("combine_sound")
+            parent.stats().<List<PreciseSound>>val("combine_sound")
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
         }
 
@@ -64,7 +64,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             Location location = event.handle.getWhoClicked().getLocation();
-            parent.stats().<List<PreciseSound>>desc("insert_sound")
+            parent.stats().<List<PreciseSound>>val("insert_sound")
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
         }
 
@@ -74,7 +74,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             Location location = event.handle.getWhoClicked().getLocation();
             // create our own root because, at this point, the removing node is still attached to the parent
             // so it will use its parent's stats
-            event.node.asRoot().stats().<List<PreciseSound>>desc("remove_sound")
+            event.node.asRoot().stats().<List<PreciseSound>>val("remove_sound")
                     .ifPresent(v -> v.forEach(s -> s.play(platform, location)));
         }
 

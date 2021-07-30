@@ -11,9 +11,6 @@ import io.leangen.geantyref.TypeToken;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-import java.util.Collections;
-import java.util.Map;
-
 /**
  * A system which is applicable to a {@link Component}, and creates {@link System.Instance}s.
  */
@@ -65,7 +62,7 @@ public interface System extends LoadProvider {
         default void build(StatLists stats) {}
 
         default void runAction(SchedulerSystem<?>.Instance scheduler, ItemUser user, ItemSlot slot, String key) {
-            parent().stats().<Long>desc(key + "_delay").ifPresent(scheduler::delay);
+            parent().stats().<Long>val(key + "_delay").ifPresent(scheduler::delay);
         }
     }
 

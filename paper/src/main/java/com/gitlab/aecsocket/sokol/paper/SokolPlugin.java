@@ -18,16 +18,20 @@ import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
+import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.core.stat.inbuilt.PrimitiveStat;
+import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
+import com.gitlab.aecsocket.sokol.core.stat.inbuilt.VectorStat;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
-import com.gitlab.aecsocket.sokol.core.stat.StatDescriptor;
 import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
 import com.gitlab.aecsocket.sokol.core.system.util.SystemPath;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
+import com.gitlab.aecsocket.sokol.paper.stat.*;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.*;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.item.Animation;
@@ -295,15 +299,19 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .register(PaperTreeNode.class, new PaperTreeNode.Serializer(this))
                 .register(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
 
-                .register(new TypeToken<StatDescriptor<Integer>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Integer>() {}))
-                .register(new TypeToken<StatDescriptor<Long>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Long>() {}))
-                .register(new TypeToken<StatDescriptor<Float>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Float>() {}))
-                .register(new TypeToken<StatDescriptor<Double>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Double>() {}))
-                .register(new TypeToken<StatDescriptor<Vector2>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Vector2>() {}))
-                .register(new TypeToken<StatDescriptor<Vector3>>() {}, new StatDescriptor.Serializer<>(new TypeToken<Vector3>() {}))
-                .register(new TypeToken<StatDescriptor<List<PreciseSound>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PreciseSound>>() {}))
-                .register(new TypeToken<StatDescriptor<List<Particles>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<Particles>>() {}))
-                .register(new TypeToken<StatDescriptor<List<PotionEffect>>>() {}, new StatDescriptor.Serializer<>(new TypeToken<List<PotionEffect>>() {}));
+                .register(new TypeToken<Descriptor<Boolean>>() {}, PrimitiveStat.SBoolean.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Integer>>() {}, PrimitiveStat.SInteger.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Long>>() {}, PrimitiveStat.SLong.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Float>>() {}, PrimitiveStat.SFloat.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Double>>() {}, PrimitiveStat.SDouble.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<String>>() {}, StringStat.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Vector2>>() {}, VectorStat.SVector2.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Vector3>>() {}, VectorStat.SVector3.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<Animation>>() {}, AnimationStat.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<ItemDescriptor>>() {}, ItemStat.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, SoundsStat.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<List<Particles>>>() {}, ParticlesStat.Serializer.INSTANCE)
+                .register(new TypeToken<Descriptor<List<PotionEffect>>>() {}, EffectsStat.Serializer.INSTANCE);
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 

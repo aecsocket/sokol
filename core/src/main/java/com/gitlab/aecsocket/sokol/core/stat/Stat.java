@@ -35,17 +35,11 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
         public Stat<T> stat() { return stat; }
 
         /**
-         * Gets the raw value.
-         * @return The value.
-         */
-        public T raw() { return value; }
-
-        /**
-         * Gets the value if it is present, otherwise {@link Stat#defaultValue()}.
+         * Gets the value if it is present.
          * @return The value.
          */
         public Optional<T> value() {
-            return value == null ? stat.defaultValue() : Optional.of(value);
+            return Optional.ofNullable(value);
         }
 
         /**
@@ -76,12 +70,6 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
      * @return The type.
      */
     TypeToken<T> type();
-
-    /**
-     * Gets the default value to be used, in the absence of another value.
-     * @return An Optional of the default value.
-     */
-    Optional<T> defaultValue();
 
     /**
      * Creates an instance from this stat.
