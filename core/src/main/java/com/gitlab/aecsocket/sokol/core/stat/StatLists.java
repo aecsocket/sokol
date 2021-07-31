@@ -45,8 +45,12 @@ public final class StatLists {
     }
 
     public StatLists(StatLists o) {
-        forward = new ArrayList<>(o.forward);
-        reverse = new ArrayList<>(o.reverse);
+        forward = new ArrayList<>();
+        for (var map : o.forward)
+            forward.add(new StatMap(map));
+        reverse = new ArrayList<>();
+        for (var map : o.reverse)
+            reverse.add(new StatMap(map));
     }
 
     public StatLists(List<StatMap> joined) {

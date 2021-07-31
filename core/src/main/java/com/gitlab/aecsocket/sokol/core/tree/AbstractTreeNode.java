@@ -158,7 +158,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     protected void build0(List<StatsPair> forwardStats, List<StatsPair> reverseStats, @Nullable N parent, @Nullable S slot) {
-        StatLists stats = value.stats();
+        StatLists stats = new StatLists(value.stats());
         for (System.Instance system : systems.values()) {
             system.build(stats);
         }

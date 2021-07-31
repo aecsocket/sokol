@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core.system;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
-import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
+import com.gitlab.aecsocket.sokol.core.system.util.Availability;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
@@ -61,8 +61,8 @@ public interface System extends LoadProvider {
          */
         default void build(StatLists stats) {}
 
-        default void runAction(SchedulerSystem<?>.Instance scheduler, ItemUser user, ItemSlot slot, String key) {
-            parent().stats().<Long>val(key + "_delay").ifPresent(scheduler::delay);
+        default void runAction(Availability avail, ItemUser user, ItemSlot slot, String key) {
+            parent().stats().<Long>val(key + "_delay").ifPresent(avail::delay);
         }
     }
 

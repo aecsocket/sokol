@@ -121,6 +121,12 @@ public class StatMap extends HashMap<String, Stat.Instance<?>> {
         this.rule = rule;
     }
 
+    public StatMap(StatMap o) {
+        super(o);
+        priority = o.priority;
+        rule = o.rule;
+    }
+
     public Priority priority() { return priority; }
     public Rule rule() { return rule; }
 

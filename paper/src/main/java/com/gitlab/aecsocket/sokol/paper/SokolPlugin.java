@@ -56,6 +56,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
 
@@ -109,7 +110,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final PersistenceManager persistenceManager = new PersistenceManager(this);
     private final PaperScheduler paperScheduler = new PaperScheduler(this);
     private final ThreadScheduler threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
-    private final Map<UUID, PlayerData> playerData = new HashMap<>();
+    private final Map<UUID, PlayerData> playerData = new ConcurrentHashMap<>();
     private final SchedulerSystem.GlobalScheduler<PaperEvent.Hold> systemScheduler = SchedulerSystem.GlobalScheduler.create();
     private final Guis guis = new Guis(this);
     private final PacketInputs packetInputs = new PacketInputs(this);
@@ -147,12 +148,18 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         protocol.manager().addPacketListener(packetListener);
 
         paperScheduler.run(Task.repeating(ctx -> {
-            for (var data : playerData.values())
-                ctx.run(Task.single(data::paperTick));
+            for (var data : playerData.values()) {
+                synchronized (data) {
+                    ctx.run(Task.single(data::paperTick));
+                }
+            }
         }, Ticks.MSPT));
         threadScheduler.run(Task.repeating(ctx -> {
-            for (var data : playerData.values())
-                ctx.run(Task.single(data::threadTick));
+            for (var data : playerData.values()) {
+                synchronized (data) {
+                    ctx.run(Task.single(data::threadTick));
+                }
+            }
         }, 10));
 
         protocol.manager().addPacketListener(packetInputs);

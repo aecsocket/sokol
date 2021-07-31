@@ -4,7 +4,7 @@ import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
-import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
+import com.gitlab.aecsocket.sokol.core.system.util.Availability;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
@@ -61,8 +61,8 @@ public interface PaperSystem extends System {
         @Override SokolPlugin platform();
 
         @Override
-        default void runAction(SchedulerSystem<?>.Instance scheduler, ItemUser user, ItemSlot slot, String key) {
-            System.Instance.super.runAction(scheduler, user, slot, key);
+        default void runAction(Availability avail, ItemUser user, ItemSlot slot, String key) {
+            System.Instance.super.runAction(avail, user, slot, key);
             if (user instanceof PaperUser paper)
                 parent().stats().<List<PreciseSound>>val(key + "_sound")
                         .ifPresent(v -> v.forEach(s -> s.play(platform(), paper.location())));
