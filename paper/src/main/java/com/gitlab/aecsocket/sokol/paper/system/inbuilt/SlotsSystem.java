@@ -34,7 +34,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
             .put("insert_sounds", soundsStat())
             .put("remove_sounds", soundsStat())
             .build();
-    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(ID, STATS);
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {

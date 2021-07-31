@@ -58,7 +58,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             .put("sprint_stop_sounds", soundsStat())
             .put("sprint_stop_animation", animationStat())
             .build();
-    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(ID, STATS);
     public static final UUID MOVE_SPEED_ATTRIBUTE = UUID.randomUUID();
     public static final UUID ATTACK_DAMAGE_ATTRIBUTE = UUID.randomUUID();
 

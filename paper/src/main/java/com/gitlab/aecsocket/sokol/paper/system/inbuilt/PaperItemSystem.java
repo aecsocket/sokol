@@ -20,7 +20,7 @@ import static com.gitlab.aecsocket.sokol.paper.stat.ItemStat.*;
 
 public final class PaperItemSystem extends ItemSystem implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
-    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(ID, STATS);
 
     private static final Stat<Descriptor<ItemDescriptor>> stat = itemStat();
 

@@ -18,7 +18,7 @@ import java.util.List;
 
 public final class PaperSchedulerSystem extends SchedulerSystem<PaperEvent.Hold> implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
-    public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty();
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty(ID);
     private static final String keyTasks = "tasks";
     private static final String keyAvailableAt = "available_at";
 

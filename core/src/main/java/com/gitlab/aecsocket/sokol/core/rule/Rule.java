@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.core.rule;
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.BasicConfigurationNode;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 import org.spongepowered.configurate.objectmapping.meta.Required;
@@ -66,9 +67,9 @@ public interface Rule {
         @Override
         public void serialize(Type type, @Nullable Rule obj, ConfigurationNode node) throws SerializationException {}
 
-        private <T> List<T> terms(Class<T> type, List<? extends ConfigurationNode> children, int start) throws SerializationException {
+        private <T> List<T> terms(Class<T> type, List<? extends ConfigurationNode> children) throws SerializationException {
             List<T> terms = new ArrayList<>();
-            for (int i = start; i < children.size(); i++) {
+            for (int i = 1; i < children.size(); i++) {
                 terms.add(require(children.get(i), type));
             }
             return terms;
@@ -96,8 +97,8 @@ public interface Rule {
                             throw new SerializationException(node, type, "Operator NOT requires [NOT, term], gave " + children.size());
                         yield new LogicRule.Not(require(children.get(1), Rule.class));
                     }
-                    case "&" -> new LogicRule.And(terms(Rule.class, children, 1));
-                    case "|" -> new LogicRule.Or(terms(Rule.class, children, 1));
+                    case "&" -> new LogicRule.And(terms(Rule.class, children));
+                    case "|" -> new LogicRule.Or(terms(Rule.class, children));
 
                     case "?" -> {
                         if (children.size() != 2)
@@ -122,16 +123,16 @@ public interface Rule {
                     }
                     case "/?" -> NavigationRule.IsRoot.INSTANCE;
 
-                    case "#" -> new ComponentRule.HasTags(new HashSet<>(terms(String.class, children, 1)));
+                    case "#" -> new ComponentRule.HasTags(new HashSet<>(terms(String.class, children)));
                     default -> throw new SerializationException(node, type, "Invalid logical operator [" + operator + "]");
                 };
             }
 
-            String typeName = require(node.node("type"), String.class);
+            String typeName = require(node.isMap() ? node.node("type") : node, String.class);
             Class<? extends Rule> typeClass = types.get(typeName);
             if (typeClass == null)
                 throw new SerializationException(node, type, "Invalid rule type [" + typeName + "], accepts: [" + String.join(", ", types.keySet()) + "]");
-            return node.get(typeClass);
+            return (node.isMap() ? node : BasicConfigurationNode.root(node.options())).get(typeClass);
         }
     }
 

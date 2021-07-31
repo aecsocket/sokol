@@ -12,7 +12,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 public final class PaperSlotInfoSystem extends SlotInfoSystem implements PaperSystem {
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
-    public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty();
+    public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty(ID);
 
     public final class Instance extends SlotInfoSystem.Instance implements PaperSystem.Instance {
         public Instance(TreeNode parent) {

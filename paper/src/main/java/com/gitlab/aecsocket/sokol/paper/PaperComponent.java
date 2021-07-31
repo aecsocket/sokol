@@ -85,7 +85,9 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
             Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>(Rule.BASE_RULE_TYPES);
             for (var provider : loadProviders) {
                 statTypes.putAll(provider.statTypes());
-                ruleTypes.putAll(provider.ruleTypes());
+                String pfx = provider.id() + ":";
+                for (var ruleType : provider.ruleTypes().entrySet())
+                    ruleTypes.put(pfx + ruleType.getKey(), ruleType.getValue());
             }
             plugin.statMapSerializer().types(statTypes);
             plugin.ruleSerializer().types(ruleTypes);

@@ -1,12 +1,13 @@
 package com.gitlab.aecsocket.sokol.core.system;
 
+import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 
 import java.util.Collections;
 import java.util.Map;
 
-public interface LoadProvider {
+public interface LoadProvider extends Keyed {
     /**
      * Gets the stat types that this system defines, used for deserialization.
      * @return The stat types.
@@ -19,31 +20,19 @@ public interface LoadProvider {
      */
     default Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
 
-    static LoadProvider empty() {
-        return new LoadProvider() {
-            @Override public Map<String, Stat<?>> statTypes() { return Collections.emptyMap(); }
-            @Override public Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
-        };
+    static LoadProvider empty(String id) {
+        return new LoadProviderImpl(id, Collections.emptyMap(), Collections.emptyMap());
     }
 
-    static LoadProvider ofStats(Map<String, Stat<?>> statTypes) {
-        return new LoadProvider() {
-            @Override public Map<String, Stat<?>> statTypes() { return statTypes; }
-            @Override public Map<String, Class<? extends Rule>> ruleTypes() { return Collections.emptyMap(); }
-        };
+    static LoadProvider ofStats(String id, Map<String, Stat<?>> statTypes) {
+        return new LoadProviderImpl(id, statTypes, Collections.emptyMap());
     }
 
-    static LoadProvider ofRules(Map<String, Class<? extends Rule>> ruleTypes) {
-        return new LoadProvider() {
-            @Override public Map<String, Stat<?>> statTypes() { return Collections.emptyMap(); }
-            @Override public Map<String, Class<? extends Rule>> ruleTypes() { return ruleTypes; }
-        };
+    static LoadProvider ofRules(String id, Map<String, Class<? extends Rule>> ruleTypes) {
+        return new LoadProviderImpl(id, Collections.emptyMap(), ruleTypes);
     }
 
-    static LoadProvider ofBoth(Map<String, Stat<?>> statTypes, Map<String, Class<? extends Rule>> ruleTypes) {
-        return new LoadProvider() {
-            @Override public Map<String, Stat<?>> statTypes() { return statTypes; }
-            @Override public Map<String, Class<? extends Rule>> ruleTypes() { return ruleTypes; }
-        };
+    static LoadProvider ofBoth(String id, Map<String, Stat<?>> statTypes, Map<String, Class<? extends Rule>> ruleTypes) {
+        return new LoadProviderImpl(id, statTypes, ruleTypes);
     }
 }
