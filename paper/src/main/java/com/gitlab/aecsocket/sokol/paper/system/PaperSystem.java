@@ -1,5 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper.system;
 
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
+import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
+import com.gitlab.aecsocket.minecommons.paper.display.Particles;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.System;
@@ -12,6 +15,8 @@ import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.item.Animation;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
+import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.jetbrains.annotations.Nullable;
@@ -61,11 +66,15 @@ public interface PaperSystem extends System {
         @Override SokolPlugin platform();
 
         @Override
-        default void runAction(Availability avail, ItemUser user, ItemSlot slot, String key) {
-            System.Instance.super.runAction(avail, user, slot, key);
-            if (user instanceof PaperUser paper)
-                parent().stats().<List<PreciseSound>>val(key + "_sound")
-                        .ifPresent(v -> v.forEach(s -> s.play(platform(), paper.location())));
+        default void runAction(Availability avail, String key, ItemUser user, ItemSlot slot, @Nullable Vector3 position) {
+            System.Instance.super.runAction(avail, key, user, slot, position);
+            if (!(user instanceof PaperUser paper))
+                return;
+            Location location = position == null ? paper.location() : PaperUtils.toBukkit(position, paper.location().getWorld());
+            parent().stats().<List<PreciseSound>>val(key + "_sounds")
+                    .ifPresent(v -> v.forEach(s -> s.play(platform(), location)));
+            parent().stats().<List<Particles>>val(key + "_particles")
+                    .ifPresent(v -> v.forEach(p -> p.spawn(location)));
             if (user instanceof PlayerUser player) {
                 parent().stats().<Animation>val(key + "_animation").ifPresent(anim -> anim.start(platform(), player.handle(), slot));
             }

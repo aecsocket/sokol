@@ -43,22 +43,24 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
     public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
             .put("hold_effects", EffectsStat.effectsStat())
             .put("walk_speed", doubleStat())
+            .put("attack_damage", doubleStat())
             .put("block_interaction", booleanStat())
 
             .put("equip_delay", longStat())
-            .put("equip_sound", soundsStat())
+            .put("equip_sounds", soundsStat())
             .put("equip_animation", animationStat())
 
             .put("allow_sprint", booleanStat())
             .put("sprint_start_delay", longStat())
-            .put("sprint_start_sound", soundsStat())
+            .put("sprint_start_sounds", soundsStat())
             .put("sprint_start_animation", animationStat())
             .put("sprint_stop_delay", longStat())
-            .put("sprint_stop_sound", soundsStat())
+            .put("sprint_stop_sounds", soundsStat())
             .put("sprint_stop_animation", animationStat())
             .build();
     public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(STATS);
     public static final UUID MOVE_SPEED_ATTRIBUTE = UUID.randomUUID();
+    public static final UUID ATTACK_DAMAGE_ATTRIBUTE = UUID.randomUUID();
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
         private SchedulerSystem<?>.Instance scheduler;
@@ -107,7 +109,10 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                 PaperUtils.modify(item.handle(), meta -> {
                     parent.stats().<Double>val("walk_speed").ifPresent(walkSpeed ->
                             meta.addAttributeModifier(Attribute.GENERIC_MOVEMENT_SPEED, new AttributeModifier(MOVE_SPEED_ATTRIBUTE,
-                            "moveSpeed", walkSpeed - 1, AttributeModifier.Operation.MULTIPLY_SCALAR_1)));
+                                    "moveSpeed", walkSpeed - 1, AttributeModifier.Operation.MULTIPLY_SCALAR_1)));
+                    parent.stats().<Double>val("attack_damage").ifPresent(attackDamage ->
+                            meta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, new AttributeModifier(ATTACK_DAMAGE_ATTRIBUTE,
+                                    "attackDamage", attackDamage, AttributeModifier.Operation.ADD_NUMBER)));
                 });
             }
         }
@@ -116,9 +121,9 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             if (event.input() == InputType.SPRINT_START)
-                runAction(scheduler, event.user(), event.slot(), "sprint_start");
+                runAction(scheduler, "sprint_start", event.user(), event.slot(), null);
             if (event.input() == InputType.SPRINT_STOP)
-                runAction(scheduler, event.user(), event.slot(), "sprint_stop");
+                runAction(scheduler, "sprint_stop", event.user(), event.slot(), null);
             update(event.user());
         }
 
@@ -126,7 +131,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             update(event.user());
-            runAction(scheduler, event.user(), event.slot(), "equip");
+            runAction(scheduler, "equip", event.user(), event.slot(), null);
             if (event.user() instanceof PlayerUser player && event.slot() instanceof UserSlot slot && slot.inHand()) {
                 parent.stats().<Long>val("equip_delay").ifPresent(delay -> {
                     player.handle().setCooldown(slot.get()

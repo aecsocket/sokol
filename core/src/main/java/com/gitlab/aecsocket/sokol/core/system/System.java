@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.system;
 
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.stat.StatLists;
@@ -8,6 +9,7 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import io.leangen.geantyref.TypeToken;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
@@ -61,7 +63,7 @@ public interface System extends LoadProvider {
          */
         default void build(StatLists stats) {}
 
-        default void runAction(Availability avail, ItemUser user, ItemSlot slot, String key) {
+        default void runAction(Availability avail, String key, ItemUser user, ItemSlot slot, @Nullable Vector3 position) {
             parent().stats().<Long>val(key + "_delay").ifPresent(avail::delay);
         }
     }
