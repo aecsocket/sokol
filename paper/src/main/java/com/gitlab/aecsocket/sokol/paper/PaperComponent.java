@@ -66,7 +66,7 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                     loadProviders.add(system);
                     systems.put(systemId, system);
                     systemConfigs.put(system, entry.getValue());
-                } catch (RuntimeException e) {
+                } catch (SerializationException | RuntimeException e) {
                     throw new SerializationException(child, type, "Could not create system [" + systemId + "]", e);
                 }
             }
