@@ -41,6 +41,8 @@ public final class ItemTreeEvent {
         ItemSlot newSlot();
     }
 
+    public interface Break extends TreeEvent.ItemEvent, Cancellable {}
+
     public interface BlockBreak extends TreeEvent.ItemEvent, Cancellable {
         Vector3 position();
     }

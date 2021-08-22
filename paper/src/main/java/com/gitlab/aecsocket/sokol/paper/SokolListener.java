@@ -14,6 +14,7 @@ import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCreativeEvent;
+import org.bukkit.event.player.PlayerItemBreakEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -148,6 +149,13 @@ import java.util.function.Supplier;
                 n -> new PaperEvent.Equip(n, newSlot, user, oldSlot));
         handle(inv.getItem(event.getPreviousSlot()),
                 n -> new PaperEvent.Unequip(n, oldSlot, user, newSlot));
+    }
+
+    @EventHandler
+    private void event(PlayerItemBreakEvent event) {
+        Player player = event.getPlayer();
+        PlayerUser user = PaperUser.player(plugin, player);
+        handle(event.getBrokenItem(), n -> new PaperEvent.Break(n, user));
     }
 
     @EventHandler

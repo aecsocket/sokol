@@ -18,13 +18,20 @@ import java.lang.reflect.Type;
 
 /**
  * Serializable data class for creating a {@link PaperItemStack}, using a Bukkit {@link org.bukkit.inventory.ItemStack}.
+ * @param plugin The platform plugin.
+ * @param material The material.
+ * @param modelData The model data.
+ * @param damage The damage.
+ * @param unbreakable If the item cannot be broken, and does not show the durability bar.
+ * @param flags The item flags.
  */
 public record ItemDescriptor(
         SokolPlugin plugin,
         Material material,
         int modelData,
         int damage,
-        boolean unbreakable
+        boolean unbreakable,
+        ItemFlag[] flags
 ) implements com.gitlab.aecsocket.sokol.core.wrapper.ItemStack.Factory {
     /**
      * Type serializer for a {@link ItemDescriptor}.
@@ -46,6 +53,7 @@ public record ItemDescriptor(
                 node.node("model_data").set(obj.modelData);
                 node.node("damage").set(obj.damage);
                 node.node("unbreakable").set(obj.unbreakable);
+                node.node("flags").set(obj.flags);
             }
         }
 
@@ -56,7 +64,8 @@ public record ItemDescriptor(
                         Serializers.require(node.node("id"), String.class),
                         node.node("model_data").getInt(0),
                         node.node("damage").getInt(0),
-                        node.node("unbreakable").getBoolean(false)
+                        node.node("unbreakable").getBoolean(false),
+                        node.node("flags").get(ItemFlag[].class, new ItemFlag[0])
                 );
             } catch (IllegalArgumentException e) {
                 throw new SerializationException(node, type, e);
@@ -65,19 +74,34 @@ public record ItemDescriptor(
     }
 
     /**
+     * Creates an item descriptor from a material, with flag varargs.
+     * @param plugin The platform plugin.
+     * @param material The material.
+     * @param modelData The model data.
+     * @param damage The damage.
+     * @param unbreakable If the item cannot be broken, and does not show the durability bar.
+     * @param flags The item flags.
+     * @return The descriptor.
+     */
+    public static ItemDescriptor of(SokolPlugin plugin, Material material, int modelData, int damage, boolean unbreakable, ItemFlag... flags) {
+        return new ItemDescriptor(plugin, material, modelData, damage, unbreakable, flags);
+    }
+
+    /**
      * Creates an item descriptor from a string ID instead of a material.
      * @param plugin The platform plugin.
      * @param id The ID.
      * @param modelData The model data.
      * @param damage The damage.
-     * @param unbreakable If the item is unbreakable or not.
+     * @param unbreakable If the item cannot be broken, and does not show the durability bar.
+     * @param flags The item flags.
      * @return The descriptor.
      */
-    public static ItemDescriptor of(SokolPlugin plugin, String id, int modelData, int damage, boolean unbreakable) {
+    public static ItemDescriptor of(SokolPlugin plugin, String id, int modelData, int damage, boolean unbreakable, ItemFlag... flags) {
         Material material = Registry.MATERIAL.get(NamespacedKey.minecraft(id));
         if (material == null)
             throw new IllegalArgumentException("Invalid material ID [" + id + "]");
-        return new ItemDescriptor(plugin, material, modelData, damage, unbreakable);
+        return new ItemDescriptor(plugin, material, modelData, damage, unbreakable, flags);
     }
 
     /**
@@ -88,7 +112,7 @@ public record ItemDescriptor(
     public ItemStack apply(ItemStack item) {
         item.setType(material);
         return PaperUtils.modify(item, meta -> {
-            meta.addItemFlags(ItemFlag.values());
+            meta.addItemFlags(flags);
             meta.setCustomModelData(modelData);
             if (meta instanceof Damageable damageable)
                 damageable.setDamage(damage);

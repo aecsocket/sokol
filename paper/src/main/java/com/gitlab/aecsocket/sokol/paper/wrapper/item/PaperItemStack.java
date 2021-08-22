@@ -1,13 +1,16 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper.item;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
+import com.gitlab.aecsocket.minecommons.core.Numbers;
 import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
+import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
+import org.bukkit.inventory.meta.Damageable;
 
 import java.util.*;
 
@@ -28,6 +31,11 @@ public final class PaperItemStack implements ItemStack {
 
     public SokolPlugin plugin() { return plugin; }
     public org.bukkit.inventory.ItemStack handle() { return handle; }
+
+    @Override
+    public Optional<PaperTreeNode> node() {
+        return plugin.persistenceManager().load(handle);
+    }
 
     @Override public int amount() { return handle.getAmount(); }
     @Override public PaperItemStack amount(int amount) { handle.setAmount(amount); return this; }
@@ -67,6 +75,32 @@ public final class PaperItemStack implements ItemStack {
             for (Component component : add)
                 lore.add(Components.BLANK.append(component));
             meta.lore(lore);
+        });
+    }
+
+    @Override
+    public OptionalDouble durability() {
+        if (handle.getItemMeta() instanceof Damageable meta)
+            return OptionalDouble.of(1 - ((double) meta.getDamage() / handle.getType().getMaxDurability()));
+        return OptionalDouble.empty();
+    }
+
+    @Override
+    public void durability(double percent) {
+        PaperUtils.modify(handle, m -> {
+            if (m instanceof Damageable meta) {
+                int max = handle.getType().getMaxDurability();
+                int damage = (int) Numbers.clamp(max * (1 - percent), 1, max - 1);
+                meta.setDamage(damage);
+            }
+        });
+    }
+
+    @Override
+    public void maxDurability() {
+        PaperUtils.modify(handle, m -> {
+            if (m instanceof Damageable meta)
+                meta.setDamage(0);
         });
     }
 

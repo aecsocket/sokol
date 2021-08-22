@@ -35,7 +35,9 @@ public final class PaperTreeNode extends AbstractTreeNode<PaperTreeNode, PaperCo
             else {
                 String id = obj.value.id();
                 ConfigurationNode children = node.node("children").set(obj.children);
-                ConfigurationNode systems = node.node("systems").set(obj.systems);
+                ConfigurationNode systems = node.node("systems");
+                for (var entry : obj.systems.entrySet())
+                    systems.node(entry.getKey()).set(PaperSystem.Instance.class, entry.getValue());
                 if (children.empty() && systems.empty())
                     node.set(id);
                 else

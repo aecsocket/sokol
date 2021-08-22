@@ -4,6 +4,8 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import net.kyori.adventure.text.Component;
 
 import java.util.Collection;
+import java.util.Optional;
+import java.util.OptionalDouble;
 
 /**
  * An item which resides in a single slot.
@@ -16,6 +18,12 @@ public interface ItemStack {
     interface Factory {
         ItemStack create();
     }
+
+    /**
+     * Gets this item stack as a node, if it is a node.
+     * @return The node.
+     */
+    Optional<? extends TreeNode> node();
 
     /**
      * Gets how many items are currently in this stack.
@@ -72,6 +80,30 @@ public interface ItemStack {
      * @param add The lore to add.
      */
     void addLore(Component... add);
+
+    /**
+     * Gets the durability bar percentage of this item stack, if it supports a durability bar.
+     * @return The percentage full the bar is, or an empty optional if this item does not support
+     *         a durability bar.
+     */
+    OptionalDouble durability();
+
+    /**
+     * Sets the durability bar percentage of this item stack.
+     * <p>
+     * This method ensures that the durability bar appears, however the durability will not
+     * drop enough to break the item, nor be high enough to hide the bar.
+     * @param percent The percentage full the bar is.
+     */
+    void durability(double percent);
+
+    /**
+     * Sets the durability of this item to its maximum.
+     * <p>
+     * This is separate from {@link #durability(double)}, as this will ensure that the bar
+     * will be hidden.
+     */
+    void maxDurability();
 
     /**
      * Hides any item update to players.

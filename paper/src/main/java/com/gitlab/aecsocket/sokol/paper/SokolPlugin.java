@@ -26,6 +26,7 @@ import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
 import com.gitlab.aecsocket.sokol.core.stat.inbuilt.VectorStat;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
+import com.gitlab.aecsocket.sokol.core.system.inbuilt.NodeHolderSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SchedulerSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
@@ -119,7 +120,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final PaperSystem.Serializer systemSerializer = new PaperSystem.Serializer(this);
-    private final ItemDescriptor invalidItem = new ItemDescriptor(this, Material.BARRIER, 0, 0, false);
+    private final ItemDescriptor invalidItem = ItemDescriptor.of(this, Material.BARRIER, 0, 0, false);
     private final PersistentDataType<PersistentDataContainer, SystemPath> typeSystemPath = new PersistentDataType<>() {
         @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
         @Override public @NotNull Class<SystemPath> getComplexType() { return SystemPath.class; }
@@ -149,6 +150,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
         paperScheduler.run(Task.repeating(ctx -> {
             for (var data : playerData.values()) {
+                //noinspection SynchronizationOnLocalVariableOrMethodParameter
                 synchronized (data) {
                     ctx.run(Task.single(data::paperTick));
                 }
@@ -156,6 +158,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         }, Ticks.MSPT));
         threadScheduler.run(Task.repeating(ctx -> {
             for (var data : playerData.values()) {
+                //noinspection SynchronizationOnLocalVariableOrMethodParameter
                 synchronized (data) {
                     ctx.run(Task.single(data::threadTick));
                 }
@@ -206,6 +209,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         registerSystemType(ItemSystem.ID, PaperItemSystem.type(this), () -> PaperItemSystem.LOAD_PROVIDER);
         registerSystemType(SlotInfoSystem.ID, PaperSlotInfoSystem.type(this), () -> PaperSlotInfoSystem.LOAD_PROVIDER);
         registerSystemType(SchedulerSystem.ID, PaperSchedulerSystem.type(this), () -> PaperSchedulerSystem.LOAD_PROVIDER);
+        registerSystemType(NodeHolderSystem.ID, PaperNodeHolderSystem.type(this), () -> PaperNodeHolderSystem.LOAD_PROVIDER);
         registerSystemType(SlotsSystem.ID, SlotsSystem.type(this), () -> SlotsSystem.LOAD_PROVIDER);
         registerSystemType(PropertiesSystem.ID, PropertiesSystem.type(this), () -> PropertiesSystem.LOAD_PROVIDER);
     }

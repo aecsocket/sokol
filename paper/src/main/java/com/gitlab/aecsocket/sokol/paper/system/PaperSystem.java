@@ -16,7 +16,6 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.item.Animation;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.Location;
-import org.bukkit.Particle;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.jetbrains.annotations.Nullable;
@@ -80,7 +79,7 @@ public interface PaperSystem extends System {
             }
         }
 
-        default PersistentDataContainer save(PersistentDataAdapterContext ctx) throws IllegalArgumentException { return null; }
+        default @Nullable PersistentDataContainer save(PersistentDataAdapterContext ctx) throws IllegalArgumentException { return null; }
         default void save(java.lang.reflect.Type type, ConfigurationNode node) throws SerializationException {}
     }
 

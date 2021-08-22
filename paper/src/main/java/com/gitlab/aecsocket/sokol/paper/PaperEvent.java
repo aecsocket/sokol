@@ -72,7 +72,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         public ClickedSlotClick(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
             super(node, PaperSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem));
             this.handle = handle;
-            this.user = living(plugin, handle.getWhoClicked());
+            this.user = anyLiving(plugin, handle.getWhoClicked());
             cursor = PaperSlot.slot(plugin, handle.getView()::getCursor, handle.getView()::setCursor);
         }
 
@@ -96,7 +96,7 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         public CursorSlotClick(SokolPlugin plugin, InventoryClickEvent handle, PaperTreeNode node) {
             super(node, PaperSlot.slot(plugin, handle.getView()::getCursor, handle.getView()::setCursor));
             this.handle = handle;
-            user = living(plugin, handle.getWhoClicked());
+            user = anyLiving(plugin, handle.getWhoClicked());
             clicked = PaperSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem);
         }
 
@@ -181,6 +181,23 @@ public interface PaperEvent extends TreeEvent.ItemEvent {
         @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
     }
 
+    final class Break extends Base implements ItemTreeEvent.Break {
+        private final PlayerUser user;
+        private boolean cancelled;
+
+        public Break(PaperTreeNode node, PlayerUser user) {
+            //noinspection ConstantConditions - we really can't get the slot from the Bukkit event. :(
+            super(node, null);
+            this.user = user;
+        }
+
+        @Override public PlayerUser user() { return user; }
+        // TODO
+        @Override public PaperSlot slot() { throw new UnsupportedOperationException("Cannot get slot of broken item"); }
+
+        @Override public boolean cancelled() { return cancelled; }
+        @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
+    }
     final class BlockBreak extends Base implements ItemTreeEvent.BlockBreak, FromServer {
         private final BlockBreakEvent handle;
         private final PlayerUser user;

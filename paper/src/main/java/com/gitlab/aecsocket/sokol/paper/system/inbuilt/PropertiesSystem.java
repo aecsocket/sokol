@@ -45,6 +45,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             .put("walk_speed", doubleStat())
             .put("attack_damage", doubleStat())
             .put("block_interaction", booleanStat())
+            .put("flags", booleanStat())
 
             .put("equip_delay", longStat())
             .put("equip_sounds", soundsStat())
@@ -77,10 +78,11 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             scheduler = depend(SchedulerSystem.KEY);
             parent.events().register(TreeEvent.Update.class, this::event);
             parent.events().register(ItemSystem.Events.CreateItem.class, this::event);
+            parent.events().register(ItemTreeEvent.Hold.class, this::event);
             parent.events().register(ItemTreeEvent.Input.class, this::event);
             parent.events().register(ItemTreeEvent.Equip.class, this::event);
             parent.events().register(ItemTreeEvent.Unequip.class, this::event);
-            parent.events().register(ItemTreeEvent.Hold.class, this::event);
+            parent.events().register(ItemTreeEvent.Break.class, this::event);
             parent.events().register(ItemTreeEvent.BlockBreak.class, this::event);
             parent.events().register(ItemTreeEvent.BlockPlace.class, this::event);
         }
@@ -148,6 +150,13 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             if (!parent.isRoot())
                 return;
             update(event.user());
+        }
+
+        protected void event(ItemTreeEvent.Break event) {
+            if (!parent.isRoot())
+                return;
+            parent.stats().<Boolean>val("flags")
+                    .ifPresent(v -> { if (v) event.cancel(); });
         }
 
         protected void event(ItemTreeEvent.Hold event) {

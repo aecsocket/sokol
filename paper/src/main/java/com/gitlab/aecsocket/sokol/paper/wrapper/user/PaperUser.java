@@ -18,24 +18,15 @@ public interface PaperUser extends ItemUser {
     @Override default Vector3 direction() { return PaperUtils.toCommons(location().getDirection()); }
 
     static EntityUser entity(SokolPlugin platform, Entity entity) {
-        return new EntityUser() {
-            @Override public SokolPlugin platform() { return platform; }
-            @Override public Entity handle() { return entity; }
-        };
+        return new EntityUserImpl(platform, entity);
     }
 
     static LivingEntityUser living(SokolPlugin platform, LivingEntity entity) {
-        return new LivingEntityUser() {
-            @Override public SokolPlugin platform() { return platform; }
-            @Override public LivingEntity handle() { return entity; }
-        };
+        return new LivingEntityUserImpl(platform, entity);
     }
 
     static PlayerUser player(SokolPlugin platform, Player entity) {
-        return new PlayerUser() {
-            @Override public SokolPlugin platform() { return platform; }
-            @Override public Player handle() { return entity; }
-        };
+        return new PlayerUserImpl(platform, entity);
     }
 
     static LivingEntityUser anyLiving(SokolPlugin platform, LivingEntity living) {
