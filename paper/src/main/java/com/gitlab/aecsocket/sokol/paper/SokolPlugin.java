@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper;
 import com.gitlab.aecsocket.minecommons.core.*;
 import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
 import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
+import com.gitlab.aecsocket.minecommons.core.serializers.QuantifierSerializer;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.minecommons.paper.display.Particles;
@@ -322,7 +323,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .register(new TypeToken<Descriptor<ItemDescriptor>>() {}, ItemStat.Serializer.INSTANCE)
                 .register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, SoundsStat.Serializer.INSTANCE)
                 .register(new TypeToken<Descriptor<List<Particles>>>() {}, ParticlesStat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<List<PotionEffect>>>() {}, EffectsStat.Serializer.INSTANCE);
+                .register(new TypeToken<Descriptor<List<PotionEffect>>>() {}, EffectsStat.Serializer.INSTANCE)
+
+                .register(new TypeToken<Quantifier<PaperTreeNode>>() {}, new QuantifierSerializer<>(new TypeToken<PaperTreeNode>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));
     }
 

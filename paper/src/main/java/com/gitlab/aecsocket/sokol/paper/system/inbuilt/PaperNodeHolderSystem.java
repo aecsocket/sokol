@@ -8,6 +8,7 @@ import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.PaperTreeNode;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
+import io.leangen.geantyref.TypeToken;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -17,6 +18,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -102,7 +104,8 @@ public final class PaperNodeHolderSystem extends NodeHolderSystem<PaperTreeNode>
 
     @Override
     public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException {
-        return new Instance(node);
+        return new Instance(node,
+                cfg.node("held").get(new TypeToken<List<Quantifier<PaperTreeNode>>>() {}, Collections.emptyList()));
     }
 
     public static ConfigType type(SokolPlugin platform) {
