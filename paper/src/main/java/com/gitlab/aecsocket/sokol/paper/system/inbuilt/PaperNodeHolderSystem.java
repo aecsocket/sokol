@@ -18,7 +18,6 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -27,7 +26,7 @@ public final class PaperNodeHolderSystem extends NodeHolderSystem<PaperTreeNode>
     public static final LoadProvider LOAD_PROVIDER = LoadProvider.empty(ID);
 
     public final class Instance extends NodeHolderSystem<PaperTreeNode>.Instance implements PaperSystem.Instance {
-        public Instance(TreeNode parent, List<Quantifier<PaperTreeNode>> held) {
+        public Instance(TreeNode parent, LinkedList<Quantifier<PaperTreeNode>> held) {
             super(parent, held);
         }
 
@@ -90,7 +89,7 @@ public final class PaperNodeHolderSystem extends NodeHolderSystem<PaperTreeNode>
     @Override
     public Instance load(PaperTreeNode node, PersistentDataContainer data) {
         var cHeld = data.getOrDefault(platform.key("held"), PersistentDataType.TAG_CONTAINER_ARRAY, new PersistentDataContainer[0]);
-        List<Quantifier<PaperTreeNode>> held = new LinkedList<>();
+        LinkedList<Quantifier<PaperTreeNode>> held = new LinkedList<>();
         for (var entry : cHeld) {
             var dNode = entry.get(platform.key("node"), PersistentDataType.TAG_CONTAINER);
             var dAmount = entry.get(platform.key("amount"), PersistentDataType.INTEGER);
@@ -105,7 +104,7 @@ public final class PaperNodeHolderSystem extends NodeHolderSystem<PaperTreeNode>
     @Override
     public Instance load(PaperTreeNode node, java.lang.reflect.Type type, ConfigurationNode cfg) throws SerializationException {
         return new Instance(node,
-                cfg.node("held").get(new TypeToken<List<Quantifier<PaperTreeNode>>>() {}, Collections.emptyList()));
+                cfg.node("held").get(new TypeToken<LinkedList<Quantifier<PaperTreeNode>>>() {}, new LinkedList<>()));
     }
 
     public static ConfigType type(SokolPlugin platform) {

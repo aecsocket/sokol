@@ -11,10 +11,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 /**
  * Holds a list of nodes in the system, which can be taken out and placed in.
@@ -41,10 +38,10 @@ public abstract class NodeHolderSystem<N extends TreeNode> extends AbstractSyste
     /**
      * See {@link NodeHolderSystem}.
      */
-    public abstract class Instance extends AbstractSystem.Instance {
-        protected final List<Quantifier<N>> held;
+    public abstract class Instance extends AbstractSystem.Instance implements NodeProviderSystem<N> {
+        protected final LinkedList<Quantifier<N>> held;
 
-        public Instance(TreeNode parent, List<Quantifier<N>> held) {
+        public Instance(TreeNode parent, LinkedList<Quantifier<N>> held) {
             super(parent);
             this.held = held;
         }
@@ -55,7 +52,7 @@ public abstract class NodeHolderSystem<N extends TreeNode> extends AbstractSyste
 
         @Override public abstract NodeHolderSystem<N> base();
 
-        public List<Quantifier<N>> held() { return held; }
+        public LinkedList<Quantifier<N>> held() { return held; }
 
         public boolean hasCapacity() { return capacity > 0; }
         public int size() {
@@ -79,6 +76,16 @@ public abstract class NodeHolderSystem<N extends TreeNode> extends AbstractSyste
                 else
                     held.add(new Quantifier<>(node, amount));
             }
+        }
+
+        @Override
+        public Optional<N> peek() {
+            return held.isEmpty() ? Optional.empty() : Optional.of(held.peekLast().object());
+        }
+
+        @Override
+        public Optional<N> pop() {
+            return held.isEmpty() ? Optional.empty() : Optional.of(held.removeLast().object());
         }
 
         @Override
