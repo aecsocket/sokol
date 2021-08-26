@@ -89,7 +89,7 @@ public class StatMap extends HashMap<String, Stat.Node<?>> {
 
         private <T> void add(Type type, String key, ConfigurationNode node, Stat<T> stat, StatMap result) throws SerializationException {
             List<Stat.Node<T>> chain = new ArrayList<>();
-            for (ConfigurationNode child : node.isList() ? node.childrenList() : Collections.singleton(node)) {
+            for (ConfigurationNode child : node.isList() && node.childrenList().size() > 0 ? node.childrenList() : Collections.singleton(node)) {
                 Operator<T> op = stat.defaultOperator();
                 List<Object> builtArgs = new ArrayList<>();
                 if (node.hasChild(KEY_OP) && node.hasChild(KEY_ARGS)) {
@@ -108,7 +108,8 @@ public class StatMap extends HashMap<String, Stat.Node<?>> {
                     if (op.args().length == 1)
                         builtArgs.add(node.get(op.args()[0]));
                 }
-                result.chain(key, new Stat.Node<>(stat, op, builtArgs));
+                Stat.Node<T> statNode = new Stat.Node<>(stat, op, builtArgs);
+                result.chain(key, statNode);
             }
         }
 

@@ -61,13 +61,12 @@ public abstract class Stat<T> {
             return operator.operate(base, args);
         }
 
+        private @Nullable T value(@Nullable T base) {
+            return next == null ? operate(base) : next.value(operate(base));
+        }
+
         public Optional<T> value() {
-            T value = null;
-            Node<T> node = this;
-            while ((node = node.next) != null) {
-                value = node.operate(value);
-            }
-            return Optional.ofNullable(value);
+            return Optional.ofNullable(value(null));
         }
 
         public Node<T> copy() {
