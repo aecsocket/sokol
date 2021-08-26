@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.core.component;
 
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.System;
 
 import java.util.Collection;

@@ -1,17 +1,17 @@
 package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
-import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
-import com.gitlab.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatTypes;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.paper.*;
 import com.gitlab.aecsocket.sokol.paper.slotview.SlotViewPane;
+import com.gitlab.aecsocket.sokol.paper.stat.SoundsStat;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import org.bukkit.Location;
 import org.bukkit.event.inventory.ClickType;
@@ -29,11 +29,12 @@ import static com.gitlab.aecsocket.sokol.paper.stat.SoundsStat.*;
 public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "slots";
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
-    public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("combine_sounds", soundsStat())
-            .put("insert_sounds", soundsStat())
-            .put("remove_sounds", soundsStat())
-            .build();
+
+    public static final SoundsStat STAT_COMBINE_SOUNDS = soundsStat("combine_sounds");
+    public static final SoundsStat STAT_INSERT_SOUNDS = soundsStat("insert_sounds");
+    public static final SoundsStat STAT_REMOVE_SOUNDS = soundsStat("remove_sounds");
+
+    public static final StatTypes STATS = StatTypes.of(STAT_COMBINE_SOUNDS, STAT_INSERT_SOUNDS, STAT_REMOVE_SOUNDS);
     public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(ID, STATS);
 
     public final class Instance extends AbstractSystem.Instance implements PaperSystem.Instance {
@@ -158,7 +159,7 @@ public class SlotsSystem extends AbstractSystem implements PaperSystem {
     public boolean combine() { return combine; }
     public boolean combineLimited() { return combineLimited; }
 
-    @Override public Map<String, Stat<?>> statTypes() { return STATS; }
+    @Override public StatTypes statTypes() { return STATS; }
 
     @Override
     public Instance create(TreeNode node) {

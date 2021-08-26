@@ -1,12 +1,11 @@
 package com.gitlab.aecsocket.sokol.paper.system.inbuilt;
 
 import com.comphenix.protocol.PacketType;
-import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.InputType;
 import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
-import com.gitlab.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatTypes;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
@@ -17,7 +16,9 @@ import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import com.gitlab.aecsocket.sokol.core.wrapper.UserSlot;
 import com.gitlab.aecsocket.sokol.paper.*;
+import com.gitlab.aecsocket.sokol.paper.stat.AnimationStat;
 import com.gitlab.aecsocket.sokol.paper.stat.EffectsStat;
+import com.gitlab.aecsocket.sokol.paper.stat.SoundsStat;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.item.PaperItemStack;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingEntityUser;
@@ -40,25 +41,31 @@ import static com.gitlab.aecsocket.sokol.paper.stat.AnimationStat.*;
 public class PropertiesSystem extends AbstractSystem implements PaperSystem {
     public static final String ID = "properties";
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
-    public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("hold_effects", EffectsStat.effectsStat())
-            .put("walk_speed", doubleStat())
-            .put("attack_damage", doubleStat())
-            .put("block_interaction", booleanStat())
-            .put("flags", booleanStat())
+    public static final EffectsStat STAT_HOLD_EFFECTS = EffectsStat.effectsStat("hold_effects");
+    public static final SDouble STAT_WALK_SPEED = doubleStat("walk_speed");
+    public static final SDouble STAT_ATTACK_DAMAGE = doubleStat("attack_damage");
+    public static final SBoolean STAT_BLOCK_INTERACTION = booleanStat("block_interaction");
+    public static final SBoolean STAT_UNBREAKABLE = booleanStat("unbreakable");
 
-            .put("equip_delay", longStat())
-            .put("equip_sounds", soundsStat())
-            .put("equip_animation", animationStat())
+    public static final SLong STAT_EQUIP_DELAY = longStat("equip_delay");
+    public static final SLong STAT_EQUIP_SOUNDS = longStat("equip_sounds");
+    public static final AnimationStat STAT_EQUIP_ANIMATION = animationStat("equip_animation");
 
-            .put("allow_sprint", booleanStat())
-            .put("sprint_start_delay", longStat())
-            .put("sprint_start_sounds", soundsStat())
-            .put("sprint_start_animation", animationStat())
-            .put("sprint_stop_delay", longStat())
-            .put("sprint_stop_sounds", soundsStat())
-            .put("sprint_stop_animation", animationStat())
-            .build();
+    public static final SBoolean STAT_ALLOW_SPRINT = booleanStat("allow_sprint");
+    public static final SLong STAT_SPRINT_START_DELAY = longStat("sprint_start_delay");
+    public static final SoundsStat STAT_SPRINT_START_SOUNDS = soundsStat("sprint_start_sounds");
+    public static final AnimationStat STAT_SPRINT_START_ANIMATION = animationStat("sprint_start_animation");
+
+    public static final SLong STAT_SPRINT_STOP_DELAY = longStat("sprint_stop_delay");
+    public static final SoundsStat STAT_SPRINT_STOP_SOUNDS = soundsStat("sprint_stop_sounds");
+    public static final AnimationStat STAT_SPRINT_STOP_ANIMATION = animationStat("sprint_stop_animation");
+
+    public static final StatTypes STATS = StatTypes.of(
+            STAT_HOLD_EFFECTS, STAT_WALK_SPEED, STAT_ATTACK_DAMAGE, STAT_BLOCK_INTERACTION, STAT_UNBREAKABLE,
+            STAT_EQUIP_DELAY, STAT_EQUIP_SOUNDS, STAT_EQUIP_ANIMATION,
+            STAT_ALLOW_SPRINT, STAT_SPRINT_START_DELAY, STAT_SPRINT_START_SOUNDS, STAT_SPRINT_START_ANIMATION,
+            STAT_SPRINT_STOP_DELAY, STAT_SPRINT_STOP_SOUNDS, STAT_SPRINT_STOP_ANIMATION
+    );
     public static final LoadProvider LOAD_PROVIDER = LoadProvider.ofStats(ID, STATS);
     public static final UUID MOVE_SPEED_ATTRIBUTE = UUID.randomUUID();
     public static final UUID ATTACK_DAMAGE_ATTRIBUTE = UUID.randomUUID();
@@ -93,7 +100,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                 platform.protocol().send(handle, PacketType.Play.Server.UPDATE_HEALTH, packet -> {
                     packet.getFloat().write(0, (float) handle.getHealth());
                     packet.getFloat().write(1, handle.getSaturation());
-                    packet.getIntegers().write(0, parent.stats().<Boolean>val("allow_sprint").orElse(true) ? handle.getFoodLevel() : 6);
+                    packet.getIntegers().write(0, parent.stats().val(STAT_ALLOW_SPRINT).orElse(true) ? handle.getFoodLevel() : 6);
                 });
             }
         }
@@ -109,10 +116,10 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                 return;
             if (event.item() instanceof PaperItemStack item) {
                 PaperUtils.modify(item.handle(), meta -> {
-                    parent.stats().<Double>val("walk_speed").ifPresent(walkSpeed ->
+                    parent.stats().val(STAT_WALK_SPEED).ifPresent(walkSpeed ->
                             meta.addAttributeModifier(Attribute.GENERIC_MOVEMENT_SPEED, new AttributeModifier(MOVE_SPEED_ATTRIBUTE,
                                     "moveSpeed", walkSpeed - 1, AttributeModifier.Operation.MULTIPLY_SCALAR_1)));
-                    parent.stats().<Double>val("attack_damage").ifPresent(attackDamage ->
+                    parent.stats().val(STAT_ATTACK_DAMAGE).ifPresent(attackDamage ->
                             meta.addAttributeModifier(Attribute.GENERIC_ATTACK_DAMAGE, new AttributeModifier(ATTACK_DAMAGE_ATTRIBUTE,
                                     "attackDamage", attackDamage, AttributeModifier.Operation.ADD_NUMBER)));
                 });
@@ -135,7 +142,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
             update(event.user());
             runAction(scheduler, "equip", event.user(), event.slot(), null);
             if (event.user() instanceof PlayerUser player && event.slot() instanceof UserSlot slot && slot.inHand()) {
-                parent.stats().<Long>val("equip_delay").ifPresent(delay -> {
+                parent.stats().val(STAT_EQUIP_DELAY).ifPresent(delay -> {
                     player.handle().setCooldown(slot.get()
                             .map(s -> s instanceof PaperItemStack paper ? paper.handle().getType() : null)
                             .orElseThrow(IllegalStateException::new), (int) Ticks.ticks(delay));
@@ -155,7 +162,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
         protected void event(ItemTreeEvent.Break event) {
             if (!parent.isRoot())
                 return;
-            parent.stats().<Boolean>val("flags")
+            parent.stats().val(STAT_UNBREAKABLE)
                     .ifPresent(v -> { if (v) event.cancel(); });
         }
 
@@ -166,7 +173,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
                 return;
 
             if (event.user() instanceof LivingEntityUser living) {
-                parent.stats().<List<PotionEffect>>val("hold_effects")
+                parent.stats().val(STAT_HOLD_EFFECTS)
                         .ifPresent(living.handle()::addPotionEffects);
             }
         }
@@ -174,7 +181,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
         protected void event(ItemTreeEvent.BlockBreak event) {
             if (!parent.isRoot())
                 return;
-            parent.stats().<Boolean>val("block_interaction").ifPresent(allow -> {
+            parent.stats().val(STAT_BLOCK_INTERACTION).ifPresent(allow -> {
                 if (!allow)
                     event.cancel();
             });
@@ -183,7 +190,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
         protected void event(ItemTreeEvent.BlockPlace event) {
             if (!parent.isRoot())
                 return;
-            parent.stats().<Boolean>val("block_interaction").ifPresent(allow -> {
+            parent.stats().val(STAT_BLOCK_INTERACTION).ifPresent(allow -> {
                 if (!allow)
                     event.cancel();
             });
@@ -201,7 +208,7 @@ public class PropertiesSystem extends AbstractSystem implements PaperSystem {
 
     public SokolPlugin platform() { return platform; }
 
-    @Override public Map<String, Stat<?>> statTypes() { return STATS; }
+    @Override public StatTypes statTypes() { return STATS; }
 
     @Override
     public Instance create(TreeNode node) {

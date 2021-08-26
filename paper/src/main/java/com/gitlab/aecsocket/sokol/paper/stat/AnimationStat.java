@@ -1,27 +1,24 @@
 package com.gitlab.aecsocket.sokol.paper.stat;
 
-import com.gitlab.aecsocket.sokol.core.stat.BasicStat;
-import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.core.stat.Operator;
-import com.gitlab.aecsocket.sokol.core.stat.Operators;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.paper.wrapper.item.Animation;
-import io.leangen.geantyref.TypeToken;
+
+import java.util.Map;
+
+import static com.gitlab.aecsocket.sokol.core.stat.Operator.*;
 
 /**
  * A stat type which stores an {@link Animation}.
  */
-public final class AnimationStat extends BasicStat<Animation> {
+public final class AnimationStat extends Stat<Animation> {
     public static final Operator<Animation> OP_SET = op("=", c -> c.arg(0), Animation.class);
 
-    public static final Operator<Animation> OP_DEF = OP_SET;
-    public static final Operators<Animation> OPERATORS = Operators.operators(OP_DEF, OP_SET);
+    public static final Map<String, Operator<Animation>> OPERATORS = ops(OP_SET);
 
-    public static final class Serializer extends Descriptor.Serializer<Animation> {
-        public static final Serializer INSTANCE = new Serializer();
-        @Override protected Operators<Animation> operators() { return OPERATORS; }
-    }
+    private AnimationStat(String key) { super(key); }
+    public static AnimationStat animationStat(String key) { return new AnimationStat(key); }
 
-    private AnimationStat() { super(new TypeToken<>() {}, OP_DEF); }
-
-    public static AnimationStat animationStat() { return new AnimationStat(); }
+    @Override public Map<String, Operator<Animation>> operators() { return OPERATORS; }
+    @Override public Operator<Animation> defaultOperator() { return OP_SET; }
 }

@@ -1,17 +1,14 @@
 package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
-import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
-import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatTypes;
 import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemStack;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 
 import static com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat.*;
 
@@ -23,24 +20,22 @@ public abstract class ItemSystem extends AbstractSystem {
     public static final String ID = "item";
     public static final Key<Instance> KEY = new Key<>(ID, Instance.class);
     /**
-     * The stat types.
-     * <ul>
-     *     <li>{@link StringStat} {@code item_name}: The localization key for an item. If unset, uses
-     *     {@link com.gitlab.aecsocket.sokol.core.component.Component#name(Locale)} to generate the name.</li>
-     * </ul>
+     * {@code item_name}: The localization key for an item name.
+     * If unset, uses {@link com.gitlab.aecsocket.sokol.core.component.Component#name(Locale)} to generate the name.
      */
-    public static final Map<String, Stat<?>> STATS = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-            .put("item_name", stringStat())
-            .build();
+    public static final StringStat STAT_ITEM_NAME = stringStat("item_name");
+    /** {@code item}. */
+    public static final String KEY_ITEM = "item";
+    /** The stat types. */
+    public static final StatTypes STATS = StatTypes.of(STAT_ITEM_NAME);
 
-    protected final Map<String, Stat<?>> baseStats;
+    protected final StatTypes statTypes;
 
-    public ItemSystem(Stat<? extends Descriptor<? extends ItemStack.Factory>> itemStat) {
+    public ItemSystem(Stat<? extends ItemStack.Factory> statItem) {
         super(0);
-        baseStats = CollectionBuilder.map(new HashMap<String, Stat<?>>())
-                .put(STATS)
-                .put("item", itemStat)
-                .build();
+        statTypes = new StatTypes()
+                .putAll(STATS)
+                .put(statItem);
     }
 
     /**
@@ -59,10 +54,10 @@ public abstract class ItemSystem extends AbstractSystem {
          * @return The item stack.
          */
         public ItemStack create(Locale locale) {
-            ItemStack.Factory factory = parent.stats().req("item");
+            ItemStack.Factory factory = parent.stats().req(KEY_ITEM);
             ItemStack item = factory.create();
             item.save(parent);
-            item.name(parent.stats().<String>val("item_name")
+            item.name(parent.stats().val(STAT_ITEM_NAME)
                     .map(k -> platform().lc().safe(locale, k))
                     .orElse(parent.value().name(locale)));
             new Events.CreateItem(this, locale, item).call();
@@ -71,7 +66,7 @@ public abstract class ItemSystem extends AbstractSystem {
     }
 
     @Override public String id() { return ID; }
-    @Override public Map<String, Stat<?>> statTypes() { return baseStats; }
+    @Override public StatTypes statTypes() { return statTypes; }
 
     /**
      * This system's event types.

@@ -1,31 +1,38 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
-import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
- * Represents a type of value, dictating behaviour for an {@link Instance}.
+ * Represents a type of value, dictating behaviour for an {@link Node}.
  * @param <T> The stored value type.
  */
-public interface Stat<T> extends Copier<T>, Combiner<T> {
+public abstract class Stat<T> {
     /**
-     * An instance of a stat, storing a value.
+     * A node in a linked list of stat instances, evaluating to a value.
      * @param <T> The stored value type.
      */
-    final class Instance<T> {
+    public static final class Node<T> {
         private final Stat<T> stat;
-        private T value;
+        private final Operator<T> operator;
+        private final List<Object> args;
+        private @Nullable Node<T> next;
 
-        public Instance(Stat<T> stat, @Nullable T value) {
+        public Node(Stat<T> stat, Operator<T> operator, List<Object> args, @Nullable Node<T> next) {
             this.stat = stat;
-            this.value = value;
+            this.operator = operator;
+            this.args = args;
+            this.next = next;
         }
 
-        public Instance(Instance<T> o) {
-            stat = o.stat;
-            value = stat.copy(o.value);
+        public Node(Stat<T> stat, Operator<T> operator, List<Object> args) {
+            this.stat = stat;
+            this.operator = operator;
+            this.args = args;
         }
 
         /**
@@ -34,49 +41,66 @@ public interface Stat<T> extends Copier<T>, Combiner<T> {
          */
         public Stat<T> stat() { return stat; }
 
+        public Operator<T> operator() { return operator; }
+
+        public List<Object> args() { return args; }
+
         /**
-         * Gets the value if it is present.
-         * @return The value.
+         * Gets the next node in this linked list.
+         * @return The node.
          */
+        public @Nullable Node<T> next() { return next; }
+
+        /**
+         * Sets the next node in this linked list.
+         * @param next The node.
+         */
+        public void chain(Node<T> next) { this.next = next; }
+
+        public T operate(@Nullable T base) {
+            return operator.operate(base, args);
+        }
+
         public Optional<T> value() {
+            T value = null;
+            Node<T> node = this;
+            while ((node = node.next) != null) {
+                value = node.operate(value);
+            }
             return Optional.ofNullable(value);
         }
 
-        /**
-         * Sets the value of this instance.
-         * @param value The new value.
-         */
-        public void value(@Nullable T value) { this.value = value; }
-
-        /**
-         * Combines this instance's value from another instance's value, using {@link Stat#combine(Object, Object)}.
-         * @param o The other instance.
-         */
-        public void combineFrom(Instance<T> o) {
-            value = stat.combine(value, o.value);
+        public Node<T> copy() {
+            return new Node<>(stat, operator, new ArrayList<>(args), next == null ? null : next.copy());
         }
 
-        /**
-         * Copies this instance and the value inside, using {@link Stat#copy(Object)}.
-         * @return The copy.
-         */
-        public Instance<T> copy() { return new Instance<>(this); }
+        @Override
+        public String toString() {
+            return operator.key() + args + (next == null ? "" : " " + next);
+        }
+    }
 
-        @Override public String toString() { return ""+value; }
+    private final String key;
+
+    public Stat(String key) {
+        this.key = key;
     }
 
     /**
-     * Gets the type of value deserialized.
-     * @return The type.
+     * Gets the key of this stat.
+     * @return The key.
      */
-    TypeToken<T> type();
+    public String key() { return key; }
 
     /**
-     * Creates an instance from this stat.
-     * @param value The value of the instance.
-     * @return The instance.
+     * Gets the operators that this stat supports.
+     * @return The operators.
      */
-    default Instance<T> instance(T value) {
-        return new Instance<>(this, value);
-    }
+    public abstract Map<String, Operator<T>> operators();
+
+    /**
+     * Gets the default operator of this stat.
+     * @return The default operator.
+     */
+    public abstract Operator<T> defaultOperator();
 }

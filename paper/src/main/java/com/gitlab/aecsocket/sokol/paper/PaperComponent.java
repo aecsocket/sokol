@@ -5,8 +5,8 @@ import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.AbstractComponent;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatTypes;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import io.leangen.geantyref.TypeToken;
@@ -81,7 +81,7 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 loadProviders.add(provider);
             }
 
-            Map<String, Stat<?>> statTypes = new HashMap<>();
+            StatTypes statTypes = new StatTypes();
             Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>(Rule.BASE_RULE_TYPES);
             for (var provider : loadProviders) {
                 statTypes.putAll(provider.statTypes());

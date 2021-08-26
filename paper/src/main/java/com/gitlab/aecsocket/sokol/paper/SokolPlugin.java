@@ -4,10 +4,6 @@ import com.gitlab.aecsocket.minecommons.core.*;
 import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
 import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.core.serializers.QuantifierSerializer;
-import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
-import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
-import com.gitlab.aecsocket.minecommons.paper.display.Particles;
-import com.gitlab.aecsocket.minecommons.paper.display.PreciseSound;
 import com.gitlab.aecsocket.minecommons.paper.inputs.Inputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.ListenerInputs;
 import com.gitlab.aecsocket.minecommons.paper.inputs.PacketInputs;
@@ -19,12 +15,8 @@ import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
-import com.gitlab.aecsocket.sokol.core.stat.inbuilt.PrimitiveStat;
-import com.gitlab.aecsocket.sokol.core.stat.inbuilt.StringStat;
-import com.gitlab.aecsocket.sokol.core.stat.inbuilt.VectorStat;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.ItemSystem;
 import com.gitlab.aecsocket.sokol.core.system.inbuilt.NodeHolderSystem;
@@ -33,7 +25,6 @@ import com.gitlab.aecsocket.sokol.core.system.inbuilt.SlotInfoSystem;
 import com.gitlab.aecsocket.sokol.core.system.util.InputMapper;
 import com.gitlab.aecsocket.sokol.core.system.util.SystemPath;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
-import com.gitlab.aecsocket.sokol.paper.stat.*;
 import com.gitlab.aecsocket.sokol.paper.system.inbuilt.*;
 import com.gitlab.aecsocket.sokol.paper.system.PaperSystem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.item.Animation;
@@ -49,7 +40,6 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.potion.PotionEffect;
 import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -310,20 +300,6 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .register(PaperSystem.Instance.class, systemSerializer)
                 .register(PaperTreeNode.class, new PaperTreeNode.Serializer(this))
                 .register(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
-
-                .register(new TypeToken<Descriptor<Boolean>>() {}, PrimitiveStat.SBoolean.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Integer>>() {}, PrimitiveStat.SInteger.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Long>>() {}, PrimitiveStat.SLong.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Float>>() {}, PrimitiveStat.SFloat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Double>>() {}, PrimitiveStat.SDouble.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<String>>() {}, StringStat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Vector2>>() {}, VectorStat.SVector2.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Vector3>>() {}, VectorStat.SVector3.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<Animation>>() {}, AnimationStat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<ItemDescriptor>>() {}, ItemStat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<List<PreciseSound>>>() {}, SoundsStat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<List<Particles>>>() {}, ParticlesStat.Serializer.INSTANCE)
-                .register(new TypeToken<Descriptor<List<PotionEffect>>>() {}, EffectsStat.Serializer.INSTANCE)
 
                 .register(new TypeToken<Quantifier<PaperTreeNode>>() {}, new QuantifierSerializer<>(new TypeToken<PaperTreeNode>() {}));
         configOptionInitializers.forEach(i -> i.post(serializers, mapperFactory));

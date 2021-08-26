@@ -4,8 +4,9 @@ import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatMap;
+import com.gitlab.aecsocket.sokol.core.stat.StatOperationException;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -148,12 +149,22 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     private record StatsPair(TreeNode node, List<StatMap> stats) {}
 
     private void add(List<StatsPair> stats) {
+        int i = 0;
         for (StatsPair pair : stats) {
+            int j = 0;
             for (StatMap map : new ArrayList<>(pair.stats)) {
                 if (map.rule().applies(pair.node)) {
-                    this.stats.combineAll(map);
+                    for (var entry : map.entrySet()) {
+                        try {
+                            this.stats.chain(entry.getValue());
+                        } catch (StatOperationException e) {
+                            throw new IllegalArgumentException("Could not combine stat [" + entry.getKey() + "] of pair " + i + " map " + j, e);
+                        }
+                    }
                 }
+                ++j;
             }
+            ++i;
         }
     }
 
@@ -175,7 +186,7 @@ public abstract class AbstractTreeNode<N extends AbstractTreeNode<N, C, S, B, Y>
     }
 
     @Override
-    public N build() {
+    public N build() throws IllegalArgumentException {
         events.unregisterAll();
         stats.clear();
         complete.set(true);

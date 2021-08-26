@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.core.stat;
+package com.gitlab.aecsocket.sokol.core.stat.collection;
 
 import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;

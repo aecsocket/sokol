@@ -3,7 +3,8 @@ package com.gitlab.aecsocket.sokol.core.system;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.component.Component;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.util.Availability;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
@@ -12,6 +13,9 @@ import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
+
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * A system which is applicable to a {@link Component}, and creates {@link System.Instance}s.
@@ -25,6 +29,18 @@ public interface System extends LoadProvider {
         public Key(String id, Class<S> instanceType) {
             this(id, TypeToken.get(instanceType));
         }
+    }
+
+    /**
+     * Helper method for generating a stat map from an array of stats.
+     * @param stats The array of stats.
+     * @return The stat map.
+     */
+    static Map<String, Stat<?>> stats(Stat<?>... stats) {
+        Map<String, Stat<?>> result = new HashMap<>();
+        for (var stat : stats)
+            result.put(stat.key(), stat);
+        return result;
     }
 
     /**

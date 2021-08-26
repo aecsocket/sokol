@@ -1,6 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.system.util.Availability;

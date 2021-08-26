@@ -136,7 +136,7 @@ depend:
 
 ```java
 public void onEnable() {
-    SokolPlugin sokol = SokolPlugin.instance();
+    SokolPlugin sokol = SokolPlugin.node();
     sokol.registerSystemType(TestSystem.ID, TestSystem.TYPE);
 }
 ```

@@ -1,34 +1,30 @@
 package com.gitlab.aecsocket.sokol.core.stat.inbuilt;
 
-import com.gitlab.aecsocket.sokol.core.stat.BasicStat;
-import com.gitlab.aecsocket.sokol.core.stat.Descriptor;
 import com.gitlab.aecsocket.sokol.core.stat.Operator;
-import com.gitlab.aecsocket.sokol.core.stat.Operators;
-import io.leangen.geantyref.TypeToken;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
 
+import java.util.Map;
 import java.util.function.DoubleFunction;
+
+import static com.gitlab.aecsocket.sokol.core.stat.Operator.*;
 
 public final class PrimitiveStat {
     private PrimitiveStat() {}
 
-    public static SBoolean booleanStat() { return new SBoolean(); }
-    public static SInteger intStat() { return new SInteger(); }
-    public static SLong longStat() { return new SLong(); }
-    public static SFloat floatStat() { return new SFloat(); }
-    public static SDouble doubleStat() { return new SDouble(); }
+    public static SBoolean booleanStat(String key) { return new SBoolean(key); }
+    public static SInteger intStat(String key) { return new SInteger(key); }
+    public static SLong longStat(String key) { return new SLong(key); }
+    public static SFloat floatStat(String key) { return new SFloat(key); }
+    public static SDouble doubleStat(String key) { return new SDouble(key); }
 
-    public static final class SBoolean extends BasicStat<Boolean> {
+    public static final class SBoolean extends Stat<Boolean> {
         public static final Operator<Boolean> OP_SET = op("=", c -> c.arg(0), boolean.class);
 
-        public static final Operator<Boolean> OP_DEF = OP_SET;
-        public static final Operators<Boolean> OPERATORS = Operators.operators(OP_DEF, OP_SET);
+        public static final Map<String, Operator<Boolean>> OPERATORS = ops(OP_SET);
 
-        public static final class Serializer extends Descriptor.Serializer<Boolean> {
-            public static final Serializer INSTANCE = new Serializer();
-            @Override protected Operators<Boolean> operators() { return OPERATORS; }
-        }
-
-        private SBoolean() { super(new TypeToken<>() {}, OP_DEF); }
+        private SBoolean(String key) { super(key); }
+        @Override public Map<String, Operator<Boolean>> operators() { return OPERATORS; }
+        @Override public Operator<Boolean> defaultOperator() { return OP_SET; }
     }
 
     private interface NumberOperator {
@@ -36,10 +32,10 @@ public final class PrimitiveStat {
     }
 
     private static <N extends Number> Operator<N> nOp(Class<N> nType, String key, N def, DoubleFunction<N> converter, NumberOperator op) {
-        return BasicStat.op(key, c -> converter.apply(op.operate(c.base(def).doubleValue(), c.<N>arg(0).doubleValue())), nType);
+        return op(key, c -> converter.apply(op.operate(c.base().orElse(def).doubleValue(), c.<N>arg(0).doubleValue())), nType);
     }
     private static <N extends Number> Operator<N> nSet(Class<N> nType) {
-        return BasicStat.op("=", c -> c.arg(0), nType);
+        return op("=", c -> c.arg(0), nType);
     }
     @SuppressWarnings("Convert2MethodRef")
     private static <N extends Number> Operator<N> nAdd(Class<N> nType, N def, DoubleFunction<N> converter) {
@@ -55,79 +51,59 @@ public final class PrimitiveStat {
         return nOp(nType, "/", def, converter, (a, b) -> a / b);
     }
 
-    public static final class SInteger extends BasicStat<Integer> {
+    public static final class SInteger extends Stat<Integer> {
         public static final Operator<Integer> OP_SET = nSet(int.class);
         public static final Operator<Integer> OP_ADD = nAdd(int.class, 0, n -> (int) n);
         public static final Operator<Integer> OP_SUB = nSub(int.class, 0, n -> (int) n);
         public static final Operator<Integer> OP_MULT = nMult(int.class, 0, n -> (int) n);
         public static final Operator<Integer> OP_DIV = nDiv(int.class, 0, n -> (int) n);
 
-        public static final Operator<Integer> OP_DEF = OP_SET;
-        public static final Operators<Integer> OPERATORS = Operators.operators(OP_DEF,
-                OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
+        public static final Map<String, Operator<Integer>> OPERATORS = ops(OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
 
-        public static final class Serializer extends Descriptor.Serializer<Integer> {
-            public static final Serializer INSTANCE = new Serializer();
-            @Override protected Operators<Integer> operators() { return OPERATORS; }
-        }
-
-        private SInteger() { super(new TypeToken<>() {}, OP_DEF); }
+        private SInteger(String key) { super(key); }
+        @Override public Map<String, Operator<Integer>> operators() { return OPERATORS; }
+        @Override public Operator<Integer> defaultOperator() { return OP_SET; }
     }
 
-    public static final class SLong extends BasicStat<Long> {
+    public static final class SLong extends Stat<Long> {
         public static final Operator<Long> OP_SET = nSet(long.class);
         public static final Operator<Long> OP_ADD = nAdd(long.class, 0L, n -> (long) n);
         public static final Operator<Long> OP_SUB = nSub(long.class, 0L, n -> (long) n);
         public static final Operator<Long> OP_MULT = nMult(long.class, 0L, n -> (long) n);
         public static final Operator<Long> OP_DIV = nDiv(long.class, 0L, n -> (long) n);
 
-        public static final Operator<Long> OP_DEF = OP_SET;
-        public static final Operators<Long> OPERATORS = Operators.operators(OP_DEF,
-                OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
+        public static final Map<String, Operator<Long>> OPERATORS = ops(OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
 
-        public static final class Serializer extends Descriptor.Serializer<Long> {
-            public static final Serializer INSTANCE = new Serializer();
-            @Override protected Operators<Long> operators() { return OPERATORS; }
-        }
-
-        private SLong() { super(new TypeToken<>() {}, OP_DEF); }
+        private SLong(String key) { super(key); }
+        @Override public Map<String, Operator<Long>> operators() { return OPERATORS; }
+        @Override public Operator<Long> defaultOperator() { return OP_SET; }
     }
 
-    public static final class SFloat extends BasicStat<Float> {
+    public static final class SFloat extends Stat<Float> {
         public static final Operator<Float> OP_SET = nSet(float.class);
         public static final Operator<Float> OP_ADD = nAdd(float.class, 0f, n -> (float) n);
         public static final Operator<Float> OP_SUB = nSub(float.class, 0f, n -> (float) n);
         public static final Operator<Float> OP_MULT = nMult(float.class, 0f, n -> (float) n);
         public static final Operator<Float> OP_DIV = nDiv(float.class, 0f, n -> (float) n);
 
-        public static final Operator<Float> OP_DEF = OP_SET;
-        public static final Operators<Float> OPERATORS = Operators.operators(OP_DEF,
-                OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
+        public static final Map<String, Operator<Float>> OPERATORS = ops(OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
 
-        public static final class Serializer extends Descriptor.Serializer<Float> {
-            public static final Serializer INSTANCE = new Serializer();
-            @Override protected Operators<Float> operators() { return OPERATORS; }
-        }
-
-        private SFloat() { super(new TypeToken<>() {}, OP_DEF); }
+        private SFloat(String key) { super(key); }
+        @Override public Map<String, Operator<Float>> operators() { return OPERATORS; }
+        @Override public Operator<Float> defaultOperator() { return OP_SET; }
     }
 
-    public static final class SDouble extends BasicStat<Double> {
+    public static final class SDouble extends Stat<Double> {
         public static final Operator<Double> OP_SET = nSet(double.class);
         public static final Operator<Double> OP_ADD = nAdd(double.class, 0d, n -> n);
         public static final Operator<Double> OP_SUB = nSub(double.class, 0d, n -> n);
         public static final Operator<Double> OP_MULT = nMult(double.class, 0d, n -> n);
         public static final Operator<Double> OP_DIV = nDiv(double.class, 0d, n -> n);
 
-        public static final Operator<Double> OP_DEF = OP_SET;
-        public static final Operators<Double> OPERATORS = Operators.operators(OP_DEF,
-                OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
+        public static final Map<String, Operator<Double>> OPERATORS = ops(OP_SET, OP_ADD, OP_SUB, OP_MULT, OP_DIV);
 
-        public static final class Serializer extends Descriptor.Serializer<Double> {
-            public static final Serializer INSTANCE = new Serializer();
-            @Override protected Operators<Double> operators() { return OPERATORS; }
-        }
-
-        private SDouble() { super(new TypeToken<>() {}, OP_DEF); }
+        private SDouble(String key) { super(key); }
+        @Override public Map<String, Operator<Double>> operators() { return OPERATORS; }
+        @Override public Operator<Double> defaultOperator() { return OP_SET; }
     }
 }

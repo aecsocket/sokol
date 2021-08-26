@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core.tree;
 import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.component.Slot;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatMap;
 import com.gitlab.aecsocket.sokol.core.system.System;
 import com.gitlab.aecsocket.sokol.core.tree.event.TreeEvent;
 import org.checkerframework.checker.nullness.qual.Nullable;

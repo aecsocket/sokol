@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.core.system.inbuilt;
 
 import com.gitlab.aecsocket.minecommons.core.Quantifier;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.StatLists;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
 import com.gitlab.aecsocket.sokol.core.system.AbstractSystem;
 import com.gitlab.aecsocket.sokol.core.tree.TreeNode;
 import com.gitlab.aecsocket.sokol.core.tree.event.ItemTreeEvent;
@@ -38,7 +38,7 @@ public abstract class NodeHolderSystem<N extends TreeNode> extends AbstractSyste
     /**
      * See {@link NodeHolderSystem}.
      */
-    public abstract class Instance extends AbstractSystem.Instance implements NodeProviderSystem<N> {
+    public abstract class Instance extends AbstractSystem.Instance implements NodeProviderSystem {
         protected final LinkedList<Quantifier<N>> held;
 
         public Instance(TreeNode parent, LinkedList<Quantifier<N>> held) {
