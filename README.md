@@ -63,10 +63,10 @@ implementation("com.gitlab.aecsocket.sokol", "[MODULE]", "[VERSION]")
 
 #### API
 
-The main way to interact with the API is by registering a custom system type, and placing that on a
-component in your configuration. Your system will be able to react to component and item events.
+The main way to interact with the API is by registering a custom feature type, and placing that on a
+component in your configuration. Your feature will be able to react to component and item events.
 
-Example system implementation:
+Example feature implementation:
 
 ```java
 public class TestSystem extends AbstractSystem implements PaperSystem {

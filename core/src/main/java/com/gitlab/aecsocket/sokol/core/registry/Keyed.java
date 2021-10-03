@@ -1,30 +1,21 @@
 package com.gitlab.aecsocket.sokol.core.registry;
 
-import java.util.regex.Pattern;
+import net.kyori.adventure.text.Component;
 
-/**
- * An object which has a string key, which conforms to {@link #VALID_KEY}.
- */
+import java.util.Locale;
+
 public interface Keyed {
-    /**
-     * The pattern that a valid ID must follow.
-     * @see #VALID_KEY_PATTERN
-     */
-    String VALID_KEY = "[a-z0-9/._-]+";
-    /**
-     * The pattern that a valid ID must follow (compiled).
-     * @see #VALID_KEY
-     */
-    Pattern VALID_KEY_PATTERN = Pattern.compile(VALID_KEY);
 
-    /**
-     * Checks if a passed key conforms to {@link #VALID_KEY}.
-     * @param key The key.
-     * @return The result.
-     */
-    static boolean validKey(String key) {
-        return VALID_KEY_PATTERN.matcher(key).matches();
+    String VALID = "abcdefghijklmnopqrstuvwxyz0123456789._-";
+
+    static void validate(String key) throws ValidationException {
+        for (int i = 0; i < key.length(); i++) {
+            char c = key.charAt(i);
+            if (!VALID.contains(c+""))
+                throw new ValidationException(i, c);
+        }
     }
 
     String id();
+    Component name(Locale locale);
 }

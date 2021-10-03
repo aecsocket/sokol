@@ -4,31 +4,23 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * A map of keyed {@link T} objects to their IDs.
- * @param <T> The keyed object type.
- */
-public class Registry<T extends Keyed> extends HashMap<String, T> {
-    public Registry(int initialCapacity, float loadFactor) { super(initialCapacity, loadFactor); }
-    public Registry(int initialCapacity) { super(initialCapacity); }
-    public Registry() {}
-    public Registry(Map<? extends String, ? extends T> m) { super(m); }
+public final class Registry<T extends Keyed> {
+    private final Map<String, T> registry = new HashMap<>();
 
-    /**
-     * Gets an element by its key.
-     * @param key The key.
-     * @return An Optional of the result.
-     */
-    public Optional<T> of(String key) { return Optional.ofNullable(get(key)); }
+    public Map<String, T> registry() { return new HashMap<>(registry); }
 
-    /**
-     * Puts a keyed element in, using its ID as a key.
-     * @param obj The object.
-     * @throws IllegalArgumentException If the object's ID is invalid.
-     */
-    public void register(T obj) throws IllegalArgumentException {
-        if (!Keyed.validKey(obj.id()))
-            throw new IllegalArgumentException("Invalid ID [" + obj.id() + "], must be " + Keyed.VALID_KEY);
-        put(obj.id(), obj);
+    public Optional<T> get(String id) { return Optional.ofNullable(registry.get(id)); }
+
+    public void register(T val) throws ValidationException {
+        Keyed.validate(val.id());
+        registry.put(val.id(), val);
+    }
+
+    public void registerAll(Registry<T> o) {
+        registry.putAll(o.registry);
+    }
+
+    public T unregister(String id) {
+        return registry.remove(id);
     }
 }

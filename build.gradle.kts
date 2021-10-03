@@ -5,7 +5,7 @@ plugins {
 
 allprojects {
     group = "com.gitlab.aecsocket.sokol"
-    version = "1.2"
+    version = "2.0"
     description = "Platform-agnostic, data-driven item framework"
 }
 

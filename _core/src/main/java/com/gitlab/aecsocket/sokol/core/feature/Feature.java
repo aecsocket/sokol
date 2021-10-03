@@ -1,0 +1,106 @@
+package com.gitlab.aecsocket.sokol.core.feature;
+
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
+import com.gitlab.aecsocket.sokol.core.SokolPlatform;
+import com.gitlab.aecsocket.sokol.core.component.Component;
+import com.gitlab.aecsocket.sokol.core.stat.Stat;
+import com.gitlab.aecsocket.sokol.core.stat.collection.StatLists;
+import com.gitlab.aecsocket.sokol.core.feature.util.Availability;
+import com.gitlab.aecsocket.sokol.core.util.TreeNode;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
+import io.leangen.geantyref.TypeToken;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * A feature which is applicable to a {@link Component}, and creates {@link Feature.Instance}s.
+ */
+public interface Feature extends LoadProvider {
+    /**
+     * A descriptor of a feature instance, used in getting a system from a node.
+     * @param <S> The feature instance type.
+     */
+    record Key<S extends Feature.Instance>(String id, TypeToken<S> instanceType) {
+        public Key(String id, Class<S> instanceType) {
+            this(id, TypeToken.get(instanceType));
+        }
+    }
+
+    /**
+     * Helper method for generating a stat map from an array of stats.
+     * @param stats The array of stats.
+     * @return The stat map.
+     */
+    static Map<String, Stat<?>> stats(Stat<?>... stats) {
+        Map<String, Stat<?>> result = new HashMap<>();
+        for (var stat : stats)
+            result.put(stat.key(), stat);
+        return result;
+    }
+
+    /**
+     * A feature instance which is applicable to a {@link TreeNode}, and interacts with the
+     * node by intercepting events.
+     */
+    interface Instance {
+        /**
+         * Gets the parent node that this system is a system of.
+         * @return The parent.
+         */
+        TreeNode parent();
+
+        /**
+         * Gets the base system of this instance.
+         * @return The base system.
+         */
+        Feature base();
+
+        /**
+         * Gets the platform that this system uses.
+         * @return The platform.
+         */
+        SokolPlatform platform();
+
+        /**
+         * Sets this system up using the parent.
+         * <p>
+         * This can cover a multitude of functions, such as:
+         * <ul>
+         *     <li>registering event listeners using the parent's {@link TreeNode#events()}</li>
+         *     <li>setting fields on this feature instance, which are obtained from the parent</li>
+         *     <li>adding custom stats built at system-build time</li>
+         * </ul>
+         * @param stats The existing stats which can be combined with.
+         */
+        default void build(StatLists stats) {}
+
+        default void runAction(Availability avail, String key, ItemUser user, ItemSlot slot, @Nullable Vector3 position) {
+            parent().stats().<Long>val(key + "_delay").ifPresent(avail::delay);
+        }
+    }
+
+    /**
+     * Gets this system's ID.
+     * @return The ID.
+     */
+    String id();
+
+    /**
+     * Creates an instance of this system, applicable on {@link TreeNode}s.
+     * @param node The parent tree node.
+     * @return The instance.
+     */
+    Instance create(TreeNode node);
+
+    /**
+     * Loads this feature instance after all proper serializer setup has been complete.
+     * @param cfg The configuration.
+     * @throws SerializationException If serialization failed.
+     */
+    default void loadSelf(ConfigurationNode cfg) throws SerializationException {}
+}

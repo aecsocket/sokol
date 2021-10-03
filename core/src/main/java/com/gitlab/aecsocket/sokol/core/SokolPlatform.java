@@ -1,8 +1,6 @@
 package com.gitlab.aecsocket.sokol.core;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
-import com.gitlab.aecsocket.sokol.core.component.Blueprint;
-import com.gitlab.aecsocket.sokol.core.component.Component;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 
 import java.util.Locale;
