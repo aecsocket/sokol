@@ -1,6 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.rule;
 
-import com.gitlab.aecsocket.sokol.core.util.IncompatibilityException;
+import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.Node;
 
 public interface Rule {

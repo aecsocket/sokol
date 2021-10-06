@@ -1,6 +1,6 @@
 package com.gitlab.aecsocket.sokol.core;
 
-import com.gitlab.aecsocket.sokol.core.util.IncompatibilityException;
+import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 
 import java.util.Set;
 

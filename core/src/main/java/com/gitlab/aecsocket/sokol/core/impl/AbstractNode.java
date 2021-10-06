@@ -1,8 +1,8 @@
 package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.*;
-import com.gitlab.aecsocket.sokol.core.util.IncompatibilityException;
-import com.gitlab.aecsocket.sokol.core.util.NodePath;
+import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
+import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
