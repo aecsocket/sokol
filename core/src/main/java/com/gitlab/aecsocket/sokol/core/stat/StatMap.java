@@ -36,4 +36,28 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
         return value(key)
                 .orElseThrow(() -> new IllegalStateException("No value for stat [" + key.key() + "]"));
     }
+
+    public <T> StatMap set(Stat<T> key, Stat.Value<T> val) {
+        put(key.key(), key.node(val));
+        return this;
+    }
+
+    private <T> void chain(String key, Stat.Node<T> node) {
+        @SuppressWarnings("unchecked")
+        Stat.Node<T> ours = (Stat.Node<T>) get(key);
+        if (ours == null)
+            put(key, node);
+        else
+            ours.chain(node);
+    }
+
+    public <T> void chain(Stat.Node<T> node) {
+        chain(node.stat().key(), node);
+    }
+
+    public void chain(StatMap o) {
+        for (var entry : o.entrySet()) {
+            chain(entry.getKey(), entry.getValue());
+        }
+    }
 }

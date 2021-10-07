@@ -1,8 +1,12 @@
 package com.gitlab.aecsocket.sokol.core.impl;
 
+import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.*;
+import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
+import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
@@ -19,6 +23,9 @@ public abstract class AbstractNode<
     protected final Map<String, N> nodes = new HashMap<>();
     protected final Map<String, ? extends F> features;
 
+    protected EventDispatcher<NodeEvent<N>> events;
+    protected StatMap stats;
+
     private AbstractNode(C value, @Nullable NodeKey<N> key) {
         this.value = value;
         this.key = key;
@@ -28,6 +35,8 @@ public abstract class AbstractNode<
             features.put(entry.getKey(), feature);
         }
         this.features = Collections.unmodifiableMap(features);
+        events = new EventDispatcher<>();
+        stats = new StatMap();
     }
 
     public AbstractNode(C value, @Nullable N parent, @Nullable String key) {
@@ -51,6 +60,8 @@ public abstract class AbstractNode<
             features.put(entry.getKey(), feature);
         }
         this.features = Collections.unmodifiableMap(features);
+        events = o.events;
+        stats = o.stats;
     }
 
     public abstract N self();
@@ -75,6 +86,8 @@ public abstract class AbstractNode<
         if (this.key != null)
             this.key.parent.removeNode(this.key.key);
         this.key = new NodeKey<>(parent, key);
+        events = parent.events;
+        stats = parent.stats;
         return self();
     }
 
@@ -82,7 +95,14 @@ public abstract class AbstractNode<
     public N orphan() {
         if (key != null)
             key.parent.removeNode(key.key);
+        makeRoot();
+        return self();
+    }
+
+    public N makeRoot() {
         key = null;
+        events = new EventDispatcher<>();
+        stats = new StatMap();
         return self();
     }
 
@@ -135,5 +155,31 @@ public abstract class AbstractNode<
     @Override
     public Map<String, F> features() {
         return new HashMap<>(features);
+    }
+
+    @Override
+    public EventDispatcher<NodeEvent<N>> events() { return events; }
+
+    @Override
+    public StatMap stats() { return stats; }
+
+    @Override
+    public N asRoot() {
+        return copy().makeRoot();
+    }
+
+    @Override
+    public void build(NodeEvent<N> event) {
+        makeRoot();
+        StatIntermediate stats = new StatIntermediate();
+        build(event, stats, self());
+    }
+
+    protected void build(NodeEvent<N> event, StatIntermediate stats, N parent) {
+        for (var feature : features.values()) {
+            feature.build(event, stats);
+        }
+        for (var node : nodes.values())
+            node.build(event, stats, self());
     }
 }

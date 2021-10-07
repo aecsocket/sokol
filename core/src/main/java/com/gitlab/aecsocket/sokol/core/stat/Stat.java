@@ -15,6 +15,51 @@ public interface Stat<T> {
 
     Value<T> deserialize(Type type, ConfigurationNode node) throws SerializationException;
 
+    Node<T> node(Value<T> value);
+
+    @FunctionalInterface
+    interface Value<T> {
+        T compute(T cur);
+    }
+
+    interface InitialValue<T> extends Value<T> {
+        T first();
+    }
+
+    final class Node<T> {
+        private final Stat<T> stat;
+        private final Value<T> value;
+        private @Nullable Node<T> next;
+
+        public Node(Stat<T> stat, Value<T> value) {
+            if (!(value instanceof InitialValue))
+                throw new IllegalStateException("Attempting to start stat node chain with non-initial value");
+            this.stat = stat;
+            this.value = value;
+        }
+
+        public Stat<T> stat() { return stat; }
+        public Value<T> value() { return value; }
+
+        public T compute() {
+            if (!(value instanceof InitialValue<T> initial))
+                throw new IllegalStateException("Start of stat node chain is a non-initial value");
+            T cur;
+            for (cur = initial.first(); next != null; next = next.next)
+                cur = next.value.compute(cur);
+            return cur;
+        }
+
+        public @Nullable Node<T> next() { return next; }
+        public Node<T> chain(Node<T> next) {
+            if (this.next == null)
+                this.next = next;
+            else
+                this.next.chain(next);
+            return this;
+        }
+    }
+
     final class OperationDeserializer<T> {
         @FunctionalInterface
         interface Operation<T> {
@@ -84,40 +129,5 @@ public interface Stat<T> {
         static <T> Builder<T> builder() {
             return new Builder<>();
         }
-    }
-
-    @FunctionalInterface
-    interface Value<T> {
-        T compute(T cur);
-    }
-
-    interface InitialValue<T> extends Value<T> {
-        T first();
-    }
-
-    final class Node<T> {
-        private final Stat<T> stat;
-        private final Value<T> value;
-        private @Nullable Node<T> next;
-
-        public Node(Stat<T> stat, Value<T> value) {
-            this.stat = stat;
-            this.value = value;
-        }
-
-        public Stat<T> stat() { return stat; }
-        public Value<T> value() { return value; }
-
-        public T compute() {
-            if (next == null) {
-                if (value instanceof InitialValue<T> chainable)
-                    return chainable.first();
-                throw new IllegalStateException("Start of stat node chain is a non-initial value");
-            } else
-                return value.compute(next.compute());
-        }
-
-        public @Nullable Node<T> next() { return next; }
-        public Node<T> chain(Node<T> next) { this.next = next; return this; }
     }
 }

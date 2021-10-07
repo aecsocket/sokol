@@ -1,7 +1,10 @@
 package com.gitlab.aecsocket.sokol.core;
 
+import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
+import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
+import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Map;
@@ -23,7 +26,11 @@ public interface Node {
     Map<String, ? extends FeatureInstance<?>> features();
     Optional<? extends FeatureInstance<?>> feature(String key);
 
+    EventDispatcher<? extends NodeEvent<?>> events();
+    StatMap stats();
+
     Node copy();
+    Node asRoot();
 
     interface Scoped<
             N extends Scoped<N, C, F>,
@@ -48,6 +55,10 @@ public interface Node {
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);
 
+        @Override EventDispatcher<NodeEvent<N>> events();
+        void build(NodeEvent<N> event);
+
         @Override N copy();
+        @Override N asRoot();
     }
 }

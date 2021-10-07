@@ -6,8 +6,6 @@ import com.gitlab.aecsocket.sokol.core.Component;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 
-import java.util.Locale;
-
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
     //private final
 

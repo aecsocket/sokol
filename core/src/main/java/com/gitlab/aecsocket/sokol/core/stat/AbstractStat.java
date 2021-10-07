@@ -15,4 +15,9 @@ public abstract class AbstractStat<T> implements Stat<T> {
 
     public String key() { return key; }
     public Optional<T> defaultValue() { return Optional.ofNullable(defaultValue); }
+
+    @Override
+    public Node<T> node(Value<T> value) {
+        return new Node<>(this, value);
+    }
 }

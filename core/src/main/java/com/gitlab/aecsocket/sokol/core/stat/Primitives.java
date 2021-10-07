@@ -20,7 +20,7 @@ public final class Primitives {
             @Override public Boolean first() { return value; }
         }
 
-        private final Stat.OperationDeserializer<Boolean> opDeserializer = Stat.OperationDeserializer.<Boolean>builder()
+        private static final Stat.OperationDeserializer<Boolean> opDeserializer = Stat.OperationDeserializer.<Boolean>builder()
                 .operation("=", (type, node, args) -> new SetValue(require(args[0], boolean.class)), "value")
                 .defaultOperation("=")
                 .build();
@@ -33,6 +33,8 @@ public final class Primitives {
         public Value<Boolean> deserialize(Type type, ConfigurationNode node) throws SerializationException {
             return opDeserializer.deserialize(type, node);
         }
+
+        public SetValue set(boolean value) { return new SetValue(value); }
     }
 
     public static OfString stringStat(String key) { return new OfString(key, null); }
@@ -48,7 +50,7 @@ public final class Primitives {
             @Override public String first() { return value; }
         }
 
-        private final Stat.OperationDeserializer<String> opDeserializer = Stat.OperationDeserializer.<String>builder()
+        private static final Stat.OperationDeserializer<String> opDeserializer = Stat.OperationDeserializer.<String>builder()
                 .operation("=", (type, node, args) -> new SetValue(require(args[0], String.class)), "value")
                 .operation("+", (type, node, args) -> new AddValue(require(args[0], String.class)), "value")
                 .defaultOperation("=")
@@ -62,6 +64,9 @@ public final class Primitives {
         public Value<String> deserialize(Type type, ConfigurationNode node) throws SerializationException {
             return opDeserializer.deserialize(type, node);
         }
+
+        public SetValue set(String value) { return new SetValue(value); }
+        public AddValue add(String value) { return new AddValue(value); }
     }
 
     public static OfInteger integerStat(String key) { return new OfInteger(key, null); }
@@ -89,7 +94,7 @@ public final class Primitives {
             @Override public Long first() { return value; }
         }
 
-        private final Stat.OperationDeserializer<Long> opDeserializer = Stat.OperationDeserializer.<Long>builder()
+        private static final Stat.OperationDeserializer<Long> opDeserializer = Stat.OperationDeserializer.<Long>builder()
                 .operation("=", (type, node, args) -> new SetValue(require(args[0], long.class)), "value")
                 .operation("+", (type, node, args) -> new AddValue(require(args[0], long.class)), "value")
                 .operation("-", (type, node, args) -> new SubtractValue(require(args[0], long.class)), "value")
@@ -106,10 +111,16 @@ public final class Primitives {
         public Value<Long> deserialize(Type type, ConfigurationNode node) throws SerializationException {
             return opDeserializer.deserialize(type, node);
         }
+
+        public SetValue set(long value) { return new SetValue(value); }
+        public AddValue add(long value) { return new AddValue(value); }
+        public SubtractValue subtract(long value) { return new SubtractValue(value); }
+        public MultiplyValue multiply(long value) { return new MultiplyValue(value); }
+        public DivideValue divide(long value) { return new DivideValue(value); }
     }
 
-    public static OfDecimal longStat(String key) { return new OfDecimal(key, null); }
-    public static OfDecimal longStat(String key, double def) { return new OfDecimal(key, def); }
+    public static OfDecimal decimalStat(String key) { return new OfDecimal(key, null); }
+    public static OfDecimal decimalStat(String key, double def) { return new OfDecimal(key, def); }
 
     public static class OfDecimal extends AbstractStat<Double> {
         public record SetValue(double value) implements InitialValue<Double> {
@@ -133,7 +144,7 @@ public final class Primitives {
             @Override public Double first() { return value; }
         }
 
-        private final Stat.OperationDeserializer<Double> opDeserializer = Stat.OperationDeserializer.<Double>builder()
+        private static final Stat.OperationDeserializer<Double> opDeserializer = Stat.OperationDeserializer.<Double>builder()
                 .operation("=", (type, node, args) -> new SetValue(require(args[0], double.class)), "value")
                 .operation("+", (type, node, args) -> new AddValue(require(args[0], double.class)), "value")
                 .operation("-", (type, node, args) -> new SubtractValue(require(args[0], double.class)), "value")
@@ -150,5 +161,11 @@ public final class Primitives {
         public Value<Double> deserialize(Type type, ConfigurationNode node) throws SerializationException {
             return opDeserializer.deserialize(type, node);
         }
+
+        public SetValue set(double value) { return new SetValue(value); }
+        public AddValue add(double value) { return new AddValue(value); }
+        public SubtractValue subtract(double value) { return new SubtractValue(value); }
+        public MultiplyValue multiply(double value) { return new MultiplyValue(value); }
+        public DivideValue divide(double value) { return new DivideValue(value); }
     }
 }
