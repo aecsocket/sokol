@@ -20,15 +20,15 @@ public interface Node {
     Optional<? extends Node> node(String... path);
     Node removeNode(String key);
 
-    Map<String, ? extends Feature<?>> features();
-    Optional<? extends Feature<?>> feature(String key);
+    Map<String, ? extends FeatureInstance<?>> features();
+    Optional<? extends FeatureInstance<?>> feature(String key);
 
     Node copy();
 
     interface Scoped<
             N extends Scoped<N, C, F>,
-            C extends Component.Scoped<C, ?, ? extends FeatureType<? extends F, N>, N>,
-            F extends Feature.Scoped<? extends F, N>
+            C extends Component.Scoped<C, ?, ? extends Feature<? extends F, N>, N>,
+            F extends FeatureInstance<N>
     > extends Node {
         N self();
 

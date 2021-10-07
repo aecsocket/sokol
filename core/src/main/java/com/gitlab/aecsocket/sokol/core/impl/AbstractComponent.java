@@ -1,19 +1,14 @@
 package com.gitlab.aecsocket.sokol.core.impl;
 
-import com.gitlab.aecsocket.sokol.core.Component;
-import com.gitlab.aecsocket.sokol.core.Slot;
-import com.gitlab.aecsocket.sokol.core.SokolPlatform;
-import com.gitlab.aecsocket.sokol.core.Feature;
-import com.gitlab.aecsocket.sokol.core.FeatureType;
-import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.*;
 
 import java.util.*;
 
 public abstract class AbstractComponent<
         C extends AbstractComponent<C, S, F, N>,
         S extends Slot,
-        F extends FeatureType<? extends Feature<N>, N>,
-        N extends Node
+        F extends Feature<? extends FeatureInstance<N>, N>,
+        N extends Node.Scoped<N, ?, ?>
 > implements Component.Scoped<C, S, F, N> {
     protected final String id;
     protected final Set<String> tags;

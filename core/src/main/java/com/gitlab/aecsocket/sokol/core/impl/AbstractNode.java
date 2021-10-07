@@ -9,8 +9,8 @@ import java.util.*;
 
 public abstract class AbstractNode<
         N extends AbstractNode<N, C, F>,
-        C extends Component.Scoped<C, ?, ? extends FeatureType<? extends F, N>, N>,
-        F extends Feature.Scoped<? extends F, N>
+        C extends Component.Scoped<C, ?, ? extends Feature<? extends F, N>, N>,
+        F extends FeatureInstance<N>
 > implements Node.Scoped<N, C, F> {
     protected record NodeKey<N extends Node>(N parent, String key) {}
 
@@ -24,7 +24,6 @@ public abstract class AbstractNode<
         this.key = key;
         Map<String, F> features = new HashMap<>();
         for (var entry : value.featureTypes().entrySet()) {
-            @SuppressWarnings("unchecked") // the warning makes no sense
             F feature = entry.getValue().create(self());
             features.put(entry.getKey(), feature);
         }
@@ -39,6 +38,8 @@ public abstract class AbstractNode<
         this(value, null);
     }
 
+    protected abstract F copyFeature(F val);
+
     public AbstractNode(N o) {
         value = o.value;
         key = o.key;
@@ -46,8 +47,7 @@ public abstract class AbstractNode<
             nodes.put(entry.getKey(), entry.getValue().copy());
         Map<String, F> features = new HashMap<>();
         for (var entry : o.features.entrySet()) {
-            @SuppressWarnings("unchecked") // the warning makes no sense
-            F feature = entry.getValue().copy();
+            F feature = copyFeature(entry.getValue());
             features.put(entry.getKey(), feature);
         }
         this.features = Collections.unmodifiableMap(features);

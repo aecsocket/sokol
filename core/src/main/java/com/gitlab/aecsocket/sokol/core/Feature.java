@@ -1,15 +1,10 @@
 package com.gitlab.aecsocket.sokol.core;
 
-public interface Feature<N extends Node> {
-    FeatureType<?, N> type();
-    N parent();
+import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 
-    Feature<N> copy();
-
-    interface Scoped<F extends Scoped<F, N>, N extends Node> extends Feature<N> {
-        @Override FeatureType<F, N> type();
-        @Override N parent();
-
-        @Override F copy();
-    }
+public interface Feature<
+        F extends FeatureInstance<N>,
+        N extends Node.Scoped<N, ?, ?>
+> extends Keyed {
+    F create(N node);
 }

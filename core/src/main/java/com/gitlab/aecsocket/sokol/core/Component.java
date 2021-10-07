@@ -13,14 +13,14 @@ public interface Component extends Keyed {
     Map<String, ? extends Slot> slots();
     Optional<? extends Slot> slot(String key);
 
-    Map<String, ? extends FeatureType<?, ?>> featureTypes();
-    Optional<? extends FeatureType<?, ?>> featureType(String key);
+    Map<String, ? extends Feature<?, ?>> featureTypes();
+    Optional<? extends Feature<?, ?>> featureType(String key);
 
     interface Scoped<
             C extends Scoped<C, S, F, N>,
             S extends Slot,
-            F extends FeatureType<? extends Feature<? extends N>, N>,
-            N extends Node
+            F extends Feature<? extends FeatureInstance<? extends N>, N>,
+            N extends Node.Scoped<N, ?, ?>
     > extends Component {
         @Override Map<String, S> slots();
         @Override Optional<S> slot(String key);
