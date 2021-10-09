@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core.impl;
 import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.*;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
-import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
+import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
@@ -112,11 +112,21 @@ public abstract class AbstractNode<
     }
 
     @Override
+    public boolean isRoot() {
+        return key == null;
+    }
+
+    @Override
     public Optional<N> node(String... path) {
         if (path.length == 0)
             return Optional.of(self());
         N next = nodes.get(path[0]);
         return next == null ? Optional.empty() : next.node(Arrays.copyOfRange(path, 1, path.length));
+    }
+
+    @Override
+    public Optional<N> node(NodePath path) {
+        return node(path.array());
     }
 
     @Override
@@ -133,7 +143,7 @@ public abstract class AbstractNode<
     }
 
     @Override
-    public N node(String key, N val) throws IncompatibilityException {
+    public N node(String key, N val) throws RuleException {
         Slot slot = value.slot(key)
                 .orElseThrow(() -> new IllegalArgumentException("No slot [" + key + "] exists on component [" + value.id() + "]"));
         slot.compatibility(this, val);

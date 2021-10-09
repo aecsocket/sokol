@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.*;
+import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 
 import java.util.*;
 
@@ -14,12 +15,14 @@ public abstract class AbstractComponent<
     protected final Set<String> tags;
     protected final Map<String, S> slots;
     protected final Map<String, F> featureTypes;
+    protected final StatIntermediate stats;
 
-    public AbstractComponent(String id, Set<String> tags, Map<String, S> slots, Map<String, F> featureTypes) {
+    public AbstractComponent(String id, Set<String> tags, Map<String, S> slots, Map<String, F> featureTypes, StatIntermediate stats) {
         this.id = id;
         this.tags = tags;
         this.slots = slots;
         this.featureTypes = featureTypes;
+        this.stats = stats;
     }
 
     protected abstract SokolPlatform platform();
@@ -38,4 +41,6 @@ public abstract class AbstractComponent<
 
     @Override public Map<String, F> featureTypes() { return new HashMap<>(featureTypes); }
     @Override public Optional<F> featureType(String key) { return Optional.ofNullable(featureTypes.get(key)); }
+
+    @Override public StatIntermediate stats() { return stats; }
 }

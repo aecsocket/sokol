@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core;
 
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
+import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 
 import java.util.Map;
 import java.util.Optional;
@@ -15,6 +16,8 @@ public interface Component extends Keyed {
 
     Map<String, ? extends Feature<?, ?>> featureTypes();
     Optional<? extends Feature<?, ?>> featureType(String key);
+
+    StatIntermediate stats();
 
     interface Scoped<
             C extends Scoped<C, S, F, N>,

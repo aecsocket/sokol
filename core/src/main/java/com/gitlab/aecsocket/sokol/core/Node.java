@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.core;
 
 import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
-import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
+import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -18,9 +18,11 @@ public interface Node {
 
     NodePath path();
     Node root();
+    boolean isRoot();
 
     Map<String, ? extends Node> nodes();
     Optional<? extends Node> node(String... path);
+    Optional<? extends Node> node(NodePath path);
     Node removeNode(String key);
 
     Map<String, ? extends FeatureInstance<?>> features();
@@ -49,8 +51,9 @@ public interface Node {
 
         @Override Map<String, N> nodes();
         @Override Optional<N> node(String... path);
+        @Override Optional<N> node(NodePath path);
         @Override N removeNode(String key);
-        N node(String key, N val) throws IncompatibilityException;
+        N node(String key, N val) throws RuleException;
 
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);

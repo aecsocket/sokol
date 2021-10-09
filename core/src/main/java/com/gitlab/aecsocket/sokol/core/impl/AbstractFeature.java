@@ -16,7 +16,7 @@ public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends No
         return platform().lc().safe(locale, "feature." + id());
     }
 
-    public abstract class AbstractInstance implements FeatureInstance<N> {
+    public static abstract class AbstractInstance<N extends Node.Scoped<N, ?, ?>> implements FeatureInstance<N> {
         protected final N parent;
 
         public AbstractInstance(N parent) {
@@ -24,7 +24,5 @@ public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends No
         }
 
         @Override public N parent() { return parent; }
-
-        @Override public AbstractFeature<F, N> type() { return AbstractFeature.this; }
     }
 }

@@ -8,12 +8,13 @@ public interface Keyed {
 
     String VALID = "abcdefghijklmnopqrstuvwxyz0123456789._-";
 
-    static void validate(String key) throws ValidationException {
+    static String validate(String key) throws ValidationException {
         for (int i = 0; i < key.length(); i++) {
             char c = key.charAt(i);
-            if (!VALID.contains(c+""))
+            if (!VALID.contains(""+c))
                 throw new ValidationException(i, c);
         }
+        return key;
     }
 
     String id();

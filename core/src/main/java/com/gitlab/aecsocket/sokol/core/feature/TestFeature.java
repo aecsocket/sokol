@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
+import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Primitives;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
@@ -16,10 +17,13 @@ public abstract class TestFeature<N extends Node.Scoped<N, ?, ?>> extends Abstra
     public static final Primitives.OfFlag STAT_SOME_FLAG = Primitives.flagStat("some_flag");
     public static final Primitives.OfDecimal STAT_INACCURACY = Primitives.decimalStat("inaccuracy");
 
-    public abstract class Instance extends AbstractInstance {
+    public abstract class Instance extends AbstractInstance<N> {
         public Instance(N parent) {
             super(parent);
         }
+
+        @Override
+        public TestFeature<N> type() { return TestFeature.this; }
 
         interface ItemUserImpl extends ItemUser {
             boolean flag();
@@ -34,7 +38,8 @@ public abstract class TestFeature<N extends Node.Scoped<N, ?, ?>> extends Abstra
                         stats.addReverse(new StatMap()
                                         .set(STAT_SOME_FLAG, STAT_SOME_FLAG.set(true))
                                         .set(STAT_INACCURACY, STAT_INACCURACY.multiply(2)),
-                                StatIntermediate.maxPriority());
+                                StatIntermediate.Priority.MAX,
+                                Rule.Constant.TRUE);
                     }
                 }
             }
