@@ -1,15 +1,14 @@
 package com.gitlab.aecsocket.sokol.core.rule;
 
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import net.kyori.adventure.text.Component;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.StringJoiner;
+import java.util.*;
 
 import static net.kyori.adventure.text.Component.*;
+import static net.kyori.adventure.text.JoinConfiguration.*;
 import static com.gitlab.aecsocket.sokol.core.rule.Rule.*;
 
 public final class LogicRule {
@@ -55,9 +54,9 @@ public final class LogicRule {
         public String toString() { return "!(" + term + ")"; }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             return text("!", OPERATOR)
-                    .append(wrapBrackets(term.format()));
+                    .append(wrapBrackets(term.render(locale, lc)));
         }
     }
 
@@ -101,11 +100,11 @@ public final class LogicRule {
         }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             List<Component> components = new ArrayList<>();
             for (var term : terms)
-                components.add(wrapBrackets(term.format()));
-            return join(text(" " + symbol() + " ", SYMBOL), components);
+                components.add(wrapBrackets(term.render(locale, lc)));
+            return join(separator(text(" " + symbol() + " ", SYMBOL)), components);
         }
     }
 

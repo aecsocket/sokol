@@ -3,6 +3,28 @@ package com.gitlab.aecsocket.sokol.core.stat;
 import java.util.*;
 
 public final class StatTypes {
+    public static final StatTypes EMPTY = new StatTypes(Collections.emptyMap());
+
+    private final Map<String, Stat<?>> handle;
+
+    public StatTypes(Map<String, Stat<?>> handle) {
+        this.handle = Collections.unmodifiableMap(handle);
+    }
+
+    public static Builder builder() { return new Builder(); }
+
+    public static StatTypes types(Stat<?>... stats) {
+        return builder().add(stats).build();
+    }
+
+    public Map<String, Stat<?>> handle() { return new HashMap<>(handle); }
+
+    public <T> Stat<T> get(String key) {
+        @SuppressWarnings("unchecked")
+        Stat<T> result = (Stat<T>) handle.get(key);
+        return result;
+    }
+
     public static final class Builder {
         private final Map<String, Stat<?>> handle = new HashMap<>();
 
@@ -24,25 +46,5 @@ public final class StatTypes {
         }
 
         public StatTypes build() { return new StatTypes(handle); }
-    }
-
-    private final Map<String, Stat<?>> handle;
-
-    public StatTypes(Map<String, Stat<?>> handle) {
-        this.handle = Collections.unmodifiableMap(handle);
-    }
-
-    public static Builder builder() { return new Builder(); }
-
-    public static StatTypes types(Stat<?>... stats) {
-        return builder().add(stats).build();
-    }
-
-    public Map<String, Stat<?>> handle() { return new HashMap<>(handle); }
-
-    public <T> Stat<T> get(String key) {
-        @SuppressWarnings("unchecked")
-        Stat<T> result = (Stat<T>) handle.get(key);
-        return result;
     }
 }

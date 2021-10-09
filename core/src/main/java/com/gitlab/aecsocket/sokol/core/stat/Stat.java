@@ -1,5 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
+import com.gitlab.aecsocket.sokol.core.Renderable;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -9,7 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public interface Stat<T> {
+public interface Stat<T> extends Renderable {
     String key();
     Optional<T> defaultValue();
 
@@ -17,8 +19,12 @@ public interface Stat<T> {
 
     Node<T> node(Value<T> value);
 
-    @FunctionalInterface
-    interface Value<T> {
+    @Override
+    default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
+        return lc.safe(locale, "stat." + key());
+    }
+
+    interface Value<T> extends Renderable {
         T compute(T cur);
     }
 
@@ -44,10 +50,11 @@ public interface Stat<T> {
         public T compute() {
             if (!(value instanceof InitialValue<T> initial))
                 throw new IllegalStateException("Start of stat node chain is a non-initial value");
-            T cur;
-            for (cur = initial.first(); next != null; next = next.next)
-                cur = next.value.compute(cur);
-            return cur;
+            Node<T> node = next;
+            T value = initial.first();
+            for (; node != null; node = node.next)
+                value = node.value.compute(value);
+            return value;
         }
 
         public @Nullable Node<T> next() { return next; }
@@ -57,6 +64,14 @@ public interface Stat<T> {
             else
                 this.next.chain(next);
             return this;
+        }
+
+        public List<Node<T>> asList() {
+            List<Node<T>> result = new LinkedList<>();
+            Node<T> node = this;
+            for (; node != null; node = node.next)
+                result.add(node);
+            return result;
         }
     }
 

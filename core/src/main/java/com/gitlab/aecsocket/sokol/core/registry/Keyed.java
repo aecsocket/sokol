@@ -1,11 +1,8 @@
 package com.gitlab.aecsocket.sokol.core.registry;
 
-import net.kyori.adventure.text.Component;
+import com.gitlab.aecsocket.sokol.core.Renderable;
 
-import java.util.Locale;
-
-public interface Keyed {
-
+public interface Keyed extends Renderable {
     String VALID = "abcdefghijklmnopqrstuvwxyz0123456789._-";
 
     static String validate(String key) throws ValidationException {
@@ -18,5 +15,4 @@ public interface Keyed {
     }
 
     String id();
-    Component name(Locale locale);
 }

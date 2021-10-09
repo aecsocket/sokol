@@ -10,8 +10,7 @@ import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
-import com.gitlab.aecsocket.sokol.paper.impl.PaperBlueprint;
-import com.gitlab.aecsocket.sokol.paper.impl.PaperComponent;
+import com.gitlab.aecsocket.sokol.paper.impl.*;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
@@ -25,11 +24,13 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperBlueprint> blueprints = new Registry<>();
+    private final Registry<FeatureType> featureTypes = new Registry<>();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
 
     @Override public Registry<PaperComponent> components() { return components; }
     @Override public Registry<PaperBlueprint> blueprints() { return blueprints; }
+    public Registry<FeatureType> featureTypes() { return featureTypes; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
 

@@ -4,16 +4,13 @@ import com.gitlab.aecsocket.sokol.core.Feature;
 import com.gitlab.aecsocket.sokol.core.FeatureInstance;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
-import net.kyori.adventure.text.Component;
-
-import java.util.Locale;
+import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 
 public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends Node.Scoped<N, ?, ?>> implements Feature<F, N> {
     protected abstract SokolPlatform platform();
 
-    @Override
-    public Component name(Locale locale) {
-        return platform().lc().safe(locale, "feature." + id());
+    public AbstractFeature() {
+        Keyed.validate(id());
     }
 
     public static abstract class AbstractInstance<N extends Node.Scoped<N, ?, ?>> implements FeatureInstance<N> {

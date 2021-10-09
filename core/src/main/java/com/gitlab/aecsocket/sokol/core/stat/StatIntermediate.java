@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
+import org.spongepowered.configurate.objectmapping.meta.Required;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
 
@@ -59,7 +60,7 @@ public final class StatIntermediate {
     }
 
     @ConfigSerializable
-    public record MapData(StatMap stats, Priority priority, Rule rule) {}
+    public record MapData(@Required StatMap stats, @Required Priority priority, @Required Rule rule) {}
 
     private final List<MapData> forward;
     private final List<MapData> reverse;

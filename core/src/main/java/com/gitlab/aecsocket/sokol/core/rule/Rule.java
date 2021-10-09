@@ -1,10 +1,12 @@
 package com.gitlab.aecsocket.sokol.core.rule;
 
+import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
+import com.gitlab.aecsocket.sokol.core.Renderable;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.BasicConfigurationNode;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -15,16 +17,9 @@ import java.lang.reflect.Type;
 import java.util.*;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
-import static net.kyori.adventure.text.format.NamedTextColor.*;
 import static net.kyori.adventure.text.Component.*;
 
-public interface Rule {
-    NamedTextColor CONSTANT = AQUA;
-    NamedTextColor BRACKET = GRAY;
-    NamedTextColor SYMBOL = WHITE;
-    NamedTextColor OPERATOR = GREEN;
-    NamedTextColor PATH = DARK_GREEN;
-
+public interface Rule extends Renderable {
     Component OPEN_BRACKET = text("(", BRACKET);
     Component CLOSED_BRACKET = text(")", BRACKET);
 
@@ -35,7 +30,9 @@ public interface Rule {
     void applies(Node node) throws RuleException;
     void visit(Visitor visitor);
 
-    Component format();
+    static CollectionBuilder.OfMap<String, Class<? extends Rule>> types() {
+        return CollectionBuilder.map(new HashMap<>());
+    }
 
     interface Visitor {
         void visit(Rule rule);
@@ -85,7 +82,7 @@ public interface Rule {
         public String toString() { return "<" + value + ">"; }
 
         @Override
-        public Component format() { return text(value, CONSTANT); }
+        public Component render(Locale locale, Localizer lc) { return lc.safe(locale, "constant." + value).color(CONSTANT); }
     }
 
     final class Serializer implements TypeSerializer<Rule> {

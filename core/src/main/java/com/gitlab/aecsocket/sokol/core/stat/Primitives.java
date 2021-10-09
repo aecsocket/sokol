@@ -1,15 +1,29 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
+import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+
+import static net.kyori.adventure.text.Component.*;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
 public final class Primitives {
     private Primitives() {}
+
+    private static final Map<Locale, DecimalFormat> formatterPool = new HashMap<>();
+    private static DecimalFormat formatter(Locale locale) {
+        return formatterPool.computeIfAbsent(locale, l -> new DecimalFormat("0.#####", DecimalFormatSymbols.getInstance(l)));
+    }
 
     public static OfFlag flagStat(String key) { return new OfFlag(key, null); }
     public static OfFlag flagStat(String key, boolean def) { return new OfFlag(key, def); }
@@ -18,6 +32,7 @@ public final class Primitives {
         public record SetValue(boolean value) implements InitialValue<Boolean> {
             @Override public Boolean compute(Boolean cur) { return value; }
             @Override public Boolean first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return lc.safe(locale, "constant." + value).color(CONSTANT); }
         }
 
         private static final Stat.OperationDeserializer<Boolean> opDeserializer = Stat.OperationDeserializer.<Boolean>builder()
@@ -44,10 +59,12 @@ public final class Primitives {
         public record SetValue(String value) implements InitialValue<String> {
             @Override public String compute(String cur) { return value; }
             @Override public String first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(value, CONSTANT)); }
         }
         public record AddValue(String value) implements InitialValue<String> {
             @Override public String compute(String cur) { return cur + value; }
             @Override public String first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(value, CONSTANT)); }
         }
 
         private static final Stat.OperationDeserializer<String> opDeserializer = Stat.OperationDeserializer.<String>builder()
@@ -76,22 +93,27 @@ public final class Primitives {
         public record SetValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return value; }
             @Override public Long first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record AddValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur + value; }
             @Override public Long first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record SubtractValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur - value; }
             @Override public Long first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("-", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record MultiplyValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur * value; }
             @Override public Long first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("*", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record DivideValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur / value; }
             @Override public Long first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("÷", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
 
         private static final Stat.OperationDeserializer<Long> opDeserializer = Stat.OperationDeserializer.<Long>builder()
@@ -126,22 +148,27 @@ public final class Primitives {
         public record SetValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return value; }
             @Override public Double first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record AddValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur + value; }
             @Override public Double first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record SubtractValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur - value; }
             @Override public Double first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("-", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record MultiplyValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur * value; }
             @Override public Double first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("*", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
         public record DivideValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur / value; }
             @Override public Double first() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text("÷", OPERATOR).append(text(formatter(locale).format(value), CONSTANT)); }
         }
 
         private static final Stat.OperationDeserializer<Double> opDeserializer = Stat.OperationDeserializer.<Double>builder()

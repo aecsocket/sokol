@@ -1,14 +1,15 @@
 package com.gitlab.aecsocket.sokol.paper.impl;
 
+import com.gitlab.aecsocket.sokol.core.LoadProvider;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractComponent;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.ValidationException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.paper.FeatureType;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import io.leangen.geantyref.TypeToken;
-import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -27,19 +28,14 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
         this.platform = platform;
     }
 
-    @Override
     public SokolPlugin platform() { return platform; }
-
-    public Component slotName(String key, Locale locale) {
-        return platform.lc().safe(locale, "slot." + key);
-    }
 
     @Override
     public String toString() {
         return "PaperComponent:" + id + '{' +
                 "tags=" + tags +
                 ", slots=" + slots +
-                ", featureTypes=" + featureTypes.keySet() +
+                ", featureTypes=" + features.keySet() +
                 '}';
     }
 
@@ -67,15 +63,29 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 throw new SerializationException(node, type, "Invalid ID '" + id + "'", e);
             }
 
-            Map<String, Stat<?>> statTypes = new HashMap<>();
-            Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>();
+            List<LoadProvider> loadProviders = new ArrayList<>();
 
             Map<String, PaperFeature<?>> features = new HashMap<>();
+            Map<PaperFeature<?>, ConfigurationNode> featureConfigs = new HashMap<>();
             for (var entry : node.node("features").childrenMap().entrySet()) {
                 String featureId = ""+entry.getKey();
                 ConfigurationNode config = entry.getValue();
+                FeatureType featureType = plugin.featureTypes().get(featureId)
+                        .orElseThrow(() -> new SerializationException(node, type, "No feature with ID '" + featureId + "'"));
+                PaperFeature<?> feature = featureType.createSystem(config);
+                loadProviders.add(featureType);
+                features.put(featureId, feature);
+                featureConfigs.put(feature, config);
             }
 
+            Map<String, Stat<?>> statTypes = new HashMap<>();
+            Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>();
+            for (var provider : loadProviders) {
+                statTypes.putAll(provider.statTypes().handle());
+                String prefix = provider.id();
+                for (var ruleType : provider.ruleTypes().entrySet())
+                    ruleTypes.put(prefix + ruleType.getKey(), ruleType.getValue());
+            }
             plugin.statMapSerializer().types(statTypes);
             plugin.ruleSerializer().types(ruleTypes);
 
@@ -91,7 +101,9 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 slots.put(key, require(value, PaperSlot.class));
             }
 
-            // TODO load the feature configs
+            for (var entry : featureConfigs.entrySet()) {
+                entry.getKey().configure(entry.getValue());
+            }
 
             PaperComponent result = new PaperComponent(plugin,
                     id,

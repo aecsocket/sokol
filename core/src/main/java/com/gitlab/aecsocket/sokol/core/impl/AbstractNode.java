@@ -30,7 +30,7 @@ public abstract class AbstractNode<
         this.value = value;
         this.key = key;
         Map<String, F> features = new HashMap<>();
-        for (var entry : value.featureTypes().entrySet()) {
+        for (var entry : value.features().entrySet()) {
             F feature = entry.getValue().create(self());
             features.put(entry.getKey(), feature);
         }

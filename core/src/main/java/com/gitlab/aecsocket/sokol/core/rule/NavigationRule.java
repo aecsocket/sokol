@@ -1,21 +1,24 @@
 package com.gitlab.aecsocket.sokol.core.rule;
 
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import net.kyori.adventure.text.Component;
 
+import java.util.Locale;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 import static net.kyori.adventure.text.Component.*;
+import static net.kyori.adventure.text.JoinConfiguration.*;
 import static com.gitlab.aecsocket.sokol.core.rule.Rule.*;
 
 public final class NavigationRule {
     private NavigationRule() {}
 
     private static Component formatPath(NodePath path) {
-        return join(text("/", PATH),
+        return join(separator(text("/", PATH)),
                 path.list().stream().map(p -> text(p, PATH)).collect(Collectors.toList()));
     }
 
@@ -56,7 +59,7 @@ public final class NavigationRule {
         public String toString() { return "?" + path; }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             return text("?", OPERATOR)
                     .append(formatPath(path));
         }
@@ -86,10 +89,10 @@ public final class NavigationRule {
         public String toString() { return symbol() + path + "(" + term + ")"; }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             return text(symbol(), OPERATOR)
                     .append(formatPath(path))
-                    .append(wrapBrackets(term.format()));
+                    .append(wrapBrackets(term.render(locale, lc)));
         }
     }
 
@@ -191,7 +194,7 @@ public final class NavigationRule {
         public String toString() { return "/?"; }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             return text("/?", OPERATOR);
         }
     }

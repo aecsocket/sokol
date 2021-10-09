@@ -1,10 +1,13 @@
 package com.gitlab.aecsocket.sokol.core.rule;
 
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.Renderable;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import net.kyori.adventure.text.Component;
 
 import java.util.Collections;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Set;
 
@@ -14,7 +17,7 @@ public final class ComponentRule {
     private ComponentRule() {}
 
     private static Component formatStrings(Set<String> strings) {
-        return text(String.join(",", strings), Rule.CONSTANT);
+        return text(String.join(",", strings), Renderable.CONSTANT);
     }
 
     public static final class HasTags implements Rule {
@@ -54,7 +57,7 @@ public final class ComponentRule {
         public String toString() { return "#" + tags; }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             return text("#", OPERATOR)
                     .append(formatStrings(tags));
         }
@@ -71,7 +74,7 @@ public final class ComponentRule {
 
         @Override
         public void applies(Node node) throws RuleException {
-            if (Collections.disjoint(node.value().featureTypes().keySet(), features))
+            if (Collections.disjoint(node.value().features().keySet(), features))
                 throw new RuleException(this, "Node does not have features");
         }
 
@@ -97,7 +100,7 @@ public final class ComponentRule {
         public String toString() { return "~" + features; }
 
         @Override
-        public Component format() {
+        public Component render(Locale locale, Localizer lc) {
             return text("~", OPERATOR)
                     .append(formatStrings(features));
         }
