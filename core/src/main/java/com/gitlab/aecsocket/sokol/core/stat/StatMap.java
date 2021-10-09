@@ -6,7 +6,6 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
 
 import java.lang.reflect.Type;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -76,7 +75,10 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
 
         @Override
         public void serialize(Type type, @Nullable StatMap obj, ConfigurationNode node) throws SerializationException {
-            throw new UnsupportedOperationException();
+            if (obj == null) node.set(null);
+            else {
+                throw new UnsupportedOperationException();
+            }
         }
 
         private <T> void add(Type type, String key, ConfigurationNode node, Stat<T> stat, StatMap result) throws SerializationException {

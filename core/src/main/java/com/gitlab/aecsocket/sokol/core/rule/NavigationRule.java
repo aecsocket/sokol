@@ -3,11 +3,21 @@ package com.gitlab.aecsocket.sokol.core.rule;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
+import net.kyori.adventure.text.Component;
 
 import java.util.Objects;
+import java.util.stream.Collectors;
+
+import static net.kyori.adventure.text.Component.*;
+import static com.gitlab.aecsocket.sokol.core.rule.Rule.*;
 
 public final class NavigationRule {
     private NavigationRule() {}
+
+    private static Component formatPath(NodePath path) {
+        return join(text("/", PATH),
+                path.list().stream().map(p -> text(p, PATH)).collect(Collectors.toList()));
+    }
 
     public static final class Has implements Rule {
         private final NodePath path;
@@ -44,19 +54,49 @@ public final class NavigationRule {
 
         @Override
         public String toString() { return "?" + path; }
+
+        @Override
+        public Component format() {
+            return text("?", OPERATOR)
+                    .append(formatPath(path));
+        }
     }
 
-    public static final class As implements Rule {
-        private final NodePath path;
-        private final Rule term;
+    public static abstract class Navigation implements Rule {
+        protected final NodePath path;
+        protected final Rule term;
 
-        public As(NodePath path, Rule term) {
+        public Navigation(NodePath path, Rule term) {
             this.path = path;
             this.term = term;
         }
 
         public NodePath path() { return path; }
         public Rule term() { return term; }
+
+        @Override
+        public void visit(Visitor visitor) {
+            visitor.visit(this);
+            term.visit(visitor);
+        }
+
+        protected abstract String symbol();
+
+        @Override
+        public String toString() { return symbol() + path + "(" + term + ")"; }
+
+        @Override
+        public Component format() {
+            return text(symbol(), OPERATOR)
+                    .append(formatPath(path))
+                    .append(wrapBrackets(term.format()));
+        }
+    }
+
+    public static final class As extends Navigation {
+        public As(NodePath path, Rule term) {
+            super(path, term);
+        }
 
         @Override
         public void applies(Node node) throws RuleException {
@@ -71,10 +111,7 @@ public final class NavigationRule {
         }
 
         @Override
-        public void visit(Visitor visitor) {
-            visitor.visit(this);
-            term.visit(visitor);
-        }
+        protected String symbol() { return "$"; }
 
         @Override
         public boolean equals(Object o) {
@@ -88,22 +125,12 @@ public final class NavigationRule {
         public int hashCode() {
             return Objects.hash(path, term);
         }
-
-        @Override
-        public String toString() { return "$" + path + "(" + term + ")"; }
     }
 
-    public static final class AsRoot implements Rule {
-        private final NodePath path;
-        private final Rule term;
-
+    public static final class AsRoot extends Navigation {
         public AsRoot(NodePath path, Rule term) {
-            this.path = path;
-            this.term = term;
+            super(path, term);
         }
-
-        public NodePath path() { return path; }
-        public Rule term() { return term; }
 
         @Override
         public void applies(Node node) throws RuleException {
@@ -118,10 +145,7 @@ public final class NavigationRule {
         }
 
         @Override
-        public void visit(Visitor visitor) {
-            visitor.visit(this);
-            term.visit(visitor);
-        }
+        protected String symbol() { return "/"; }
 
         @Override
         public boolean equals(Object o) {
@@ -135,9 +159,6 @@ public final class NavigationRule {
         public int hashCode() {
             return Objects.hash(term);
         }
-
-        @Override
-        public String toString() { return "/(" + term + ")"; }
     }
 
     public static final class IsRoot implements Rule {
@@ -168,5 +189,10 @@ public final class NavigationRule {
 
         @Override
         public String toString() { return "/?"; }
+
+        @Override
+        public Component format() {
+            return text("/?", OPERATOR);
+        }
     }
 }

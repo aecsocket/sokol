@@ -2,9 +2,15 @@ package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
+import net.kyori.adventure.text.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.StringJoiner;
+
+import static net.kyori.adventure.text.Component.*;
+import static com.gitlab.aecsocket.sokol.core.rule.Rule.*;
 
 public final class LogicRule {
     private LogicRule() {}
@@ -47,6 +53,12 @@ public final class LogicRule {
 
         @Override
         public String toString() { return "!(" + term + ")"; }
+
+        @Override
+        public Component format() {
+            return text("!", OPERATOR)
+                    .append(wrapBrackets(term.format()));
+        }
     }
 
     public static abstract class HasTerms implements Rule {
@@ -78,8 +90,23 @@ public final class LogicRule {
             return Objects.hash(terms);
         }
 
+        protected abstract String symbol();
+
         @Override
-        public String toString() { return terms.toString(); }
+        public String toString() {
+            StringJoiner result = new StringJoiner(" " + symbol() + " ");
+            for (var term : terms)
+                result.add("(" + term.toString() + ")");
+            return result.toString();
+        }
+
+        @Override
+        public Component format() {
+            List<Component> components = new ArrayList<>();
+            for (var term : terms)
+                components.add(wrapBrackets(term.format()));
+            return join(text(" " + symbol() + " ", SYMBOL), components);
+        }
     }
 
     public static final class And extends HasTerms {
@@ -100,7 +127,7 @@ public final class LogicRule {
         }
 
         @Override
-        public String toString() { return "&" + super.toString(); }
+        protected String symbol() { return "&"; }
     }
 
     public static final class Or extends HasTerms {
@@ -120,6 +147,6 @@ public final class LogicRule {
         }
 
         @Override
-        public String toString() { return "|" + super.toString(); }
+        protected String symbol() { return "|"; }
     }
 }

@@ -3,6 +3,8 @@ package com.gitlab.aecsocket.sokol.core.rule;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.BasicConfigurationNode;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -13,10 +15,27 @@ import java.lang.reflect.Type;
 import java.util.*;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
+import static net.kyori.adventure.text.format.NamedTextColor.*;
+import static net.kyori.adventure.text.Component.*;
 
 public interface Rule {
+    NamedTextColor CONSTANT = AQUA;
+    NamedTextColor BRACKET = GRAY;
+    NamedTextColor SYMBOL = WHITE;
+    NamedTextColor OPERATOR = GREEN;
+    NamedTextColor PATH = DARK_GREEN;
+
+    Component OPEN_BRACKET = text("(", BRACKET);
+    Component CLOSED_BRACKET = text(")", BRACKET);
+
+    static Component wrapBrackets(Component component) {
+        return OPEN_BRACKET.append(component).append(CLOSED_BRACKET);
+    }
+
     void applies(Node node) throws RuleException;
     void visit(Visitor visitor);
+
+    Component format();
 
     interface Visitor {
         void visit(Rule rule);
@@ -61,6 +80,12 @@ public interface Rule {
         public int hashCode() {
             return Objects.hash(value);
         }
+
+        @Override
+        public String toString() { return "<" + value + ">"; }
+
+        @Override
+        public Component format() { return text(value, CONSTANT); }
     }
 
     final class Serializer implements TypeSerializer<Rule> {
@@ -70,9 +95,7 @@ public interface Rule {
         public void types(@Nullable Map<String, Class<? extends Rule>> types) { this.types = types; }
 
         @Override
-        public void serialize(Type type, @Nullable Rule obj, ConfigurationNode node) throws SerializationException {
-            throw new UnsupportedOperationException();
-        }
+        public void serialize(Type type, @Nullable Rule obj, ConfigurationNode node) throws SerializationException {}
 
         private <T, C extends Collection<T>> C map(Class<T> type, C collection, List<? extends ConfigurationNode> nodes) throws SerializationException {
             for (var node : nodes)
@@ -117,7 +140,7 @@ public interface Rule {
                         );
                     }
                     case "/" -> {
-                        if (terms != 1)
+                        if (terms != 2)
                             throw new SerializationException(node, type, "Operator AS_ROOT requires [path, term], found " + terms);
                         yield new NavigationRule.AsRoot(
                                 require(nodes.get(0), NodePath.class),

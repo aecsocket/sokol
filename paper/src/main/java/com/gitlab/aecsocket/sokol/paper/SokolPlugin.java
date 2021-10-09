@@ -74,6 +74,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                     continue;
                 }
                 registry.register(object);
+                System.out.println(object);
             }
         });
 

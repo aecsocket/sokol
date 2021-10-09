@@ -23,4 +23,13 @@ public final class PaperSlot extends BasicSlot {
     }
 
     public Point2 offset() { return offset; }
+
+    @Override
+    public String toString() {
+        return "PaperSlot:" + key + '{' +
+                "tags=" + tags +
+                ", rule=" + rule +
+                ", offset=" + offset +
+                '}';
+    }
 }

@@ -2,13 +2,20 @@ package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
+import net.kyori.adventure.text.Component;
 
 import java.util.Collections;
 import java.util.Objects;
 import java.util.Set;
 
+import static net.kyori.adventure.text.Component.*;
+
 public final class ComponentRule {
     private ComponentRule() {}
+
+    private static Component formatStrings(Set<String> strings) {
+        return text(String.join(",", strings), Rule.CONSTANT);
+    }
 
     public static final class HasTags implements Rule {
         private final Set<String> tags;
@@ -45,6 +52,12 @@ public final class ComponentRule {
 
         @Override
         public String toString() { return "#" + tags; }
+
+        @Override
+        public Component format() {
+            return text("#", OPERATOR)
+                    .append(formatStrings(tags));
+        }
     }
 
     public static final class HasFeatures implements Rule {
@@ -82,5 +95,11 @@ public final class ComponentRule {
 
         @Override
         public String toString() { return "~" + features; }
+
+        @Override
+        public Component format() {
+            return text("~", OPERATOR)
+                    .append(formatStrings(features));
+        }
     }
 }

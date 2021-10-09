@@ -119,17 +119,6 @@ public final class StatIntermediate {
 
         @Override
         public StatIntermediate deserialize(Type type, ConfigurationNode node) throws SerializationException {
-            /*
-            stats: [
-              {
-                priority: [5]
-                rule: [ "#", "sex" ]
-                stats: {
-                  damage: [ [ "+", 5 ] ]
-                }
-              }
-            ]
-             */
             if (!node.isList())
                 throw new SerializationException(node, type, "Stat intermediate must be a list");
 
