@@ -15,6 +15,7 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperComponent;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
+import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
@@ -40,7 +41,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .registerExact(Rule.class, ruleSerializer)
                 .registerExact(StatIntermediate.Priority.class, new StatIntermediate.Priority.Serializer())
                 .registerExact(StatMap.class, statMapSerializer)
-                .registerExact(StatIntermediate.class, new StatIntermediate.Serializer());
+                .registerExact(StatIntermediate.class, new StatIntermediate.Serializer())
+
+                .registerExact(PaperComponent.class, new PaperComponent.Serializer(this));
     }
 
     private <T extends Keyed> void loadRegistry(String root, Class<T> type, Registry<T> registry) {
@@ -63,8 +66,11 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                     object = entry.getValue().get(type);
                     if (object == null)
                         throw new NullPointerException("Null object deserialized");
+                } catch (SerializationException e) {
+                    log(Logging.Level.WARNING, e, "Could not load %s from /%s", typeName, path);
+                    continue;
                 } catch (Exception e) {
-                    log(Logging.Level.WARNING, e, "Could not load %s at %s @ %s", typeName, entry.getValue().path(), path);
+                    log(Logging.Level.WARNING, e, "Could not load %s from /%s @ %s", typeName, path, entry.getValue().path());
                     continue;
                 }
                 registry.register(object);
@@ -73,15 +79,13 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
         for (var elem : registry.values())
             log(Logging.Level.VERBOSE, "Registered %s %s", typeName, elem.id());
-        log(Logging.Level.INFO, "Registered %dx %s", registry.size(), typeName);
+        log(Logging.Level.INFO, "Loaded %d %s(s)", registry.size(), typeName);
     }
 
     @Override
     public void load() {
         super.load();
-        log(Logging.Level.INFO, "Loading components");
         loadRegistry(PATH_COMPONENT, PaperComponent.class, components);
-        log(Logging.Level.INFO, "Loading blueprints");
         loadRegistry(PATH_BLUEPRINT, PaperBlueprint.class, blueprints);
     }
 

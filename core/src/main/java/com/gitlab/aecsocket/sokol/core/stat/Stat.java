@@ -89,11 +89,11 @@ public interface Stat<T> {
             if (nodes != null && nodes.size() > 0 && nodes.get(0).raw() instanceof String opName) {
                 op = operations.get(opName);
                 if (op == null)
-                    throw new SerializationException(node, type, "Invalid operation type [" + opName + "]");
+                    throw new SerializationException(node, type, "Invalid operation type '" + opName + "'");
                 nodes.remove(0);
 
                 if (op.fields.length != nodes.size())
-                    throw new SerializationException(node, type, "Operation [" + opName + "] requires fields: [" +
+                    throw new SerializationException(node, type, "Operation '" + opName + "' requires fields: [" +
                             String.join(", ", op.fields) + "], passed " + nodes.size());
                 return op.operation.createValue(type, node, nodes.toArray(new ConfigurationNode[0]));
             } else {
@@ -101,7 +101,7 @@ public interface Stat<T> {
                 if (op == null)
                     throw new SerializationException(node, type, "No operation provided");
                 if (op.fields.length != 1)
-                    throw new SerializationException(node, type, "Operation [" + defaultOperation + "] requires fields: [" +
+                    throw new SerializationException(node, type, "Operation '" + defaultOperation + "' requires fields: [" +
                             String.join(", ", op.fields) + "]");
                 return op.operation.createValue(type, node, node);
             }

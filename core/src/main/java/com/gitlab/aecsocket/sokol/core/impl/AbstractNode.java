@@ -145,7 +145,7 @@ public abstract class AbstractNode<
     @Override
     public N node(String key, N val) throws RuleException {
         Slot slot = value.slot(key)
-                .orElseThrow(() -> new IllegalArgumentException("No slot [" + key + "] exists on component [" + value.id() + "]"));
+                .orElseThrow(() -> new IllegalArgumentException("No slot '" + key + "' exists on component '" + value.id() + "'"));
         slot.compatibility(this, val);
         removeNode(key);
         nodes.put(key, val);

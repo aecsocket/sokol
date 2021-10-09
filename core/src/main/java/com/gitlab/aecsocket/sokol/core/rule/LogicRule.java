@@ -22,7 +22,7 @@ public final class LogicRule {
         public void applies(Node node) throws RuleException {
             try {
                 term.applies(node);
-                throw new RuleException(this, "![" + term + "]");
+                throw new RuleException(this, "!(" + term + ")");
             } catch (RuleException ignore) {}
         }
 

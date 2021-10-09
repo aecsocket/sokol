@@ -41,7 +41,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
 
     public <T> T required(Stat<T> key) throws IllegalStateException {
         return value(key)
-                .orElseThrow(() -> new IllegalStateException("No value for stat [" + key.key() + "]"));
+                .orElseThrow(() -> new IllegalStateException("No value for stat '" + key.key() + "'"));
     }
 
     public <T> StatMap set(Stat<T> key, Stat.Value<T> val) {
@@ -102,7 +102,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
                 ConfigurationNode value = entry.getValue();
                 Stat<?> stat = types.get(key);
                 if (stat == null)
-                    throw new SerializationException(value, type, "Invalid stat [" + key + "]");
+                    throw new SerializationException(value, type, "Invalid stat '" + key + "'");
                 add(type, key, value, stat, result);
             }
             return result;

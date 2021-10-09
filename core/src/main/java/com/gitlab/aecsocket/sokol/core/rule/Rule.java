@@ -128,14 +128,14 @@ public interface Rule {
 
                     case "#" -> new ComponentRule.HasTags(map(String.class, new HashSet<>(), nodes));
                     case "~" -> new ComponentRule.HasFeatures(map(String.class, new HashSet<>(), nodes));
-                    default -> throw new SerializationException(node, type, "Invalid operator [" + op + "]");
+                    default -> throw new SerializationException(node, type, "Invalid operator '" + op + "'");
                 };
             }
 
             String typeName = require(node.isMap() ? node.node("type") : node, String.class);
             Class<? extends Rule> typeClass = types.get(typeName);
             if (typeClass == null)
-                throw new SerializationException(node, type, "Invalid rule type [" + typeName + "], accepts: [" +
+                throw new SerializationException(node, type, "Invalid rule type '" + typeName + "', accepts: [" +
                         String.join(", ", types.keySet()) + "]");
             return (node.isMap() ? node : BasicConfigurationNode.root(node.options())).get(typeClass);
         }

@@ -6,12 +6,13 @@ import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.Node;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 public class BasicSlot implements Slot {
-    protected Component parent;
-    protected String key;
+    protected transient Component parent;
+    protected transient String key;
     protected final Set<String> tags;
     protected final Rule rule;
 
@@ -20,6 +21,16 @@ public class BasicSlot implements Slot {
         this.key = key;
         this.tags = tags;
         this.rule = rule;
+    }
+
+    public BasicSlot(Set<String> tags, Rule rule) {
+        this.tags = tags;
+        this.rule = rule;
+    }
+
+    protected BasicSlot() {
+        tags = Collections.emptySet();
+        rule = Rule.Constant.TRUE;
     }
 
     @Override public Component parent() { return parent; }

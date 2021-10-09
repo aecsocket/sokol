@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper.impl;
 
-import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractComponent;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.ValidationException;
@@ -15,7 +14,7 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 import java.lang.reflect.Type;
 import java.util.*;
 
-public class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot, PaperFeature<?>, PaperNode> {
+public final class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot, PaperFeature<?>, PaperNode> {
     private final SokolPlugin platform;
 
     public PaperComponent(SokolPlugin platform, String id, Set<String> tags, Map<String, PaperSlot> slots, Map<String, PaperFeature<?>> featureTypes, StatIntermediate stats) {
@@ -44,7 +43,7 @@ public class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot,
             try {
                 Keyed.validate(id);
             } catch (ValidationException e) {
-                throw new SerializationException(node, type, "Invalid ID [" + id + "]", e);
+                throw new SerializationException(node, type, "Invalid ID '" + id + "'", e);
             }
 
             Map<String, PaperFeature<?>> features = new HashMap<>();
@@ -58,7 +57,7 @@ public class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot,
                     node.node("tags").get(new TypeToken<Set<String>>(){}, Collections.emptySet()),
                     node.node("slots").get(new TypeToken<Map<String, PaperSlot>>(){}, Collections.emptyMap()),
                     features,
-                    node.node("stats").get(StatIntermediate.class)
+                    node.node("stats").get(StatIntermediate.class, new StatIntermediate())
             );
 
             for (var entry : result.slots.entrySet()) {
@@ -66,7 +65,7 @@ public class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot,
                 try {
                     Keyed.validate(key);
                 } catch (ValidationException e) {
-                    throw new SerializationException(node, type, "Invalid slot key [" + key + "]", e);
+                    throw new SerializationException(node, type, "Invalid slot key '" + key + "'", e);
                 }
                 entry.getValue().parent(result, key);
             }

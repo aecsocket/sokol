@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.core.stat;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
 
@@ -57,28 +58,8 @@ public final class StatIntermediate {
         return new Priority(value, true);
     }
 
-    public record MapData(StatMap stats, Priority priority, Rule rule) {
-        public static final class Serializer implements TypeSerializer<MapData> {
-            @Override
-            public void serialize(Type type, @Nullable MapData obj, ConfigurationNode node) throws SerializationException {
-                if (obj == null) node.set(null);
-                else {
-                    node.node("stats").set(obj.stats);
-                    node.node("priority").set(obj.priority);
-                    node.node("rule").set(obj.rule);
-                }
-            }
-
-            @Override
-            public MapData deserialize(Type type, ConfigurationNode node) throws SerializationException {
-                return new MapData(
-                        require(node.node("stats"), StatMap.class),
-                        node.node("priority").get(Priority.class, Priority.DEFAULT),
-                        node.node("rule").get(Rule.class, Rule.Constant.TRUE)
-                );
-            }
-        }
-    }
+    @ConfigSerializable
+    public record MapData(StatMap stats, Priority priority, Rule rule) {}
 
     private final List<MapData> forward;
     private final List<MapData> reverse;
