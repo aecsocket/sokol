@@ -95,11 +95,6 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
             if (types == null)
                 throw new SerializationException(node, type, "No stats provided");
 
-            // TODO
-            types = new HashMap<>();
-            types.put("damage", Primitives.decimalStat("damage"));
-            types.put("flag", Primitives.flagStat("flag"));
-
             if (!node.isMap())
                 throw new SerializationException(node, type, "Stats must be a map");
 

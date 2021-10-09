@@ -23,7 +23,7 @@ public interface Component extends Keyed {
 
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "component.name." + id());
+        return lc.safe(locale, "component." + id() + ".name");
     }
 
     interface Scoped<

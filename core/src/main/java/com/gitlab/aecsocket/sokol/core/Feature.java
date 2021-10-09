@@ -18,11 +18,11 @@ public interface Feature<
 
     @Override
     default Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "feature.name." + id());
+        return lc.safe(locale, "feature." + id() + ".name");
     }
 
     default Component renderDescription(Locale locale, Localizer lc) {
-        return lc.safe(locale, "feature.description." + id());
+        return lc.safe(locale, "feature." + id() + ".description");
     }
 
     List<Component> renderConfig(Locale locale, Localizer lc);

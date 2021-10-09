@@ -2,7 +2,6 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import cloud.commandframework.ArgumentDescription;
 import cloud.commandframework.context.CommandContext;
-import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
@@ -28,21 +27,18 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
 public final class SokolCommand extends BaseCommand<SokolPlugin> {
     private static final NamedTextColor separator = NamedTextColor.GRAY;
 
-    private final Localizer lc;
-
     public SokolCommand(SokolPlugin plugin) throws Exception {
         super(plugin, "sokol",
                 (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
-        lc = plugin.lc();
 
         manager.command(root
                 .literal("component", ArgumentDescription.of("Outputs detailed information on a registered component."))
                 .argument(ComponentArgument.of(plugin, "component"))
                 .permission("%s.command.component".formatted(rootName))
-                .handler(c -> handle(c, this::give)));
+                .handler(c -> handle(c, this::component)));
     }
 
-    private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+    private void component(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
         PaperComponent component = ctx.get("component");
 
         send(sender, locale, "component.header",
@@ -58,12 +54,13 @@ public final class SokolCommand extends BaseCommand<SokolPlugin> {
             String key = entry.getKey();
             PaperSlot slot = entry.getValue();
 
-            lc(locale, PREFIX_COMMAND + ".component.slot",
+            Component hover = slot.rule().render(locale, lc);
+            lc.lines(locale, PREFIX_COMMAND + ".component.slot",
                     "name", slot.render(locale, lc),
                     "key", key,
                     "tags", String.join(", ", slot.tags()),
                     "offset", slot.offset()+"")
-                    .ifPresent(msg -> sender.sendMessage(msg.hoverEvent(slot.rule().render(locale, lc))));
+                    .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
         }
 
         send(sender, locale, "component.features",
@@ -72,11 +69,12 @@ public final class SokolCommand extends BaseCommand<SokolPlugin> {
             String id = entry.getKey();
             PaperFeature<?> feature = entry.getValue();
 
-            lc(locale, PREFIX_COMMAND + ".component.feature",
+            Component hover = join(separator(newline()), feature.renderConfig(locale, lc));
+            lc.lines(locale, PREFIX_COMMAND + ".component.feature",
                     "name", feature.render(locale, lc),
                     "id", id,
                     "description", feature.renderDescription(locale, lc))
-                    .ifPresent(msg -> sender.sendMessage(msg.hoverEvent(join(separator(newline()), feature.renderConfig(locale, lc)))));
+                    .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
         }
 
         List<StatIntermediate.MapData> stats = component.stats().join();
@@ -86,25 +84,28 @@ public final class SokolCommand extends BaseCommand<SokolPlugin> {
             StatMap map = data.stats();
 
             List<Component> lines = new ArrayList<>();
+            lc.lines(locale, PREFIX_COMMAND + ".component.stat_header",
+                    "amount", map.size()+"")
+                    .ifPresent(lines::addAll);
             for (var entry : map.entrySet()) {
                 String key = entry.getKey();
                 Stat.Node<?> node = entry.getValue();
                 List<? extends Stat.Node<?>> chain = node.asList();
-                lc(locale, PREFIX_COMMAND + ".component.stat",
+                lc.lines(locale, PREFIX_COMMAND + ".component.stat",
                         "name", node.stat().render(locale, lc),
                         "key", key,
                         "nodes", chain.size()+"",
                         "chain", join(separator(text(", ", separator)),
                                 chain.stream().map(n -> n.value().render(locale, lc)).collect(Collectors.toList())))
-                        .ifPresent(lines::add);
+                        .ifPresent(lines::addAll);
             }
 
             Component hover = join(separator(newline()), lines);
-            lc(locale, PREFIX_COMMAND + ".component.stat_map",
+            lc.lines(locale, PREFIX_COMMAND + ".component.stat_map",
                     "priority", data.priority().toString(),
                     "amount", map.size()+"",
                     "rule", data.rule().render(locale, lc))
-                    .ifPresent(msg -> sender.sendMessage(msg.hoverEvent(hover)));
+                    .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
         }
     }
 }

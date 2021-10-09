@@ -17,6 +17,6 @@ public interface Slot extends Renderable {
 
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "slot.name." + key());
+        return lc.safe(locale, "slot." + key() + ".name");
     }
 }

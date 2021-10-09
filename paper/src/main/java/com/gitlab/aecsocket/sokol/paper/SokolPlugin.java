@@ -10,7 +10,9 @@ import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.paper.feature.DummyFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
+import org.bstats.bukkit.Metrics;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
@@ -21,6 +23,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public static final String FILE_EXTENSION = "conf";
     public static final String PATH_COMPONENT = "component";
     public static final String PATH_BLUEPRINT = "blueprint";
+    public static final int BSTATS_ID = 11870;
 
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperBlueprint> blueprints = new Registry<>();
@@ -33,6 +36,12 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public Registry<FeatureType> featureTypes() { return featureTypes; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
+
+    @Override
+    public void onEnable() {
+        super.onEnable();
+        featureTypes.register(DummyFeature.TYPE);
+    }
 
     @Override
     protected void configOptionsDefaults(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {
@@ -75,7 +84,6 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                     continue;
                 }
                 registry.register(object);
-                System.out.println(object);
             }
         });
 
@@ -87,6 +95,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override
     public void load() {
         super.load();
+        if (setting(true, ConfigurationNode::getBoolean, "enable_bstats")) {
+            Metrics metrics = new Metrics(this, BSTATS_ID);
+        }
+
         loadRegistry(PATH_COMPONENT, PaperComponent.class, components);
         loadRegistry(PATH_BLUEPRINT, PaperBlueprint.class, blueprints);
     }
