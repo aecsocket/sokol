@@ -21,7 +21,7 @@ public interface Stat<T> extends Renderable {
 
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "stat." + key());
+        return lc.safe(locale, "stat." + key() + ".name");
     }
 
     interface Value<T> extends Renderable {

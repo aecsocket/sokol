@@ -30,12 +30,14 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<FeatureType> featureTypes = new Registry<>();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
+    private final PaperFeatureInstance.Serializer featureSerializer = new PaperFeatureInstance.Serializer(this);
 
     @Override public Registry<PaperComponent> components() { return components; }
     @Override public Registry<PaperBlueprint> blueprints() { return blueprints; }
     public Registry<FeatureType> featureTypes() { return featureTypes; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
+    public PaperFeatureInstance.Serializer featureSerializer() { return featureSerializer; }
 
     @Override
     public void onEnable() {
@@ -53,7 +55,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .registerExact(StatMap.class, statMapSerializer)
                 .registerExact(StatIntermediate.class, new StatIntermediate.Serializer())
 
-                .registerExact(PaperComponent.class, new PaperComponent.Serializer(this));
+                .registerExact(PaperComponent.class, new PaperComponent.Serializer(this))
+                .registerExact(PaperFeatureInstance.class, featureSerializer)
+                .registerExact(PaperNode.class, new PaperNode.Serializer(this))
+                .registerExact(PaperBlueprint.class, new PaperBlueprint.Serializer(this));
     }
 
     private <T extends Keyed> void loadRegistry(String root, Class<T> type, Registry<T> registry) {

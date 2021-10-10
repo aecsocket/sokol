@@ -56,12 +56,7 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
 
         @Override
         public PaperComponent deserialize(Type type, ConfigurationNode node) throws SerializationException {
-            String id = Objects.requireNonNull(node.key()).toString();
-            try {
-                Keyed.validate(id);
-            } catch (ValidationException e) {
-                throw new SerializationException(node, type, "Invalid ID '" + id + "'", e);
-            }
+            String id = Utils.id(type, node);
 
             List<LoadProvider> loadProviders = new ArrayList<>();
 

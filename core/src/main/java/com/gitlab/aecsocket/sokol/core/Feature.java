@@ -7,6 +7,7 @@ import org.spongepowered.configurate.ConfigurationNode;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 
 public interface Feature<
         F extends FeatureInstance<N>,
@@ -25,5 +26,5 @@ public interface Feature<
         return lc.safe(locale, "feature." + id() + ".description");
     }
 
-    List<Component> renderConfig(Locale locale, Localizer lc);
+    Optional<List<Component>> renderConfig(Locale locale, Localizer lc);
 }

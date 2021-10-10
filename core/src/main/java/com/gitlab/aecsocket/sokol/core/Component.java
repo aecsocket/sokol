@@ -4,10 +4,7 @@ import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 public interface Component extends Keyed {
     Set<String> tags();
@@ -24,6 +21,10 @@ public interface Component extends Keyed {
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
         return lc.safe(locale, "component." + id() + ".name");
+    }
+
+    default Optional<List<net.kyori.adventure.text.Component>> renderDescription(Locale locale, Localizer lc) {
+        return lc.lines(locale, "component." + id() + ".description");
     }
 
     interface Scoped<

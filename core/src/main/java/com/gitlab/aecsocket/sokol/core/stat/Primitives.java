@@ -99,7 +99,7 @@ public final class Primitives {
         public record MultiplyValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur * value; }
             @Override public Long first() { return value; }
-            @Override public Component render(Locale locale, Localizer lc) { return text("*", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public Component render(Locale locale, Localizer lc) { return text("×", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
         public record DivideValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur / value; }
@@ -154,7 +154,7 @@ public final class Primitives {
         public record MultiplyValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur * value; }
             @Override public Double first() { return value; }
-            @Override public Component render(Locale locale, Localizer lc) { return text("*", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public Component render(Locale locale, Localizer lc) { return text("×", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
         public record DivideValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur / value; }

@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core;
 
 import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
+import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
@@ -53,7 +54,7 @@ public interface Node {
         @Override Optional<N> node(String... path);
         @Override Optional<N> node(NodePath path);
         @Override N removeNode(String key);
-        N node(String key, N val) throws RuleException;
+        N node(String key, N val) throws IncompatibilityException;
 
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);

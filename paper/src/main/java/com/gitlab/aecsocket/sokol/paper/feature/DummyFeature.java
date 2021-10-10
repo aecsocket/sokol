@@ -13,10 +13,13 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.gitlab.aecsocket.sokol.core.stat.Primitives.*;
 
@@ -51,16 +54,21 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
     public int intValue() { return intValue; }
     public double doubleValue() { return doubleValue; }
 
+    @Override public void configure(ConfigurationNode config) {}
+
     @Override
     public Instance create(PaperNode node) {
         return new Instance(node);
     }
 
-    @Override public void configure(ConfigurationNode config) {}
+    @Override
+    public Instance load(PaperNode node, Type type, ConfigurationNode config) {
+        return new Instance(node);
+    }
 
     @Override
-    public List<Component> renderConfig(Locale locale, Localizer lc) {
-        return lc.safeLines(locale, "feature.dummy.config",
+    public Optional<List<Component>> renderConfig(Locale locale, Localizer lc) {
+        return lc.lines(locale, "feature.dummy.config",
                 "string", stringValue,
                 "int", intValue+"",
                 "double", Pools.decimalFormatter(locale).format(doubleValue));
@@ -79,6 +87,9 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
 
         @Override
         public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {}
+
+        @Override
+        public void save(Type type, ConfigurationNode node) throws SerializationException {}
 
         @Override
         public Instance copy() {

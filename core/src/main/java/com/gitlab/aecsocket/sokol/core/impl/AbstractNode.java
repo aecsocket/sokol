@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core.impl;
 import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.*;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
+import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
@@ -26,7 +26,19 @@ public abstract class AbstractNode<
     protected EventDispatcher<NodeEvent<N>> events;
     protected StatMap stats;
 
-    private AbstractNode(C value, @Nullable NodeKey<N> key) {
+    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features, EventDispatcher<NodeEvent<N>> events, StatMap stats) {
+        this.value = value;
+        this.key = key;
+        this.features = features;
+        this.events = events;
+        this.stats = stats;
+    }
+
+    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features) {
+        this(value, key, features, new EventDispatcher<>(), new StatMap());
+    }
+
+    protected AbstractNode(C value, @Nullable NodeKey<N> key) {
         this.value = value;
         this.key = key;
         Map<String, F> features = new HashMap<>();
@@ -34,7 +46,7 @@ public abstract class AbstractNode<
             F feature = entry.getValue().create(self());
             features.put(entry.getKey(), feature);
         }
-        this.features = Collections.unmodifiableMap(features);
+        this.features = features;
         events = new EventDispatcher<>();
         stats = new StatMap();
     }
@@ -143,7 +155,7 @@ public abstract class AbstractNode<
     }
 
     @Override
-    public N node(String key, N val) throws RuleException {
+    public N node(String key, N val) throws IncompatibilityException {
         Slot slot = value.slot(key)
                 .orElseThrow(() -> new IllegalArgumentException("No slot '" + key + "' exists on component '" + value.id() + "'"));
         slot.compatibility(this, val);

@@ -5,7 +5,7 @@ public final class ValidationException extends RuntimeException {
     private final char invalid;
 
     public ValidationException(int index, char invalid) {
-        super("Invalid character at index " + index + ": found '" + invalid + "'");
+        super("Invalid character at index " + index + ": found '" + invalid + "', accepts: [" + Keyed.VALID + "]");
         this.index = index;
         this.invalid = invalid;
     }
