@@ -1,13 +1,13 @@
 package com.gitlab.aecsocket.sokol.core;
 
-import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
+import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -20,6 +20,7 @@ public interface Node {
     NodePath path();
     Node root();
     boolean isRoot();
+    @Nullable Optional<? extends TreeData<?>> treeData();
 
     Map<String, ? extends Node> nodes();
     Optional<? extends Node> node(String... path);
@@ -29,8 +30,7 @@ public interface Node {
     Map<String, ? extends FeatureInstance<?>> features();
     Optional<? extends FeatureInstance<?>> feature(String key);
 
-    EventDispatcher<? extends NodeEvent<?>> events();
-    StatMap stats();
+    Item createItem(Locale locale) throws ItemCreationException;
 
     Node copy();
     Node asRoot();
@@ -47,8 +47,8 @@ public interface Node {
         @Override @Nullable N parent();
         N parent(N parent, String key);
         N orphan();
-
         @Override N root();
+        @Override @Nullable Optional<TreeData.Scoped<N>> treeData();
 
         @Override Map<String, N> nodes();
         @Override Optional<N> node(String... path);
@@ -59,10 +59,9 @@ public interface Node {
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);
 
-        @Override EventDispatcher<NodeEvent<N>> events();
-        void build(NodeEvent<N> event);
-
         @Override N copy();
         @Override N asRoot();
+
+        N buildTree(NodeEvent<N> event);
     }
 }

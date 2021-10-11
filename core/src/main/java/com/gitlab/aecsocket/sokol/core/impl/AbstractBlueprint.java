@@ -22,7 +22,7 @@ public abstract class AbstractBlueprint<N extends Node.Scoped<N, ?, ?>> implemen
     public N node() { return node; }
 
     @Override
-    public N build() {
+    public N create() {
         return node.copy();
     }
 }

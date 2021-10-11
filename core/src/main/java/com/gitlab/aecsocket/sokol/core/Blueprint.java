@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Optional;
 
 public interface Blueprint<N extends Node> extends Keyed {
-    N build();
+    N create();
 
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {

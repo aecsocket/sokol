@@ -1,20 +1,27 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import cloud.commandframework.ArgumentDescription;
+import cloud.commandframework.arguments.standard.IntegerArgument;
+import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument;
 import cloud.commandframework.context.CommandContext;
 import com.gitlab.aecsocket.minecommons.core.Components;
+import com.gitlab.aecsocket.minecommons.core.Text;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
+import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.paper.command.BlueprintArgument;
 import com.gitlab.aecsocket.sokol.paper.command.ComponentArgument;
+import com.gitlab.aecsocket.sokol.paper.command.NodeArgument;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.ArrayList;
@@ -34,14 +41,21 @@ public final class SokolCommand extends BaseCommand<SokolPlugin> {
 
         manager.command(root
                 .literal("component", ArgumentDescription.of("Outputs detailed information on a registered component."))
-                .argument(ComponentArgument.of(plugin, "component"))
+                .argument(ComponentArgument.of(plugin, "component"), ArgumentDescription.of("The component to list information on."))
                 .permission("%s.command.component".formatted(rootName))
                 .handler(c -> handle(c, this::component)));
         manager.command(root
                 .literal("blueprint", ArgumentDescription.of("Outputs detailed information on a registered blueprint."))
-                .argument(BlueprintArgument.of(plugin, "blueprint"))
+                .argument(BlueprintArgument.of(plugin, "blueprint"), ArgumentDescription.of("The blueprint to list information on."))
                 .permission("%s.command.blueprint".formatted(rootName))
                 .handler(c -> handle(c, this::blueprint)));
+        manager.command(root
+                .literal("give", ArgumentDescription.of("Gives a component/node tree to specified players."))
+                .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the item to."))
+                .argument(NodeArgument.of(plugin, "node"), ArgumentDescription.of("The component/node tree to give."))
+                .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the item to give."))
+                .permission("%s.command.give".formatted(rootName))
+                .handler(c -> handle(c, this::give)));
     }
 
     private void component(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
@@ -176,5 +190,39 @@ public final class SokolCommand extends BaseCommand<SokolPlugin> {
                 "id", node.value().id())
                 .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover).clickEvent(click))));
         blueprint0(ctx, sender, locale, pSender, lc.safe(locale, PREFIX_COMMAND + ".blueprint.indent"), 0, node);
+    }
+
+    private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperNode node) {
+        ItemStack item;
+        try {
+            item = node.createItem(locale).handle();
+        } catch (ItemCreationException e) {
+            throw error("item_creation",
+                    "message", Text.mergeMessages(e));
+        }
+        //noinspection ConstantConditions
+        int amount = ctx.getOrDefault("amount", 1);
+        List<Player> targets = targets(ctx, "targets", pSender);
+
+        for (Player target : targets) {
+            Inventory inventory = target.getInventory();
+            for (int i = 0; i < amount; i++)
+                inventory.addItem(item);
+        }
+
+        send(sender, locale, "give",
+                "amount", amount+"",
+                "item", item.displayName(),
+                "target", targets.size() == 1
+                        ? targets.get(0).displayName()
+                        : targets.size()+"");
+    }
+
+    private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+        //give(ctx, sender, locale, pSender, ctx.<PaperNode>get("node").bui);
+    }
+
+    private void build(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+        give(ctx, sender, locale, pSender, ctx.<PaperBlueprint>get("blueprint").create());
     }
 }

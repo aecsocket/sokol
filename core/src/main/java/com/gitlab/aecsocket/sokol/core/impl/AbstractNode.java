@@ -1,12 +1,11 @@
 package com.gitlab.aecsocket.sokol.core.impl;
 
-import com.gitlab.aecsocket.minecommons.core.event.EventDispatcher;
 import com.gitlab.aecsocket.sokol.core.*;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
+import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
@@ -20,22 +19,19 @@ public abstract class AbstractNode<
 
     protected final C value;
     protected @Nullable NodeKey<N> key;
+    protected TreeData.@Nullable Scoped<N> treeData;
     protected final Map<String, N> nodes = new HashMap<>();
     protected final Map<String, ? extends F> features;
 
-    protected EventDispatcher<NodeEvent<N>> events;
-    protected StatMap stats;
-
-    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features, EventDispatcher<NodeEvent<N>> events, StatMap stats) {
+    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features, TreeData.@Nullable Scoped<N> treeData) {
         this.value = value;
         this.key = key;
         this.features = features;
-        this.events = events;
-        this.stats = stats;
+        this.treeData = treeData;
     }
 
     protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features) {
-        this(value, key, features, new EventDispatcher<>(), new StatMap());
+        this(value, key, features, null);
     }
 
     protected AbstractNode(C value, @Nullable NodeKey<N> key) {
@@ -47,8 +43,6 @@ public abstract class AbstractNode<
             features.put(entry.getKey(), feature);
         }
         this.features = features;
-        events = new EventDispatcher<>();
-        stats = new StatMap();
     }
 
     public AbstractNode(C value, @Nullable N parent, @Nullable String key) {
@@ -72,8 +66,7 @@ public abstract class AbstractNode<
             features.put(entry.getKey(), feature);
         }
         this.features = Collections.unmodifiableMap(features);
-        events = o.events;
-        stats = o.stats;
+        treeData = o.treeData;
     }
 
     public abstract N self();
@@ -98,8 +91,7 @@ public abstract class AbstractNode<
         if (this.key != null)
             this.key.parent.removeNode(this.key.key);
         this.key = new NodeKey<>(parent, key);
-        events = parent.events;
-        stats = parent.stats;
+        treeData = parent.treeData;
         return self();
     }
 
@@ -107,14 +99,8 @@ public abstract class AbstractNode<
     public N orphan() {
         if (key != null)
             key.parent.removeNode(key.key);
-        makeRoot();
-        return self();
-    }
-
-    public N makeRoot() {
         key = null;
-        events = new EventDispatcher<>();
-        stats = new StatMap();
+        treeData = null;
         return self();
     }
 
@@ -127,6 +113,8 @@ public abstract class AbstractNode<
     public boolean isRoot() {
         return key == null;
     }
+
+    @Nullable @Override public Optional<TreeData.Scoped<N>> treeData() { return Optional.ofNullable(treeData); }
 
     @Override
     public Optional<N> node(String... path) {
@@ -180,28 +168,50 @@ public abstract class AbstractNode<
     }
 
     @Override
-    public EventDispatcher<NodeEvent<N>> events() { return events; }
-
-    @Override
-    public StatMap stats() { return stats; }
-
-    @Override
     public N asRoot() {
-        return copy().makeRoot();
+        N result = copy();
+        result.key = null;
+        result.treeData = null;
+        return result;
     }
+
+    private record StatPair(Node node, List<StatIntermediate.MapData> data) {}
 
     @Override
-    public void build(NodeEvent<N> event) {
-        makeRoot();
-        StatIntermediate stats = new StatIntermediate();
-        build(event, stats, self());
+    public N buildTree(NodeEvent<N> event) {
+        key = null;
+        treeData = BasicTreeData.blank();
+        List<StatPair> forwardStats = new ArrayList<>();
+        List<StatPair> reverseStats = new ArrayList<>();
+        buildTree(event, forwardStats, reverseStats, this);
+
+        for (List<StatPair> stats : Arrays.asList(forwardStats, reverseStats)) {
+            for (var pair : stats) {
+                pair.data.sort(Comparator.comparingInt(d -> d.priority().value()));
+                for (var data : pair.data) {
+                    try {
+                        data.rule().applies(pair.node);
+                        treeData.stats().chain(data.stats());
+                    } catch (RuleException ignore) {}
+                }
+            }
+        }
+
+        return self();
     }
 
-    protected void build(NodeEvent<N> event, StatIntermediate stats, N parent) {
+    protected void buildTree(NodeEvent<N> event, List<StatPair> forwardStats, List<StatPair> reverseStats, AbstractNode<N, C, F> parent) {
+        StatIntermediate stats = new StatIntermediate(value.stats());
         for (var feature : features.values()) {
             feature.build(event, stats);
         }
-        for (var node : nodes.values())
-            node.build(event, stats, self());
+        forwardStats.add(new StatPair(this, stats.forward()));
+        reverseStats.add(0, new StatPair(this, stats.reverse()));
+        for (var entry : nodes.entrySet()) {
+            N node = entry.getValue();
+            node.treeData = parent.treeData;
+            node.key = new NodeKey<>(self(), entry.getKey());
+            node.buildTree(event, forwardStats, reverseStats, this);
+        }
     }
 }

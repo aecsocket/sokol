@@ -77,11 +77,11 @@ public interface Stat<T> extends Renderable {
 
     final class OperationDeserializer<T> {
         @FunctionalInterface
-        interface Operation<T> {
+        public interface Operation<T> {
             Value<T> createValue(Type type, ConfigurationNode node, ConfigurationNode... args) throws SerializationException;
         }
 
-        record OperationData<T>(
+        private record OperationData<T>(
                 Operation<T> operation,
                 String[] fields
         ) {}
@@ -141,7 +141,7 @@ public interface Stat<T> extends Renderable {
             }
         }
 
-        static <T> Builder<T> builder() {
+        public static <T> Builder<T> builder() {
             return new Builder<>();
         }
     }

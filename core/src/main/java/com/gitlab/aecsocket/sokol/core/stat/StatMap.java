@@ -38,7 +38,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
         return node == null ? key.defaultValue() : Optional.ofNullable(node.compute());
     }
 
-    public <T> T required(Stat<T> key) throws IllegalStateException {
+    public <T> T require(Stat<T> key) throws IllegalStateException {
         return value(key)
                 .orElseThrow(() -> new IllegalStateException("No value for stat '" + key.key() + "'"));
     }

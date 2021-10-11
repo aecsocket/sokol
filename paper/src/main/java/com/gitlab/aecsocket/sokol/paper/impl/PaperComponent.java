@@ -7,8 +7,10 @@ import com.gitlab.aecsocket.sokol.core.registry.ValidationException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
 import com.gitlab.aecsocket.sokol.paper.FeatureType;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import com.gitlab.aecsocket.sokol.paper.stat.ItemStat;
 import io.leangen.geantyref.TypeToken;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -21,6 +23,8 @@ import java.util.*;
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
 public final class PaperComponent extends AbstractComponent<PaperComponent, PaperSlot, PaperFeature<?>, PaperNode> {
+    public static final ItemStat STAT_ITEM = ItemStat.itemStat("item");
+
     private final SokolPlugin platform;
 
     public PaperComponent(SokolPlugin platform, String id, Set<String> tags, Map<String, PaperSlot> slots, Map<String, PaperFeature<?>> featureTypes, StatIntermediate stats) {
@@ -40,6 +44,10 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
     }
 
     public static final class Serializer implements TypeSerializer<PaperComponent> {
+        private static final Map<String, Stat<?>> baseStatTypes = StatTypes.types(
+                STAT_ITEM
+        ).handle();
+
         private final SokolPlugin plugin;
 
         public Serializer(SokolPlugin plugin) {
@@ -73,7 +81,7 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
                 featureConfigs.put(feature, config);
             }
 
-            Map<String, Stat<?>> statTypes = new HashMap<>();
+            Map<String, Stat<?>> statTypes = new HashMap<>(baseStatTypes);
             Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>();
             for (var provider : loadProviders) {
                 statTypes.putAll(provider.statTypes().handle());

@@ -12,6 +12,7 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BiConsumer;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
@@ -107,6 +108,11 @@ public final class StatIntermediate {
 
     public void addReverse(StatMap stats, Priority priority, Rule rule) {
         reverse.add(new MapData(stats, priority, rule));
+    }
+
+    public void onBoth(BiConsumer<List<MapData>, Boolean> function) {
+        function.accept(forward, false);
+        function.accept(reverse, true);
     }
 
     public static final class Serializer implements TypeSerializer<StatIntermediate> {
