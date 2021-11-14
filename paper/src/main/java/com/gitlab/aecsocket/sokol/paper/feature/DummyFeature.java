@@ -1,16 +1,22 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
+import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.Pools;
+import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import com.gitlab.aecsocket.sokol.paper.FeatureType;
+import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import io.leangen.geantyref.TypeToken;
+import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -92,7 +98,21 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
         @Override public DummyFeature type() { return DummyFeature.this; }
 
         @Override
-        public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {}
+        public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {
+            // TODO test code
+            parent.treeData().ifPresent(treeData -> {
+                var events = treeData.events();
+                events.register(new TypeToken<PaperItemEvent.Hold>(){}, this::handle);
+            });
+        }
+
+        private void handle(PaperItemEvent.Hold event) {
+            if (!parent.isRoot())
+                return;
+            if (event.user() instanceof Audience audience) {
+                audience.sendActionBar(Component.text("holding sync? " + event.sync() + " delta = " + event.context().delta()));
+            }
+        }
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {}

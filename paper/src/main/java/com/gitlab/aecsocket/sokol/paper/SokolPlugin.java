@@ -2,7 +2,11 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
+import com.gitlab.aecsocket.minecommons.core.Ticks;
+import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
+import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
+import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
@@ -13,11 +17,20 @@ import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.paper.feature.DummyFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
 import org.bstats.bukkit.Metrics;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.Executors;
 
 public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform {
     public static final String FILE_EXTENSION = "conf";
@@ -30,6 +43,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<PaperBlueprint> blueprints = new Registry<>();
     private final Registry<FeatureType> featureTypes = new Registry<>();
     private final SokolPersistence persistence = new SokolPersistence(this);
+    private final PaperScheduler paperScheduler = new PaperScheduler(this);
+    private final ThreadScheduler threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
+    private final Map<Player, PlayerData> playerData = new HashMap<>();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final PaperFeatureInstance.Serializer featureSerializer = new PaperFeatureInstance.Serializer(this);
@@ -42,10 +58,44 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public PaperFeatureInstance.Serializer featureSerializer() { return featureSerializer; }
 
+    public PlayerData playerData(Player player) {
+        return playerData.computeIfAbsent(player, p -> new PlayerData(this, p));
+    }
+
     @Override
     public void onEnable() {
         super.onEnable();
         featureTypes.register(DummyFeature.TYPE);
+
+        Bukkit.getPluginManager().registerEvents(new Listener() {
+            @EventHandler
+            private void onEvent(PlayerQuitEvent event) {
+                playerData.remove(event.getPlayer());
+            }
+        }, this);
+
+        paperScheduler.run(Task.repeating(ctx -> {
+            for (var player : Bukkit.getOnlinePlayers()) {
+                PlayerData data = playerData(player);
+                //noinspection SynchronizationOnLocalVariableOrMethodParameter
+                synchronized (data) {
+                    ctx.run(Task.single(data::paperTick));
+                }
+            }
+        }, Ticks.MSPT));
+        threadScheduler.run(Task.repeating(ctx -> {
+            for (var data : playerData.values()) {
+                //noinspection SynchronizationOnLocalVariableOrMethodParameter
+                synchronized (data) {
+                    ctx.run(Task.single(data::threadTick));
+                }
+            }
+        }, 10));
+    }
+
+    @Override
+    public void onDisable() {
+        threadScheduler.cancel();
     }
 
     @Override

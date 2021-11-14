@@ -24,13 +24,10 @@ import java.util.Map;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
-public class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeatureInstance> {
-    public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key, Map<String, ? extends PaperFeatureInstance> features, TreeData.@Nullable Scoped<PaperNode> treeData) {
+public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeatureInstance> {
+    @Deprecated
+    public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key, Map<String, PaperFeatureInstance> features, TreeData.@Nullable Scoped<PaperNode> treeData) {
         super(value, key, features, treeData);
-    }
-
-    public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key, Map<String, ? extends PaperFeatureInstance> features) {
-        super(value, key, features);
     }
 
     public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key) {
@@ -119,7 +116,7 @@ public class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeat
                     .orElseThrow(() -> new SerializationException(node, type, "No component with ID '" + id + "'"));
 
             Map<String, PaperFeatureInstance> features = new HashMap<>();
-            PaperNode root = new PaperNode(value, null, features);
+            PaperNode root = new PaperNode(value, null, features, null);
             if (node.isMap()) {
                 for (var entry : node.node("nodes").childrenMap().entrySet()) {
                     String key = entry.getKey()+"";
@@ -134,9 +131,12 @@ public class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeat
                     }
                     root.unsafeNode(key, child);
                 }
+
                 plugin.featureSerializer().base(root);
                 features.putAll(node.node("features").get(new TypeToken<Map<String, PaperFeatureInstance>>(){}, Collections.emptyMap()));
                 plugin.featureSerializer().base(null);
+
+                root.fillDefaultFeatures();
             }
             return root;
         }

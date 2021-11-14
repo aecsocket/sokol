@@ -58,6 +58,7 @@ public interface Node {
 
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);
+        N feature(String key, F feature);
 
         @Override N copy();
         @Override N asRoot();

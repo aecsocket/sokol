@@ -135,9 +135,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         if (pSender == null)
             return;
         ItemStack item = pSender.getInventory().getItemInMainHand();
-        if (!item.hasItemMeta())
-            throw error("item_no_meta");
-        PaperNode node = plugin.persistence().safeLoad(item.getItemMeta().getPersistentDataContainer())
+        PaperNode node = plugin.persistence().safeLoad(item)
                 .orElseThrow(() -> error("item_not_tree"))
                 .initialize();
         tree(ctx, sender, locale, pSender, node, "header");

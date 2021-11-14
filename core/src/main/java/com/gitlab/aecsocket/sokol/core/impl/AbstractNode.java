@@ -21,28 +21,22 @@ public abstract class AbstractNode<
     protected @Nullable NodeKey<N> key;
     protected TreeData.Scoped<N> treeData;
     protected final Map<String, N> nodes = new HashMap<>();
-    protected final Map<String, ? extends F> features;
+    protected final Map<String, F> features;
 
-    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features, TreeData.@Nullable Scoped<N> treeData) {
+    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, F> features, TreeData.@Nullable Scoped<N> treeData) {
         this.value = value;
         this.key = key;
         this.features = features;
         this.treeData = treeData;
     }
 
-    protected AbstractNode(C value, @Nullable NodeKey<N> key, Map<String, ? extends F> features) {
-        this(value, key, features, null);
-    }
-
     protected AbstractNode(C value, @Nullable NodeKey<N> key) {
         this.value = value;
         this.key = key;
-        Map<String, F> features = new HashMap<>();
+        features = new HashMap<>();
         for (var entry : value.features().entrySet()) {
-            F feature = entry.getValue().create(self());
-            features.put(entry.getKey(), feature);
+            features.put(entry.getKey(), entry.getValue().create(self()));
         }
-        this.features = features;
     }
 
     public AbstractNode(C value, @Nullable N parent, @Nullable String key) {
@@ -158,13 +152,34 @@ public abstract class AbstractNode<
     }
 
     @Override
+    public Map<String, F> features() {
+        return new HashMap<>(features);
+    }
+
+    @Override
     public Optional<F> feature(String key) {
         return Optional.ofNullable(features.get(key));
     }
 
     @Override
-    public Map<String, F> features() {
-        return new HashMap<>(features);
+    public N feature(String key, F feature) {
+        if (!features.containsKey(key))
+            throw new IllegalArgumentException("No feature '" + key + "' exists on component '" + value.id() + "'");
+        F old = features.get(key);
+        if (!old.getClass().isInstance(feature))
+            throw new IllegalArgumentException("Feature '" + feature.type().id() + "' of class " + feature.getClass().getName() +
+                    " is not an instance of " + old.getClass().getName());
+        features.put(key, feature);
+        return self();
+    }
+
+    public void fillDefaultFeatures() {
+        for (var entry : value.features().entrySet()) {
+            var key = entry.getKey();
+            if (!features.containsKey(key)) {
+                features.put(key, entry.getValue().create(self()));
+            }
+        }
     }
 
     @Override

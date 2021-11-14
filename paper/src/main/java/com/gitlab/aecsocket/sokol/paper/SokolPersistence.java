@@ -11,6 +11,7 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import org.bukkit.NamespacedKey;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
@@ -70,6 +71,12 @@ public final class SokolPersistence {
         return Optional.empty();
     }
 
+    public Optional<PaperNode> safeLoad(@Nullable ItemStack item) {
+        if (item == null || !item.hasItemMeta())
+            return Optional.empty();
+        return safeLoad(item.getItemMeta().getPersistentDataContainer());
+    }
+
     private final class DataType implements PersistentDataType<PersistentDataContainer, PaperNode> {
         @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
         @Override public @NotNull Class<PaperNode> getComplexType() { return PaperNode.class; }
@@ -106,7 +113,8 @@ public final class SokolPersistence {
                     .orElseThrow(() -> new IllegalArgumentException("No component with ID '" + id + "'"));
 
             Map<String, PaperFeatureInstance> features = new HashMap<>();
-            PaperNode root = new PaperNode(value, null, features);
+            @SuppressWarnings("deprecation") // internal use
+            PaperNode root = new PaperNode(value, null, features, null);
             PersistentDataContainer pdcSlots = pdc.get(keySlots, PersistentDataType.TAG_CONTAINER);
             if (pdcSlots != null) {
                 for (var key : pdcSlots.getKeys()) {
@@ -133,6 +141,7 @@ public final class SokolPersistence {
                     features.put(key.value(), feature.load(root, pdcFeatures.get(key, PersistentDataType.TAG_CONTAINER)));
                 }
             }
+            root.fillDefaultFeatures();
 
             return root;
         }
