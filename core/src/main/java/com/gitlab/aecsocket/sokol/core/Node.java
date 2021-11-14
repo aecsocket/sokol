@@ -62,6 +62,6 @@ public interface Node {
         @Override N copy();
         @Override N asRoot();
 
-        N buildTree(NodeEvent<N> event);
+        <E extends NodeEvent<N>> E call(E event);
     }
 }

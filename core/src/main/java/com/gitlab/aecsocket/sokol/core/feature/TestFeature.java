@@ -31,7 +31,8 @@ public abstract class TestFeature<N extends Node.Scoped<N, ?, ?>> extends Abstra
 
         @Override
         public void build(NodeEvent<N> event, StatIntermediate stats) {
-            EventDispatcher<NodeEvent<N>> events = parent.events();
+            // TODO be not stupid
+            /*EventDispatcher<NodeEvent<N>> events = parent.treeData().e
             if (event instanceof ItemEvent<N, ?> itemEvent) {
                 if (itemEvent.user() instanceof ItemUserImpl user) {
                     if (user.flag()) {
@@ -43,7 +44,7 @@ public abstract class TestFeature<N extends Node.Scoped<N, ?, ?>> extends Abstra
                     }
                 }
             }
-            events.register(new TypeToken<Events.TestEvent<N>>(){}, this::handle);
+            events.register(new TypeToken<Events.TestEvent<N>>(){}, this::handle);*/
         }
 
         protected void handle(Events.TestEvent<N> event) {

@@ -17,7 +17,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import org.spongepowered.configurate.ConfigurateException;
 
 import javax.annotation.Nullable;
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.function.BiFunction;
@@ -177,13 +177,13 @@ public final class NodeArgument<C> extends CommandArgument<C, PaperNode> {
                 value = plugin.loaderBuilder()
                         .buildAndLoadString(input)
                         .get(PaperNode.class);
-                if (value == null)
-                    return ArgumentParseResult.failure(new ParseException(input, ctx, new NullPointerException()));
             } catch (ConfigurateException e) {
-                return plugin.components().get(input)
-                        .map(component -> ArgumentParseResult.success(new PaperNode(component)))
-                        .orElse(ArgumentParseResult.failure(new ParseException(input, ctx, e)));
+                value = plugin.components().get(input)
+                        .map(PaperNode::new)
+                        .orElse(null);
             }
+            if (value == null)
+                return ArgumentParseResult.failure(new ParseException(input, ctx, new NullPointerException()));
 
             if (test != null && !test.test(value))
                 return ArgumentParseResult.failure(new InvalidException(value.value().id(), ctx));
@@ -198,7 +198,11 @@ public final class NodeArgument<C> extends CommandArgument<C, PaperNode> {
 
         @Override
         public @NonNull List<@NonNull String> suggestions(@NonNull CommandContext<C> ctx, @NonNull String input) {
-            return Collections.singletonList(SELF); // TODO tree suggestions
+            // TODO tree suggestions
+            List<String> result = new ArrayList<>();
+            result.add(SELF);
+            result.addAll(plugin.components().keySet());
+            return result;
         }
     }
 

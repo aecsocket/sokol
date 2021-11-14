@@ -23,11 +23,13 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public static final String FILE_EXTENSION = "conf";
     public static final String PATH_COMPONENT = "component";
     public static final String PATH_BLUEPRINT = "blueprint";
+    public static final String PERMISSION_PREFIX = "sokol";
     public static final int BSTATS_ID = 11870;
 
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperBlueprint> blueprints = new Registry<>();
     private final Registry<FeatureType> featureTypes = new Registry<>();
+    private final SokolPersistence persistence = new SokolPersistence(this);
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
     private final PaperFeatureInstance.Serializer featureSerializer = new PaperFeatureInstance.Serializer(this);
@@ -35,6 +37,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     @Override public Registry<PaperComponent> components() { return components; }
     @Override public Registry<PaperBlueprint> blueprints() { return blueprints; }
     public Registry<FeatureType> featureTypes() { return featureTypes; }
+    public SokolPersistence persistence() { return persistence; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
     public PaperFeatureInstance.Serializer featureSerializer() { return featureSerializer; }

@@ -22,7 +22,9 @@ public final class Primitives {
     public static class OfFlag extends AbstractStat<Boolean> {
         public record SetValue(boolean value) implements InitialValue<Boolean> {
             @Override public Boolean compute(Boolean cur) { return value; }
+            @Override public boolean discardsPrevious() { return true; }
             @Override public Boolean first() { return value; }
+            @Override public String toString() { return ""+value; }
             @Override public Component render(Locale locale, Localizer lc) { return lc.safe(locale, "constant." + value).color(CONSTANT); }
         }
 
@@ -49,12 +51,16 @@ public final class Primitives {
     public static class OfString extends AbstractStat<String> {
         public record SetValue(String value) implements InitialValue<String> {
             @Override public String compute(String cur) { return value; }
+            @Override public boolean discardsPrevious() { return true; }
             @Override public String first() { return value; }
-            @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(value, CONSTANT)); }
+            @Override public String toString() { return value; }
+            @Override public Component render(Locale locale, Localizer lc) { return text(value, CONSTANT); }
         }
         public record AddValue(String value) implements InitialValue<String> {
             @Override public String compute(String cur) { return cur + value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public String first() { return value; }
+            @Override public String toString() { return "+" + value; }
             @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(value, CONSTANT)); }
         }
 
@@ -83,27 +89,37 @@ public final class Primitives {
     public static class OfInteger extends AbstractStat<Long> {
         public record SetValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return value; }
+            @Override public boolean discardsPrevious() { return true; }
             @Override public Long first() { return value; }
-            @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return decimalFormatter(Locale.ROOT).format(value); }
+            @Override public Component render(Locale locale, Localizer lc) { return text(decimalFormatter(locale).format(value), CONSTANT); }
         }
         public record AddValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur + value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public Long first() { return value; }
+            @Override public String toString() { return "+" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
         public record SubtractValue(long value) implements InitialValue<Long> {
             @Override public Long compute(Long cur) { return cur - value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public Long first() { return value; }
+            @Override public String toString() { return "-" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("-", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
-        public record MultiplyValue(long value) implements InitialValue<Long> {
-            @Override public Long compute(Long cur) { return cur * value; }
-            @Override public Long first() { return value; }
+        public record MultiplyValue(double value) implements InitialValue<Long> {
+            @Override public Long compute(Long cur) { return (long) (cur * value); }
+            @Override public boolean discardsPrevious() { return false; }
+            @Override public Long first() { return (long) value; }
+            @Override public String toString() { return "*" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("×", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
-        public record DivideValue(long value) implements InitialValue<Long> {
-            @Override public Long compute(Long cur) { return cur / value; }
-            @Override public Long first() { return value; }
+        public record DivideValue(double value) implements InitialValue<Long> {
+            @Override public Long compute(Long cur) { return (long) (cur / value); }
+            @Override public boolean discardsPrevious() { return false; }
+            @Override public Long first() { return (long) value; }
+            @Override public String toString() { return "/" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("÷", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
 
@@ -111,8 +127,8 @@ public final class Primitives {
                 .operation("=", (type, node, args) -> new SetValue(require(args[0], long.class)), "value")
                 .operation("+", (type, node, args) -> new AddValue(require(args[0], long.class)), "value")
                 .operation("-", (type, node, args) -> new SubtractValue(require(args[0], long.class)), "value")
-                .operation("*", (type, node, args) -> new MultiplyValue(require(args[0], long.class)), "value")
-                .operation("/", (type, node, args) -> new DivideValue(require(args[0], long.class)), "value")
+                .operation("*", (type, node, args) -> new MultiplyValue(require(args[0], double.class)), "value")
+                .operation("/", (type, node, args) -> new DivideValue(require(args[0], double.class)), "value")
                 .defaultOperation("=")
                 .build();
 
@@ -138,27 +154,37 @@ public final class Primitives {
     public static class OfDecimal extends AbstractStat<Double> {
         public record SetValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return value; }
+            @Override public boolean discardsPrevious() { return true; }
             @Override public Double first() { return value; }
-            @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return decimalFormatter(Locale.ROOT).format(value); }
+            @Override public Component render(Locale locale, Localizer lc) { return text(decimalFormatter(locale).format(value), CONSTANT); }
         }
         public record AddValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur + value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
+            @Override public String toString() { return "+" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
         public record SubtractValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur - value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
+            @Override public String toString() { return "-" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("-", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
         public record MultiplyValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur * value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
+            @Override public String toString() { return "*" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("×", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
         public record DivideValue(double value) implements InitialValue<Double> {
             @Override public Double compute(Double cur) { return cur / value; }
+            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
+            @Override public String toString() { return "/" + decimalFormatter(Locale.ROOT).format(value); }
             @Override public Component render(Locale locale, Localizer lc) { return text("÷", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
         }
 

@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
+import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Renderable;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -26,6 +27,7 @@ public interface Stat<T> extends Renderable {
 
     interface Value<T> extends Renderable {
         T compute(T cur);
+        boolean discardsPrevious();
     }
 
     interface InitialValue<T> extends Value<T> {
@@ -44,6 +46,12 @@ public interface Stat<T> extends Renderable {
             this.value = value;
         }
 
+        public Node(Node<T> o) {
+            stat = o.stat;
+            value = o.value;
+            next = o.next == null ? null : new Node<>(o.next);
+        }
+
         public Stat<T> stat() { return stat; }
         public Value<T> value() { return value; }
 
@@ -59,6 +67,7 @@ public interface Stat<T> extends Renderable {
 
         public @Nullable Node<T> next() { return next; }
         public Node<T> chain(Node<T> next) {
+            Validation.assertNot(next == this, "Next node in chain is itself");
             if (this.next == null)
                 this.next = next;
             else
@@ -72,6 +81,11 @@ public interface Stat<T> extends Renderable {
             for (; node != null; node = node.next)
                 result.add(node);
             return result;
+        }
+
+        @Override
+        public String toString() {
+            return "[" + value + "]" + (next == null ? "" : " -> " + next);
         }
     }
 

@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.impl;
 
 import com.gitlab.aecsocket.sokol.core.FeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -14,6 +15,7 @@ public interface PaperFeatureInstance extends FeatureInstance<PaperNode> {
     @Override PaperFeatureInstance copy();
 
     void save(Type type, ConfigurationNode node) throws SerializationException;
+    void save(PersistentDataContainer pdc) throws IllegalArgumentException;
 
     final class Serializer implements TypeSerializer<PaperFeatureInstance> {
         private final SokolPlugin plugin;

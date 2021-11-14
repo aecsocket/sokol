@@ -12,6 +12,7 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import net.kyori.adventure.text.Component;
+import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
@@ -67,6 +68,11 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
     }
 
     @Override
+    public Instance load(PaperNode node, PersistentDataContainer pdc) throws IllegalArgumentException {
+        return new Instance(node);
+    }
+
+    @Override
     public Optional<List<Component>> renderConfig(Locale locale, Localizer lc) {
         return lc.lines(locale, "feature.dummy.config",
                 "string", stringValue,
@@ -90,6 +96,9 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {}
+
+        @Override
+        public void save(PersistentDataContainer pdc) throws IllegalArgumentException {}
 
         @Override
         public Instance copy() {

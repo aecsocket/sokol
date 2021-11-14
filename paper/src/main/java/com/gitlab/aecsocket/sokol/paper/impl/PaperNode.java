@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.impl;
 
+import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.Slot;
 import com.gitlab.aecsocket.sokol.core.TreeData;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
@@ -9,6 +10,7 @@ import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
+import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -56,19 +58,29 @@ public class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeat
 
     @Override
     public PaperItem createItem(Locale locale) throws ItemCreationException {
-        /*
-        TODO this is stupid. so when we want to make an item out of an abstract node,
-        we have to give it a treeData by building it... but to build it we need to
-        pass an event... which we don't have since that would be the Events.CreateItem
-        we create down below...????????
-         */
-        if (treeData == null)
-            throw new ItemCreationException("Trying to create item with no tree data");
-        PaperItem item = treeData.stats().require(PaperComponent.STAT_ITEM)
-                .buildWrapper()
-                .name(value.render(locale, value.platform().lc()));
-        treeData.events().call(new Events.CreateItem(this, locale, item));
+        // Required to build the tree data, to get the STAT_ITEM stat
+        call(new Events.PreCreateItem(this, locale));
+        PaperItem item;
+        try {
+            ItemStack stack = treeData.stats().require(PaperComponent.STAT_ITEM)
+                    .buildStack();
+            stack.editMeta(meta -> {
+                value.platform().persistence().save(meta.getPersistentDataContainer(), this);
+                meta.displayName(Components.BLANK.append(value.render(locale, value.platform().lc())));
+                value.renderDescription(locale, value.platform().lc()).ifPresent(meta::lore);
+            });
+            item = new PaperItem(stack);
+        } catch (IllegalStateException e) {
+            throw new ItemCreationException(e);
+        }
+        call(new Events.CreateItem(this, locale, item));
         return item;
+    }
+
+    public PaperNode initialize() {
+        // TODO possibly merge PreCreateItem and Initialize, if we can unify the params?
+        call(new Events.Initialize(this));
+        return this;
     }
 
     @Override
@@ -137,6 +149,15 @@ public class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeat
 
     public static final class Events {
         private Events() {}
+
+        public record Initialize(
+                PaperNode node
+        ) implements NodeEvent<PaperNode> {}
+
+        public record PreCreateItem(
+                PaperNode node,
+                Locale locale
+        ) implements NodeEvent<PaperNode> {}
 
         public record CreateItem(
                 PaperNode node,

@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
+import com.gitlab.aecsocket.minecommons.core.Validation;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -34,7 +35,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
 
     public <T> Optional<T> value(Stat<T> key) {
         @SuppressWarnings("unchecked")
-        Stat.Node<T> node = (Stat.Node<T>) get(key);
+        Stat.Node<T> node = (Stat.Node<T>) get(key.key());
         return node == null ? key.defaultValue() : Optional.ofNullable(node.compute());
     }
 
@@ -51,10 +52,15 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
     private <T> void chain(String key, Stat.Node<T> node) {
         @SuppressWarnings("unchecked")
         Stat.Node<T> ours = (Stat.Node<T>) get(key);
+        var copy = new Stat.Node<>(node);
         if (ours == null)
-            put(key, node);
-        else
-            ours.chain(node);
+            put(key, copy);
+        else {
+            if (node.value().discardsPrevious())
+                put(key, copy);
+            else
+                ours.chain(copy);
+        }
     }
 
     public <T> void chain(Stat.Node<T> node) {

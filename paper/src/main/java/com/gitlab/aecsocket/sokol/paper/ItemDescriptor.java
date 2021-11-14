@@ -41,7 +41,7 @@ public record ItemDescriptor(
 
     @Override
     public String toString() {
-        return key + "(" + modelData + ", " + damage + ")" + Arrays.toString(flags) +
-                (unbreakable ? "<unbreakable>" : "");
+        return key + "(mdl=" + modelData + ", dmg=" + damage + ")" + (flags.length == 0 ? "" : Arrays.toString(flags)) +
+                (unbreakable ? " <unbreakable>" : "");
     }
 }

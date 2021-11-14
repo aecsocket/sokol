@@ -19,7 +19,7 @@ public abstract class AbstractNode<
 
     protected final C value;
     protected @Nullable NodeKey<N> key;
-    protected TreeData.@Nullable Scoped<N> treeData;
+    protected TreeData.Scoped<N> treeData;
     protected final Map<String, N> nodes = new HashMap<>();
     protected final Map<String, ? extends F> features;
 
@@ -114,7 +114,7 @@ public abstract class AbstractNode<
         return key == null;
     }
 
-    @Nullable @Override public Optional<TreeData.Scoped<N>> treeData() { return Optional.ofNullable(treeData); }
+    @Override public Optional<TreeData.Scoped<N>> treeData() { return Optional.ofNullable(treeData); }
 
     @Override
     public Optional<N> node(String... path) {
@@ -178,7 +178,8 @@ public abstract class AbstractNode<
     private record StatPair(Node node, List<StatIntermediate.MapData> data) {}
 
     @Override
-    public N buildTree(NodeEvent<N> event) {
+    public <E extends NodeEvent<N>> E call(E event) {
+        // Calling inherently rebuilds the tree
         key = null;
         treeData = BasicTreeData.blank();
         List<StatPair> forwardStats = new ArrayList<>();
@@ -197,7 +198,8 @@ public abstract class AbstractNode<
             }
         }
 
-        return self();
+        treeData.events().call(event);
+        return event;
     }
 
     protected void buildTree(NodeEvent<N> event, List<StatPair> forwardStats, List<StatPair> reverseStats, AbstractNode<N, C, F> parent) {
@@ -213,5 +215,10 @@ public abstract class AbstractNode<
             node.key = new NodeKey<>(self(), entry.getKey());
             node.buildTree(event, forwardStats, reverseStats, this);
         }
+    }
+
+    @Override
+    public String toString() {
+        return value.id() + nodes;
     }
 }

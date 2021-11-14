@@ -18,8 +18,10 @@ import static net.kyori.adventure.text.Component.text;
 public final class ItemStat extends AbstractStat<ItemDescriptor> {
     public record SetValue(ItemDescriptor value) implements InitialValue<ItemDescriptor> {
         @Override public ItemDescriptor compute(ItemDescriptor cur) { return value; }
+        @Override public boolean discardsPrevious() { return true; }
         @Override public ItemDescriptor first() { return value; }
-        @Override public Component render(Locale locale, Localizer lc) { return text("=", OPERATOR).append(text(value.toString(), CONSTANT)); }
+        @Override public String toString() { return ""+value; }
+        @Override public Component render(Locale locale, Localizer lc) { return text(value.toString(), CONSTANT); }
     }
 
     private static final Stat.OperationDeserializer<ItemDescriptor> opDeserializer = Stat.OperationDeserializer.<ItemDescriptor>builder()
