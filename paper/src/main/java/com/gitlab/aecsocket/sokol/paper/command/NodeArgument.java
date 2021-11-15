@@ -13,6 +13,7 @@ import com.gitlab.aecsocket.minecommons.core.Text;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperComponent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.spongepowered.configurate.ConfigurateException;
 
@@ -167,11 +168,11 @@ public final class NodeArgument<C> extends CommandArgument<C, PaperNode> {
             inputQueue.remove();
 
             PaperNode value;
-            /*if (SELF.equals(input)
+            if (SELF.equals(input)
                     && ctx.getSender() instanceof Player player
-                    && (value = plugin.persistenceManager().load(player.getInventory().getItemInMainHand()).orElse(null)) != null) {
+                    && (value = plugin.persistence().safeLoad(player.getInventory().getItemInMainHand()).orElse(null)) != null) {
                 return ArgumentParseResult.success(value);
-            } TODO */
+            }
 
             try {
                 value = plugin.loaderBuilder()

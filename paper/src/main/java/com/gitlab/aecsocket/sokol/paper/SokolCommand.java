@@ -1,13 +1,18 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import cloud.commandframework.ArgumentDescription;
+import cloud.commandframework.arguments.flags.CommandFlag;
+import cloud.commandframework.arguments.standard.EnumArgument;
 import cloud.commandframework.arguments.standard.IntegerArgument;
+import cloud.commandframework.arguments.standard.StringArgument;
+import cloud.commandframework.bukkit.parsers.PlayerArgument;
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument;
 import cloud.commandframework.context.CommandContext;
+import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.Components;
-import com.gitlab.aecsocket.minecommons.core.Text;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
+import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
@@ -16,59 +21,83 @@ import com.gitlab.aecsocket.sokol.paper.command.ComponentArgument;
 import com.gitlab.aecsocket.sokol.paper.command.NodeArgument;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import java.util.stream.Collectors;
 
-import static com.gitlab.aecsocket.sokol.paper.SokolPlugin.PERMISSION_PREFIX;
 import static net.kyori.adventure.text.Component.*;
 import static net.kyori.adventure.text.JoinConfiguration.*;
 
 /* package */ final class SokolCommand extends BaseCommand<SokolPlugin> {
-    private static final NamedTextColor separator = NamedTextColor.GRAY;
+    private static final JoinConfiguration separator = separator(text(", ", NamedTextColor.GRAY));
+    private static final List<String> registryTypes = List.of(
+            PaperComponent.class.getSimpleName(),
+            PaperBlueprint.class.getSimpleName()
+    );
 
     SokolCommand(SokolPlugin plugin) throws Exception {
         super(plugin, "sokol",
                 (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
 
         manager.command(root
-                .literal("tree", ArgumentDescription.of("Shows a node tree of the held item."))
-                .senderType(Player.class)
-                .permission(PERMISSION_PREFIX + ".command.tree")
+                .literal("list", ArgumentDescription.of("Lists all registered objects."))
+                .flag(CommandFlag.newBuilder("type")
+                        .withAliases("t")
+                        .withArgument(StringArgument.<CommandSender>newBuilder("value")
+                                .quoted()
+                                .withSuggestionsProvider((ctx, inp) -> registryTypes))
+                        .withDescription(ArgumentDescription.of("The type of object to get.")))
+                .flag(CommandFlag.newBuilder("filter")
+                        .withAliases("f")
+                        .withArgument(StringArgument.newBuilder("value")
+                                .quoted()
+                                .withSuggestionsProvider((ctx, inp) -> CollectionBuilder.list(new ArrayList<>(plugin.components().keySet()))
+                                        .add(plugin.blueprints().keySet())
+                                        .get()))
+                        .withDescription(ArgumentDescription.of("The filter for the name/ID.")))
+                .permission("%s.command.list".formatted(rootName))
+                .handler(c -> handle(c, this::list)));
+        manager.command(root
+                .literal("tree", ArgumentDescription.of("Shows a node tree of an equipped item."))
+                .argument(EnumArgument.optional(EquipmentSlot.class, "slot"), ArgumentDescription.of("The slot to get the item in."))
+                .argument(PlayerArgument.optional("target"), ArgumentDescription.of("The player to get the item from."))
+                .permission("%s.command.tree".formatted(rootName))
                 .handler(c -> handle(c, this::tree)));
         manager.command(root
                 .literal("component", ArgumentDescription.of("Outputs detailed information on a registered component."))
                 .argument(ComponentArgument.of(plugin, "component"), ArgumentDescription.of("The component to list information on."))
-                .permission(PERMISSION_PREFIX + ".command.component")
+                .permission("%s.command.component".formatted(rootName))
                 .handler(c -> handle(c, this::component)));
         manager.command(root
                 .literal("blueprint", ArgumentDescription.of("Outputs detailed information on a registered blueprint."))
                 .argument(BlueprintArgument.of(plugin, "blueprint"), ArgumentDescription.of("The blueprint to list information on."))
-                .permission(PERMISSION_PREFIX + ".command.blueprint")
+                .permission("%s.command.blueprint".formatted(rootName))
                 .handler(c -> handle(c, this::blueprint)));
         manager.command(root
                 .literal("give", ArgumentDescription.of("Gives a component/node tree to specified players."))
                 .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the item to."))
                 .argument(NodeArgument.of(plugin, "node"), ArgumentDescription.of("The component/node tree to give."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the item to give."))
-                .permission(PERMISSION_PREFIX + ".command.give")
+                .permission("%s.command.give".formatted(rootName))
                 .handler(c -> handle(c, this::give)));
         manager.command(root
                 .literal("build", ArgumentDescription.of("Gives a built blueprint to specified players."))
                 .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the item to."))
                 .argument(BlueprintArgument.of(plugin, "blueprint"), ArgumentDescription.of("The blueprint to give."))
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the item to give."))
-                .permission(PERMISSION_PREFIX + ".command.build")
+                .permission("%s.command.build".formatted(rootName))
                 .handler(c -> handle(c, this::build)));
+        // todo list command
     }
 
     private List<Component> formatStats(Locale locale, StatMap map) {
@@ -84,16 +113,56 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                             "name", node.stat().render(locale, lc),
                             "key", key,
                             "nodes", chain.size() + "",
-                            "chain", join(separator(text(", ", separator)),
-                                    chain.stream().map(n -> n.value().render(locale, lc)).collect(Collectors.toList())))
+                            "chain", join(separator, chain.stream().map(n -> n.value().render(locale, lc)).collect(Collectors.toList())))
                     .ifPresent(lines::addAll);
         }
 
         return lines;
     }
 
-    private Component treeHover(Locale locale, String command) {
-        return lc.lines(locale, PREFIX_COMMAND + ".tree.hover",
+    private void list(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+        String type = ctx.flags().get("type");
+        if (type != null) type = type.toLowerCase(Locale.ROOT);
+        String filter = ctx.flags().get("filter");
+        if (filter != null) filter = filter.toLowerCase(Locale.ROOT);
+
+        List<Keyed> registered = new ArrayList<>(plugin.components().values());
+        registered.addAll(plugin.blueprints().values());
+        int results = 0;
+        for (var object : registered) {
+            Component rendered = object.render(locale, lc);
+            String id = object.id();
+            if (type != null) {
+                String typeName = object.getClass().getName().toLowerCase(Locale.ROOT);
+                if (!typeName.contains(type))
+                    continue;
+            }
+            if (filter != null) {
+                String testId = id.toLowerCase(Locale.ROOT);
+                String name = PlainTextComponentSerializer.plainText().serialize(rendered).toLowerCase(Locale.ROOT);
+                if (!testId.contains(filter) && !name.contains(filter))
+                    continue;
+            }
+
+            ++results;
+            String command = "/" + rootName + " " + (
+                    object instanceof PaperComponent ? "component"
+                    : object instanceof PaperBlueprint ? "blueprint"
+                    : "?") + " " + object.id();
+            Component hover = fullInfoHover(locale, command);
+            ClickEvent click = ClickEvent.runCommand(command);
+            lc.lines(locale, PREFIX_COMMAND + ".list.entry",
+                    "type", object.getClass().getSimpleName(),
+                    "name", rendered,
+                    "id", id)
+                    .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover).clickEvent(click))));
+        }
+        send(sender, locale, "list.total",
+                "results", ""+results);
+    }
+
+    private Component fullInfoHover(Locale locale, String command) {
+        return lc.lines(locale, PREFIX_COMMAND + ".full_info_hover",
                         "command", command)
                 .map(m -> join(separator(newline()), m))
                 .orElse(empty());
@@ -106,7 +175,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
             PaperComponent component = child.value();
 
             String command = "/" + rootName + " component " + component.id();
-            Component hover = treeHover(locale, command);
+            Component hover = fullInfoHover(locale, command);
             ClickEvent click = ClickEvent.runCommand(command);
             lc.lines(locale, PREFIX_COMMAND + ".tree.node",
                             "indent", Components.repeat(indent, depth),
@@ -121,7 +190,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
 
     private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperNode node, String type) {
         String command = "/" + rootName + " component " + node.value().id();
-        Component hover = treeHover(locale, command);
+        Component hover = fullInfoHover(locale, command);
         ClickEvent click = ClickEvent.runCommand(command);
         lc.lines(locale, PREFIX_COMMAND + ".tree." + type,
                         "type", node.value().getClass().getSimpleName(),
@@ -132,15 +201,16 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
     }
 
     private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
-        if (pSender == null)
-            return;
-        ItemStack item = pSender.getInventory().getItemInMainHand();
+        EquipmentSlot slot = ctx.getOrDefault("slot", EquipmentSlot.HAND);
+        Player target = defaultedArg(ctx, "target", pSender, p -> p);
+
+        //noinspection ConstantConditions
+        ItemStack item = target.getInventory().getItem(slot);
         PaperNode node = plugin.persistence().safeLoad(item)
                 .orElseThrow(() -> error("item_not_tree"))
                 .initialize();
         tree(ctx, sender, locale, pSender, node, "header");
 
-        // todo build it so it works
         node.treeData().ifPresent(treeData -> {
             StatMap stats = treeData.stats();
             Component hover = join(separator(newline()), formatStats(locale, stats));
@@ -235,8 +305,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         try {
             baseItem = node.createItem(locale).handle();
         } catch (ItemCreationException e) {
-            throw error("item_creation",
-                    "message", Text.mergeMessages(e));
+            throw error("item_creation", e);
         }
         //noinspection ConstantConditions
         int amount = ctx.getOrDefault("amount", 1);
@@ -248,8 +317,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
             try {
                 item = node.createItem(target.locale()).handle();
             } catch (ItemCreationException e) {
-                throw error("item_creation",
-                        "message", Text.mergeMessages(e));
+                throw error("item_creation", e);
             }
             Inventory inventory = target.getInventory();
             for (int i = 0; i < amount; i++)

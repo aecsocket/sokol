@@ -1,7 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper;
 
-import com.gitlab.aecsocket.minecommons.core.ChatPosition;
-import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.Duration;
 import com.gitlab.aecsocket.minecommons.core.Logging;
 import com.gitlab.aecsocket.sokol.core.Slot;
@@ -62,7 +60,8 @@ public final class SokolPersistence {
             } catch (IllegalArgumentException e) {
                 if (plugin.setting(true, ConfigurationNode::getBoolean, "persistence", "log_errors")) {
                     if (System.currentTimeMillis() >= nextLog) {
-                        nextLog = System.currentTimeMillis() + plugin.setting(Duration.duration(60 * 1000), (n, d) -> n.get(Duration.class, d), "persistence", "next_log").ms();
+                        nextLog = System.currentTimeMillis() + plugin.setting(Duration.duration(60 * 1000),
+                                (n, d) -> n.get(Duration.class, d), "persistence", "log_interval").ms();
                         plugin.log(Logging.Level.WARNING, e, "Could not load tree from item's data container");
                     }
                 }
