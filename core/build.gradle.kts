@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    compileOnly("com.gitlab.aecsocket.minecommons", "core", "1.2") { isTransitive = true }
+    compileOnly("com.gitlab.aecsocket.minecommons", "core", "1.3") { isTransitive = true }
 }
 
 tasks {

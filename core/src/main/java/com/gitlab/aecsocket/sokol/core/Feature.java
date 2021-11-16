@@ -17,13 +17,16 @@ public interface Feature<
 
     void configure(ConfigurationNode config);
 
+    static String renderKey(String id) { return "feature." + id + ".name"; }
+    static String renderDescriptionKey(String id) { return "feature." + id + ".description"; }
+
     @Override
     default Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "feature." + id() + ".name");
+        return lc.safe(locale, renderKey(id()));
     }
 
     default Component renderDescription(Locale locale, Localizer lc) {
-        return lc.safe(locale, "feature." + id() + ".description");
+        return lc.safe(locale, renderDescriptionKey(id()));
     }
 
     Optional<List<Component>> renderConfig(Locale locale, Localizer lc);

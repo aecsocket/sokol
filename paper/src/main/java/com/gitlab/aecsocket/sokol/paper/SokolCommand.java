@@ -20,6 +20,7 @@ import com.gitlab.aecsocket.sokol.paper.command.BlueprintArgument;
 import com.gitlab.aecsocket.sokol.paper.command.ComponentArgument;
 import com.gitlab.aecsocket.sokol.paper.command.NodeArgument;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -71,6 +72,9 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                 .literal("tree", ArgumentDescription.of("Shows a node tree of an equipped item."))
                 .argument(EnumArgument.optional(EquipmentSlot.class, "slot"), ArgumentDescription.of("The slot to get the item in."))
                 .argument(PlayerArgument.optional("target"), ArgumentDescription.of("The player to get the item from."))
+                .flag(CommandFlag.newBuilder("contextless")
+                        .withAliases("c")
+                        .withDescription(ArgumentDescription.of("Removes the context of you being the user, when generating info.")))
                 .permission("%s.command.tree".formatted(rootName))
                 .handler(c -> handle(c, this::tree)));
         manager.command(root
@@ -207,8 +211,11 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         //noinspection ConstantConditions
         ItemStack item = target.getInventory().getItem(slot);
         PaperNode node = plugin.persistence().safeLoad(item)
-                .orElseThrow(() -> error("item_not_tree"))
-                .initialize();
+                .orElseThrow(() -> error("item_not_tree"));
+        if (pSender == null || ctx.flags().isPresent("contextless"))
+            node.initialize(locale);
+        else
+            node.initialize(PlayerUser.user(plugin, pSender));
         tree(ctx, sender, locale, pSender, node, "header");
 
         node.treeData().ifPresent(treeData -> {
@@ -303,7 +310,10 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         // Make sure that the item can actually be built
         ItemStack baseItem;
         try {
-            baseItem = node.createItem(locale).handle();
+            if (pSender == null)
+                baseItem = node.createItem(locale).handle();
+            else
+                baseItem = node.createItem(PlayerUser.user(plugin, pSender)).handle();
         } catch (ItemCreationException e) {
             throw error("item_creation", e);
         }
@@ -315,7 +325,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
             ItemStack item;
             // We shouldn't *need* this try/catch, but just in case...
             try {
-                item = node.createItem(target.locale()).handle();
+                item = node.createItem(PlayerUser.user(plugin, target)).handle();
             } catch (ItemCreationException e) {
                 throw error("item_creation", e);
             }

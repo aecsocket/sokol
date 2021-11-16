@@ -1,11 +1,14 @@
 package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.*;
+import com.gitlab.aecsocket.sokol.core.event.LocalizedEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
+import com.gitlab.aecsocket.sokol.core.event.UserEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
@@ -183,6 +186,24 @@ public abstract class AbstractNode<
     }
 
     @Override
+    public N initialize() {
+        call(new Events.Initialize<>(self()));
+        return self();
+    }
+
+    @Override
+    public N initialize(Locale locale) {
+        call(new Events.InitializeLocalized<>(self(), locale));
+        return self();
+    }
+
+    @Override
+    public N initialize(ItemUser user) {
+        call(new Events.InitializeUser<>(self(), user));
+        return self();
+    }
+
+    @Override
     public N asRoot() {
         N result = copy();
         result.key = null;
@@ -235,5 +256,23 @@ public abstract class AbstractNode<
     @Override
     public String toString() {
         return value.id() + nodes;
+    }
+
+    public static final class Events {
+        private Events() {}
+
+        public record Initialize<N extends Node.Scoped<N, ?, ?>>(
+                N node
+        ) implements NodeEvent<N> {}
+
+        public record InitializeLocalized<N extends Node.Scoped<N, ?, ?>>(
+                N node,
+                Locale locale
+        ) implements LocalizedEvent<N> {}
+
+        public record InitializeUser<N extends Node.Scoped<N, ?, ?>>(
+                N node,
+                ItemUser user
+        ) implements UserEvent<N> {}
     }
 }

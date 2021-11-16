@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.core.stat;
 import com.gitlab.aecsocket.minecommons.core.Validation;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Renderable;
+import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -20,9 +21,17 @@ public interface Stat<T> extends Renderable {
 
     Node<T> node(Value<T> value);
 
+    static String renderKey(String key) { return "stat." + key + ".name"; }
+    static String renderFormatKey(String key) { return "stat." + key + ".format"; }
+
     @Override
-    default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "stat." + key() + ".name");
+    default Component render(Locale locale, Localizer lc) {
+        return lc.safe(locale, renderKey(key()));
+    }
+
+    default Component renderFormat(Locale locale, Localizer lc, Component value) {
+        return lc.safe(locale, renderFormatKey(key()),
+                "value", value);
     }
 
     interface Value<T> extends Renderable {

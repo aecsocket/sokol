@@ -3,10 +3,12 @@ package com.gitlab.aecsocket.sokol.paper.impl;
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.Slot;
 import com.gitlab.aecsocket.sokol.core.TreeData;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
+import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
+import com.gitlab.aecsocket.sokol.core.event.UserEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractNode;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
@@ -53,10 +55,7 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
 
     @Override public PaperNode self() { return this; }
 
-    @Override
-    public PaperItem createItem(Locale locale) throws ItemCreationException {
-        // Required to build the tree data, to get the STAT_ITEM stat
-        call(new Events.PreCreateItem(this, locale));
+    private PaperItem createItem0(Locale locale) throws ItemCreationException {
         PaperItem item;
         try {
             ItemStack stack = treeData.stats().require(PaperComponent.STAT_ITEM)
@@ -70,14 +69,25 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
         } catch (IllegalStateException e) {
             throw new ItemCreationException(e);
         }
-        call(new Events.CreateItem(this, locale, item));
         return item;
     }
 
-    public PaperNode initialize() {
-        // TODO possibly merge PreCreateItem and Initialize, if we can unify the params?
-        call(new Events.Initialize(this));
-        return this;
+    @Override
+    public PaperItem createItem(ItemUser user) throws ItemCreationException {
+        // Required to build the tree data, to get the STAT_ITEM stat
+        initialize(user);
+        PaperItem item = createItem0(user.locale());
+        call(new Events.CreateItemUser(this, user, item));
+        return item;
+    }
+
+    @Override
+    public PaperItem createItem(Locale locale) throws ItemCreationException {
+        // Required to build the tree data, to get the STAT_ITEM stat
+        initialize(locale);
+        PaperItem item = createItem0(locale);
+        call(new Events.CreateItemLocalized(this, locale, item));
+        return item;
     }
 
     @Override
@@ -150,19 +160,20 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
     public static final class Events {
         private Events() {}
 
-        public record Initialize(
-                PaperNode node
-        ) implements NodeEvent<PaperNode> {}
+        public interface CreateItem extends CreateItemEvent<PaperNode> {
+            @Override PaperItem item();
+        }
 
-        public record PreCreateItem(
-                PaperNode node,
-                Locale locale
-        ) implements NodeEvent<PaperNode> {}
-
-        public record CreateItem(
+        public record CreateItemLocalized(
                 PaperNode node,
                 Locale locale,
                 PaperItem item
-        ) implements NodeEvent<PaperNode> {}
+        ) implements CreateItem {}
+
+        public record CreateItemUser(
+                PaperNode node,
+                ItemUser user,
+                PaperItem item
+        ) implements CreateItem, UserEvent<PaperNode> {}
     }
 }

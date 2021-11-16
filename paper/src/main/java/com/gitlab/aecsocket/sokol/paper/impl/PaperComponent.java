@@ -73,9 +73,14 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
             for (var entry : node.node("features").childrenMap().entrySet()) {
                 String featureId = ""+entry.getKey();
                 ConfigurationNode config = entry.getValue();
-                FeatureType featureType = plugin.featureTypes().get(featureId)
+                FeatureType.Keyed featureType = plugin.featureTypes().get(featureId)
                         .orElseThrow(() -> new SerializationException(node, type, "No feature with ID '" + featureId + "'"));
-                PaperFeature<?> feature = featureType.createSystem(config);
+                PaperFeature<?> feature;
+                try {
+                    feature = featureType.createFeature(plugin, config);
+                } catch (SerializationException e) {
+                    throw new SerializationException(node, type, "Could not create feature '" + featureId + "'", e);
+                }
                 loadProviders.add(featureType);
                 features.put(featureId, feature);
                 featureConfigs.put(feature, config);

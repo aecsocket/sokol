@@ -1,16 +1,14 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
-import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.Pools;
-import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
-import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import com.gitlab.aecsocket.sokol.paper.FeatureType;
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
@@ -40,23 +38,26 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types()
             .build();
 
-    public static final FeatureType TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, config -> new DummyFeature(
+    public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new DummyFeature(platform,
             config.node("string_value").getString(""),
             config.node("int_value").getInt(),
             config.node("double_value").getDouble()
     ));
 
+    private final SokolPlugin platform;
     private final String stringValue;
     private final int intValue;
     private final double doubleValue;
 
-    public DummyFeature(String stringValue, int intValue, double doubleValue) {
+    public DummyFeature(SokolPlugin platform, String stringValue, int intValue, double doubleValue) {
+        this.platform = platform;
         this.stringValue = stringValue;
         this.intValue = intValue;
         this.doubleValue = doubleValue;
     }
 
     @Override public String id() { return ID; }
+    @Override public SokolPlugin platform() { return platform; }
     public String stringValue() { return stringValue; }
     public int intValue() { return intValue; }
     public double doubleValue() { return doubleValue; }

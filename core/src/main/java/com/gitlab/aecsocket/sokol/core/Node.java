@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.wrapper.Item;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Locale;
@@ -20,7 +21,7 @@ public interface Node {
     NodePath path();
     Node root();
     boolean isRoot();
-    @Nullable Optional<? extends TreeData<?>> treeData();
+    Optional<? extends TreeData<?>> treeData();
 
     Map<String, ? extends Node> nodes();
     Optional<? extends Node> node(String... path);
@@ -30,7 +31,12 @@ public interface Node {
     Map<String, ? extends FeatureInstance<?>> features();
     Optional<? extends FeatureInstance<?>> feature(String key);
 
+    Node initialize();
+    Node initialize(Locale locale);
+    Node initialize(ItemUser user);
+
     Item createItem(Locale locale) throws ItemCreationException;
+    Item createItem(ItemUser user) throws ItemCreationException;
 
     Node copy();
     Node asRoot();
@@ -48,7 +54,7 @@ public interface Node {
         N parent(N parent, String key);
         N orphan();
         @Override N root();
-        @Override @Nullable Optional<TreeData.Scoped<N>> treeData();
+        @Override Optional<TreeData.Scoped<N>> treeData();
 
         @Override Map<String, N> nodes();
         @Override Optional<N> node(String... path);
@@ -59,6 +65,10 @@ public interface Node {
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);
         N feature(String key, F feature);
+
+        @Override N initialize();
+        @Override N initialize(Locale locale);
+        @Override N initialize(ItemUser user);
 
         @Override N copy();
         @Override N asRoot();

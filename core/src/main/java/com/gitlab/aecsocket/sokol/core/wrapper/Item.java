@@ -2,6 +2,8 @@ package com.gitlab.aecsocket.sokol.core.wrapper;
 
 import net.kyori.adventure.text.Component;
 
+import java.util.List;
+
 public interface Item {
     int amount();
     Item amount(int amount);
@@ -14,4 +16,8 @@ public interface Item {
 
     Component name();
     Item name(Component name);
+
+    List<Component> description();
+    Item description(List<Component> description);
+    Item addDescription(List<Component> description);
 }

@@ -83,44 +83,73 @@ public final class Primitives {
         public AddValue add(String value) { return new AddValue(value); }
     }
 
+    public interface OfNumber<N extends Number> extends Stat<N> {
+        interface BaseValue<N extends Number> extends InitialValue<N> {
+            Number wrappedValue();
+            String operator();
+            @Override default boolean discardsPrevious() { return false; }
+            default String asString(Locale locale) { return "+" + decimalFormatter(Locale.ROOT).format(wrappedValue()); }
+            @Override
+            default Component render(Locale locale, Localizer lc) {
+                return text(operator(), OPERATOR).append(text(decimalFormatter(locale).format(wrappedValue()), CONSTANT));
+            }
+        }
+        interface SetValue<N extends Number> extends BaseValue<N> {
+            @Override default String operator() { return "="; }
+            @Override default boolean discardsPrevious() { return true; }
+            @Override default String asString(Locale locale) { return decimalFormatter(Locale.ROOT).format(wrappedValue()); }
+            @Override
+            default Component render(Locale locale, Localizer lc) {
+                return text(decimalFormatter(locale).format(wrappedValue()), CONSTANT);
+            }
+        }
+        interface AddValue<N extends Number> extends BaseValue<N> {
+            @Override default String operator() { return "+"; }
+        }
+        interface SubtractValue<N extends Number> extends BaseValue<N> {
+            @Override default String operator() { return "-"; }
+        }
+        interface MultiplyValue<N extends Number> extends BaseValue<N> {
+            @Override default String operator() { return "×"; }
+        }
+        interface DivideValue<N extends Number> extends BaseValue<N> {
+            @Override default String operator() { return "÷"; }
+        }
+    }
+
     public static OfInteger integerStat(String key) { return new OfInteger(key, null); }
     public static OfInteger integerStat(String key, long def) { return new OfInteger(key, def); }
 
-    public static class OfInteger extends AbstractStat<Long> {
-        public record SetValue(long value) implements InitialValue<Long> {
+    public static class OfInteger extends AbstractStat<Long> implements OfNumber<Long> {
+        public record SetValue(long value) implements OfNumber.SetValue<Long> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return value; }
-            @Override public boolean discardsPrevious() { return true; }
             @Override public Long first() { return value; }
-            @Override public String toString() { return decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text(decimalFormatter(locale).format(value), CONSTANT); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record AddValue(long value) implements InitialValue<Long> {
+        public record AddValue(long value) implements OfNumber.AddValue<Long> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return cur + value; }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Long first() { return value; }
-            @Override public String toString() { return "+" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record SubtractValue(long value) implements InitialValue<Long> {
+        public record SubtractValue(long value) implements InitialValue<Long>, OfNumber.SubtractValue<Long> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return cur - value; }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Long first() { return value; }
-            @Override public String toString() { return "-" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("-", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record MultiplyValue(double value) implements InitialValue<Long> {
+        public record MultiplyValue(double value) implements InitialValue<Long>, OfNumber.MultiplyValue<Long> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return (long) (cur * value); }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Long first() { return (long) value; }
-            @Override public String toString() { return "*" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("×", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record DivideValue(double value) implements InitialValue<Long> {
+        public record DivideValue(double value) implements InitialValue<Long>, OfNumber.DivideValue<Long> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return (long) (cur / value); }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Long first() { return (long) value; }
-            @Override public String toString() { return "/" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("÷", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
 
         private static final Stat.OperationDeserializer<Long> opDeserializer = Stat.OperationDeserializer.<Long>builder()
@@ -151,41 +180,36 @@ public final class Primitives {
     public static OfDecimal decimalStat(String key) { return new OfDecimal(key, null); }
     public static OfDecimal decimalStat(String key, double def) { return new OfDecimal(key, def); }
 
-    public static class OfDecimal extends AbstractStat<Double> {
-        public record SetValue(double value) implements InitialValue<Double> {
+    public static class OfDecimal extends AbstractStat<Double> implements OfNumber<Double> {
+        public record SetValue(double value) implements OfNumber.SetValue<Double> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return value; }
-            @Override public boolean discardsPrevious() { return true; }
             @Override public Double first() { return value; }
-            @Override public String toString() { return decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text(decimalFormatter(locale).format(value), CONSTANT); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record AddValue(double value) implements InitialValue<Double> {
+        public record AddValue(double value) implements OfNumber.AddValue<Double> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur + value; }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
-            @Override public String toString() { return "+" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("+", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record SubtractValue(double value) implements InitialValue<Double> {
+        public record SubtractValue(double value) implements OfNumber.SubtractValue<Double> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur - value; }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
-            @Override public String toString() { return "-" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("-", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record MultiplyValue(double value) implements InitialValue<Double> {
+        public record MultiplyValue(double value) implements OfNumber.MultiplyValue<Double> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur * value; }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
-            @Override public String toString() { return "*" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("×", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record DivideValue(double value) implements InitialValue<Double> {
+        public record DivideValue(double value) implements OfNumber.DivideValue<Double> {
+            @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur / value; }
-            @Override public boolean discardsPrevious() { return false; }
             @Override public Double first() { return value; }
-            @Override public String toString() { return "/" + decimalFormatter(Locale.ROOT).format(value); }
-            @Override public Component render(Locale locale, Localizer lc) { return text("÷", OPERATOR).append(text(decimalFormatter(locale).format(value), CONSTANT)); }
+            @Override public String toString() { return asString(Locale.ROOT); }
         }
 
         private static final Stat.OperationDeserializer<Double> opDeserializer = Stat.OperationDeserializer.<Double>builder()

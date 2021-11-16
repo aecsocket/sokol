@@ -18,13 +18,16 @@ public interface Component extends Keyed {
 
     StatIntermediate stats();
 
+    static String renderKey(String id) { return "component." + id + ".name"; }
+    static String renderDescriptionKey(String id) { return "blueprint." + id + ".description"; }
+
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "component." + id() + ".name");
+        return lc.safe(locale, renderKey(id()));
     }
 
     default Optional<List<net.kyori.adventure.text.Component>> renderDescription(Locale locale, Localizer lc) {
-        return lc.lines(locale, "component." + id() + ".description");
+        return lc.lines(locale, renderDescriptionKey(id()));
     }
 
     interface Scoped<

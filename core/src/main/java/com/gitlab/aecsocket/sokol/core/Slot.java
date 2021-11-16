@@ -15,8 +15,10 @@ public interface Slot extends Renderable {
 
     void compatibility(Node parent, Node child) throws IncompatibilityException;
 
+    static String renderKey(String key) { return "slot." + key + ".name"; }
+
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {
-        return lc.safe(locale, "slot." + key() + ".name");
+        return lc.safe(locale, renderKey(key()));
     }
 }

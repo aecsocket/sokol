@@ -22,7 +22,7 @@ dependencies {
     implementation("org.bstats", "bstats-bukkit", "2.2.1")
 
     // Plugins
-    compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.2")
+    compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.3")
     compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
 }
 
