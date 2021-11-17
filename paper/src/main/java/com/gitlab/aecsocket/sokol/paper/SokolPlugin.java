@@ -16,6 +16,7 @@ import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.paper.feature.DummyFeature;
+import com.gitlab.aecsocket.sokol.paper.feature.PaperSlotDisplayFeature;
 import com.gitlab.aecsocket.sokol.paper.feature.PaperStatDisplayFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
 import io.leangen.geantyref.TypeToken;
@@ -75,6 +76,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public void onEnable() {
         super.onEnable();
         featureTypes.register(DummyFeature.TYPE);
+        featureTypes.register(PaperSlotDisplayFeature.TYPE);
         featureTypes.register(PaperStatDisplayFeature.TYPE);
 
         PaperStatDisplayFeature.Formats.registerAll(statFormats);

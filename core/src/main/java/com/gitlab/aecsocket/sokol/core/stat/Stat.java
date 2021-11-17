@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Renderable;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
@@ -12,6 +13,7 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public interface Stat<T> extends Renderable {
     String key();
@@ -43,7 +45,7 @@ public interface Stat<T> extends Renderable {
         T first();
     }
 
-    final class Node<T> {
+    final class Node<T> implements Iterable<Node<T>> {
         private final Stat<T> stat;
         private final Value<T> value;
         private @Nullable Node<T> next;
@@ -90,6 +92,30 @@ public interface Stat<T> extends Renderable {
             for (; node != null; node = node.next)
                 result.add(node);
             return result;
+        }
+
+        @NotNull
+        @Override
+        public Iterator<Node<T>> iterator() {
+            return new Iterator<Node<T>>() {
+                private Node<T> cur = Node.this;
+
+                @Override
+                public boolean hasNext() {
+                    return cur != null;
+                }
+
+                @Override
+                public Node<T> next() {
+                    Node<T> ret = cur;
+                    cur = cur.next;
+                    return ret;
+                }
+            };
+        }
+
+        public Stream<Node<T>> stream() {
+            return StreamSupport.stream(spliterator(), false);
         }
 
         @Override

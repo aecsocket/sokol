@@ -50,7 +50,7 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
 
     @Override
     protected PaperFeatureInstance copyFeature(PaperFeatureInstance val) {
-        return val.copy();
+        return val.copy(this);
     }
 
     @Override public PaperNode self() { return this; }
@@ -63,9 +63,9 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
             stack.editMeta(meta -> {
                 value.platform().persistence().save(meta.getPersistentDataContainer(), this);
                 meta.displayName(Components.BLANK.append(value.render(locale, value.platform().lc())));
-                value.renderDescription(locale, value.platform().lc()).ifPresent(meta::lore);
             });
             item = new PaperItem(stack);
+            value.renderDescription(locale, value.platform().lc()).ifPresent(item::addDescription);
         } catch (IllegalStateException e) {
             throw new ItemCreationException(e);
         }

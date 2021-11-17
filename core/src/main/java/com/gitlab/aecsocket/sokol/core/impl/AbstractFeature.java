@@ -17,10 +17,6 @@ public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends No
             this.parent = parent;
         }
 
-        public AbstractInstance(AbstractInstance<N> o) {
-            parent = o.parent;
-        }
-
         @Override public N parent() { return parent; }
 
         protected TreeData<N> treeData(N node) {

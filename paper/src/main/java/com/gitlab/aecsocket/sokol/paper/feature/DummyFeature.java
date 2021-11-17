@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
+import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.sokol.core.Pools;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
@@ -21,19 +22,19 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static com.gitlab.aecsocket.sokol.core.stat.Primitives.*;
+import static com.gitlab.aecsocket.sokol.core.stat.Vectors.*;
 
 public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNode> implements PaperFeature<DummyFeature.Instance> {
     public static final String ID = "dummy";
     public static final StatTypes STAT_TYPES = StatTypes.types(
-            stringStat("string"),
-            integerStat("integer", 3),
-            decimalStat("decimal", 4.5)
+            vector2Stat("durability", Vector2.ZERO),
+            decimalStat("damage", 0),
+            decimalStat("muzzle_velocity"),
+            vector2Stat("spread", Vector2.ZERO),
+            vector2Stat("recoil", Vector2.ZERO)
     );
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types()
             .build();
@@ -92,10 +93,6 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
             super(parent);
         }
 
-        public Instance(Instance o) {
-            super(o);
-        }
-
         @Override public DummyFeature type() { return DummyFeature.this; }
 
         @Override
@@ -122,8 +119,8 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
         public void save(PersistentDataContainer pdc) throws IllegalArgumentException {}
 
         @Override
-        public Instance copy() {
-            return new Instance(this);
+        public Instance copy(PaperNode parent) {
+            return new Instance(parent);
         }
     }
 }

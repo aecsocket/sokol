@@ -9,5 +9,5 @@ public interface FeatureInstance<N extends Node.Scoped<N, ?, ?>> {
 
     void build(NodeEvent<N> event, StatIntermediate stats);
 
-    FeatureInstance<N> copy();
+    FeatureInstance<N> copy(N parent);
 }

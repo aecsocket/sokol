@@ -12,6 +12,7 @@ import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
+import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.stat.Stat;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
@@ -165,6 +166,10 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                 "results", ""+results);
     }
 
+    private Component constant(Locale locale, boolean value) {
+        return lc.safe(locale, "constant." + value);
+    }
+
     private Component fullInfoHover(Locale locale, String command) {
         return lc.lines(locale, PREFIX_COMMAND + ".full_info_hover",
                         "command", command)
@@ -219,6 +224,16 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         tree(ctx, sender, locale, pSender, node, "header");
 
         node.treeData().ifPresent(treeData -> {
+            List<NodePath> incomplete = treeData.incomplete();
+            if (incomplete.isEmpty())
+                send(sender, locale, "tree.complete.complete");
+            else {
+                send(sender, locale, "tree.complete.incomplete",
+                        "missing", ""+incomplete.size());
+                for (var path : incomplete)
+                    send(sender, locale, "tree.complete.incomplete_entry",
+                            "path", ""+path);
+            }
             StatMap stats = treeData.stats();
             Component hover = join(separator(newline()), formatStats(locale, stats));
             lc.lines(locale, PREFIX_COMMAND + ".tree.stats",

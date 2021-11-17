@@ -88,7 +88,7 @@ public final class Primitives {
             Number wrappedValue();
             String operator();
             @Override default boolean discardsPrevious() { return false; }
-            default String asString(Locale locale) { return "+" + decimalFormatter(Locale.ROOT).format(wrappedValue()); }
+            default String asString(Locale locale) { return operator() + decimalFormatter(Locale.ROOT).format(wrappedValue()); }
             @Override
             default Component render(Locale locale, Localizer lc) {
                 return text(operator(), OPERATOR).append(text(decimalFormatter(locale).format(wrappedValue()), CONSTANT));
@@ -133,19 +133,19 @@ public final class Primitives {
             @Override public Long first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record SubtractValue(long value) implements InitialValue<Long>, OfNumber.SubtractValue<Long> {
+        public record SubtractValue(long value) implements OfNumber.SubtractValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return cur - value; }
             @Override public Long first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record MultiplyValue(double value) implements InitialValue<Long>, OfNumber.MultiplyValue<Long> {
+        public record MultiplyValue(double value) implements OfNumber.MultiplyValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return (long) (cur * value); }
             @Override public Long first() { return (long) value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record DivideValue(double value) implements InitialValue<Long>, OfNumber.DivideValue<Long> {
+        public record DivideValue(double value) implements OfNumber.DivideValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return (long) (cur / value); }
             @Override public Long first() { return (long) value; }

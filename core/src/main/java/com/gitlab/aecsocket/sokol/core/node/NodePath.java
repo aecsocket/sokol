@@ -38,12 +38,12 @@ public interface NodePath {
         };
     }
 
-    static NodePath path(String[] path) {
+    static NodePath path(String... path) {
         return new NodePath() {
             private List<String> list;
             @Override public int size() { return path.length; }
             @Override public String get(int idx) { return path[idx]; }
-            @Override public @Nullable String last() {return path.length == 0 ? null : path[path.length - 1];}
+            @Override public @Nullable String last() { return path.length == 0 ? null : path[path.length - 1]; }
             @Override public List<String> list() { return list == null ? list = Arrays.asList(path) : list; }
             @Override public String[] array() { return path; }
             @Override public String toString() { return Arrays.toString(path); }
@@ -56,6 +56,12 @@ public interface NodePath {
 
     List<String> list();
     String[] array();
+
+    default NodePath append(String... nodes) {
+        List<String> allNodes = new ArrayList<>(list());
+        allNodes.addAll(Arrays.asList(nodes));
+        return path(allNodes);
+    }
 
     final class Serializer implements TypeSerializer<NodePath> {
         @Override

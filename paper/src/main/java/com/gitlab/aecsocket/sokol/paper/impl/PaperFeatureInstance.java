@@ -12,7 +12,7 @@ import java.lang.reflect.Type;
 import java.util.Objects;
 
 public interface PaperFeatureInstance extends FeatureInstance<PaperNode> {
-    @Override PaperFeatureInstance copy();
+    @Override PaperFeatureInstance copy(PaperNode parent);
 
     void save(Type type, ConfigurationNode node) throws SerializationException;
     void save(PersistentDataContainer pdc) throws IllegalArgumentException;

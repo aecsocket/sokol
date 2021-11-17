@@ -18,6 +18,8 @@ public abstract class AbstractNode<
         C extends Component.Scoped<C, ?, ? extends Feature<? extends F, N>, N>,
         F extends FeatureInstance<N>
 > implements Node.Scoped<N, C, F> {
+    public static final String TAG_REQUIRED = "required";
+
     protected record NodeKey<N extends Node>(N parent, String key) {}
 
     protected final C value;
@@ -57,12 +59,11 @@ public abstract class AbstractNode<
         key = o.key;
         for (var entry : o.nodes.entrySet())
             nodes.put(entry.getKey(), entry.getValue().copy());
-        Map<String, F> features = new HashMap<>();
+        features = new HashMap<>();
         for (var entry : o.features.entrySet()) {
             F feature = copyFeature(entry.getValue());
             features.put(entry.getKey(), feature);
         }
-        this.features = Collections.unmodifiableMap(features);
         treeData = o.treeData;
     }
 
@@ -76,10 +77,8 @@ public abstract class AbstractNode<
     @Override
     public NodePath path() {
         LinkedList<String> path = new LinkedList<>();
-        Node current = this;
-        do {
-            path.addFirst(current.key());
-        } while ((current = current.parent()) != null);
+        for (var cur = this; cur != null && cur.key != null; cur = cur.parent())
+            path.addFirst(cur.key());
         return NodePath.path(path);
     }
 
@@ -245,6 +244,12 @@ public abstract class AbstractNode<
         }
         forwardStats.add(new StatPair(this, stats.forward()));
         reverseStats.add(0, new StatPair(this, stats.reverse()));
+        for (var entry : value.slots().entrySet()) {
+            String key = entry.getKey();
+            if (entry.getValue().tagged(TAG_REQUIRED) && !nodes.containsKey(key)) {
+                treeData.addIncomplete(path().append(key));
+            }
+        }
         for (var entry : nodes.entrySet()) {
             N node = entry.getValue();
             node.treeData = parent.treeData;
