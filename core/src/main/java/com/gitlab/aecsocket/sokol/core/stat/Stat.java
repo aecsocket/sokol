@@ -22,6 +22,7 @@ public interface Stat<T> extends Renderable {
     Value<T> deserialize(Type type, ConfigurationNode node) throws SerializationException;
 
     Node<T> node(Value<T> value);
+    Component renderValue(Locale locale, Localizer lc, T value);
 
     static String renderKey(String key) { return "stat." + key + ".name"; }
     static String renderFormatKey(String key) { return "stat." + key + ".format"; }

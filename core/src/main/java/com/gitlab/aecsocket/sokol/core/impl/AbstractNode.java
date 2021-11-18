@@ -20,6 +20,10 @@ public abstract class AbstractNode<
 > implements Node.Scoped<N, C, F> {
     public static final String TAG_REQUIRED = "required";
 
+    public static boolean required(Slot slot) {
+        return slot.tagged(TAG_REQUIRED);
+    }
+
     protected record NodeKey<N extends Node>(N parent, String key) {}
 
     protected final C value;
@@ -246,7 +250,7 @@ public abstract class AbstractNode<
         reverseStats.add(0, new StatPair(this, stats.reverse()));
         for (var entry : value.slots().entrySet()) {
             String key = entry.getKey();
-            if (entry.getValue().tagged(TAG_REQUIRED) && !nodes.containsKey(key)) {
+            if (required(entry.getValue()) && !nodes.containsKey(key)) {
                 treeData.addIncomplete(path().append(key));
             }
         }

@@ -41,5 +41,10 @@ public final class ItemStat extends AbstractStat<ItemDescriptor> {
         return opDeserializer.deserialize(type, node);
     }
 
+    @Override
+    public Component renderValue(Locale locale, Localizer lc, ItemDescriptor value) {
+        return text(value.toString(), CONSTANT);
+    }
+
     public SetValue set(ItemDescriptor value) { return new SetValue(value); }
 }

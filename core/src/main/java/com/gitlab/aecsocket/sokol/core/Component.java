@@ -19,7 +19,7 @@ public interface Component extends Keyed {
     StatIntermediate stats();
 
     static String renderKey(String id) { return "component." + id + ".name"; }
-    static String renderDescriptionKey(String id) { return "blueprint." + id + ".description"; }
+    static String renderDescriptionKey(String id) { return "component." + id + ".description"; }
 
     @Override
     default net.kyori.adventure.text.Component render(Locale locale, Localizer lc) {

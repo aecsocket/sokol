@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.stat;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
+import com.gitlab.aecsocket.sokol.core.Pools;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -20,12 +21,16 @@ public final class Primitives {
     public static OfFlag flagStat(String key, boolean def) { return new OfFlag(key, def); }
 
     public static class OfFlag extends AbstractStat<Boolean> {
+        public static String renderConstantKey(boolean value) {
+            return "constant." + value;
+        }
+
         public record SetValue(boolean value) implements InitialValue<Boolean> {
             @Override public Boolean compute(Boolean cur) { return value; }
             @Override public boolean discardsPrevious() { return true; }
             @Override public Boolean first() { return value; }
             @Override public String toString() { return ""+value; }
-            @Override public Component render(Locale locale, Localizer lc) { return lc.safe(locale, "constant." + value).color(CONSTANT); }
+            @Override public Component render(Locale locale, Localizer lc) { return lc.safe(locale, renderConstantKey(value)).color(CONSTANT); }
         }
 
         private static final Stat.OperationDeserializer<Boolean> opDeserializer = Stat.OperationDeserializer.<Boolean>builder()
@@ -40,6 +45,11 @@ public final class Primitives {
         @Override
         public Value<Boolean> deserialize(Type type, ConfigurationNode node) throws SerializationException {
             return opDeserializer.deserialize(type, node);
+        }
+
+        @Override
+        public Component renderValue(Locale locale, Localizer lc, Boolean value) {
+            return lc.safe(locale, renderConstantKey(value)).color(CONSTANT);
         }
 
         public SetValue set(boolean value) { return new SetValue(value); }
@@ -79,11 +89,28 @@ public final class Primitives {
             return opDeserializer.deserialize(type, node);
         }
 
+        @Override
+        public Component renderValue(Locale locale, Localizer lc, String value) {
+            return text(value, CONSTANT);
+        }
+
         public SetValue set(String value) { return new SetValue(value); }
         public AddValue add(String value) { return new AddValue(value); }
     }
 
-    public interface OfNumber<N extends Number> extends Stat<N> {
+    public interface AbstractNumber {
+        interface SetValue {}
+
+        interface SumValue {}
+        interface AddValue extends SumValue {}
+        interface SubtractValue extends SumValue {}
+
+        interface FactorValue {}
+        interface MultiplyValue extends FactorValue {}
+        interface DivideValue extends FactorValue {}
+    }
+
+    public interface SingleNumber<N extends Number> extends Stat<N> {
         interface BaseValue<N extends Number> extends InitialValue<N> {
             Number wrappedValue();
             String operator();
@@ -94,7 +121,7 @@ public final class Primitives {
                 return text(operator(), OPERATOR).append(text(decimalFormatter(locale).format(wrappedValue()), CONSTANT));
             }
         }
-        interface SetValue<N extends Number> extends BaseValue<N> {
+        interface SetValue<N extends Number> extends BaseValue<N>, AbstractNumber.SetValue {
             @Override default String operator() { return "="; }
             @Override default boolean discardsPrevious() { return true; }
             @Override default String asString(Locale locale) { return decimalFormatter(Locale.ROOT).format(wrappedValue()); }
@@ -103,49 +130,54 @@ public final class Primitives {
                 return text(decimalFormatter(locale).format(wrappedValue()), CONSTANT);
             }
         }
-        interface AddValue<N extends Number> extends BaseValue<N> {
+        interface AddValue<N extends Number> extends BaseValue<N>, AbstractNumber.AddValue {
             @Override default String operator() { return "+"; }
         }
-        interface SubtractValue<N extends Number> extends BaseValue<N> {
+        interface SubtractValue<N extends Number> extends BaseValue<N>, AbstractNumber.SubtractValue {
             @Override default String operator() { return "-"; }
         }
-        interface MultiplyValue<N extends Number> extends BaseValue<N> {
+        interface MultiplyValue<N extends Number> extends BaseValue<N>, AbstractNumber.MultiplyValue {
             @Override default String operator() { return "×"; }
         }
-        interface DivideValue<N extends Number> extends BaseValue<N> {
+        interface DivideValue<N extends Number> extends BaseValue<N>, AbstractNumber.DivideValue {
             @Override default String operator() { return "÷"; }
+        }
+
+        @Override
+        default Component renderValue(Locale locale, Localizer lc, N value) {
+            return text(Pools.decimalFormatter(locale).format(value), CONSTANT);
         }
     }
 
     public static OfInteger integerStat(String key) { return new OfInteger(key, null); }
     public static OfInteger integerStat(String key, long def) { return new OfInteger(key, def); }
 
-    public static class OfInteger extends AbstractStat<Long> implements OfNumber<Long> {
-        public record SetValue(long value) implements OfNumber.SetValue<Long> {
+    public static class OfInteger extends AbstractStat<Long> implements SingleNumber<Long> {
+        public record SetValue(long value) implements SingleNumber.SetValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return value; }
             @Override public Long first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record AddValue(long value) implements OfNumber.AddValue<Long> {
+        public record AddValue(long value) implements SingleNumber.AddValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return cur + value; }
             @Override public Long first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record SubtractValue(long value) implements OfNumber.SubtractValue<Long> {
+        public record SubtractValue(long value) implements SingleNumber.SubtractValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return cur - value; }
             @Override public Long first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record MultiplyValue(double value) implements OfNumber.MultiplyValue<Long> {
+        public record MultiplyValue(double value) implements SingleNumber.MultiplyValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return (long) (cur * value); }
             @Override public Long first() { return (long) value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record DivideValue(double value) implements OfNumber.DivideValue<Long> {
+        public record DivideValue(double value) implements SingleNumber.DivideValue<Long> {
             @Override public Number wrappedValue() { return value; }
             @Override public Long compute(Long cur) { return (long) (cur / value); }
             @Override public Long first() { return (long) value; }
@@ -180,32 +212,32 @@ public final class Primitives {
     public static OfDecimal decimalStat(String key) { return new OfDecimal(key, null); }
     public static OfDecimal decimalStat(String key, double def) { return new OfDecimal(key, def); }
 
-    public static class OfDecimal extends AbstractStat<Double> implements OfNumber<Double> {
-        public record SetValue(double value) implements OfNumber.SetValue<Double> {
+    public static class OfDecimal extends AbstractStat<Double> implements SingleNumber<Double> {
+        public record SetValue(double value) implements SingleNumber.SetValue<Double> {
             @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return value; }
             @Override public Double first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record AddValue(double value) implements OfNumber.AddValue<Double> {
+        public record AddValue(double value) implements SingleNumber.AddValue<Double> {
             @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur + value; }
             @Override public Double first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record SubtractValue(double value) implements OfNumber.SubtractValue<Double> {
+        public record SubtractValue(double value) implements SingleNumber.SubtractValue<Double> {
             @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur - value; }
             @Override public Double first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record MultiplyValue(double value) implements OfNumber.MultiplyValue<Double> {
+        public record MultiplyValue(double value) implements SingleNumber.MultiplyValue<Double> {
             @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur * value; }
             @Override public Double first() { return value; }
             @Override public String toString() { return asString(Locale.ROOT); }
         }
-        public record DivideValue(double value) implements OfNumber.DivideValue<Double> {
+        public record DivideValue(double value) implements SingleNumber.DivideValue<Double> {
             @Override public Number wrappedValue() { return value; }
             @Override public Double compute(Double cur) { return cur / value; }
             @Override public Double first() { return value; }

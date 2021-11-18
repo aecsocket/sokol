@@ -16,6 +16,7 @@ import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.paper.feature.DummyFeature;
+import com.gitlab.aecsocket.sokol.paper.feature.PaperItemDescriptionFeature;
 import com.gitlab.aecsocket.sokol.paper.feature.PaperSlotDisplayFeature;
 import com.gitlab.aecsocket.sokol.paper.feature.PaperStatDisplayFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
@@ -47,12 +48,12 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperBlueprint> blueprints = new Registry<>();
+    private final Registry<StatDisplayFeature.FormatType> statFormats = new Registry<>();
     private final Registry<FeatureType.Keyed> featureTypes = new Registry<>();
     private final SokolPersistence persistence = new SokolPersistence(this);
     private final PaperScheduler paperScheduler = new PaperScheduler(this);
     private final ThreadScheduler threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
     private final Map<Player, PlayerData> playerData = new HashMap<>();
-    private final PaperStatDisplayFeature.FormatRegistry statFormats = new PaperStatDisplayFeature.FormatRegistry(this);
     private final MapFont font = new MinecraftFont();
     private final Rule.Serializer ruleSerializer = new Rule.Serializer();
     private final StatMap.Serializer statMapSerializer = new StatMap.Serializer();
@@ -60,9 +61,9 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
 
     @Override public Registry<PaperComponent> components() { return components; }
     @Override public Registry<PaperBlueprint> blueprints() { return blueprints; }
+    public Registry<StatDisplayFeature.FormatType> statFormats() { return statFormats; }
     public Registry<FeatureType.Keyed> featureTypes() { return featureTypes; }
     public SokolPersistence persistence() { return persistence; }
-    public PaperStatDisplayFeature.FormatRegistry statFormats() { return statFormats; }
     public MapFont font() { return font; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
@@ -76,6 +77,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public void onEnable() {
         super.onEnable();
         featureTypes.register(DummyFeature.TYPE);
+        featureTypes.register(PaperItemDescriptionFeature.TYPE);
         featureTypes.register(PaperSlotDisplayFeature.TYPE);
         featureTypes.register(PaperStatDisplayFeature.TYPE);
 

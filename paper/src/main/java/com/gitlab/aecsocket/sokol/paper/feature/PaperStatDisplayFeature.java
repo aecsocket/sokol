@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
-import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.feature.StatDisplayFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
@@ -11,7 +10,6 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import io.leangen.geantyref.TypeToken;
-import net.kyori.adventure.text.Component;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -24,14 +22,15 @@ public class PaperStatDisplayFeature extends StatDisplayFeature<PaperStatDisplay
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
     public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperStatDisplayFeature(platform,
+            config.node("listener_priority").getInt(),
             config.node("sections").get(new TypeToken<List<List<Format<?>>>>(){}, Collections.emptyList()),
             config.node("padding").getString(" ")
     ));
 
     private final SokolPlugin platform;
 
-    public PaperStatDisplayFeature(SokolPlugin platform, List<List<Format<?>>> sections, String padding) {
-        super(sections, padding, platform.font().getWidth(padding) + 1);
+    public PaperStatDisplayFeature(SokolPlugin platform, int listenerPriority, List<List<Format<?>>> sections, String padding) {
+        super(listenerPriority, sections, padding, platform.font().getWidth(padding) + 1);
         this.platform = platform;
     }
 

@@ -9,10 +9,10 @@ import java.util.Locale;
 import static net.kyori.adventure.text.format.NamedTextColor.*;
 
 public interface Renderable {
-    NamedTextColor CONSTANT = AQUA;
-    NamedTextColor OPERATOR = BLUE;
-    NamedTextColor BRACKET = GRAY;
-    NamedTextColor SYMBOL = WHITE;
+    NamedTextColor CONSTANT = WHITE;
+    NamedTextColor OPERATOR = AQUA;
+    NamedTextColor BRACKET = DARK_GRAY;
+    NamedTextColor SYMBOL = GRAY;
     NamedTextColor PATH = DARK_GREEN;
 
     Component render(Locale locale, Localizer lc);

@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.NumericalVector;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
+import com.gitlab.aecsocket.sokol.core.Pools;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -19,9 +20,9 @@ import static net.kyori.adventure.text.Component.text;
 public final class Vectors {
     private Vectors() {}
 
-    public interface OfVector<N extends NumericalVector> extends Stat<N> {
-        interface BaseValue<N extends NumericalVector> extends InitialValue<N> {
-            N value();
+    public interface OfVector<V extends NumericalVector> extends Stat<V> {
+        interface BaseValue<V extends NumericalVector> extends InitialValue<V> {
+            V value();
             String operator();
             @Override default boolean discardsPrevious() { return false; }
             default String asString(Locale locale) { return operator() + value().asString(decimalFormatter(locale)); }
@@ -30,7 +31,7 @@ public final class Vectors {
                 return text(operator(), OPERATOR).append(text(value().asString(decimalFormatter(locale)), CONSTANT));
             }
         }
-        interface SetValue<N extends NumericalVector> extends BaseValue<N> {
+        interface SetValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.SetValue {
             @Override default String operator() { return "="; }
             @Override default boolean discardsPrevious() { return true; }
             @Override default String asString(Locale locale) { return decimalFormatter(Locale.ROOT).format(value()); }
@@ -39,17 +40,22 @@ public final class Vectors {
                 return text(value().asString(decimalFormatter(locale)), CONSTANT);
             }
         }
-        interface AddValue<N extends NumericalVector> extends BaseValue<N> {
+        interface AddValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.AddValue {
             @Override default String operator() { return "+"; }
         }
-        interface SubtractValue<N extends NumericalVector> extends BaseValue<N> {
+        interface SubtractValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.SubtractValue {
             @Override default String operator() { return "-"; }
         }
-        interface MultiplyValue<N extends NumericalVector> extends BaseValue<N> {
+        interface MultiplyValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.MultiplyValue {
             @Override default String operator() { return "×"; }
         }
-        interface DivideValue<N extends NumericalVector> extends BaseValue<N> {
+        interface DivideValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.DivideValue {
             @Override default String operator() { return "÷"; }
+        }
+
+        @Override
+        default Component renderValue(Locale locale, Localizer lc, V value) {
+            return text(value.asString(Pools.decimalFormatter(locale)), CONSTANT);
         }
     }
 

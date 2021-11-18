@@ -105,21 +105,24 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         // todo list command
     }
 
+    private <T> void formatStats(Locale locale, List<Component> lines, String key, Stat.Node<T> node) {
+        List<? extends Stat.Node<?>> chain = node.asList();
+        lc.lines(locale, PREFIX_COMMAND + ".stats.entry",
+                        "name", node.stat().render(locale, lc),
+                        "key", key,
+                        "value", node.stat().renderValue(locale, lc, node.compute()),
+                        "nodes", chain.size() + "",
+                        "chain", join(separator, chain.stream().map(n -> n.value().render(locale, lc)).collect(Collectors.toList())))
+                .ifPresent(lines::addAll);
+    }
+
     private List<Component> formatStats(Locale locale, StatMap map) {
         List<Component> lines = new ArrayList<>();
         lc.lines(locale, PREFIX_COMMAND + ".stats.header",
                         "amount", map.size()+"")
                 .ifPresent(lines::addAll);
         for (var entry : map.entrySet()) {
-            String key = entry.getKey();
-            Stat.Node<?> node = entry.getValue();
-            List<? extends Stat.Node<?>> chain = node.asList();
-            lc.lines(locale, PREFIX_COMMAND + ".stats.entry",
-                            "name", node.stat().render(locale, lc),
-                            "key", key,
-                            "nodes", chain.size() + "",
-                            "chain", join(separator, chain.stream().map(n -> n.value().render(locale, lc)).collect(Collectors.toList())))
-                    .ifPresent(lines::addAll);
+            formatStats(locale, lines, entry.getKey(), entry.getValue());
         }
 
         return lines;

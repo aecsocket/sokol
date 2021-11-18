@@ -1,7 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
-import com.gitlab.aecsocket.sokol.core.feature.SlotDisplayFeature;
+import com.gitlab.aecsocket.sokol.core.feature.ItemDescriptionFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
 import com.gitlab.aecsocket.sokol.paper.FeatureType;
@@ -15,30 +15,24 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.Map;
 
-public class PaperSlotDisplayFeature extends SlotDisplayFeature<PaperSlotDisplayFeature.Instance, PaperNode> implements PaperFeature<PaperSlotDisplayFeature.Instance> {
+public class PaperItemDescriptionFeature extends ItemDescriptionFeature<PaperItemDescriptionFeature.Instance, PaperNode> implements PaperFeature<PaperItemDescriptionFeature.Instance> {
     public static final StatTypes STAT_TYPES = StatTypes.types();
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
-    public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperSlotDisplayFeature(platform,
-            config.node("listener_priority").getInt(),
-            config.node("order").get(Order.class, Order.NATURAL),
-            config.node("order_override").getList(String.class, Collections.emptyList()),
-            config.node("padding").getString(" ")
+    public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperItemDescriptionFeature(platform,
+            config.node("listener_priority").getInt()
     ));
 
     private final SokolPlugin platform;
 
-    public PaperSlotDisplayFeature(SokolPlugin platform, int listenerPriority, Order order, List<String> orderOverride, String padding) {
-        super(listenerPriority, order, orderOverride, padding, platform.font().getWidth(padding) + 1);
+    public PaperItemDescriptionFeature(SokolPlugin platform, int listenerPriority) {
+        super(listenerPriority);
         this.platform = platform;
     }
 
     @Override public SokolPlugin platform() { return platform; }
-
-    @Override
-    protected int width(String text) { return platform.font().getWidth(text); }
 
     @Override
     public Instance create(PaperNode node) {
@@ -55,7 +49,7 @@ public class PaperSlotDisplayFeature extends SlotDisplayFeature<PaperSlotDisplay
         return new Instance(node);
     }
 
-    public class Instance extends SlotDisplayFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
+    public class Instance extends ItemDescriptionFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
         public Instance(PaperNode parent) {
             super(parent);
         }

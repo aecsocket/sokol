@@ -9,11 +9,12 @@ import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.sokol.core.Node;
-import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
+import com.gitlab.aecsocket.sokol.core.registry.Keyed;
+import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.stat.*;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
@@ -29,9 +30,8 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 
 import java.lang.reflect.Type;
 import java.util.*;
-import java.util.stream.Collectors;
+import java.util.function.Function;
 
-import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.require;
 import static net.kyori.adventure.text.Component.*;
 import static net.kyori.adventure.text.JoinConfiguration.*;
 import static com.gitlab.aecsocket.minecommons.core.Components.barSection;
@@ -40,13 +40,79 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
     public static final String ID = "stat_display";
 
     public interface Format<T> {
-        String type();
+        String id();
         String key();
-        @Nullable String customLcKey();
         boolean accepts(Stat<?> stat);
-        Component format(Locale locale, Stat.Node<? extends T> node);
-        default String lcKey() { return "stat_format." + (customLcKey() == null ? type() : customLcKey()); }
-        default String lcKey(String key) { return lcKey() + "." + key; }
+        <V extends T> Component format(Locale locale, Localizer lc, Stat.Node<V> node);
+        default void validate() throws FormatValidationException {}
+    }
+
+    public static abstract class AbstractFormat<T> implements Format<T> {
+        private final @Required String key;
+        private final @Nullable String customLcKey;
+
+        public AbstractFormat(String key, @Nullable String customLcKey) {
+            this.key = key;
+            this.customLcKey = customLcKey;
+        }
+
+        private AbstractFormat() {
+            key = "";
+            customLcKey = null;
+        }
+
+        @Override public String key() { return key; }
+        public String customLcKey() { return customLcKey; }
+
+        protected String lcKey() { return "stat_format." + (customLcKey == null ? "default." : customLcKey + ".") + id(); }
+        protected String lcKey(String key) { return lcKey() + "." + key; }
+
+        protected double tryExpress(double num, @Nullable MathNode math) {
+            if (math != null) {
+                try {
+                    return math.set("v", num).eval();
+                } catch (EvaluationException e) {
+                    throw new FormatRenderException("Could not evaluate expression", e);
+                }
+            }
+            return num;
+        }
+
+        protected double percent(double val, Range.Double range) {
+            return Numbers.clamp01((val - range.min()) / (range.max() - range.min()));
+        }
+
+        public interface Renderer<V> {
+            @Nullable Component render(Stat.Value<V> val);
+        }
+
+        protected <V> Component join(Locale locale, Localizer lc, Stat.Node<V> node, Renderer<V> renderer) {
+            List<Component> rendered = new ArrayList<>();
+            for (var cur : node) {
+                Component component = renderer.render(cur.value());
+                if (component != null)
+                    rendered.add(component);
+            }
+            return Component.join(separator(lc.safe(locale, lcKey("separator"))), rendered);
+        }
+
+        protected <V> Component computeOrJoin(Locale locale, Localizer lc, boolean compute, V value, Stat.Node<V> node, Renderer<V> renderer, Function<V, Component> computeRenderer) {
+            return compute
+                    ? computeRenderer.apply(value)
+                    : join(locale, lc, node, renderer);
+        }
+
+        protected <V> Component computeOrJoin(Locale locale, Localizer lc, boolean compute, V value, Stat.Node<V> node, Renderer<V> renderer) {
+            return computeOrJoin(locale, lc, compute, value, node, renderer, v -> node.stat().renderValue(locale, lc, v));
+        }
+
+        protected <V> Component computeOrJoin(Locale locale, Localizer lc, boolean compute, Stat.Node<V> node, Renderer<V> renderer, Function<V, Component> computeRenderer) {
+            return computeOrJoin(locale, lc, compute, node.compute(), node, renderer, computeRenderer);
+        }
+
+        protected <V> Component computeOrJoin(Locale locale, Localizer lc, boolean compute, Stat.Node<V> node, Renderer<V> renderer) {
+            return computeOrJoin(locale, lc, compute, node.compute(), node, renderer, v -> node.stat().renderValue(locale, lc, v));
+        }
     }
 
     public static class FormatRenderException extends RuntimeException {
@@ -56,16 +122,26 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         public FormatRenderException(Throwable cause) { super(cause); }
     }
 
+    public static class FormatValidationException extends Exception {
+        public FormatValidationException() {}
+        public FormatValidationException(String message) { super(message); }
+        public FormatValidationException(String message, Throwable cause) { super(message, cause); }
+        public FormatValidationException(Throwable cause) { super(cause); }
+    }
+
+    private final int listenerPriority;
     private final List<List<Format<?>>> sections;
     private final String padding;
     private final int paddingWidth;
 
-    public StatDisplayFeature(List<List<Format<?>>> sections, String padding, int paddingWidth) {
+    public StatDisplayFeature(int listenerPriority, List<List<Format<?>>> sections, String padding, int paddingWidth) {
+        this.listenerPriority = listenerPriority;
         this.sections = sections;
         this.padding = padding;
         this.paddingWidth = paddingWidth;
     }
 
+    public int listenerPriority() { return listenerPriority; }
     public List<List<Format<?>>> sections() { return sections; }
     public String padding() { return padding; }
     public int paddingWidth() { return paddingWidth; }
@@ -85,25 +161,27 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         public void build(NodeEvent<N> event, StatIntermediate stats) {
             parent.treeData().ifPresent(treeData -> {
                 var events = treeData.events();
-                events.register(eventCreateItem(), this::onCreateItem);
+                events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
             });
         }
+
+        private record KeyData(Component component, int width) {}
 
         private <T> Optional<Component> lines(Locale locale, Format<T> format, StatMap stats, KeyData keyData, int longest) {
             String key = format.key();
             Stat.Node<?> rawNode = stats.get(key);
+            if (rawNode == null)
+                return Optional.empty();
             if (!format.accepts(rawNode.stat()))
-                return Optional.empty();
-
+                throw new ItemCreationException("Cannot create format for stat '" + key +
+                        "': format '" + format.id() + "' does not accept stats of type " + rawNode.stat().getClass().getName());
             @SuppressWarnings("unchecked")
-            Stat.Node<T> node = (Stat.Node<T>) stats.get(key);
-            if (node == null)
-                return Optional.empty();
+            Stat.Node<T> node = (Stat.Node<T>) rawNode;
 
             Component renderedKey = keyData.component;
             Component renderedNode;
             try {
-                renderedNode = format.format(locale, node);
+                renderedNode = format.format(locale, platform().lc(), node);
             } catch (FormatRenderException e) {
                 throw new ItemCreationException("Could not render value for stat '" + key + "'", e);
             }
@@ -115,22 +193,11 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
                             .orElse(renderedNode));
         }
 
-        private record KeyData(Component component, int width) {}
-
-        private void onCreateItem(CreateItemEvent<N> event) {
-            if (!parent.isRoot())
-                return;
-            Locale locale = event.locale();
-            List<Component> lines = new ArrayList<>();
-            Optional<List<Component>> separator = platform().lc().lines(locale, lcKey("separator"));
-
-            // TODO: if it is a complete item, show the final stat map
-            // else show individual component stat maps
-            StatMap stats = treeData(event.node()).stats();
+        private void render(Locale locale, List<Component> lines, @Nullable List<Component> separator, StatMap stats) {
             for (int i = 0; i < sections.size(); i++) {
                 var section = sections.get(i);
-                if (i > 0)
-                    separator.ifPresent(lines::addAll);
+                if (i > 0 && separator != null)
+                    lines.addAll(separator);
 
                 Map<String, KeyData> keyData = new HashMap<>();
                 int longest = 0;
@@ -150,6 +217,16 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
                             .ifPresent(lines::add);
                 }
             }
+        }
+
+        private void onCreateItem(CreateItemEvent<N> event) {
+            if (!parent.isRoot())
+                return;
+            Locale locale = event.locale();
+            List<Component> lines = new ArrayList<>();
+            List<Component> separator = platform().lc().lines(locale, lcKey("separator")).orElse(null);
+
+            render(locale, lines, separator, treeData(event.node()).stats());
 
             event.item().addDescription(lines);
         }
@@ -165,41 +242,21 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         return Optional.empty();
     }
 
-    public interface FormatFactory {
-        Format<?> create(SokolPlatform platform, ConfigurationNode config) throws SerializationException, FormatCreationException;
-    }
-
-    public static class FormatCreationException extends Exception {
-        public FormatCreationException() {}
-        public FormatCreationException(String message) { super(message); }
-        public FormatCreationException(String message, Throwable cause) { super(message, cause); }
-        public FormatCreationException(Throwable cause) { super(cause); }
-    }
-
-    public static final class FormatRegistry {
-        private final SokolPlatform platform;
-        private final Map<String, FormatFactory> factories = new HashMap<>();
-
-        public FormatRegistry(SokolPlatform platform) {
-            this.platform = platform;
+    public record FormatType(String id, Class<? extends Format<?>> formatType) implements Keyed {
+        public static String renderKey(String id) {
+            return "stat_format." + id + ".name";
         }
 
-        public Optional<Format<?>> get(String type, ConfigurationNode config) throws SerializationException, FormatCreationException {
-            FormatFactory factory = factories.get(type);
-            if (factory == null)
-                return Optional.empty();
-            return Optional.of(factory.create(platform, config));
-        }
-
-        public void register(String type, FormatFactory factory) {
-            factories.put(type, factory);
+        @Override
+        public Component render(Locale locale, Localizer lc) {
+            return lc.safe(locale, renderKey(id));
         }
     }
 
     public static final class FormatSerializer implements TypeSerializer<Format<?>> {
-        private final FormatRegistry registry;
+        private final Registry<FormatType> registry;
 
-        public FormatSerializer(FormatRegistry registry) {
+        public FormatSerializer(Registry<FormatType> registry) {
             this.registry = registry;
         }
 
@@ -212,25 +269,30 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         @Override
         public Format<?> deserialize(Type type, ConfigurationNode node) throws SerializationException {
             String formatType = Serializers.require(node.node("type"), String.class);
+            Format<?> format = node.get(registry.get(formatType)
+                    .orElseThrow(() -> new SerializationException(node, type, "Invalid stat format type '" + formatType + "'"))
+                    .formatType);
+            if (format == null)
+                throw new SerializationException(node, type, "null");
             try {
-                return registry.get(formatType, node)
-                        .orElseThrow(() -> new SerializationException(node, type, "Invalid stat format type '" + formatType + "'"));
-            } catch (FormatCreationException e) {
+                format.validate();
+            } catch (FormatValidationException e) {
                 throw new SerializationException(node, type, e);
             }
+            return format;
         }
     }
 
     public static final class Formats {
         private Formats() {}
 
-        public static void registerAll(FormatRegistry registry) {
-            registry.register(Raw.TYPE, Raw.FACTORY);
-            registry.register(Number.TYPE, Number.FACTORY);
-            registry.register(NumberBar.TYPE, NumberBar.FACTORY);
-            registry.register(OfVector2.TYPE, OfVector2.FACTORY);
-            registry.register(Vector2SeparateBars.TYPE, Vector2SeparateBars.FACTORY);
-            registry.register(Vector2ContinuousBar.TYPE, Vector2ContinuousBar.FACTORY);
+        public static void registerAll(Registry<FormatType> registry) {
+            registry.register(Raw.TYPE);
+            registry.register(OfNumber.TYPE);
+            registry.register(NumberBar.TYPE);
+            registry.register(OfVector2.TYPE);
+            registry.register(Vector2SeparateBars.TYPE);
+            registry.register(Vector2ContinuousBar.TYPE);
         }
 
         private static double tryExpress(double num, @Nullable MathNode math) {
@@ -244,46 +306,21 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             return num;
         }
 
-        private static double barValue(double v, Range.Double range) {
-            return Numbers.clamp01((v - range.min()) / (range.max() - range.min()));
-        }
-
-        public record Raw(
-                SokolPlatform platform,
-                String key,
-                @Nullable String customLcKey,
-                boolean rendered
-        ) implements Format<Object> {
-            public static final String TYPE = "raw";
-            public static final FormatFactory FACTORY = (platform, config) -> new Raw(platform,
-                    require(config.node("key"), String.class),
-                    config.node("custom_lc_key").getString(),
-                    config.node("rendered").getBoolean(true)
-            );
-
-            @Override public String type() { return TYPE; }
-            @Override public boolean accepts(Stat<?> stat) { return true; }
-
-            @Override
-            public Component format(Locale locale, Stat.Node<?> node) {
-                return join(separator(platform.lc().safe(locale, lcKey("separator"))),
-                        node.stream()
-                                .map(cur -> rendered ? cur.value().render(locale, platform.lc()) : text(cur.value().toString()))
-                                .collect(Collectors.toList()));
-            }
-        }
+        // Utils
 
         @ConfigSerializable
-        public static final class NumberOptions {
+        public static final class NumberFormat {
+            private static final NumberFormat instance = new NumberFormat();
+
             private final @Required String format;
             private final @Nullable MathNode expression;
 
-            public NumberOptions(String format, @Nullable MathNode expression) {
+            public NumberFormat(String format, @Nullable MathNode expression) {
                 this.format = format;
                 this.expression = expression;
             }
 
-            private NumberOptions() {
+            private NumberFormat() {
                 format = "";
                 expression = null;
             }
@@ -291,56 +328,37 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             public String format() { return format; }
             public MathNode expression() { return expression; }
 
-            public double express(double value) {
-                return tryExpress(value, expression);
+            public double express(double num) {
+                return tryExpress(num, expression);
             }
 
-            public String format(Locale locale, double value) {
+            public double express(double num, Stat.Value<?> value) {
+                if (value instanceof Primitives.AbstractNumber.FactorValue)
+                    return num;
+                return express(num);
+            }
+
+            public String format(Locale locale, double num) {
                 try {
-                    return String.format(locale, format, value);
+                    return String.format(locale, format, num);
                 } catch (IllegalFormatException e) {
                     throw new FormatRenderException("Invalid format '" + format + "'", e);
                 }
             }
 
-            public String render(Locale locale, double value) {
-                return format(locale, express(value));
+            public String render(Locale locale, double num, Stat.Value<?> value) {
+                return format(locale, express(num, value));
             }
-        }
 
-        public record Number(
-                SokolPlatform platform,
-                String key,
-                @Nullable String customLcKey,
-                NumberOptions options
-        ) implements Format<java.lang.Number> {
-            public static final String TYPE = "number";
-            public static final FormatFactory FACTORY = (platform, config) -> new Number(platform,
-                    require(config.node("key"), String.class),
-                    config.node("custom_lc_key").getString(),
-                    require(config.node("options"), NumberOptions.class)
-            );
-
-            @Override public String type() { return TYPE; }
-            @Override public boolean accepts(Stat<?> stat) { return stat instanceof Primitives.OfNumber; }
-
-            @Override
-            public Component format(Locale locale, Stat.Node<? extends java.lang.Number> node) {
-                List<Component> renderedNodes = new ArrayList<>();
-                for (var cur = node; cur != null; cur = cur.next()) {
-                    Stat.Value<?> raw = cur.value();
-                    if (raw instanceof Primitives.OfNumber.BaseValue<?> val) {
-                        renderedNodes.add(platform.lc().safe(locale, lcKey(raw instanceof Primitives.OfNumber.SetValue ? "set" : "op"),
-                                "op", val.operator(),
-                                "value", options.render(locale, val.wrappedValue().doubleValue())));
-                    }
-                }
-                return join(separator(platform.lc().safe(locale, lcKey("separator"))), renderedNodes);
+            public String render(Locale locale, double num) {
+                return format(locale, express(num));
             }
         }
 
         @ConfigSerializable
         public static final class BarOptions {
+            private static final BarOptions instance = new BarOptions();
+
             private final @Required int length;
             private final @Required Range.Double range;
             private final String placeholder;
@@ -370,182 +388,327 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             }
         }
 
-        public record NumberBar(
-                SokolPlatform platform,
-                String key,
-                @Nullable String customLcKey,
-                NumberOptions options,
-                @Nullable MathNode expressionBar,
-                BarOptions bar,
-                TextColor barColor
-        ) implements Format<java.lang.Number> {
-            public static final String TYPE = "number_bar";
-            public static final FormatFactory FACTORY = (platform, config) -> new NumberBar(platform,
-                    require(config.node("key"), String.class),
-                    config.node("custom_lc_key").getString(),
-                    require(config.node("options"), NumberOptions.class),
-                    config.node("expression_bar").get(MathNode.class),
-                    require(config.node("bar"), BarOptions.class),
-                    require(config.node("bar_color"), TextColor.class)
-            );
+        // Formats
 
-            @Override public String type() { return TYPE; }
-            @Override public boolean accepts(Stat<?> stat) { return stat instanceof Primitives.OfNumber; }
+        @ConfigSerializable
+        public static final class Raw extends AbstractFormat<Object> {
+            public static final String ID = "raw";
+            public static final FormatType TYPE = new FormatType(ID, Raw.class);
+
+            private final boolean compute;
+            private final boolean rendered;
+
+            public Raw(String key, @Nullable String customLcKey, boolean compute, boolean rendered) {
+                super(key, customLcKey);
+                this.compute = compute;
+                this.rendered = rendered;
+            }
+
+            public Raw() {
+                compute = false;
+                rendered = true;
+            }
+
+            @Override public String id() { return ID; }
+
+            public boolean compute() { return compute; }
+            public boolean rendered() { return rendered; }
 
             @Override
-            public Component format(Locale locale, Stat.Node<? extends java.lang.Number> node) {
-                Range.Double range = bar.range;
-                double num = node.compute().doubleValue();
-                double barNum = tryExpress(num, expressionBar);
-                return platform.lc().safe(locale, lcKey(),
-                        "bar", bar.render(barSection(barValue(barNum, bar.range), barColor)),
-                        "value", options.render(locale, num));
+            public boolean accepts(Stat<?> stat) { return true; }
+
+            @Override
+            public <V> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
+                return computeOrJoin(locale, lc, compute, node,
+                        val -> rendered ? val.render(locale, lc) : text(val.toString()));
             }
         }
 
-        public record OfVector2(
-                SokolPlatform platform,
-                String key,
-                @Nullable String customLcKey,
-                NumberOptions optionsX,
-                NumberOptions optionsY
-        ) implements Format<Vector2> {
-            public static final String TYPE = "vector2";
-            public static final FormatFactory FACTORY = (platform, config) -> new OfVector2(platform,
-                    require(config.node("key"), String.class),
-                    config.node("custom_lc_key").getString(),
-                    require(config.node("options_x"), NumberOptions.class),
-                    require(config.node("options_y"), NumberOptions.class)
-            );
+        @ConfigSerializable
+        public static final class OfNumber extends AbstractFormat<Number> {
+            public static final String ID = "number";
+            public static final FormatType TYPE = new FormatType(ID, OfNumber.class);
 
-            @Override public String type() { return TYPE; }
-            @Override public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector; }
+            private final boolean compute;
+            private final @Required NumberFormat format;
+
+            public OfNumber(String key, @Nullable String customLcKey, boolean compute, NumberFormat format) {
+                super(key, customLcKey);
+                this.compute = compute;
+                this.format = format;
+            }
+
+            public OfNumber() {
+                compute = false;
+                format = NumberFormat.instance;
+            }
+
+            @Override public String id() { return ID; }
 
             @Override
-            public Component format(Locale locale, Stat.Node<? extends Vector2> node) {
-                List<Component> renderedNodes = new ArrayList<>();
-                for (var cur = node; cur != null; cur = cur.next()) {
-                    Stat.Value<?> raw = cur.value();
-                    if (raw instanceof Vectors.OfVector2.BaseValue val) {
-                        Vector2 vec = val.value();
-                        renderedNodes.add(platform.lc().safe(locale, lcKey(raw instanceof Vectors.OfVector.SetValue ? "set" : "op"),
+            public boolean accepts(Stat<?> stat) { return stat instanceof Primitives.SingleNumber; }
+
+            @Override
+            public <V extends Number> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
+                return computeOrJoin(locale, lc, compute, node,
+                        raw -> raw instanceof Primitives.SingleNumber.BaseValue<V> val
+                                ? lc.safe(locale, lcKey(raw instanceof Primitives.SingleNumber.SetValue ? "set" : "op"),
                                 "op", val.operator(),
-                                "x", optionsX.render(locale, vec.x()),
-                                "y", optionsY.render(locale, vec.y())));
-                    }
+                                "value", format.render(locale, val.wrappedValue().doubleValue(), val))
+                                : null);
+            }
+        }
+
+        @ConfigSerializable
+        public static final class NumberBar extends AbstractFormat<Number> {
+            public static final String ID = "number_bar";
+            public static final FormatType TYPE = new FormatType(ID, NumberBar.class);
+
+            private final @Required NumberFormat format;
+            private final @Nullable MathNode barExpression;
+            private final @Required BarOptions bar;
+            private final @Required TextColor barColor;
+
+            public NumberBar(String key, @Nullable String customLcKey, NumberFormat format, @Nullable MathNode barExpression, BarOptions bar, TextColor barColor) {
+                super(key, customLcKey);
+                this.format = format;
+                this.barExpression = barExpression;
+                this.bar = bar;
+                this.barColor = barColor;
+            }
+
+            public NumberBar() {
+                format = NumberFormat.instance;
+                barExpression = null;
+                bar = BarOptions.instance;
+                barColor = NamedTextColor.WHITE;
+            }
+
+            @Override public String id() { return ID; }
+
+            public NumberFormat format() { return format; }
+            public MathNode barExpression() { return barExpression; }
+            public BarOptions bar() { return bar; }
+            public TextColor barColor() { return barColor; }
+
+            @Override
+            public boolean accepts(Stat<?> stat) { return stat instanceof Primitives.SingleNumber; }
+
+            @Override
+            public <V extends Number> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
+                double val = node.compute().doubleValue();
+                double barVal = tryExpress(val, barExpression);
+                return lc.safe(locale, lcKey("format"),
+                        "bar", bar.render(barSection(percent(val, bar.range), barColor)),
+                        "value", format.render(locale, val),
+                        "min", format.format(locale, bar.range.min()),
+                        "max", format.format(locale, bar.range.max()));
+            }
+        }
+
+        @ConfigSerializable
+        public static final class OfVector2 extends AbstractFormat<Vector2> {
+            public static final String ID = "vector2";
+            public static final FormatType TYPE = new FormatType(ID, OfVector2.class);
+
+            @ConfigSerializable
+            public record ComponentConfig(
+                    @Required NumberFormat format
+            ) {
+                private static final ComponentConfig instance = new ComponentConfig();
+
+                public ComponentConfig() {
+                    this(NumberFormat.instance);
                 }
-                return join(separator(platform.lc().safe(locale, lcKey("separator"))), renderedNodes);
             }
-        }
 
-        public record Vector2SeparateBars(
-                SokolPlatform platform,
-                String key,
-                @Nullable String customLcKey,
-                NumberOptions optionsX,
-                NumberOptions optionsY,
-                @Nullable MathNode expressionBarX,
-                @Nullable MathNode expressionBarY,
-                BarOptions barX,
-                BarOptions barY,
-                TextColor barXColor,
-                TextColor barYColor
-        ) implements Format<Vector2> {
-            public static final String TYPE = "vector2_separate_bars";
-            public static final FormatFactory FACTORY = (platform, config) -> new Vector2SeparateBars(platform,
-                    require(config.node("key"), String.class),
-                    config.node("custom_lc_key").getString(),
-                    require(config.node("options_x"), NumberOptions.class),
-                    require(config.node("options_y"), NumberOptions.class),
-                    config.node("expression_bar_x").get(MathNode.class),
-                    config.node("expression_bar_y").get(MathNode.class),
-                    require(config.node("bar_x"), BarOptions.class),
-                    require(config.node("bar_y"), BarOptions.class),
-                    require(config.node("bar_x_color"), TextColor.class),
-                    require(config.node("bar_y_color"), TextColor.class)
-            );
+            private final boolean compute;
+            private final @Required ComponentConfig x;
+            private final @Required ComponentConfig y;
 
-            @Override public String type() { return TYPE; }
-            @Override public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+            public OfVector2(String key, @Nullable String customLcKey, boolean compute, ComponentConfig x, ComponentConfig y) {
+                super(key, customLcKey);
+                this.compute = compute;
+                this.x = x;
+                this.y = y;
+            }
+
+            public OfVector2() {
+                compute = false;
+                x = ComponentConfig.instance;
+                y = ComponentConfig.instance;
+            }
+
+            @Override public String id() { return ID; }
+
+            public boolean compute() { return compute; }
+            public ComponentConfig x() { return x; }
+            public ComponentConfig y() { return y; }
 
             @Override
-            public Component format(Locale locale, Stat.Node<? extends Vector2> node) {
-                Vector2 vec = node.compute();
-                Vector2 barVec = new Vector2(
-                        expressionBarX == null ? vec.x() : tryExpress(vec.x(), expressionBarX),
-                        expressionBarY == null ? vec.y() : tryExpress(vec.y(), expressionBarY)
-                );
-                Range.Double rangeX = barX.range;
-                Range.Double rangeY = barY.range;
-                return platform.lc().safe(locale, lcKey(),
-                        "bar_x", barX.render(barSection(barValue(barVec.x(), barX.range), barXColor)),
-                        "bar_y", barY.render(barSection(barValue(barVec.y(), barY.range), barYColor)),
-                        "x", optionsX.render(locale, vec.x()),
-                        "y", optionsY.render(locale, vec.y()));
+            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+
+            @Override
+            public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
+                return computeOrJoin(locale, lc, compute, node,
+                        raw -> raw instanceof Vectors.OfVector.BaseValue<V> val
+                                ? lc.safe(locale, lcKey(raw instanceof Vectors.OfVector.SetValue ? "set" : "op"),
+                                "op", val.operator(),
+                                "x", x.format.render(locale, val.value().x(), raw),
+                                "y", y.format.render(locale, val.value().y(), raw))
+                                : null,
+                        val -> lc.safe(locale, lcKey("compute"),
+                                "x", x.format.format(locale, val.x()),
+                                "y", y.format.format(locale, val.y())));
             }
         }
 
-        public record Vector2ContinuousBar(
-                SokolPlatform platform,
-                String key,
-                @Nullable String customLcKey,
-                NumberOptions optionsX,
-                NumberOptions optionsY,
-                @Nullable MathNode expressionBarX,
-                @Nullable MathNode expressionBarY,
-                int[] barOrder,
-                BarOptions bar,
-                TextColor barXColor,
-                TextColor barYColor
-        ) implements Format<Vector2> {
-            public static final String TYPE = "vector2_continuous_bar";
-            public static final FormatFactory FACTORY = (platform, config) -> {
-                int[] barOrder = require(config.node("bar_order"), int[].class);
+        @ConfigSerializable
+        public static final class Vector2SeparateBars extends AbstractFormat<Vector2> {
+            public static final String ID = "vector2_separate_bars";
+            public static final FormatType TYPE = new FormatType(ID, Vector2SeparateBars.class);
+
+            @ConfigSerializable
+            public record ComponentConfig(
+                    @Required NumberFormat format,
+                    @Nullable MathNode barExpression,
+                    @Required BarOptions bar,
+                    @Required TextColor barColor
+            ) {
+                private static final ComponentConfig instance = new ComponentConfig();
+
+                public ComponentConfig() {
+                    this(NumberFormat.instance, null, BarOptions.instance, NamedTextColor.WHITE);
+                }
+            }
+
+            private final @Required ComponentConfig x;
+            private final @Required ComponentConfig y;
+
+            public Vector2SeparateBars(String key, @Nullable String customLcKey, ComponentConfig x, ComponentConfig y) {
+                super(key, customLcKey);
+                this.x = x;
+                this.y = y;
+            }
+
+            public Vector2SeparateBars() {
+                x = ComponentConfig.instance;
+                y = ComponentConfig.instance;
+            }
+
+            @Override public String id() { return ID; }
+
+            public ComponentConfig x() { return x; }
+            public ComponentConfig y() { return y; }
+
+            @Override
+            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+
+            @Override
+            public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
+                Vector2 val = node.compute();
+                Vector2 barVal = Vector2.vec2(
+                        tryExpress(val.x(), x.barExpression),
+                        tryExpress(val.y(), y.barExpression)
+                );
+                val = Vector2.vec2(
+                        x.format.express(val.x()),
+                        y.format.express(val.y())
+                );
+                return lc.safe(locale, lcKey("format"),
+                        "bar_x", x.bar.render(barSection(percent(barVal.x(), x.bar.range), x.barColor)),
+                        "bar_y", y.bar.render(barSection(percent(barVal.y(), y.bar.range), y.barColor)),
+                        "x", x.format.format(locale, val.x()),
+                        "y", y.format.format(locale, val.y()),
+                        "min_x", x.format.format(locale, x.bar.range.min()),
+                        "max_x", x.format.format(locale, x.bar.range.max()),
+                        "min_y", x.format.format(locale, y.bar.range.min()),
+                        "max_y", x.format.format(locale, y.bar.range.max()));
+            }
+        }
+
+        @ConfigSerializable
+        public static final class Vector2ContinuousBar extends AbstractFormat<Vector2> {
+            public static final String ID = "vector2_continuous_bar";
+            public static final FormatType TYPE = new FormatType(ID, Vector2ContinuousBar.class);
+
+            @ConfigSerializable
+            public record ComponentConfig(
+                    @Required NumberFormat format,
+                    @Nullable MathNode barExpression,
+                    @Required TextColor barColor
+            ) {
+                private static final ComponentConfig instance = new ComponentConfig();
+
+                public ComponentConfig() {
+                    this(NumberFormat.instance, null, NamedTextColor.WHITE);
+                }
+            }
+
+            private final @Required int[] barOrder;
+            private final @Required BarOptions bar;
+            private final @Required ComponentConfig x;
+            private final @Required ComponentConfig y;
+
+            public Vector2ContinuousBar(String key, @Nullable String customLcKey, int[] barOrder, BarOptions bar, ComponentConfig x, ComponentConfig y) {
+                super(key, customLcKey);
+                this.barOrder = barOrder;
+                this.bar = bar;
+                this.x = x;
+                this.y = y;
+            }
+
+            public Vector2ContinuousBar() {
+                barOrder = new int[0];
+                bar = BarOptions.instance;
+                x = ComponentConfig.instance;
+                y = ComponentConfig.instance;
+            }
+
+            @Override
+            public void validate() throws FormatValidationException {
                 if (barOrder.length != 3)
-                    throw new FormatCreationException("Bar order must be array of 3 elements");
-                return new Vector2ContinuousBar(platform,
-                        require(config.node("key"), String.class),
-                        config.node("custom_lc_key").getString(),
-                        require(config.node("options_x"), NumberOptions.class),
-                        require(config.node("options_y"), NumberOptions.class),
-                        config.node("expression_bar_x").get(MathNode.class),
-                        config.node("expression_bar_y").get(MathNode.class),
-                        barOrder,
-                        require(config.node("bar"), BarOptions.class),
-                        require(config.node("bar_x_color"), TextColor.class),
-                        require(config.node("bar_y_color"), TextColor.class)
-                );
-            };
+                    throw new FormatValidationException("Bar order must be array of 3 numbers");
+            }
 
-            @Override public String type() { return TYPE; }
-            @Override public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+            @Override public String id() { return ID; }
+
+            public int[] barOrder() { return barOrder; }
+            public BarOptions bar() { return bar; }
+            public ComponentConfig x() { return x; }
+            public ComponentConfig y() { return y; }
 
             @Override
-            public Component format(Locale locale, Stat.Node<? extends Vector2> node) {
-                Vector2 vec = node.compute();
-                Vector2 barVec = new Vector2(
-                        expressionBarX == null ? vec.x() : tryExpress(vec.x(), expressionBarX),
-                        expressionBarY == null ? vec.y() : tryExpress(vec.y(), expressionBarY)
+            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+
+            @Override
+            public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
+                Vector2 val = node.compute();
+                Vector2 barVal = Vector2.vec2(
+                        tryExpress(val.x(), x.barExpression),
+                        tryExpress(val.y(), y.barExpression)
                 );
-                vec = new Vector2(
-                        optionsX.express(vec.x()),
-                        optionsY.express(vec.y())
+                val = Vector2.vec2(
+                        x.format.express(val.x()),
+                        y.format.express(val.y())
                 );
-                Range.Double range = bar.range;
-                double bar1 = barValue(barVec.x(), bar.range);
-                double bar2 = barValue(barVec.y(), bar.range);
+
+                double bar1 = percent(barVal.x(), bar.range);
+                double bar2 = percent(barVal.y(), bar.range);
 
                 Components.BarSection[] sections = new Components.BarSection[] {
                         barSection(1 - bar1 - bar2, bar.fill),
-                        barSection(bar1, barXColor),
-                        barSection(bar2, barYColor)
+                        barSection(bar1, x.barColor),
+                        barSection(bar2, y.barColor)
                 };
-                return platform.lc().safe(locale, lcKey(),
+                return lc.safe(locale, lcKey("format"),
                         "bar", Components.bar(bar.length, bar.placeholder, sections[barOrder[2]].color(),
                                 sections[barOrder[0]],
                                 sections[barOrder[1]]),
-                        "x", optionsX.format(locale, vec.x()),
-                        "y", optionsY.format(locale, vec.y()));
+                        "x", x.format.format(locale, val.x()),
+                        "y", y.format.format(locale, val.y()),
+                        "min", x.format.format(locale, bar.range.min()),
+                        "max", x.format.format(locale, bar.range.max()));
             }
         }
     }

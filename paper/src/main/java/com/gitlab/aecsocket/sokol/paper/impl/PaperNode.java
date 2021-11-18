@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
@@ -65,7 +66,6 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
                 meta.displayName(Components.BLANK.append(value.render(locale, value.platform().lc())));
             });
             item = new PaperItem(stack);
-            value.renderDescription(locale, value.platform().lc()).ifPresent(item::addDescription);
         } catch (IllegalStateException e) {
             throw new ItemCreationException(e);
         }

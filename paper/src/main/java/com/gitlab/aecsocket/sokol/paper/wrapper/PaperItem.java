@@ -48,6 +48,8 @@ public record PaperItem(ItemStack handle) implements Item {
 
     @Override
     public PaperItem addDescription(List<Component> description) {
+        if (description.size() == 0)
+            return this;
         handle.editMeta(meta -> {
             List<Component> lore = meta.lore();
             if (lore == null || lore.size() == 0)
