@@ -22,6 +22,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.Contract;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 import org.spongepowered.configurate.objectmapping.meta.Required;
@@ -506,8 +507,24 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             }
         }
 
+        public static abstract class AbstractVector2 extends AbstractFormat<Vector2> {
+            public AbstractVector2(String key, @Nullable String customLcKey) {
+                super(key, customLcKey);
+            }
+
+            public AbstractVector2() {}
+
+            @Override
+            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+
+            @Contract("null, _ -> false")
+            protected boolean merged(@Nullable Object config, Vector2 val) {
+                return config != null && Double.compare(val.x(), val.y()) == 0;
+            }
+        }
+
         @ConfigSerializable
-        public static final class OfVector2 extends AbstractFormat<Vector2> {
+        public static final class OfVector2 extends AbstractVector2 {
             public static final String ID = "vector2";
             public static final FormatType TYPE = new FormatType(ID, OfVector2.class);
 
@@ -525,18 +542,21 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             private final boolean compute;
             private final @Required ComponentConfig x;
             private final @Required ComponentConfig y;
+            private final @Nullable ComponentConfig merged;
 
-            public OfVector2(String key, @Nullable String customLcKey, boolean compute, ComponentConfig x, ComponentConfig y) {
+            public OfVector2(String key, @Nullable String customLcKey, boolean compute, ComponentConfig x, ComponentConfig y, @Nullable ComponentConfig merged) {
                 super(key, customLcKey);
                 this.compute = compute;
                 this.x = x;
                 this.y = y;
+                this.merged = merged;
             }
 
             public OfVector2() {
                 compute = false;
                 x = ComponentConfig.instance;
                 y = ComponentConfig.instance;
+                merged = null;
             }
 
             @Override public String id() { return ID; }
@@ -544,27 +564,31 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             public boolean compute() { return compute; }
             public ComponentConfig x() { return x; }
             public ComponentConfig y() { return y; }
-
-            @Override
-            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+            public ComponentConfig merged() { return merged; }
 
             @Override
             public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
                 return computeOrJoin(locale, lc, compute, node,
-                        raw -> raw instanceof Vectors.OfVector.BaseValue<V> val
-                                ? lc.safe(locale, lcKey(raw instanceof Vectors.OfVector.SetValue ? "set" : "op"),
-                                "op", val.operator(),
-                                "x", x.format.render(locale, val.value().x(), raw),
-                                "y", y.format.render(locale, val.value().y(), raw))
-                                : null,
-                        val -> lc.safe(locale, lcKey("compute"),
-                                "x", x.format.format(locale, val.x()),
-                                "y", y.format.format(locale, val.y())));
+                        raw -> raw instanceof Vectors.OfVector.BaseValue<V> val ? merged(merged, val.value())
+                                ? lc.safe(locale, lcKey("merged." + (raw instanceof Vectors.OfVector.SetValue ? "set" : "op")),
+                                        "op", val.operator(),
+                                        "value", merged.format.render(locale, val.value().x(), raw))
+                                : lc.safe(locale, lcKey("split." + (raw instanceof Vectors.OfVector.SetValue ? "set" : "op")),
+                                        "op", val.operator(),
+                                        "x", x.format.render(locale, val.value().x(), raw),
+                                        "y", y.format.render(locale, val.value().y(), raw))
+                                        : null,
+                        val -> merged(merged, val)
+                                ? lc.safe(locale, lcKey("merged.compute"),
+                                        "value", merged.format.format(locale, val.x()))
+                                : lc.safe(locale, lcKey("split.compute"),
+                                        "x", x.format.format(locale, val.x()),
+                                        "y", y.format.format(locale, val.y())));
             }
         }
 
         @ConfigSerializable
-        public static final class Vector2SeparateBars extends AbstractFormat<Vector2> {
+        public static final class Vector2SeparateBars extends AbstractVector2 {
             public static final String ID = "vector2_separate_bars";
             public static final FormatType TYPE = new FormatType(ID, Vector2SeparateBars.class);
 
@@ -584,25 +608,26 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
 
             private final @Required ComponentConfig x;
             private final @Required ComponentConfig y;
+            private final @Nullable ComponentConfig merged;
 
-            public Vector2SeparateBars(String key, @Nullable String customLcKey, ComponentConfig x, ComponentConfig y) {
+            public Vector2SeparateBars(String key, @Nullable String customLcKey, ComponentConfig x, ComponentConfig y, @Nullable ComponentConfig merged) {
                 super(key, customLcKey);
                 this.x = x;
                 this.y = y;
+                this.merged = merged;
             }
 
             public Vector2SeparateBars() {
                 x = ComponentConfig.instance;
                 y = ComponentConfig.instance;
+                merged = ComponentConfig.instance;
             }
 
             @Override public String id() { return ID; }
 
             public ComponentConfig x() { return x; }
             public ComponentConfig y() { return y; }
-
-            @Override
-            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+            public ComponentConfig merged() { return merged; }
 
             @Override
             public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
@@ -615,20 +640,30 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
                         x.format.express(val.x()),
                         y.format.express(val.y())
                 );
-                return lc.safe(locale, lcKey("format"),
-                        "bar_x", x.bar.render(barSection(percent(barVal.x(), x.bar.range), x.barColor)),
-                        "bar_y", y.bar.render(barSection(percent(barVal.y(), y.bar.range), y.barColor)),
-                        "x", x.format.format(locale, val.x()),
-                        "y", y.format.format(locale, val.y()),
-                        "min_x", x.format.format(locale, x.bar.range.min()),
-                        "max_x", x.format.format(locale, x.bar.range.max()),
-                        "min_y", x.format.format(locale, y.bar.range.min()),
-                        "max_y", x.format.format(locale, y.bar.range.max()));
+                return merged(merged, val)
+                        ? lc.safe(locale, lcKey("merged.format"),
+                                "bar", merged.bar.render(barSection(percent(barVal.x(), merged.bar.range), merged.barColor)),
+                                "bar_x", x.bar.render(barSection(percent(barVal.x(), x.bar.range), x.barColor)),
+                                "bar_y", y.bar.render(barSection(percent(barVal.y(), y.bar.range), y.barColor)),
+                                "value", merged.format.format(locale, val.x()),
+                                "min_x", x.format.format(locale, x.bar.range.min()),
+                                "max_x", x.format.format(locale, x.bar.range.max()),
+                                "min_y", x.format.format(locale, y.bar.range.min()),
+                                "max_y", x.format.format(locale, y.bar.range.max()))
+                        : lc.safe(locale, lcKey("split.format"),
+                                "bar_x", x.bar.render(barSection(percent(barVal.x(), x.bar.range), x.barColor)),
+                                "bar_y", y.bar.render(barSection(percent(barVal.y(), y.bar.range), y.barColor)),
+                                "x", x.format.format(locale, val.x()),
+                                "y", y.format.format(locale, val.y()),
+                                "min_x", x.format.format(locale, x.bar.range.min()),
+                                "max_x", x.format.format(locale, x.bar.range.max()),
+                                "min_y", x.format.format(locale, y.bar.range.min()),
+                                "max_y", x.format.format(locale, y.bar.range.max()));
             }
         }
 
         @ConfigSerializable
-        public static final class Vector2ContinuousBar extends AbstractFormat<Vector2> {
+        public static final class Vector2ContinuousBar extends AbstractVector2 {
             public static final String ID = "vector2_continuous_bar";
             public static final FormatType TYPE = new FormatType(ID, Vector2ContinuousBar.class);
 
@@ -649,13 +684,15 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             private final @Required BarOptions bar;
             private final @Required ComponentConfig x;
             private final @Required ComponentConfig y;
+            private final @Nullable ComponentConfig merged;
 
-            public Vector2ContinuousBar(String key, @Nullable String customLcKey, int[] barOrder, BarOptions bar, ComponentConfig x, ComponentConfig y) {
+            public Vector2ContinuousBar(String key, @Nullable String customLcKey, int[] barOrder, BarOptions bar, ComponentConfig x, ComponentConfig y, ComponentConfig merged) {
                 super(key, customLcKey);
                 this.barOrder = barOrder;
                 this.bar = bar;
                 this.x = x;
                 this.y = y;
+                this.merged = merged;
             }
 
             public Vector2ContinuousBar() {
@@ -663,6 +700,7 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
                 bar = BarOptions.instance;
                 x = ComponentConfig.instance;
                 y = ComponentConfig.instance;
+                merged = ComponentConfig.instance;
             }
 
             @Override
@@ -677,9 +715,7 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             public BarOptions bar() { return bar; }
             public ComponentConfig x() { return x; }
             public ComponentConfig y() { return y; }
-
-            @Override
-            public boolean accepts(Stat<?> stat) { return stat instanceof Vectors.OfVector2; }
+            public ComponentConfig merged() { return merged; }
 
             @Override
             public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
@@ -701,14 +737,22 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
                         barSection(bar1, x.barColor),
                         barSection(bar2, y.barColor)
                 };
-                return lc.safe(locale, lcKey("format"),
-                        "bar", Components.bar(bar.length, bar.placeholder, sections[barOrder[2]].color(),
-                                sections[barOrder[0]],
-                                sections[barOrder[1]]),
-                        "x", x.format.format(locale, val.x()),
-                        "y", y.format.format(locale, val.y()),
-                        "min", x.format.format(locale, bar.range.min()),
-                        "max", x.format.format(locale, bar.range.max()));
+                return merged(merged, val)
+                        ? lc.safe(locale, lcKey("merged.format"),
+                                "bar", Components.bar(bar.length, bar.placeholder, sections[barOrder[2]].color(),
+                                        sections[barOrder[0]],
+                                        sections[barOrder[1]]),
+                                "value", merged.format.format(locale, val.x()),
+                                "min", x.format.format(locale, bar.range.min()),
+                                "max", x.format.format(locale, bar.range.max()))
+                        : lc.safe(locale, lcKey("split.format"),
+                                "bar", Components.bar(bar.length, bar.placeholder, sections[barOrder[2]].color(),
+                                        sections[barOrder[0]],
+                                        sections[barOrder[1]]),
+                                "x", x.format.format(locale, val.x()),
+                                "y", y.format.format(locale, val.y()),
+                                "min", x.format.format(locale, bar.range.min()),
+                                "max", x.format.format(locale, bar.range.max()));
             }
         }
     }
