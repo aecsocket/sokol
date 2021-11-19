@@ -310,48 +310,71 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         // Utils
 
         @ConfigSerializable
-        public static final class NumberFormat {
+        public record NumberFormat(
+                @Required String format,
+                @Nullable MathNode expression,
+                Direction better
+        ) {
             private static final NumberFormat instance = new NumberFormat();
 
-            private final @Required String format;
-            private final @Nullable MathNode expression;
-
-            public NumberFormat(String format, @Nullable MathNode expression) {
-                this.format = format;
-                this.expression = expression;
+            public enum Direction {
+                HIGHER,
+                LOWER,
+                NONE
             }
 
-            private NumberFormat() {
-                format = "";
-                expression = null;
+            public static Direction direction(double num, NumericalStat.Value value) {
+                double base = value.base();
+                if (value instanceof NumericalStat.SubtractValue)
+                    num = -num;
+                if (value instanceof NumericalStat.DivideValue)
+                    num = 1 / num;
+                return num > base ? Direction.HIGHER : num < base ? Direction.LOWER : Direction.NONE;
             }
 
-            public String format() { return format; }
-            public MathNode expression() { return expression; }
+            public NumberFormat() {
+                this("", null, Direction.NONE);
+            }
 
             public double express(double num) {
                 return tryExpress(num, expression);
             }
 
-            public double express(double num, Stat.Value<?> value) {
-                if (value instanceof Primitives.AbstractNumber.FactorValue)
+            public double express(double num, NumericalStat.Value value, boolean percentage) {
+                if (percentage)
+                    return (num * 100) - 100;
+                if (value instanceof NumericalStat.FactorValue)
                     return num;
                 return express(num);
             }
 
-            public String format(Locale locale, double num) {
+            public Component format(Locale locale, Localizer lc, String lcKey, double num, NumericalStat.Value value, Direction direction, boolean percentage) {
+                String text;
                 try {
-                    return String.format(locale, format, num);
+                    text = String.format(locale, format, percentage ? Math.abs(num) : num);
+                } catch (IllegalFormatException e) {
+                    throw new FormatRenderException("Invalid format '" + format + "'", e);
+                }
+
+                String suffix = percentage ? "percent." + (num > 0 ? "add" : "sub") : "default";
+                return lc.safe(locale, lcKey + (better == null || direction == Direction.NONE ? (percentage ? ".neutral.percent.neutral" : ".neutral.default")
+                        : (better == direction ? ".better." : ".worse.") + suffix),
+                        "value", text);
+            }
+
+            public Component format(Locale locale, double num) {
+                try {
+                    return text(String.format(locale, format, num));
                 } catch (IllegalFormatException e) {
                     throw new FormatRenderException("Invalid format '" + format + "'", e);
                 }
             }
 
-            public String render(Locale locale, double num, Stat.Value<?> value) {
-                return format(locale, express(num, value));
+            public Component render(Locale locale, Localizer lc, String lcKey, double num, NumericalStat.Value value, Direction direction, boolean percentage) {
+                return format(locale, lc, lcKey, express(num, value, percentage), value, direction, percentage);
             }
 
-            public String render(Locale locale, double num) {
+            public Component render(Locale locale, double num) {
                 return format(locale, express(num));
             }
         }
@@ -431,32 +454,44 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             public static final FormatType TYPE = new FormatType(ID, OfNumber.class);
 
             private final boolean compute;
+            private final boolean convertPercent;
             private final @Required NumberFormat format;
 
-            public OfNumber(String key, @Nullable String customLcKey, boolean compute, NumberFormat format) {
+            public OfNumber(String key, @Nullable String customLcKey, boolean compute, boolean convertPercent, NumberFormat format) {
                 super(key, customLcKey);
                 this.compute = compute;
+                this.convertPercent = convertPercent;
                 this.format = format;
             }
 
             public OfNumber() {
                 compute = false;
+                convertPercent = true;
                 format = NumberFormat.instance;
             }
 
             @Override public String id() { return ID; }
+
+            public boolean compute() { return compute; }
+            public boolean convertPercent() { return convertPercent; }
+            public NumberFormat format() { return format; }
 
             @Override
             public boolean accepts(Stat<?> stat) { return stat instanceof Primitives.SingleNumber; }
 
             @Override
             public <V extends Number> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
-                return computeOrJoin(locale, lc, compute, node,
-                        raw -> raw instanceof Primitives.SingleNumber.BaseValue<V> val
-                                ? lc.safe(locale, lcKey(raw instanceof Primitives.SingleNumber.SetValue ? "set" : "op"),
-                                "op", val.operator(),
-                                "value", format.render(locale, val.wrappedValue().doubleValue(), val))
-                                : null);
+                return computeOrJoin(locale, lc, compute, node, raw -> {
+                    if (!(raw instanceof Primitives.SingleNumber.BaseValue<V> val))
+                        return null;
+                    double num = val.wrappedValue().doubleValue();
+                    NumberFormat.Direction direction = NumberFormat.direction(num, val);
+                    boolean percent = convertPercent && raw instanceof NumericalStat.MultiplyValue;
+                    return lc.safe(locale, lcKey(raw instanceof NumericalStat.SetValue ? "set" : percent ? "percent" : "op"),
+                            "op", val.operator(),
+                            "value", format.render(locale, lc, lcKey("value"), num, val, direction, percent));
+                }, val -> lc.safe(locale, lcKey("compute"),
+                        "value", format.format(locale, val.doubleValue())));
             }
         }
 
@@ -540,13 +575,15 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             }
 
             private final boolean compute;
+            private final boolean convertPercent;
             private final @Required ComponentConfig x;
             private final @Required ComponentConfig y;
             private final @Nullable ComponentConfig merged;
 
-            public OfVector2(String key, @Nullable String customLcKey, boolean compute, ComponentConfig x, ComponentConfig y, @Nullable ComponentConfig merged) {
+            public OfVector2(String key, @Nullable String customLcKey, boolean compute, boolean convertPercent, ComponentConfig x, ComponentConfig y, @Nullable ComponentConfig merged) {
                 super(key, customLcKey);
                 this.compute = compute;
+                this.convertPercent = convertPercent;
                 this.x = x;
                 this.y = y;
                 this.merged = merged;
@@ -554,6 +591,7 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
 
             public OfVector2() {
                 compute = false;
+                convertPercent = true;
                 x = ComponentConfig.instance;
                 y = ComponentConfig.instance;
                 merged = null;
@@ -562,28 +600,36 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             @Override public String id() { return ID; }
 
             public boolean compute() { return compute; }
+            public boolean convertPercent() { return convertPercent; }
             public ComponentConfig x() { return x; }
             public ComponentConfig y() { return y; }
             public ComponentConfig merged() { return merged; }
 
             @Override
             public <V extends Vector2> Component format(Locale locale, Localizer lc, Stat.Node<V> node) {
-                return computeOrJoin(locale, lc, compute, node,
-                        raw -> raw instanceof Vectors.OfVector.BaseValue<V> val ? merged(merged, val.value())
-                                ? lc.safe(locale, lcKey("merged." + (raw instanceof Vectors.OfVector.SetValue ? "set" : "op")),
-                                        "op", val.operator(),
-                                        "value", merged.format.render(locale, val.value().x(), raw))
-                                : lc.safe(locale, lcKey("split." + (raw instanceof Vectors.OfVector.SetValue ? "set" : "op")),
-                                        "op", val.operator(),
-                                        "x", x.format.render(locale, val.value().x(), raw),
-                                        "y", y.format.render(locale, val.value().y(), raw))
-                                        : null,
-                        val -> merged(merged, val)
-                                ? lc.safe(locale, lcKey("merged.compute"),
-                                        "value", merged.format.format(locale, val.x()))
-                                : lc.safe(locale, lcKey("split.compute"),
-                                        "x", x.format.format(locale, val.x()),
-                                        "y", y.format.format(locale, val.y())));
+                return computeOrJoin(locale, lc, compute, node, raw -> {
+                    if (!(raw instanceof Vectors.OfVector.BaseValue<V> val))
+                        return null;
+                    Vector2 vec = val.value();
+                    double numX = vec.x();
+                    double numY = vec.y();
+                    NumberFormat.Direction directionX = NumberFormat.direction(numX, val);
+                    NumberFormat.Direction directionY = NumberFormat.direction(numY, val);
+                    boolean percent = convertPercent && raw instanceof NumericalStat.MultiplyValue;
+                    return merged(merged, val.value())
+                            ? lc.safe(locale, lcKey("merged." + (raw instanceof Vectors.OfVector.SetValue ? "set" : percent ? "percent" : "op")),
+                                    "op", val.operator(),
+                                    "value", merged.format.render(locale, lc, lcKey("merged.value"), numX, val, directionX, percent))
+                            : lc.safe(locale, lcKey("split." + (raw instanceof Vectors.OfVector.SetValue ? "set" : percent ? "percent" : "op")),
+                                    "op", val.operator(),
+                                    "x", x.format.render(locale, lc, lcKey("split.value"), numX, val, directionX, percent),
+                                    "y", y.format.render(locale, lc, ("split.value"), numY, val, directionY, percent));
+                    }, val -> merged(merged, val)
+                        ? lc.safe(locale, lcKey("merged.compute"),
+                                "value", merged.format.format(locale, val.x()))
+                        : lc.safe(locale, lcKey("split.compute"),
+                                "x", x.format.format(locale, val.x()),
+                                "y", y.format.format(locale, val.y())));
             }
         }
 

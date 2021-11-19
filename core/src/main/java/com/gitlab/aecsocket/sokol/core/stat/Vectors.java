@@ -21,7 +21,7 @@ public final class Vectors {
     private Vectors() {}
 
     public interface OfVector<V extends NumericalVector> extends Stat<V> {
-        interface BaseValue<V extends NumericalVector> extends InitialValue<V> {
+        interface BaseValue<V extends NumericalVector> extends InitialValue<V>, NumericalStat.Value {
             V value();
             String operator();
             @Override default boolean discardsPrevious() { return false; }
@@ -31,7 +31,7 @@ public final class Vectors {
                 return text(operator(), OPERATOR).append(text(value().asString(decimalFormatter(locale)), CONSTANT));
             }
         }
-        interface SetValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.SetValue {
+        interface SetValue<V extends NumericalVector> extends BaseValue<V>, NumericalStat.SetValue {
             @Override default String operator() { return "="; }
             @Override default boolean discardsPrevious() { return true; }
             @Override default String asString(Locale locale) { return decimalFormatter(Locale.ROOT).format(value()); }
@@ -40,16 +40,16 @@ public final class Vectors {
                 return text(value().asString(decimalFormatter(locale)), CONSTANT);
             }
         }
-        interface AddValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.AddValue {
+        interface AddValue<V extends NumericalVector> extends BaseValue<V>, NumericalStat.AddValue {
             @Override default String operator() { return "+"; }
         }
-        interface SubtractValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.SubtractValue {
+        interface SubtractValue<V extends NumericalVector> extends BaseValue<V>, NumericalStat.SubtractValue {
             @Override default String operator() { return "-"; }
         }
-        interface MultiplyValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.MultiplyValue {
+        interface MultiplyValue<V extends NumericalVector> extends BaseValue<V>, NumericalStat.MultiplyValue {
             @Override default String operator() { return "×"; }
         }
-        interface DivideValue<V extends NumericalVector> extends BaseValue<V>, Primitives.AbstractNumber.DivideValue {
+        interface DivideValue<V extends NumericalVector> extends BaseValue<V>, NumericalStat.DivideValue {
             @Override default String operator() { return "÷"; }
         }
 

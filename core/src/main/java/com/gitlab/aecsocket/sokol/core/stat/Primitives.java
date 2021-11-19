@@ -98,20 +98,8 @@ public final class Primitives {
         public AddValue add(String value) { return new AddValue(value); }
     }
 
-    public interface AbstractNumber {
-        interface SetValue {}
-
-        interface SumValue {}
-        interface AddValue extends SumValue {}
-        interface SubtractValue extends SumValue {}
-
-        interface FactorValue {}
-        interface MultiplyValue extends FactorValue {}
-        interface DivideValue extends FactorValue {}
-    }
-
     public interface SingleNumber<N extends Number> extends Stat<N> {
-        interface BaseValue<N extends Number> extends InitialValue<N> {
+        interface BaseValue<N extends Number> extends InitialValue<N>, NumericalStat.Value {
             Number wrappedValue();
             String operator();
             @Override default boolean discardsPrevious() { return false; }
@@ -121,7 +109,7 @@ public final class Primitives {
                 return text(operator(), OPERATOR).append(text(decimalFormatter(locale).format(wrappedValue()), CONSTANT));
             }
         }
-        interface SetValue<N extends Number> extends BaseValue<N>, AbstractNumber.SetValue {
+        interface SetValue<N extends Number> extends BaseValue<N>, NumericalStat.SetValue {
             @Override default String operator() { return "="; }
             @Override default boolean discardsPrevious() { return true; }
             @Override default String asString(Locale locale) { return decimalFormatter(Locale.ROOT).format(wrappedValue()); }
@@ -130,16 +118,16 @@ public final class Primitives {
                 return text(decimalFormatter(locale).format(wrappedValue()), CONSTANT);
             }
         }
-        interface AddValue<N extends Number> extends BaseValue<N>, AbstractNumber.AddValue {
+        interface AddValue<N extends Number> extends BaseValue<N>, NumericalStat.AddValue {
             @Override default String operator() { return "+"; }
         }
-        interface SubtractValue<N extends Number> extends BaseValue<N>, AbstractNumber.SubtractValue {
+        interface SubtractValue<N extends Number> extends BaseValue<N>, NumericalStat.SubtractValue {
             @Override default String operator() { return "-"; }
         }
-        interface MultiplyValue<N extends Number> extends BaseValue<N>, AbstractNumber.MultiplyValue {
+        interface MultiplyValue<N extends Number> extends BaseValue<N>, NumericalStat.MultiplyValue {
             @Override default String operator() { return "×"; }
         }
-        interface DivideValue<N extends Number> extends BaseValue<N>, AbstractNumber.DivideValue {
+        interface DivideValue<N extends Number> extends BaseValue<N>, NumericalStat.DivideValue {
             @Override default String operator() { return "÷"; }
         }
 
