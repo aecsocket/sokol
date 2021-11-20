@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.core.wrapper;
 import net.kyori.adventure.text.Component;
 
 import java.util.List;
+import java.util.OptionalDouble;
 
 public interface Item {
     int amount();
@@ -20,4 +21,8 @@ public interface Item {
     List<Component> description();
     Item description(List<Component> description);
     Item addDescription(List<Component> description);
+
+    OptionalDouble durability();
+    Item durability(double percent);
+    Item maxDurability();
 }

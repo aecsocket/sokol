@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     compileOnly("com.gitlab.aecsocket.minecommons", "core", "1.3") { isTransitive = true }
+    implementation("org.incendo.interfaces", "interfaces-core", "1.0.0-SNAPSHOT")
 }
 
 tasks {

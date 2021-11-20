@@ -153,8 +153,11 @@ public abstract class AbstractNode<
         return val;
     }
 
-    public void unsafeNode(String key, N val) {
-        nodes.put(key, val);
+    public void unsafeNode(String key, @Nullable N val) {
+        if (val == null)
+            nodes.remove(key);
+        else
+            nodes.put(key, val);
     }
 
     @Override

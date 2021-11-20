@@ -30,7 +30,7 @@ import java.util.function.Predicate;
  */
 public final class NodeArgument<C> extends CommandArgument<C, PaperNode> {
     /** When a node cannot be parsed. */
-    public static final Caption ARGUMENT_PARSE_FAILURE_NODE = Caption.of("argument.parse.failure.node");
+    public static final Caption ARGUMENT_PARSE_FAILURE_NODE_GENERIC = Caption.of("argument.parse.failure.node.generic");
     /** When a parsed node is not considered valid. */
     public static final Caption ARGUMENT_PARSE_FAILURE_NODE_INVALID = Caption.of("argument.parse.failure.node.invalid");
     /** The token used for referencing the currently held node. */
@@ -209,9 +209,9 @@ public final class NodeArgument<C> extends CommandArgument<C, PaperNode> {
 
     public static final class ParseException extends ParserException {
         public ParseException(String input, CommandContext<?> ctx, Exception e) {
-            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_NODE,
+            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_NODE_GENERIC,
                     CaptionVariable.of("input", input),
-                    CaptionVariable.of("exception", Text.mergeMessages(e)));
+                    CaptionVariable.of("error", Text.mergeMessages(e)));
         }
     }
 

@@ -26,7 +26,7 @@ import java.util.function.Predicate;
  */
 public final class ComponentArgument<C> extends CommandArgument<C, PaperComponent> {
     /** When a component ID cannot be parsed. */
-    public static final Caption ARGUMENT_PARSE_FAILURE_COMPONENT = Caption.of("argument.parse.failure.component");
+    public static final Caption ARGUMENT_PARSE_FAILURE_COMPONENT_GENERIC = Caption.of("argument.parse.failure.component.generic");
     /** When a parsed component is not considered valid. */
     public static final Caption ARGUMENT_PARSE_FAILURE_COMPONENT_INVALID = Caption.of("argument.parse.failure.component.invalid");
 
@@ -188,7 +188,7 @@ public final class ComponentArgument<C> extends CommandArgument<C, PaperComponen
 
     public static final class ParseException extends ParserException {
         public ParseException(String input, CommandContext<?> ctx) {
-            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_COMPONENT,
+            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_COMPONENT_GENERIC,
                     CaptionVariable.of("input", input));
         }
     }

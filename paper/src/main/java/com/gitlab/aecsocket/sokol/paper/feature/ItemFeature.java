@@ -1,8 +1,12 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
+import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
-import com.gitlab.aecsocket.sokol.core.feature.ItemDescriptionFeature;
+import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
+import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
+import com.gitlab.aecsocket.sokol.core.stat.Primitives;
+import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
 import com.gitlab.aecsocket.sokol.paper.FeatureType;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
@@ -10,35 +14,47 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import io.leangen.geantyref.TypeToken;
+import net.kyori.adventure.text.Component;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 
-public final class PaperItemDescriptionFeature extends ItemDescriptionFeature<PaperItemDescriptionFeature.Instance, PaperNode> implements PaperFeature<PaperItemDescriptionFeature.Instance> {
+import static com.gitlab.aecsocket.sokol.core.stat.Primitives.*;
+
+public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, PaperNode> implements PaperFeature<ItemFeature.Instance> {
+    public static final String ID = "item";
+
+    public static final Primitives.OfFlag STAT_UNBREAKABLE = flagStat("unbreakable", false);
+
     public static final StatTypes STAT_TYPES = StatTypes.types(
-            STAT_ITEM_NAME_KEY
+            STAT_UNBREAKABLE
     );
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
-    public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperItemDescriptionFeature(platform,
+    public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new ItemFeature(platform,
             config.node("listener_priority").getInt()
     ));
 
     private final SokolPlugin platform;
+    private final int listenerPriority;
 
-    public PaperItemDescriptionFeature(SokolPlugin platform, int listenerPriority) {
-        super(listenerPriority);
+    public ItemFeature(SokolPlugin platform, int listenerPriority) {
         this.platform = platform;
+        this.listenerPriority = listenerPriority;
     }
 
     @Override
     public void configure(ConfigurationNode config) throws SerializationException {}
 
     @Override public SokolPlugin platform() { return platform; }
+    public int listenerPriority() { return listenerPriority; }
 
     @Override
     public Instance create(PaperNode node) {
@@ -55,12 +71,26 @@ public final class PaperItemDescriptionFeature extends ItemDescriptionFeature<Pa
         return new Instance(node);
     }
 
-    public final class Instance extends ItemDescriptionFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
+    public final class Instance extends AbstractInstance<PaperNode> implements PaperFeatureInstance {
         public Instance(PaperNode parent) {
             super(parent);
         }
 
-        @Override protected TypeToken<CreateItemEvent<PaperNode>> eventCreateItem() { return new TypeToken<>() {}; }
+        @Override public ItemFeature type() { return ItemFeature.this; }
+
+        @Override
+        public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {
+            parent.treeData().ifPresent(treeData -> {
+                var events = treeData.events();
+                events.register(new TypeToken<CreateItemEvent<PaperNode>>(){}, this::onCreateItem);
+            });
+        }
+
+        private void onCreateItem(CreateItemEvent<PaperNode> event) {
+            if (!parent.isRoot())
+                return;
+
+        }
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {}
@@ -73,4 +103,10 @@ public final class PaperItemDescriptionFeature extends ItemDescriptionFeature<Pa
             return new Instance(parent);
         }
     }
+
+    @Override public String id() { return ID; }
+
+    // todo
+    @Override
+    public Optional<List<Component>> renderConfig(Locale locale, Localizer lc) { return Optional.empty(); }
 }

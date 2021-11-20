@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -94,7 +95,7 @@ public final class SokolPersistence {
             PersistentDataContainer pdcFeatures = ctx.newPersistentDataContainer();
             for (var entry : obj.features().entrySet()) {
                 PersistentDataContainer saved = ctx.newPersistentDataContainer();
-                entry.getValue().save(saved);
+                entry.getValue().save(saved, ctx);
                 if (saved.getKeys().size() > 0)
                     pdcFeatures.set(plugin.key(entry.getKey()), PersistentDataType.TAG_CONTAINER, saved);
             }

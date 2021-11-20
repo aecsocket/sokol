@@ -27,7 +27,7 @@ import java.util.function.Predicate;
  */
 public final class BlueprintArgument<C> extends CommandArgument<C, PaperBlueprint> {
     /** When a blueprint ID cannot be parsed. */
-    public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT = Caption.of("argument.parse.failure.blueprint");
+    public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_GENERIC = Caption.of("argument.parse.failure.blueprint.generic");
     /** When a parsed blueprint is not considered valid. */
     public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_INVALID = Caption.of("argument.parse.failure.blueprint.invalid");
 
@@ -189,7 +189,7 @@ public final class BlueprintArgument<C> extends CommandArgument<C, PaperBlueprin
 
     public static final class ParseException extends ParserException {
         public ParseException(String input, CommandContext<?> ctx) {
-            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT,
+            super(PaperComponent.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT_GENERIC,
                     CaptionVariable.of("input", input));
         }
     }

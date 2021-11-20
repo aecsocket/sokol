@@ -53,6 +53,13 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         super(plugin, "sokol",
                 (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
 
+        captions.registerMessageFactory(NodeArgument.ARGUMENT_PARSE_FAILURE_NODE_GENERIC, captionLocalizer);
+        captions.registerMessageFactory(NodeArgument.ARGUMENT_PARSE_FAILURE_NODE_INVALID, captionLocalizer);
+        captions.registerMessageFactory(ComponentArgument.ARGUMENT_PARSE_FAILURE_COMPONENT_GENERIC, captionLocalizer);
+        captions.registerMessageFactory(ComponentArgument.ARGUMENT_PARSE_FAILURE_COMPONENT_INVALID, captionLocalizer);
+        captions.registerMessageFactory(BlueprintArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_GENERIC, captionLocalizer);
+        captions.registerMessageFactory(BlueprintArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_INVALID, captionLocalizer);
+
         manager.command(root
                 .literal("list", ArgumentDescription.of("Lists all registered objects."))
                 .flag(CommandFlag.newBuilder("type")

@@ -1,11 +1,14 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
+import com.gitlab.aecsocket.minecommons.core.Numbers;
 import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.Damageable;
 
 import java.util.List;
+import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
 public record PaperItem(ItemStack handle) implements Item {
@@ -59,6 +62,34 @@ public record PaperItem(ItemStack handle) implements Item {
                 lore.addAll(description.stream().map(Components.BLANK::append).collect(Collectors.toList()));
                 meta.lore(lore);
             }
+        });
+        return this;
+    }
+
+    @Override
+    public OptionalDouble durability() {
+        if (handle.getItemMeta() instanceof Damageable meta)
+            return OptionalDouble.of(1 - ((double) meta.getDamage() / handle.getType().getMaxDurability()));
+        return OptionalDouble.empty();
+    }
+
+    @Override
+    public PaperItem durability(double percent) {
+        handle.editMeta(m -> {
+            if (m instanceof Damageable meta) {
+                int max = handle.getType().getMaxDurability();
+                int damage = (int) Numbers.clamp(max * (1 - percent), 1, max - 1);
+                meta.setDamage(damage);
+            }
+        });
+        return this;
+    }
+
+    @Override
+    public PaperItem maxDurability() {
+        handle.editMeta(m -> {
+            if (m instanceof Damageable meta)
+                meta.setDamage(0);
         });
         return this;
     }

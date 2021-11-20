@@ -130,10 +130,10 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         public FormatValidationException(Throwable cause) { super(cause); }
     }
 
-    private final int listenerPriority;
-    private final List<List<Format<?>>> sections;
-    private final String padding;
-    private final int paddingWidth;
+    protected final int listenerPriority;
+    protected final List<List<Format<?>>> sections;
+    protected final String padding;
+    protected final int paddingWidth;
 
     public StatDisplayFeature(int listenerPriority, List<List<Format<?>>> sections, String padding, int paddingWidth) {
         this.listenerPriority = listenerPriority;
@@ -240,8 +240,6 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
     }
 
     @Override public String id() { return ID; }
-
-    @Override public void configure(ConfigurationNode config) {}
 
     // todo
     @Override

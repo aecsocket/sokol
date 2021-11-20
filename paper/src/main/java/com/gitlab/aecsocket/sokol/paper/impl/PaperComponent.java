@@ -110,7 +110,11 @@ public final class PaperComponent extends AbstractComponent<PaperComponent, Pape
             }
 
             for (var entry : featureConfigs.entrySet()) {
-                entry.getKey().configure(entry.getValue());
+                try {
+                    entry.getKey().configure(entry.getValue());
+                } catch (SerializationException e) {
+                    throw new SerializationException(entry.getValue(), type, "Could not configure feature", e);
+                }
             }
 
             PaperComponent result = new PaperComponent(plugin,

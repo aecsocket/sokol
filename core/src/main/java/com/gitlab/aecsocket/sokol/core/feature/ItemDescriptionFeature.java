@@ -10,7 +10,6 @@ import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
-import org.spongepowered.configurate.ConfigurationNode;
 
 import java.util.*;
 
@@ -18,7 +17,7 @@ public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I,
     public static final String ID = "item_description";
     public static final Primitives.OfString STAT_ITEM_NAME_KEY = Primitives.stringStat("item_name_key");
 
-    private final int listenerPriority;
+    protected final int listenerPriority;
 
     public ItemDescriptionFeature(int listenerPriority) {
         this.listenerPriority = listenerPriority;
@@ -67,8 +66,6 @@ public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I,
     }
 
     @Override public String id() { return ID; }
-
-    @Override public void configure(ConfigurationNode config) {}
 
     // todo
     @Override

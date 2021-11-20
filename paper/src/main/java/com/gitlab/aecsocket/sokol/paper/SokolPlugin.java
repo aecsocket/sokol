@@ -2,9 +2,11 @@ package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.Files;
 import com.gitlab.aecsocket.minecommons.core.Logging;
+import com.gitlab.aecsocket.minecommons.core.Quantifier;
 import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
 import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
+import com.gitlab.aecsocket.minecommons.core.serializers.QuantifierSerializer;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
@@ -15,20 +17,15 @@ import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
-import com.gitlab.aecsocket.sokol.paper.feature.DummyFeature;
-import com.gitlab.aecsocket.sokol.paper.feature.PaperItemDescriptionFeature;
-import com.gitlab.aecsocket.sokol.paper.feature.PaperSlotDisplayFeature;
-import com.gitlab.aecsocket.sokol.paper.feature.PaperStatDisplayFeature;
+import com.gitlab.aecsocket.sokol.paper.feature.*;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
 import io.leangen.geantyref.TypeToken;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.map.MapFont;
 import org.bukkit.map.MinecraftFont;
+import org.incendo.interfaces.paper.PaperInterfaceListeners;
 import org.spongepowered.configurate.ConfigurateException;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ObjectMapper;
@@ -51,6 +48,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<StatDisplayFeature.FormatType> statFormats = new Registry<>();
     private final Registry<FeatureType.Keyed> featureTypes = new Registry<>();
     private final SokolPersistence persistence = new SokolPersistence(this);
+    private final SokolInterfaces interfaces = new SokolInterfaces(this);
     private final PaperScheduler paperScheduler = new PaperScheduler(this);
     private final ThreadScheduler threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
     private final Map<Player, PlayerData> playerData = new HashMap<>();
@@ -64,6 +62,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public Registry<StatDisplayFeature.FormatType> statFormats() { return statFormats; }
     public Registry<FeatureType.Keyed> featureTypes() { return featureTypes; }
     public SokolPersistence persistence() { return persistence; }
+    public SokolInterfaces interfaces() { return interfaces; }
     public MapFont font() { return font; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
@@ -72,6 +71,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public PlayerData playerData(Player player) {
         return playerData.computeIfAbsent(player, p -> new PlayerData(this, p));
     }
+    void removePlayerData(Player player) { playerData.remove(player); }
 
     @Override
     public void onEnable() {
@@ -80,15 +80,12 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         featureTypes.register(PaperItemDescriptionFeature.TYPE);
         featureTypes.register(PaperSlotDisplayFeature.TYPE);
         featureTypes.register(PaperStatDisplayFeature.TYPE);
+        featureTypes.register(PaperNodeHolderFeature.TYPE);
 
         PaperStatDisplayFeature.Formats.registerAll(statFormats);
 
-        Bukkit.getPluginManager().registerEvents(new Listener() {
-            @EventHandler
-            private void onEvent(PlayerQuitEvent event) {
-                playerData.remove(event.getPlayer());
-            }
-        }, this);
+        Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
+        Bukkit.getPluginManager().registerEvents(new PaperInterfaceListeners(this), this);
 
         paperScheduler.run(Task.repeating(ctx -> {
             for (var player : Bukkit.getOnlinePlayers()) {
@@ -129,7 +126,8 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
                 .registerExact(PaperNode.class, new PaperNode.Serializer(this))
                 .registerExact(PaperBlueprint.class, new PaperBlueprint.Serializer(this))
 
-                .registerExact(new TypeToken<StatDisplayFeature.Format<?>>(){}, new PaperStatDisplayFeature.FormatSerializer(statFormats));
+                .registerExact(new TypeToken<StatDisplayFeature.Format<?>>(){}, new PaperStatDisplayFeature.FormatSerializer(statFormats))
+                .registerExact(new TypeToken<Quantifier<PaperNode>>(){}, new QuantifierSerializer<>(new TypeToken<PaperNode>(){}));
     }
 
     private <T extends Keyed> void loadRegistry(String root, Class<T> type, Registry<T> registry) {

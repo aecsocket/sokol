@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.List;
 import java.util.Locale;
@@ -15,7 +16,7 @@ public interface Feature<
 > extends Keyed {
     F create(N node);
 
-    void configure(ConfigurationNode config);
+    void configure(ConfigurationNode config) throws SerializationException;
 
     static String renderKey(String id) { return "feature." + id + ".name"; }
     static String renderDescriptionKey(String id) { return "feature." + id + ".description"; }

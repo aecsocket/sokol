@@ -17,6 +17,7 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
+import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -116,7 +117,7 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
         public void save(Type type, ConfigurationNode node) throws SerializationException {}
 
         @Override
-        public void save(PersistentDataContainer pdc) throws IllegalArgumentException {}
+        public void save(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) throws IllegalArgumentException {}
 
         @Override
         public Instance copy(PaperNode parent) {

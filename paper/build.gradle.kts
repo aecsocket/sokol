@@ -20,6 +20,7 @@ dependencies {
     }
 
     implementation("org.bstats", "bstats-bukkit", "2.2.1")
+    implementation("org.incendo.interfaces", "interfaces-paper", "1.0.0-SNAPSHOT")
 
     // Plugins
     compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.3")

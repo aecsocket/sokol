@@ -28,11 +28,11 @@ public abstract class SlotDisplayFeature<I extends SlotDisplayFeature<I, N>.Inst
         NATURAL
     }
 
-    private final int listenerPriority;
-    private final Order order;
-    private final List<String> orderOverride;
-    private final String padding;
-    private final int paddingWidth;
+    protected final int listenerPriority;
+    protected final Order order;
+    protected final List<String> orderOverride;
+    protected final String padding;
+    protected final int paddingWidth;
 
     public SlotDisplayFeature(int listenerPriority, Order order, List<String> orderOverride, String padding, int paddingWidth) {
         this.listenerPriority = listenerPriority;
@@ -138,8 +138,6 @@ public abstract class SlotDisplayFeature<I extends SlotDisplayFeature<I, N>.Inst
     }
 
     @Override public String id() { return ID; }
-
-    @Override public void configure(ConfigurationNode config) {}
 
     // todo
     @Override

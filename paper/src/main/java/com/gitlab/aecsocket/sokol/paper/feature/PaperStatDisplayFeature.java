@@ -10,6 +10,7 @@ import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import io.leangen.geantyref.TypeToken;
+import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -17,7 +18,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import java.lang.reflect.Type;
 import java.util.*;
 
-public class PaperStatDisplayFeature extends StatDisplayFeature<PaperStatDisplayFeature.Instance, PaperNode> implements PaperFeature<PaperStatDisplayFeature.Instance> {
+public final class PaperStatDisplayFeature extends StatDisplayFeature<PaperStatDisplayFeature.Instance, PaperNode> implements PaperFeature<PaperStatDisplayFeature.Instance> {
     public static final StatTypes STAT_TYPES = StatTypes.types();
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
@@ -33,6 +34,9 @@ public class PaperStatDisplayFeature extends StatDisplayFeature<PaperStatDisplay
         super(listenerPriority, sections, padding, platform.font().getWidth(padding) + 1);
         this.platform = platform;
     }
+
+    @Override
+    public void configure(ConfigurationNode config) throws SerializationException {}
 
     @Override public SokolPlugin platform() { return platform; }
 
@@ -54,7 +58,7 @@ public class PaperStatDisplayFeature extends StatDisplayFeature<PaperStatDisplay
         return new Instance(node);
     }
 
-    public class Instance extends StatDisplayFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
+    public final class Instance extends StatDisplayFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
         public Instance(PaperNode parent) {
             super(parent);
         }
@@ -65,7 +69,7 @@ public class PaperStatDisplayFeature extends StatDisplayFeature<PaperStatDisplay
         public void save(Type type, ConfigurationNode node) throws SerializationException {}
 
         @Override
-        public void save(PersistentDataContainer pdc) throws IllegalArgumentException {}
+        public void save(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) throws IllegalArgumentException {}
 
         @Override
         public Instance copy(PaperNode parent) {
