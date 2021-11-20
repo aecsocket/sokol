@@ -31,7 +31,7 @@ public record PaperItem(ItemStack handle) implements Item {
 
     @Override
     public PaperItem name(Component name) {
-        handle.editMeta(meta -> meta.displayName(name));
+        handle.editMeta(meta -> meta.displayName(Components.BLANK.append(name)));
         return this;
     }
 

@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.Component;
 import com.gitlab.aecsocket.sokol.core.Slot;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
+import com.gitlab.aecsocket.sokol.core.rule.RuleException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.Node;
 

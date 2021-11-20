@@ -195,11 +195,8 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
         }
 
         private void render(Locale locale, List<Component> lines, @Nullable List<Component> separator, StatMap stats) {
-            for (int i = 0; i < sections.size(); i++) {
-                var section = sections.get(i);
-                if (i > 0 && separator != null)
-                    lines.addAll(separator);
-
+            List<List<Component>> renderedSections = new ArrayList<>();
+            for (var section : sections) {
                 Map<String, KeyData> keyData = new HashMap<>();
                 int longest = 0;
                 for (var format : section) {
@@ -214,9 +211,18 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
                 }
 
                 for (var format : section) {
+                    List<Component> sectionLines = new ArrayList<>();
                     lines(locale, format, stats, keyData.get(format.key()), longest)
-                            .ifPresent(lines::add);
+                            .ifPresent(sectionLines::add);
+                    if (sectionLines.size() > 0)
+                        renderedSections.add(sectionLines);
                 }
+            }
+
+            for (int i = 0; i < renderedSections.size(); i++) {
+                if (separator != null && i > 0)
+                    lines.addAll(separator);
+                lines.addAll(renderedSections.get(i));
             }
         }
 

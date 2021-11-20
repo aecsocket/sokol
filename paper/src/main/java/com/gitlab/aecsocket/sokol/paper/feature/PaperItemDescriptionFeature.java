@@ -18,7 +18,9 @@ import java.lang.reflect.Type;
 import java.util.Map;
 
 public class PaperItemDescriptionFeature extends ItemDescriptionFeature<PaperItemDescriptionFeature.Instance, PaperNode> implements PaperFeature<PaperItemDescriptionFeature.Instance> {
-    public static final StatTypes STAT_TYPES = StatTypes.types();
+    public static final StatTypes STAT_TYPES = StatTypes.types(
+            STAT_ITEM_NAME_KEY
+    );
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
     public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperItemDescriptionFeature(platform,

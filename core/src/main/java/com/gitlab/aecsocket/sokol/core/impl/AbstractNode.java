@@ -6,7 +6,7 @@ import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.event.UserEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
+import com.gitlab.aecsocket.sokol.core.rule.RuleException;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import org.checkerframework.checker.nullness.qual.Nullable;

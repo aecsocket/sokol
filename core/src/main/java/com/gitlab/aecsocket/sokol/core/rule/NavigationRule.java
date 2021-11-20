@@ -2,7 +2,6 @@ package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import net.kyori.adventure.text.Component;
 
@@ -34,7 +33,8 @@ public final class NavigationRule {
         @Override
         public void applies(Node node) throws RuleException {
             if (node.node(path).isEmpty())
-                throw new RuleException(this, "No node at " + path);
+                throw new RuleException(this, "no_node_at",
+                        "path", ""+path);
         }
 
         @Override
@@ -105,11 +105,13 @@ public final class NavigationRule {
         public void applies(Node node) throws RuleException {
             var child = node.node(path);
             if (child.isEmpty())
-                throw new RuleException(this, "No node at " + path);
+                throw new RuleException(this, "no_node_at",
+                        "path", path);
             try {
                 term.applies(child.get());
             } catch (RuleException e) {
-                throw new RuleException(this, "At " + path, e);
+                throw new RuleException(this, e, "fail_at",
+                        "path", path);
             }
         }
 
@@ -139,11 +141,13 @@ public final class NavigationRule {
         public void applies(Node node) throws RuleException {
             var child = node.root().node(path);
             if (child.isEmpty())
-                throw new RuleException(this, "No node from root at " + path);
+                throw new RuleException(this, "no_node_root_at",
+                        "path", path);
             try {
                 term.applies(child.get());
             } catch (RuleException e) {
-                throw new RuleException(this, "As root", e);
+                throw new RuleException(this, e, "fail_as_root",
+                        "path", path);
             }
         }
 
@@ -172,7 +176,7 @@ public final class NavigationRule {
         @Override
         public void applies(Node node) throws RuleException {
             if (!node.isRoot())
-                throw new RuleException(this);
+                throw new RuleException(this, "not_root");
         }
 
         @Override

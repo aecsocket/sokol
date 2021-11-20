@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.core.rule;
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Renderable;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import net.kyori.adventure.text.Component;
@@ -57,7 +56,7 @@ public interface Rule extends Renderable {
         @Override
         public void applies(Node node) throws RuleException {
             if (!value)
-                throw new RuleException(this);
+                throw new RuleException(this, "constant");
         }
 
         @Override
@@ -148,6 +147,7 @@ public interface Rule extends Renderable {
 
                     case "#" -> new ComponentRule.HasTags(map(String.class, new HashSet<>(), nodes));
                     case "~" -> new ComponentRule.HasFeatures(map(String.class, new HashSet<>(), nodes));
+                    case "/~" -> ComponentRule.IsComplete.INSTANCE;
                     default -> throw new SerializationException(node, type, "Invalid operator '" + op + "'");
                 };
             }

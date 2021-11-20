@@ -2,7 +2,6 @@ package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import net.kyori.adventure.text.Component;
 
 import java.util.*;
@@ -27,7 +26,7 @@ public final class LogicRule {
         public void applies(Node node) throws RuleException {
             try {
                 term.applies(node);
-                throw new RuleException(this, "!(" + term + ")");
+                throw new RuleException(this, "not");
             } catch (RuleException ignore) {}
         }
 
@@ -120,7 +119,8 @@ public final class LogicRule {
                 try {
                     term.applies(node);
                 } catch (RuleException e) {
-                    throw new RuleException(this, "[" + i + "] " + term, e);
+                    throw new RuleException(this, e, "and",
+                            "index", ""+i);
                 }
             }
         }
@@ -142,7 +142,7 @@ public final class LogicRule {
                     return;
                 } catch (RuleException ignore) {}
             }
-            throw new RuleException(this, "No terms matched");
+            throw new RuleException(this, "or");
         }
 
         @Override

@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.core.rule;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.Renderable;
-import com.gitlab.aecsocket.sokol.core.node.RuleException;
 import net.kyori.adventure.text.Component;
 
 import java.util.Collections;
@@ -12,6 +11,7 @@ import java.util.Objects;
 import java.util.Set;
 
 import static net.kyori.adventure.text.Component.*;
+import static com.gitlab.aecsocket.sokol.core.rule.Rule.*;
 
 public final class ComponentRule {
     private ComponentRule() {}
@@ -32,7 +32,9 @@ public final class ComponentRule {
         @Override
         public void applies(Node node) throws RuleException {
             if (Collections.disjoint(node.value().tags(), tags))
-                throw new RuleException(this, "Node is not tagged");
+                throw new RuleException(this, "not_have_tag",
+                        "has", String.join(", ", node.value().tags()),
+                        "requires", String.join(", ", tags));
         }
 
         @Override
@@ -59,7 +61,7 @@ public final class ComponentRule {
         @Override
         public Component render(Locale locale, Localizer lc) {
             return text("#", OPERATOR)
-                    .append(formatStrings(tags));
+                    .append(wrapBrackets(formatStrings(tags)));
         }
     }
 
@@ -75,7 +77,9 @@ public final class ComponentRule {
         @Override
         public void applies(Node node) throws RuleException {
             if (Collections.disjoint(node.value().features().keySet(), features))
-                throw new RuleException(this, "Node does not have features");
+                throw new RuleException(this, "not_have_features",
+                        "has", String.join(", ", node.value().features().keySet()),
+                        "requires", String.join(", ", features));
         }
 
         @Override
@@ -102,7 +106,42 @@ public final class ComponentRule {
         @Override
         public Component render(Locale locale, Localizer lc) {
             return text("~", OPERATOR)
-                    .append(formatStrings(features));
+                    .append(wrapBrackets(formatStrings(features)));
+        }
+    }
+
+    public static final class IsComplete implements Rule {
+        public static final IsComplete INSTANCE = new IsComplete();
+
+        private IsComplete() {}
+
+        @Override
+        public void applies(Node node) throws RuleException {
+            if (!node.treeData().orElseThrow(() -> new RuleException(this, "no_tree_data")).complete())
+                throw new RuleException(this, "not_complete");
+        }
+
+        @Override
+        public void visit(Visitor visitor) {
+            visitor.visit(this);
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj != null && obj.getClass() == getClass();
+        }
+
+        @Override
+        public int hashCode() {
+            return getClass().hashCode();
+        }
+
+        @Override
+        public String toString() { return "/~"; }
+
+        @Override
+        public Component render(Locale locale, Localizer lc) {
+            return text("/~", OPERATOR);
         }
     }
 }

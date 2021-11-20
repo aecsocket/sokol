@@ -11,6 +11,7 @@ import cloud.commandframework.context.CommandContext;
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BaseCommand;
+import com.gitlab.aecsocket.sokol.core.Renderable;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
@@ -35,6 +36,7 @@ import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static net.kyori.adventure.text.Component.*;
@@ -102,13 +104,25 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                 .argument(IntegerArgument.<CommandSender>newBuilder("amount").withMin(1).asOptional(), ArgumentDescription.of("The amount of the item to give."))
                 .permission("%s.command.build".formatted(rootName))
                 .handler(c -> handle(c, this::build)));
-        // todo list command
     }
 
-    private <T> void formatStats(Locale locale, List<Component> lines, String key, Stat.Node<T> node) {
+    // Utils
+
+    private <T extends Renderable> Component render(Locale locale, T obj, Function<T, String> getKey) {
+        return obj.render(locale, lc)
+                .hoverEvent(lc.safe(locale, PREFIX_COMMAND + ".hover.keyed",
+                        "key", getKey.apply(obj),
+                        "type", obj.getClass().getName()));
+    }
+
+    private Component renderKeyed(Locale locale, Keyed keyed) {
+        return render(locale, keyed, Keyed::id);
+    }
+
+    private <T> void renderStats(Locale locale, List<Component> lines, String key, Stat.Node<T> node) {
         List<? extends Stat.Node<?>> chain = node.asList();
         lc.lines(locale, PREFIX_COMMAND + ".stats.entry",
-                        "name", node.stat().render(locale, lc),
+                        "name", render(locale, node.stat(), e -> key),
                         "key", key,
                         "value", node.stat().renderValue(locale, lc, node.compute()),
                         "nodes", chain.size() + "",
@@ -116,17 +130,32 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                 .ifPresent(lines::addAll);
     }
 
-    private List<Component> formatStats(Locale locale, StatMap map) {
+    private List<Component> renderStats(Locale locale, StatMap map) {
         List<Component> lines = new ArrayList<>();
         lc.lines(locale, PREFIX_COMMAND + ".stats.header",
                         "amount", map.size()+"")
                 .ifPresent(lines::addAll);
         for (var entry : map.entrySet()) {
-            formatStats(locale, lines, entry.getKey(), entry.getValue());
+            renderStats(locale, lines, entry.getKey(), entry.getValue());
         }
 
         return lines;
     }
+
+    private Component renderConstant(Locale locale, boolean value) {
+        return lc.safe(locale, "constant." + value);
+    }
+
+    private Component renderKeyedInfo(Locale locale, Keyed keyed, String command) {
+        return lc.lines(locale, PREFIX_COMMAND + ".hover.keyed_info",
+                        "key", keyed.id(),
+                        "type", keyed.getClass().getName(),
+                        "command", command)
+                .map(m -> join(separator(newline()), m))
+                .orElse(empty());
+    }
+
+    // Commands
 
     private void list(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
         String type = ctx.flags().get("type");
@@ -138,7 +167,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         registered.addAll(plugin.blueprints().values());
         int results = 0;
         for (var object : registered) {
-            Component rendered = object.render(locale, lc);
+            Component rendered = renderKeyed(locale, object);
             String id = object.id();
             if (type != null) {
                 String typeName = object.getClass().getName().toLowerCase(Locale.ROOT);
@@ -157,27 +186,16 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                     object instanceof PaperComponent ? "component"
                     : object instanceof PaperBlueprint ? "blueprint"
                     : "?") + " " + object.id();
-            Component hover = fullInfoHover(locale, command);
+            Component hover = renderKeyedInfo(locale, object, command);
             ClickEvent click = ClickEvent.runCommand(command);
             lc.lines(locale, PREFIX_COMMAND + ".list.entry",
                     "type", object.getClass().getSimpleName(),
-                    "name", rendered,
+                    "name", object.render(locale, lc),
                     "id", id)
                     .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover).clickEvent(click))));
         }
         send(sender, locale, "list.total",
                 "results", ""+results);
-    }
-
-    private Component constant(Locale locale, boolean value) {
-        return lc.safe(locale, "constant." + value);
-    }
-
-    private Component fullInfoHover(Locale locale, String command) {
-        return lc.lines(locale, PREFIX_COMMAND + ".full_info_hover",
-                        "command", command)
-                .map(m -> join(separator(newline()), m))
-                .orElse(empty());
     }
 
     private void tree0(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, Component indent, int depth, PaperNode node) {
@@ -187,13 +205,13 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
             PaperComponent component = child.value();
 
             String command = "/" + rootName + " component " + component.id();
-            Component hover = fullInfoHover(locale, command);
+            Component hover = renderKeyedInfo(locale, component, command);
             ClickEvent click = ClickEvent.runCommand(command);
             lc.lines(locale, PREFIX_COMMAND + ".tree.node",
                             "indent", Components.repeat(indent, depth),
                             "slot", node.value().slot(key).orElseThrow(IllegalStateException::new).render(locale, lc),
                             "key", key,
-                            "name", component.render(locale, lc),
+                            "name", renderKeyed(locale, component),
                             "id", component.id())
                     .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover).clickEvent(click))));
             tree0(ctx, sender, locale, pSender, indent, depth + 1, child);
@@ -202,11 +220,11 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
 
     private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperNode node, String type) {
         String command = "/" + rootName + " component " + node.value().id();
-        Component hover = fullInfoHover(locale, command);
+        Component hover = renderKeyedInfo(locale, node.value(), command);
         ClickEvent click = ClickEvent.runCommand(command);
         lc.lines(locale, PREFIX_COMMAND + ".tree." + type,
                         "type", node.value().getClass().getSimpleName(),
-                        "name", node.value().render(locale, lc),
+                        "name", renderKeyed(locale, node.value()),
                         "id", node.value().id())
                 .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover).clickEvent(click))));
         tree0(ctx, sender, locale, pSender, lc.safe(locale, PREFIX_COMMAND + ".tree.indent"), 0, node);
@@ -238,7 +256,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                             "path", ""+path);
             }
             StatMap stats = treeData.stats();
-            Component hover = join(separator(newline()), formatStats(locale, stats));
+            Component hover = join(separator(newline()), renderStats(locale, stats));
             lc.lines(locale, PREFIX_COMMAND + ".tree.stats",
                     "amount", ""+stats.size())
                     .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
@@ -250,7 +268,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
 
         send(sender, locale, "tree.header",
                 "type", component.getClass().getSimpleName(),
-                "name", component.render(locale, lc),
+                "name", renderKeyed(locale, component),
                 "id", component.id());
 
         component.renderDescription(locale, lc).ifPresent(desc -> {
@@ -269,7 +287,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
 
             Component hover = slot.rule().render(locale, lc);
             lc.lines(locale, PREFIX_COMMAND + ".component.slot",
-                    "name", slot.render(locale, lc),
+                    "name", render(locale, slot, e -> key),
                     "key", key,
                     "tags", String.join(", ", slot.tags()),
                     "offset", slot.offset()+"")
@@ -286,7 +304,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                     .map(cfg -> join(separator(newline()), cfg))
                     .orElse(empty());
             lc.lines(locale, PREFIX_COMMAND + ".component.feature",
-                    "name", feature.render(locale, lc),
+                    "name", renderKeyed(locale, feature),
                     "id", id,
                     "description", feature.renderDescription(locale, lc))
                     .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
@@ -297,7 +315,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
                 "amount", stats.size()+"");
         for (var data : stats) {
             StatMap map = data.stats();
-            List<Component> lines = formatStats(locale, data.stats());
+            List<Component> lines = renderStats(locale, data.stats());
             Component hover = join(separator(newline()), lines);
             lc.lines(locale, PREFIX_COMMAND + ".component.stat_map",
                     "priority", data.priority().toString(),
@@ -312,7 +330,7 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
 
         send(sender, locale, "tree.header",
                 "type", blueprint.getClass().getSimpleName(),
-                "name", blueprint.render(locale, lc),
+                "name", renderKeyed(locale, blueprint),
                 "id", blueprint.id());
         blueprint.renderDescription(locale, lc).ifPresent(desc -> {
             for (var line : desc)

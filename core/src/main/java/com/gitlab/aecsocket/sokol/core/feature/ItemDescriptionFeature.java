@@ -5,7 +5,9 @@ import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
+import com.gitlab.aecsocket.sokol.core.stat.Primitives;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -14,6 +16,7 @@ import java.util.*;
 
 public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I, N>.Instance, N extends Node.Scoped<N, ?, ?>> extends AbstractFeature<I, N> {
     public static final String ID = "item_description";
+    public static final Primitives.OfString STAT_ITEM_NAME_KEY = Primitives.stringStat("item_name_key");
 
     private final int listenerPriority;
 
@@ -44,9 +47,14 @@ public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I,
             if (!parent.isRoot())
                 return;
             Locale locale = event.locale();
+            N node = event.node();
+            StatMap stats = treeData(node).stats();
             List<Component> lines = new ArrayList<>();
 
-            event.node().value().renderDescription(locale, platform().lc()).ifPresent(desc -> {
+            stats.value(STAT_ITEM_NAME_KEY).flatMap(itemNameKey -> platform().lc().get(locale, itemNameKey))
+                    .ifPresent(event.item()::name);
+
+            node.value().renderDescription(locale, platform().lc()).ifPresent(desc -> {
                 for (var line : desc) {
                     platform().lc().lines(locale, lcKey("line"),
                             "line", line)
