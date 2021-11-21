@@ -81,6 +81,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         featureTypes.register(PaperSlotDisplayFeature.TYPE);
         featureTypes.register(PaperStatDisplayFeature.TYPE);
         featureTypes.register(PaperNodeHolderFeature.TYPE);
+        featureTypes.register(NodeTreeFeature.TYPE);
 
         PaperStatDisplayFeature.Formats.registerAll(statFormats);
 

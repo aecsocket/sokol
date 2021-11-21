@@ -7,8 +7,10 @@ import com.gitlab.aecsocket.sokol.core.impl.AbstractNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperSlot;
+import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -17,11 +19,14 @@ import org.incendo.interfaces.core.transform.Transform;
 import org.incendo.interfaces.core.view.InterfaceView;
 import org.incendo.interfaces.paper.PlayerViewer;
 import org.incendo.interfaces.paper.element.ItemStackElement;
+import org.incendo.interfaces.paper.type.ChestInterface;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public final class SokolInterfaces {
@@ -50,7 +55,7 @@ public final class SokolInterfaces {
             boolean modifiable,
             boolean limited
     ) {
-        private static final NodeTreeOptions instance = new NodeTreeOptions();
+        public static final NodeTreeOptions DEFAULT = new NodeTreeOptions();
 
         public NodeTreeOptions() {
             this(true, true);
@@ -58,6 +63,63 @@ public final class SokolInterfaces {
     }
 
     public static class NodeTreeTransform<T extends GridPane<T, ItemStackElement<T>>> implements Transform<T, PlayerViewer> {
+        public static final class Builder {
+            private PaperNode node;
+            private ItemUser user;
+            private Point2 center;
+            private SlotRenderer slotRenderer;
+            private NodeRenderer nodeRenderer;
+            private NodeTreeOptions options;
+
+            private int amount;
+            private @Nullable Integer clickedSlot;
+
+            public PaperNode node() { return node; }
+            public Builder node(PaperNode node) { this.node = node; return this; }
+
+            public ItemUser user() { return user;}
+            public Builder user(ItemUser user) { this.user = user; return this; }
+
+            public Point2 center() { return center;}
+            public Builder center(Point2 center) { this.center = center; return this; }
+
+            public SlotRenderer slotRenderer() { return slotRenderer;}
+            public Builder slotRenderer(SlotRenderer slotRenderer) { this.slotRenderer = slotRenderer; return this; }
+
+            public NodeRenderer nodeRenderer() { return nodeRenderer;}
+            public Builder nodeRenderer(NodeRenderer nodeRenderer) { this.nodeRenderer = nodeRenderer; return this; }
+
+            public NodeTreeOptions options() { return options;}
+            public Builder options(NodeTreeOptions options) { this.options = options; return this; }
+
+            public int amount() { return amount;}
+            public Builder amount(int amount) { this.amount = amount; return this; }
+
+            public Integer clickedSlot() { return clickedSlot;}
+            public Builder clickedSlot(Integer clickedSlot) { this.clickedSlot = clickedSlot; return this; }
+
+            private <T> T nonNull(T obj) {
+                return Objects.requireNonNull(obj);
+            }
+
+            public <T extends GridPane<T, ItemStackElement<T>>> NodeTreeTransform<T> build() {
+                return new NodeTreeTransform<>(
+                        nonNull(node),
+                        nonNull(user),
+                        nonNull(center),
+                        nonNull(slotRenderer),
+                        nonNull(nodeRenderer),
+                        nonNull(options),
+                        amount,
+                        clickedSlot
+                );
+            }
+        }
+
+        public static Builder builder() {
+            return new Builder();
+        }
+
         public interface SlotRenderer {
             ItemStack render(Locale locale, PaperSlot slot);
         }
@@ -73,6 +135,20 @@ public final class SokolInterfaces {
         private final NodeRenderer nodeRenderer;
         private final NodeTreeOptions options;
 
+        private final int amount;
+        private final @Nullable Integer clickedSlot;
+
+        public NodeTreeTransform(PaperNode node, ItemUser user, Point2 center, SlotRenderer slotRenderer, NodeRenderer nodeRenderer, NodeTreeOptions options, int amount, @Nullable Integer clickedSlot) {
+            this.node = node;
+            this.user = user;
+            this.center = center;
+            this.slotRenderer = slotRenderer;
+            this.nodeRenderer = nodeRenderer;
+            this.options = options;
+            this.amount = amount;
+            this.clickedSlot = clickedSlot;
+        }
+
         public NodeTreeTransform(PaperNode node, ItemUser user, Point2 center, SlotRenderer slotRenderer, NodeRenderer nodeRenderer, NodeTreeOptions options) {
             this.node = node;
             this.user = user;
@@ -80,6 +156,8 @@ public final class SokolInterfaces {
             this.slotRenderer = slotRenderer;
             this.nodeRenderer = nodeRenderer;
             this.options = options;
+            amount = 1;
+            clickedSlot = null;
         }
 
         public PaperNode node() { return node; }
@@ -88,6 +166,9 @@ public final class SokolInterfaces {
         public SlotRenderer slotRenderer() { return slotRenderer; }
         public NodeRenderer nodeRenderer() { return nodeRenderer; }
         public NodeTreeOptions options() { return options; }
+
+        public int amount() { return amount; }
+        public Integer clickedSlot() { return clickedSlot; }
 
         protected ItemStack slotElement(Locale locale, PaperSlot slot) {
             return slotRenderer.render(locale, slot);
@@ -138,10 +219,12 @@ public final class SokolInterfaces {
         }
     }
 
-    public <T extends GridPane<T, ItemStackElement<T>>> NodeTreeTransform<T> nodeTreeTransform(PaperNode node, ItemUser user, NodeTreeOptions options) {
-        return new NodeTreeTransform<>(node, user,
-                plugin.setting(new Point2(4, 3), (n, d) -> n.get(Point2.class, d), "node_tree", "center"),
-                (locale, slot) -> {
+    public NodeTreeTransform.Builder nodeTreeTransform(PaperNode node, ItemUser user, NodeTreeOptions options) {
+        return NodeTreeTransform.builder()
+                .node(node)
+                .user(user)
+                .center(plugin.setting(new Point2(4, 3), (n, d) -> n.get(Point2.class, d), "node_tree", "center"))
+                .slotRenderer((locale, slot) -> {
                     String key = SLOT_DEFAULT;
                     if (AbstractNode.required(slot))
                         key = SLOT_REQUIRED;
@@ -154,12 +237,12 @@ public final class SokolInterfaces {
                     item.editMeta(meta -> {
                         Component slotRender = slot.render(locale, plugin.lc());
                         meta.displayName(Components.BLANK.append(plugin.lc().get(locale, "node_tree.slot",
-                                "name", slotRender)
+                                        "name", slotRender)
                                 .orElse(slotRender)));
                     });
                     return item;
-                },
-                (locale, rNode, slot) -> {
+                })
+                .nodeRenderer((locale, rNode, slot) -> {
                     rNode = rNode.asRoot();
                     for (var key : rNode.nodes().keySet()) {
                         rNode.unsafeNode(key, null);
@@ -171,22 +254,41 @@ public final class SokolInterfaces {
                             List<Component> lore = meta.hasLore() ? meta.lore() : new ArrayList<>();
                             //noinspection ConstantConditions
                             plugin.lc().lines(locale, "node_tree.node",
-                                    "slot", slot.render(locale, plugin.lc()))
+                                            "slot", slot.render(locale, plugin.lc()))
                                     .ifPresent(l -> lore.addAll(0, l.stream().map(Components.BLANK::append).collect(Collectors.toList())));
                             meta.lore(lore);
                         });
                     }
                     return item;
-                }, options);
+                })
+                .options(options);
     }
 
-    public <T extends GridPane<T, ItemStackElement<T>>> NodeTreeTransform<T> nodeTreeTransform(PaperNode node, ItemUser user) {
+    public NodeTreeTransform.Builder nodeTreeTransform(PaperNode node, ItemUser user) {
         return nodeTreeTransform(node, user,
-                plugin.setting(NodeTreeOptions.instance, (n, d) -> n.get(NodeTreeOptions.class, d), "node_tree", "options"));
+                plugin.setting(NodeTreeOptions.DEFAULT, (n, d) -> n.get(NodeTreeOptions.class, d), "node_tree", "options"));
     }
 
     public Component nodeTreeTitle(Locale locale, Component nodeName) {
         return plugin.lc().safe(locale, "node_tree.title",
                 "node", nodeName);
+    }
+
+    public void openNodeTree(Player player, PaperNode node, ItemUser user, Component nodeName, NodeTreeOptions options, Consumer<NodeTreeTransform.Builder> builderFunction) {
+        var transform = nodeTreeTransform(node, user, options);
+        builderFunction.accept(transform);
+        ChestInterface.builder()
+                .rows(6)
+                .addTransform(transform.build())
+                .build()
+                .open(PlayerViewer.of(player), nodeTreeTitle(player.locale(), nodeName));
+    }
+
+    public void openNodeTree(Player player, PaperNode node, Component nodeName, NodeTreeOptions options, Consumer<NodeTreeTransform.Builder> builderFunction) {
+        openNodeTree(player, node, PlayerUser.user(plugin, player), nodeName, options, builderFunction);
+    }
+
+    public void openNodeTree(Player player, PaperNode node, Component nodeName, NodeTreeOptions options) {
+        openNodeTree(player, node, nodeName, options, b -> {});
     }
 }

@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.wrapper.slot;
 
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
+import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -15,7 +16,10 @@ public interface PaperItemSlot extends ItemSlot<PaperItem> {
 
     @Override
     default Optional<PaperItem> get() {
-        return Optional.ofNullable(bukkitGet()).map(PaperItem::new);
+        ItemStack stack = bukkitGet();
+        return stack == null || stack.getType() == Material.AIR
+                ? Optional.empty()
+                : Optional.ofNullable(bukkitGet()).map(PaperItem::new);
     }
 
     @Override

@@ -29,7 +29,7 @@ public record PaperItem(ItemStack handle) implements Item {
 
     @Override
     public Component name() {
-        return handle.displayName();
+        return handle.getItemMeta().displayName();
     }
 
     @Override
