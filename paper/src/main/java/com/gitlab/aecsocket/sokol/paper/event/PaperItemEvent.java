@@ -9,6 +9,7 @@ import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperItemSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PaperUser;
 import org.bukkit.event.Event;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.InventoryView;
 
 public interface PaperItemEvent extends ItemEvent<PaperNode, PaperItem> {
@@ -103,5 +104,22 @@ public interface PaperItemEvent extends ItemEvent<PaperNode, PaperItem> {
         }
 
         @Override public PaperItemSlot cursor() { return clicked; }
+    }
+
+    final class SlotDrag extends AbstractHandledCancellable<InventoryDragEvent> implements ItemEvent.SlotDrag<PaperNode, PaperItem> {
+        private final int rawSlot;
+
+        public SlotDrag(PaperNode node, PaperUser user, PaperItemSlot slot, PaperItem item, InventoryDragEvent handle, int rawSlot) {
+            super(node, user, slot, item, handle);
+            this.rawSlot = rawSlot;
+        }
+
+        @Override public int rawSlot() { return rawSlot; }
+
+        public static PaperItemEvent.SlotDrag of(PaperNode node, PaperUser user, PaperItem item, int rawSlot, InventoryDragEvent handle) {
+            return new PaperItemEvent.SlotDrag(node, user,
+                    PaperItemSlot.slot(() -> handle.getView().getItem(rawSlot), s -> handle.getView().setItem(rawSlot, s)),
+                    item, handle, rawSlot);
+        }
     }
 }

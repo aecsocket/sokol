@@ -28,4 +28,8 @@ public interface ItemEvent<N extends Node.Scoped<N, ?, ?>, I extends Item> exten
     interface CursorClick<N extends Node.Scoped<N, ?, ?>, I extends Item> extends InventoryClick<N, I> {
         ItemSlot<I> clicked();
     }
+
+    interface SlotDrag<N extends Node.Scoped<N, ?, ?>, I extends Item> extends ItemEvent<N, I>, Cancellable {
+        int rawSlot();
+    }
 }
