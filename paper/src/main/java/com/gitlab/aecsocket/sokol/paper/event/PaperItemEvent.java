@@ -79,7 +79,6 @@ public interface PaperItemEvent extends ItemEvent<PaperNode, PaperItem> {
 
         public static PaperItemEvent.SlotClick of(PaperNode node, PaperUser user, PaperItem item, InventoryClickEvent handle) {
             InventoryView view = handle.getView();
-            System.out.println("C");
             return new PaperItemEvent.SlotClick(node, user,
                     PaperItemSlot.slot(handle::getCurrentItem, handle::setCurrentItem), item, handle,
                     PaperItemSlot.slot(view::getCursor, view::setCursor));

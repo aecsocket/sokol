@@ -83,7 +83,7 @@ public final class NodeTreeFeature extends AbstractFeature<NodeTreeFeature.Insta
         public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {
             parent.treeData().ifPresent(treeData -> {
                 var events = treeData.events();
-                events.register(new TypeToken<PaperItemEvent.SlotClick>(){}, this::onSlotClick);
+                events.register(new TypeToken<PaperItemEvent.SlotClick>(){}, this::onSlotClick, listenerPriority);
             });
         }
 
@@ -111,7 +111,11 @@ public final class NodeTreeFeature extends AbstractFeature<NodeTreeFeature.Insta
                 platform.interfaces().openNodeTree(user.entity(), event.node(), event.user(), event.item().name(), options,
                         builder -> builder
                                 .clickedSlot(handle.getSlot())
-                                .amount(event.item().amount()));
+                                .amount(event.item().amount())
+                                // TODO update method on event
+                                .nodeCallback(node -> {
+                                    event.slot().set(node.createItem(user).amount(event.item().amount()));
+                                }));
             }
         }
 

@@ -82,7 +82,7 @@ public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, Pap
         public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {
             parent.treeData().ifPresent(treeData -> {
                 var events = treeData.events();
-                events.register(new TypeToken<CreateItemEvent<PaperNode>>(){}, this::onCreateItem);
+                events.register(new TypeToken<CreateItemEvent<PaperNode>>(){}, this::onCreateItem, listenerPriority);
             });
         }
 
