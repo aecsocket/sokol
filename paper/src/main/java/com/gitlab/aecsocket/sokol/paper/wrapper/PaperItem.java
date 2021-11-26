@@ -3,15 +3,23 @@ package com.gitlab.aecsocket.sokol.paper.wrapper;
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.core.Numbers;
 import com.gitlab.aecsocket.sokol.core.wrapper.Item;
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import net.kyori.adventure.text.Component;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.stream.Collectors;
 
-public record PaperItem(ItemStack handle) implements Item {
+public record PaperItem(SokolPlugin plugin, ItemStack handle) implements Item.Scoped<PaperItem, PaperNode> {
+    @Override
+    public Optional<PaperNode> node() {
+        return plugin.persistence().safeLoad(handle);
+    }
+
     @Override public int amount() {
         return handle.getAmount();
     }

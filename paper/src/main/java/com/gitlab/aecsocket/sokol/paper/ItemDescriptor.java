@@ -35,8 +35,8 @@ public record ItemDescriptor(
         return item;
     }
 
-    public PaperItem buildWrapper() throws ItemCreationException {
-        return new PaperItem(buildStack());
+    public PaperItem buildWrapper(SokolPlugin plugin) throws ItemCreationException {
+        return plugin.wrap(buildStack());
     }
 
     @Override

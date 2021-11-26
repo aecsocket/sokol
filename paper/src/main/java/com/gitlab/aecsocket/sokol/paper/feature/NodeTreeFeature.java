@@ -14,6 +14,7 @@ import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
@@ -34,14 +35,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
-public final class NodeTreeFeature extends AbstractFeature<NodeTreeFeature.Instance, PaperNode> implements PaperFeature<NodeTreeFeature.Instance> {
+public final class NodeTreeFeature extends AbstractFeature<NodeTreeFeature.Instance, PaperNode, PaperItem>
+        implements PaperFeature<NodeTreeFeature.Instance> {
     public static final String ID = "node_tree";
 
     public static final StatTypes STAT_TYPES = StatTypes.types();
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
     public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new NodeTreeFeature(platform,
-            config.node("listener_priority").getInt(),
+            config.node("listener_priority").getInt(PRIORITY_HIGH),
             config.node("options").get(SokolInterfaces.NodeTreeOptions.class, SokolInterfaces.NodeTreeOptions.DEFAULT),
             config.node("combine").getBoolean(true),
             config.node("combine_limited").getBoolean(true)
@@ -117,6 +119,9 @@ public final class NodeTreeFeature extends AbstractFeature<NodeTreeFeature.Insta
         private void onSlotClick(PaperItemEvent.SlotClick event) {
             if (!parent.isRoot())
                 return;
+            if (event.cancelled())
+                return;
+
 
             // cancel interactions on this item if in a node tree view
             InventoryClickEvent handle = event.handle();

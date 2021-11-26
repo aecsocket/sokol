@@ -12,8 +12,12 @@ import java.util.Optional;
 
 public interface Feature<
         F extends FeatureInstance<N>,
-        N extends Node.Scoped<N, ?, ?>
+        N extends Node.Scoped<N, ?, ?, ?>
 > extends Keyed {
+    int PRIORITY_DEFAULT = 0;
+    int PRIORITY_LOW = -1000;
+    int PRIORITY_HIGH = 1000;
+
     F create(N node);
 
     void configure(ConfigurationNode config) throws SerializationException;

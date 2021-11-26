@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper.slot;
 
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemSlot;
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
@@ -11,6 +12,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 public interface PaperItemSlot extends ItemSlot<PaperItem> {
+    SokolPlugin plugin();
     @Nullable ItemStack bukkitGet();
     void bukkitSet(@Nullable ItemStack val);
 
@@ -19,7 +21,7 @@ public interface PaperItemSlot extends ItemSlot<PaperItem> {
         ItemStack stack = bukkitGet();
         return stack == null || stack.getType() == Material.AIR
                 ? Optional.empty()
-                : Optional.ofNullable(bukkitGet()).map(PaperItem::new);
+                : Optional.ofNullable(bukkitGet()).map(plugin()::wrap);
     }
 
     @Override
@@ -27,7 +29,7 @@ public interface PaperItemSlot extends ItemSlot<PaperItem> {
         bukkitSet(val == null ? null : val.handle());
     }
 
-    static PaperItemSlot slot(Supplier<ItemStack> get, Consumer<ItemStack> set) {
-        return new PaperItemSlotImpl(get, set);
+    static PaperItemSlot slot(SokolPlugin plugin, Supplier<ItemStack> get, Consumer<ItemStack> set) {
+        return new PaperItemSlotImpl(plugin, get, set);
     }
 }

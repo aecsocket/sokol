@@ -10,16 +10,16 @@ import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractNode;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.spongepowered.configurate.ConfigurationNode;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
-public abstract class SlotDisplayFeature<I extends SlotDisplayFeature<I, N>.Instance, N extends Node.Scoped<N, ?, ?>> extends AbstractFeature<I, N> {
+public abstract class SlotDisplayFeature<F extends SlotDisplayFeature<F, N, I>.Instance, N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>>
+        extends AbstractFeature<F, N, I> {
     public static final String ID = "slot_display";
 
     public enum Order {
@@ -55,9 +55,9 @@ public abstract class SlotDisplayFeature<I extends SlotDisplayFeature<I, N>.Inst
             super(parent);
         }
 
-        @Override public SlotDisplayFeature<I, N> type() { return SlotDisplayFeature.this; }
+        @Override public SlotDisplayFeature<F, N, I> type() { return SlotDisplayFeature.this; }
 
-        protected abstract TypeToken<? extends CreateItemEvent<N>> eventCreateItem();
+        protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
 
         @Override
         public void build(NodeEvent<N> event, StatIntermediate stats) {
@@ -120,7 +120,7 @@ public abstract class SlotDisplayFeature<I extends SlotDisplayFeature<I, N>.Inst
             }
         }
 
-        private void onCreateItem(CreateItemEvent<N> event) {
+        private void onCreateItem(CreateItemEvent<N, I> event) {
             if (!parent.isRoot())
                 return;
             Locale locale = event.locale();

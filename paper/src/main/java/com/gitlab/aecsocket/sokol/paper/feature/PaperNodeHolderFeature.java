@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.feature;
 
 import com.gitlab.aecsocket.minecommons.core.Quantifier;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
+import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
 import com.gitlab.aecsocket.sokol.core.feature.NodeHolderFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
@@ -10,6 +11,7 @@ import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -19,17 +21,15 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
-public final class PaperNodeHolderFeature extends NodeHolderFeature<PaperNodeHolderFeature.Instance, PaperNode> implements PaperFeature<PaperNodeHolderFeature.Instance> {
+public final class PaperNodeHolderFeature extends NodeHolderFeature<PaperNodeHolderFeature.Instance, PaperNode, PaperItem>
+        implements PaperFeature<PaperNodeHolderFeature.Instance> {
     public static final StatTypes STAT_TYPES = StatTypes.types();
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
     public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperNodeHolderFeature(platform,
-            config.node("listener_priority").getInt(),
+            config.node("listener_priority").getInt(PRIORITY_DEFAULT),
             Rule.Constant.TRUE,
             config.node("header_position").get(Position.class, Position.TOP),
             config.node("capacity").get(Integer.class),
@@ -57,7 +57,7 @@ public final class PaperNodeHolderFeature extends NodeHolderFeature<PaperNodeHol
 
     @Override
     public Instance load(PaperNode node, Type type, ConfigurationNode config) throws SerializationException {
-        return new Instance(node, config.node("nodes").getList(new TypeToken<Quantifier<PaperNode>>(){}, Collections.emptyList()));
+        return new Instance(node, new LinkedList<>(config.node("nodes").getList(new TypeToken<Quantifier<PaperNode>>(){}, Collections.emptyList())));
     }
 
     @Override
@@ -65,7 +65,7 @@ public final class PaperNodeHolderFeature extends NodeHolderFeature<PaperNodeHol
         PersistentDataContainer[] fNodes = pdc.get(platform.key("nodes"), PersistentDataType.TAG_CONTAINER_ARRAY);
         if (fNodes == null)
             return new Instance(node);
-        List<Quantifier<PaperNode>> nodes = new ArrayList<>();
+        LinkedList<Quantifier<PaperNode>> nodes = new LinkedList<>();
         for (var fQt : fNodes) {
             //noinspection ConstantConditions
             platform.persistence().safeLoad(fQt.get(platform.key("value"), PersistentDataType.TAG_CONTAINER))
@@ -77,16 +77,34 @@ public final class PaperNodeHolderFeature extends NodeHolderFeature<PaperNodeHol
         return new Instance(node, nodes);
     }
 
-    public final class Instance extends NodeHolderFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
-        public Instance(PaperNode parent, List<Quantifier<PaperNode>> nodes) {
+    public final class Instance extends NodeHolderFeature<Instance, PaperNode, PaperItem>.Instance implements PaperFeatureInstance {
+        public Instance(PaperNode parent, LinkedList<Quantifier<PaperNode>> nodes) {
             super(parent, nodes);
+        }
+
+        public Instance(PaperNode parent, Instance o) {
+            super(parent, o);
         }
 
         public Instance(PaperNode parent) {
             super(parent);
         }
 
-        @Override protected TypeToken<CreateItemEvent<PaperNode>> eventCreateItem() { return new TypeToken<>() {}; }
+        @Override
+        protected boolean equal(PaperNode a, PaperNode b) {
+            // TODO THIS IS INCREDIBLY SCUFFED
+            // FIX THIS JESUS CHRIST
+            ConfigurationNode config = platform.loaderBuilder().build().createNode();
+            try {
+                return config.copy().set(a)
+                        .equals(config.copy().set(b));
+            } catch (SerializationException e) {
+                return false;
+            }
+        }
+
+        @Override protected TypeToken<CreateItemEvent<PaperNode, PaperItem>> eventCreateItem() { return new TypeToken<>() {}; }
+        @Override protected TypeToken<ItemEvent.SlotClick<PaperNode, PaperItem>> eventSlotClick() { return new TypeToken<>() {}; }
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {
@@ -108,7 +126,7 @@ public final class PaperNodeHolderFeature extends NodeHolderFeature<PaperNodeHol
 
         @Override
         public Instance copy(PaperNode parent) {
-            return new Instance(parent);
+            return new Instance(parent, this);
         }
     }
 }

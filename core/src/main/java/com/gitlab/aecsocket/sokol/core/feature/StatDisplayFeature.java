@@ -16,6 +16,7 @@ import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 import com.gitlab.aecsocket.sokol.core.registry.Registry;
 import com.gitlab.aecsocket.sokol.core.stat.*;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -37,7 +38,8 @@ import static net.kyori.adventure.text.Component.*;
 import static net.kyori.adventure.text.JoinConfiguration.*;
 import static com.gitlab.aecsocket.minecommons.core.Components.barSection;
 
-public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Instance, N extends Node.Scoped<N, ?, ?>> extends AbstractFeature<I, N> {
+public abstract class StatDisplayFeature<F extends StatDisplayFeature<F, N, I>.Instance, N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>>
+        extends AbstractFeature<F, N, I> {
     public static final String ID = "stat_display";
 
     public interface Format<T> {
@@ -154,9 +156,9 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             super(parent);
         }
 
-        @Override public StatDisplayFeature<I, N> type() { return StatDisplayFeature.this; }
+        @Override public StatDisplayFeature<F, N, I> type() { return StatDisplayFeature.this; }
 
-        protected abstract TypeToken<? extends CreateItemEvent<N>> eventCreateItem();
+        protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
 
         @Override
         public void build(NodeEvent<N> event, StatIntermediate stats) {
@@ -226,7 +228,7 @@ public abstract class StatDisplayFeature<I extends StatDisplayFeature<I, N>.Inst
             }
         }
 
-        private void onCreateItem(CreateItemEvent<N> event) {
+        private void onCreateItem(CreateItemEvent<N, I> event) {
             if (!parent.isRoot())
                 return;
             Locale locale = event.locale();

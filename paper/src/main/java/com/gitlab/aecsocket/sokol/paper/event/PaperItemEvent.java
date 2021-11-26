@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.event;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.minecommons.core.scheduler.TaskContext;
 import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.PaperItemSlot;
@@ -78,11 +79,11 @@ public interface PaperItemEvent extends ItemEvent<PaperNode, PaperItem> {
             this.cursor = cursor;
         }
 
-        public static PaperItemEvent.SlotClick of(PaperNode node, PaperUser user, PaperItem item, InventoryClickEvent handle) {
+        public static PaperItemEvent.SlotClick of(SokolPlugin plugin, PaperNode node, PaperUser user, PaperItem item, InventoryClickEvent handle) {
             InventoryView view = handle.getView();
             return new PaperItemEvent.SlotClick(node, user,
-                    PaperItemSlot.slot(handle::getCurrentItem, handle::setCurrentItem), item, handle,
-                    PaperItemSlot.slot(view::getCursor, view::setCursor));
+                    PaperItemSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem), item, handle,
+                    PaperItemSlot.slot(plugin, view::getCursor, view::setCursor));
         }
 
         @Override public PaperItemSlot cursor() { return cursor; }
@@ -96,11 +97,11 @@ public interface PaperItemEvent extends ItemEvent<PaperNode, PaperItem> {
             this.clicked = clicked;
         }
 
-        public static PaperItemEvent.CursorClick of(PaperNode node, PaperUser user, PaperItem item, InventoryClickEvent handle) {
+        public static PaperItemEvent.CursorClick of(SokolPlugin plugin, PaperNode node, PaperUser user, PaperItem item, InventoryClickEvent handle) {
             InventoryView view = handle.getView();
             return new PaperItemEvent.CursorClick(node, user,
-                    PaperItemSlot.slot(view::getCursor, view::setCursor), item, handle,
-                    PaperItemSlot.slot(handle::getCurrentItem, handle::setCurrentItem));
+                    PaperItemSlot.slot(plugin, view::getCursor, view::setCursor), item, handle,
+                    PaperItemSlot.slot(plugin, handle::getCurrentItem, handle::setCurrentItem));
         }
 
         @Override public PaperItemSlot cursor() { return clicked; }
@@ -116,9 +117,9 @@ public interface PaperItemEvent extends ItemEvent<PaperNode, PaperItem> {
 
         @Override public int rawSlot() { return rawSlot; }
 
-        public static PaperItemEvent.SlotDrag of(PaperNode node, PaperUser user, PaperItem item, int rawSlot, InventoryDragEvent handle) {
+        public static PaperItemEvent.SlotDrag of(SokolPlugin plugin, PaperNode node, PaperUser user, PaperItem item, int rawSlot, InventoryDragEvent handle) {
             return new PaperItemEvent.SlotDrag(node, user,
-                    PaperItemSlot.slot(() -> handle.getView().getItem(rawSlot), s -> handle.getView().setItem(rawSlot, s)),
+                    PaperItemSlot.slot(plugin, () -> handle.getView().getItem(rawSlot), s -> handle.getView().setItem(rawSlot, s)),
                     item, handle, rawSlot);
         }
     }

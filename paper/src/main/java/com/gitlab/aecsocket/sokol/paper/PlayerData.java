@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper;
 import com.gitlab.aecsocket.minecommons.core.scheduler.TaskContext;
 import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
-import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquippedItemSlot;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.PlayerUser;
 import org.bukkit.entity.Player;
@@ -43,7 +42,7 @@ public final class PlayerData {
                 nodeCache.put(slot, entry);
                 //noinspection SynchronizationOnLocalVariableOrMethodParameter
                 synchronized (entry) {
-                    node.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(user, slot), new PaperItem(item),
+                    node.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(plugin, user, slot), plugin.wrap(item),
                             true, ctx));
                 }
             }, () -> nodeCache.remove(slot));
@@ -59,7 +58,7 @@ public final class PlayerData {
             //noinspection SynchronizationOnLocalVariableOrMethodParameter
             synchronized (entry) {
                 PaperNode node = entry.getValue().node;
-                node.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(user, entry.getKey()), new PaperItem(entry.getValue().item),
+                node.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(plugin, user, entry.getKey()), plugin.wrap(entry.getValue().item),
                         false, ctx));
             }
         }

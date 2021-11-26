@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 
-public interface FeatureInstance<N extends Node.Scoped<N, ?, ?>> {
+public interface FeatureInstance<N extends Node.Scoped<N, ?, ?, ?>> {
     Feature<?, N> type();
     N parent();
 

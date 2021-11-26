@@ -2,15 +2,17 @@ package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.*;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 
-public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends Node.Scoped<N, ?, ?>> implements Feature<F, N> {
+public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>>
+        implements Feature<F, N> {
     public AbstractFeature() {
         Keyed.validate(id());
     }
 
     protected abstract SokolPlatform platform();
 
-    public static abstract class AbstractInstance<N extends Node.Scoped<N, ?, ?>> implements FeatureInstance<N> {
+    public static abstract class AbstractInstance<N extends Node.Scoped<N, ?, ?, ?>> implements FeatureInstance<N> {
         protected final N parent;
 
         public AbstractInstance(N parent) {

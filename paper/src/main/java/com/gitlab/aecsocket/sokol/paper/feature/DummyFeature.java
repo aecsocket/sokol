@@ -14,6 +14,7 @@ import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -28,7 +29,8 @@ import java.util.*;
 import static com.gitlab.aecsocket.sokol.core.stat.Primitives.*;
 import static com.gitlab.aecsocket.sokol.core.stat.Vectors.*;
 
-public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNode> implements PaperFeature<DummyFeature.Instance> {
+public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNode, PaperItem>
+        implements PaperFeature<DummyFeature.Instance> {
     public static final String ID = "dummy";
     public static final StatTypes STAT_TYPES = StatTypes.types(
             vector2Stat("durability", Vector2.ZERO),
@@ -97,21 +99,7 @@ public class DummyFeature extends AbstractFeature<DummyFeature.Instance, PaperNo
         @Override public DummyFeature type() { return DummyFeature.this; }
 
         @Override
-        public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {
-            // TODO test code
-            parent.treeData().ifPresent(treeData -> {
-                var events = treeData.events();
-                events.register(new TypeToken<PaperItemEvent.Hold>(){}, this::handle);
-            });
-        }
-
-        private void handle(PaperItemEvent.Hold event) {
-            if (!parent.isRoot())
-                return;
-            if (event.user() instanceof Audience audience) {
-                audience.sendActionBar(Component.text("holding sync? " + event.sync() + " delta = " + event.context().delta()));
-            }
-        }
+        public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {}
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {}

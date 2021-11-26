@@ -8,12 +8,14 @@ import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.stat.Primitives;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 
 import java.util.*;
 
-public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I, N>.Instance, N extends Node.Scoped<N, ?, ?>> extends AbstractFeature<I, N> {
+public abstract class ItemDescriptionFeature<F extends ItemDescriptionFeature<F, N, I>.Instance, N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>>
+        extends AbstractFeature<F, N, I> {
     public static final String ID = "item_description";
     public static final Primitives.OfString STAT_ITEM_NAME_KEY = Primitives.stringStat("item_name_key");
 
@@ -30,9 +32,9 @@ public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I,
             super(parent);
         }
 
-        @Override public ItemDescriptionFeature<I, N> type() { return ItemDescriptionFeature.this; }
+        @Override public ItemDescriptionFeature<F, N, I> type() { return ItemDescriptionFeature.this; }
 
-        protected abstract TypeToken<? extends CreateItemEvent<N>> eventCreateItem();
+        protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
 
         @Override
         public void build(NodeEvent<N> event, StatIntermediate stats) {
@@ -42,7 +44,7 @@ public abstract class ItemDescriptionFeature<I extends ItemDescriptionFeature<I,
             });
         }
 
-        private void onCreateItem(CreateItemEvent<N> event) {
+        private void onCreateItem(CreateItemEvent<N, I> event) {
             if (!parent.isRoot())
                 return;
             Locale locale = event.locale();

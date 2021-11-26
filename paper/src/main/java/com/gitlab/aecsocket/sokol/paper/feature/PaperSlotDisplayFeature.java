@@ -9,6 +9,7 @@ import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
@@ -18,12 +19,13 @@ import org.spongepowered.configurate.serialize.SerializationException;
 import java.lang.reflect.Type;
 import java.util.*;
 
-public final class PaperSlotDisplayFeature extends SlotDisplayFeature<PaperSlotDisplayFeature.Instance, PaperNode> implements PaperFeature<PaperSlotDisplayFeature.Instance> {
+public final class PaperSlotDisplayFeature extends SlotDisplayFeature<PaperSlotDisplayFeature.Instance, PaperNode, PaperItem>
+        implements PaperFeature<PaperSlotDisplayFeature.Instance> {
     public static final StatTypes STAT_TYPES = StatTypes.types();
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
     public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new PaperSlotDisplayFeature(platform,
-            config.node("listener_priority").getInt(),
+            config.node("listener_priority").getInt(PRIORITY_DEFAULT),
             config.node("order").get(Order.class, Order.NATURAL),
             config.node("order_override").getList(String.class, Collections.emptyList()),
             config.node("padding").getString(" ")
@@ -59,12 +61,12 @@ public final class PaperSlotDisplayFeature extends SlotDisplayFeature<PaperSlotD
         return new Instance(node);
     }
 
-    public final class Instance extends SlotDisplayFeature<Instance, PaperNode>.Instance implements PaperFeatureInstance {
+    public final class Instance extends SlotDisplayFeature<Instance, PaperNode, PaperItem>.Instance implements PaperFeatureInstance {
         public Instance(PaperNode parent) {
             super(parent);
         }
 
-        @Override protected TypeToken<CreateItemEvent<PaperNode>> eventCreateItem() { return new TypeToken<>() {}; }
+        @Override protected TypeToken<CreateItemEvent<PaperNode, PaperItem>> eventCreateItem() { return new TypeToken<>() {}; }
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {}

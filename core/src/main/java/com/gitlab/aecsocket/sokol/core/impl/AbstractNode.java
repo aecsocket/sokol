@@ -8,16 +8,18 @@ import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import com.gitlab.aecsocket.sokol.core.rule.RuleException;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
 
 public abstract class AbstractNode<
-        N extends AbstractNode<N, C, F>,
+        N extends AbstractNode<N, I, C, F>,
+        I extends Item.Scoped<I, N>,
         C extends Component.Scoped<C, ?, ? extends Feature<? extends F, N>, N>,
         F extends FeatureInstance<N>
-> implements Node.Scoped<N, C, F> {
+> implements Node.Scoped<N, I, C, F> {
     public static final String TAG_REQUIRED = "required";
 
     public static boolean required(Slot slot) {
@@ -244,7 +246,7 @@ public abstract class AbstractNode<
         return event;
     }
 
-    protected void buildTree(NodeEvent<N> event, List<StatPair> forwardStats, List<StatPair> reverseStats, AbstractNode<N, C, F> parent) {
+    protected void buildTree(NodeEvent<N> event, List<StatPair> forwardStats, List<StatPair> reverseStats, AbstractNode<N, I, C, F> parent) {
         StatIntermediate stats = new StatIntermediate(value.stats());
         for (var feature : features.values()) {
             feature.build(event, stats);
@@ -273,16 +275,16 @@ public abstract class AbstractNode<
     public static final class Events {
         private Events() {}
 
-        public record Initialize<N extends Node.Scoped<N, ?, ?>>(
+        public record Initialize<N extends Node.Scoped<N, ?, ?, ?>>(
                 N node
         ) implements NodeEvent<N> {}
 
-        public record InitializeLocalized<N extends Node.Scoped<N, ?, ?>>(
+        public record InitializeLocalized<N extends Node.Scoped<N, ?, ?, ?>>(
                 N node,
                 Locale locale
         ) implements LocalizedEvent<N> {}
 
-        public record InitializeUser<N extends Node.Scoped<N, ?, ?>>(
+        public record InitializeUser<N extends Node.Scoped<N, ?, ?, ?>>(
                 N node,
                 ItemUser user
         ) implements UserEvent<N> {}

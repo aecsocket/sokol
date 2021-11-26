@@ -15,7 +15,7 @@ public interface TreeData<N extends Node> {
     void addIncomplete(NodePath path);
     default boolean complete() { return incomplete().isEmpty(); }
 
-    interface Scoped<N extends Node.Scoped<N, ?, ?>> extends TreeData<N> {
+    interface Scoped<N extends Node.Scoped<N, ?, ?, ?>> extends TreeData<N> {
         @Override EventDispatcher<NodeEvent<N>> events();
     }
 }

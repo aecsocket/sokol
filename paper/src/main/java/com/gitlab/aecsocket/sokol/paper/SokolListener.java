@@ -19,11 +19,7 @@ import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.incendo.interfaces.core.transform.TransformContext;
 import org.incendo.interfaces.core.view.InterfaceView;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /* package */ final class SokolListener implements Listener {
     private final SokolPlugin plugin;
@@ -43,7 +39,8 @@ import java.util.List;
 
     private void forward(@Nullable ItemStack stack, EventFactory... eventFactories) {
         plugin.persistence().safeLoad(stack).ifPresent(node -> {
-            PaperItem item = new PaperItem(stack);
+            @SuppressWarnings("ConstantConditions")
+            PaperItem item = plugin.wrap(stack);
             for (var eventFactory : eventFactories) {
                 node.call(eventFactory.create(node, item));
             }
@@ -62,22 +59,23 @@ import java.util.List;
         if (!(event.getWhoClicked() instanceof Player player))
             return;
         InterfaceView<?, ?> ifView = event.getInventory().getHolder() instanceof InterfaceView<?, ?> e ? e : null;
-        if (ifView != null) {
-            if (event.getClickedInventory() == event.getView().getBottomInventory()) {
-                if (event.isShiftClick()) {
-                    event.setCancelled(true);
-                    return;
-                }
-            }
-        }
 
         PaperUser user = PlayerUser.user(plugin, player);
-        forward(event.getCurrentItem(), (node, item) -> PaperItemEvent.SlotClick.of(node, user, item, event));
-        forward(event.getCursor(), (node, item) -> PaperItemEvent.CursorClick.of(node, user, item, event));
+        forward(event.getCurrentItem(), (node, item) -> PaperItemEvent.SlotClick.of(plugin, node, user, item, event));
+        forward(event.getCursor(), (node, item) -> PaperItemEvent.CursorClick.of(plugin, node, user, item, event));
 
         PlayerInventory inventory = player.getInventory();
         if (event.getSlot() == inventory.getHeldItemSlot()) {
 
+        }
+
+        if (
+                ifView != null && !event.isCancelled()
+                && event.getClickedInventory() == event.getView().getBottomInventory()
+                && event.isShiftClick()
+        ) {
+            event.setCancelled(true);
+            return;
         }
 
         if (!event.isCancelled() && ifView != null) {
@@ -104,12 +102,10 @@ import java.util.List;
         InventoryView view = event.getView();
         PaperUser user = PlayerUser.user(plugin, player);
         for (int rawSlot : event.getRawSlots()) {
-            System.out.println("B fwd");
-            forward(view.getItem(rawSlot), (node, item) -> PaperItemEvent.SlotDrag.of(node, user, item, rawSlot, event));
+            forward(view.getItem(rawSlot), (node, item) -> PaperItemEvent.SlotDrag.of(plugin, node, user, item, rawSlot, event));
         }
 
         if (!event.isCancelled() && ifView != null) {
-            System.out.println("C");
             Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, ifView::update);
         }
     }

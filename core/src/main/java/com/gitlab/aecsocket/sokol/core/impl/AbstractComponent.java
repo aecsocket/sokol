@@ -10,7 +10,7 @@ public abstract class AbstractComponent<
         C extends AbstractComponent<C, S, F, N>,
         S extends Slot,
         F extends Feature<? extends FeatureInstance<N>, N>,
-        N extends Node.Scoped<N, ?, ?>
+        N extends Node.Scoped<N, ?, ?, ?>
 > implements Component.Scoped<C, S, F, N> {
     protected final String id;
     protected final Set<String> tags;

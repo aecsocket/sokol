@@ -5,7 +5,7 @@ import com.gitlab.aecsocket.sokol.core.SokolPlatform;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
 
-public abstract class AbstractBlueprint<N extends Node.Scoped<N, ?, ?>> implements Blueprint<N> {
+public abstract class AbstractBlueprint<N extends Node.Scoped<N, ?, ?, ?>> implements Blueprint<N> {
     private final String id;
     private final N node;
 

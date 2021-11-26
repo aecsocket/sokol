@@ -4,20 +4,22 @@ import com.gitlab.aecsocket.minecommons.core.Quantifier;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
+import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
+import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
+import com.gitlab.aecsocket.sokol.core.wrapper.Item;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
+import java.util.*;
 
-public abstract class NodeHolderFeature<I extends NodeHolderFeature<I, N>.Instance, N extends Node.Scoped<N, ?, ?>> extends AbstractFeature<I, N> {
+public abstract class NodeHolderFeature<F extends NodeHolderFeature<F, N, I>.Instance, N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>>
+        extends AbstractFeature<F, N, I> {
     public static final String ID = "node_holder";
 
     public enum Position {
@@ -46,40 +48,76 @@ public abstract class NodeHolderFeature<I extends NodeHolderFeature<I, N>.Instan
     public boolean showFullAsDurability() { return showFullAsDurability; }
 
     public abstract class Instance extends AbstractInstance<N> {
-        protected final List<Quantifier<N>> nodes;
+        protected final LinkedList<Quantifier<N>> nodes;
 
-        public Instance(N parent, List<Quantifier<N>> nodes) {
+        public Instance(N parent, LinkedList<Quantifier<N>> nodes) {
             super(parent);
             this.nodes = nodes;
         }
 
-        public Instance(N parent) {
+        public Instance(N parent, Instance o) {
             super(parent);
-            nodes = new ArrayList<>();
+            nodes = new LinkedList<>();
+            for (var qt : o.nodes)
+                nodes.add(new Quantifier<>(qt.object().copy(), qt.amount()));
         }
 
-        @Override public NodeHolderFeature<I, N> type() { return NodeHolderFeature.this; }
+        public Instance(N parent) {
+            super(parent);
+            nodes = new LinkedList<>();
+        }
 
-        public List<Quantifier<N>> nodes() { return nodes; }
+        @Override public NodeHolderFeature<F, N, I> type() { return NodeHolderFeature.this; }
 
-        protected abstract TypeToken<? extends CreateItemEvent<N>> eventCreateItem();
+        public LinkedList<Quantifier<N>> nodes() { return nodes; }
+
+        protected abstract boolean equal(N a, N b);
+
+        public int size() {
+            return Quantifier.total(nodes);
+        }
+
+        public void add(N node, int amount) {
+            if (nodes.isEmpty())
+                nodes.add(new Quantifier<>(node, amount));
+            else {
+                int i = nodes.size() - 1;
+                var last = nodes.get(i);
+                if (equal(last.object(), node))
+                    nodes.set(i, last.add(amount));
+                else
+                    nodes.add(new Quantifier<>(node, amount));
+            }
+        }
+
+        public Optional<N> peek() {
+            return nodes.isEmpty() ? Optional.empty() : Optional.of(nodes.peekLast().object());
+        }
+
+        public Optional<N> pop() {
+            return nodes.isEmpty() ? Optional.empty() : Optional.of(nodes.removeLast().object());
+        }
+
+        protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
+        protected abstract TypeToken<? extends ItemEvent.SlotClick<N, I>> eventSlotClick();
 
         @Override
         public void build(NodeEvent<N> event, StatIntermediate stats) {
             parent.treeData().ifPresent(treeData -> {
                 var events = treeData.events();
                 events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
+                events.register(eventSlotClick(), this::onSlotClick, listenerPriority);
             });
         }
 
-        private void onCreateItem(CreateItemEvent<N> event) {
+        private void onCreateItem(CreateItemEvent<N, I> event) {
             if (!parent.isRoot())
                 return;
             Locale locale = event.locale();
             N node = event.node();
             List<Component> lines = new ArrayList<>();
 
-            int total = Quantifier.total(nodes);
+            int total = size();
             List<Component> header = platform().lc().lines(locale, lcKey("header." + (total == 0 ? "empty"
                     : capacity != null && total >= capacity ? "full" : "default")),
                             "total", ""+total,
@@ -103,6 +141,44 @@ public abstract class NodeHolderFeature<I extends NodeHolderFeature<I, N>.Instan
 
             if (capacity != null && showFullAsDurability)
                 event.item().durability((double) total / capacity);
+        }
+
+        private void onSlotClick(ItemEvent.SlotClick<N, I> event) {
+            if (!parent.isRoot())
+                return;
+            N node = event.node();
+            ItemUser user = event.user();
+            event.cursor().get().ifPresentOrElse(cursor -> {
+                if (!event.left())
+                    return;
+                event.cancel();
+                int rAmount = event.shift() ? 1 : cursor.amount();
+                int amount = capacity == null ? rAmount : Math.min(capacity - size(), rAmount);
+                if (amount <= 0)
+                    return;
+                cursor.node().ifPresent(cursorNode -> {
+                    try {
+                        rule.applies(cursorNode);
+                    } catch (IncompatibilityException e) {
+                        // TODO send msg
+                        return;
+                    }
+                    add(cursorNode, amount);
+                    cursor.subtract(amount);
+                    // TODO update meth THIS IGNORES THE EXISTING ITEM STACK AMOUNT OMG FIX
+                    event.slot().set(node.createItem(user));
+                });
+            }, () -> {
+                if (!event.right() || !event.shift())
+                    return;
+                event.cancel();
+                if (nodes.isEmpty())
+                    return;
+                var last = nodes.removeLast();
+                event.cursor().set(last.object().createItem(user).amount(last.amount()));;
+                // TODO update meth THIS IGNORES THE EXISTING ITEM STACK AMOUNT OMG FIX
+                event.slot().set(node.createItem(user));
+            });
         }
     }
 

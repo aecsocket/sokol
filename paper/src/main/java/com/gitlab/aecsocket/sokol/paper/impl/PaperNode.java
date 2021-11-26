@@ -23,11 +23,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
-public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, PaperFeatureInstance> {
+public final class PaperNode extends AbstractNode<PaperNode, PaperItem, PaperComponent, PaperFeatureInstance> {
     @Deprecated
     public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key, Map<String, PaperFeatureInstance> features, TreeData.@Nullable Scoped<PaperNode> treeData) {
         super(value, key, features, treeData);
@@ -65,7 +64,7 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
                 value.platform().persistence().save(meta.getPersistentDataContainer(), this);
                 meta.displayName(Components.BLANK.append(value.render(locale, value.platform().lc())));
             });
-            item = new PaperItem(stack);
+            item = value.platform().wrap(stack);
         } catch (IllegalStateException e) {
             throw new ItemCreationException(e);
         }
@@ -160,9 +159,7 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperComponent, Pap
     public static final class Events {
         private Events() {}
 
-        public interface CreateItem extends CreateItemEvent<PaperNode> {
-            @Override PaperItem item();
-        }
+        public interface CreateItem extends CreateItemEvent<PaperNode, PaperItem> {}
 
         public record CreateItemLocalized(
                 PaperNode node,

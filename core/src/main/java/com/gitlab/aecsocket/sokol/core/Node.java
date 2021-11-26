@@ -42,7 +42,8 @@ public interface Node {
     Node asRoot();
 
     interface Scoped<
-            N extends Scoped<N, C, F>,
+            N extends Scoped<N, I, C, F>,
+            I extends Item.Scoped<I, N>,
             C extends Component.Scoped<C, ?, ? extends Feature<? extends F, N>, N>,
             F extends FeatureInstance<N>
     > extends Node {
@@ -69,6 +70,9 @@ public interface Node {
         @Override N initialize();
         @Override N initialize(Locale locale);
         @Override N initialize(ItemUser user);
+
+        @Override I createItem(Locale locale) throws ItemCreationException;
+        @Override I createItem(ItemUser user) throws ItemCreationException;
 
         @Override N copy();
         @Override N asRoot();

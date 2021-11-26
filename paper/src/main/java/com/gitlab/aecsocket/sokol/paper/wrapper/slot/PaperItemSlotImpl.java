@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.wrapper.slot;
 
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -7,6 +8,7 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /* package */ record PaperItemSlotImpl(
+        SokolPlugin plugin,
         Supplier<@Nullable ItemStack> getter,
         Consumer<@Nullable ItemStack> setter
 ) implements PaperItemSlot {

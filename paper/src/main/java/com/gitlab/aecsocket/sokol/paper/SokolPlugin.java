@@ -19,10 +19,12 @@ import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.paper.feature.*;
 import com.gitlab.aecsocket.sokol.paper.impl.*;
+import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.map.MapFont;
 import org.bukkit.map.MinecraftFont;
 import org.incendo.interfaces.paper.PaperInterfaceListeners;
@@ -72,6 +74,10 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         return playerData.computeIfAbsent(player, p -> new PlayerData(this, p));
     }
     void removePlayerData(Player player) { playerData.remove(player); }
+
+    public PaperItem wrap(ItemStack handle) {
+        return new PaperItem(this, handle);
+    }
 
     @Override
     public void onEnable() {

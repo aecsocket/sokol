@@ -13,6 +13,7 @@ import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeature;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperFeatureInstance;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
+import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import org.bukkit.persistence.PersistentDataAdapterContext;
@@ -28,7 +29,8 @@ import java.util.Optional;
 
 import static com.gitlab.aecsocket.sokol.core.stat.Primitives.*;
 
-public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, PaperNode> implements PaperFeature<ItemFeature.Instance> {
+public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, PaperNode, PaperItem>
+        implements PaperFeature<ItemFeature.Instance> {
     public static final String ID = "item";
 
     public static final Primitives.OfFlag STAT_UNBREAKABLE = flagStat("unbreakable", false);
@@ -39,7 +41,7 @@ public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, Pap
     public static final Map<String, Class<? extends Rule>> RULE_TYPES = Rule.types().build();
 
     public static final FeatureType.Keyed TYPE = FeatureType.of(ID, STAT_TYPES, RULE_TYPES, (platform, config) -> new ItemFeature(platform,
-            config.node("listener_priority").getInt()
+            config.node("listener_priority").getInt(PRIORITY_DEFAULT)
     ));
 
     private final SokolPlugin platform;
@@ -82,11 +84,11 @@ public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, Pap
         public void build(NodeEvent<PaperNode> event, StatIntermediate stats) {
             parent.treeData().ifPresent(treeData -> {
                 var events = treeData.events();
-                events.register(new TypeToken<CreateItemEvent<PaperNode>>(){}, this::onCreateItem, listenerPriority);
+                events.register(new TypeToken<CreateItemEvent<PaperNode, PaperItem>>(){}, this::onCreateItem, listenerPriority);
             });
         }
 
-        private void onCreateItem(CreateItemEvent<PaperNode> event) {
+        private void onCreateItem(CreateItemEvent<PaperNode, PaperItem> event) {
             if (!parent.isRoot())
                 return;
 

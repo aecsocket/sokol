@@ -34,7 +34,7 @@ public interface Component extends Keyed {
             C extends Scoped<C, S, F, N>,
             S extends Slot,
             F extends Feature<? extends FeatureInstance<? extends N>, N>,
-            N extends Node.Scoped<N, ?, ?>
+            N extends Node.Scoped<N, ?, ?, ?>
     > extends Component {
         @Override Map<String, S> slots();
         @Override Optional<S> slot(String key);

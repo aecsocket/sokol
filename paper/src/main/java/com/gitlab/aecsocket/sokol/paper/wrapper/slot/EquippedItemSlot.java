@@ -2,6 +2,8 @@ package com.gitlab.aecsocket.sokol.paper.wrapper.slot;
 
 import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.sokol.core.wrapper.UserSlot;
+import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
+import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
 import com.gitlab.aecsocket.sokol.paper.wrapper.user.LivingUser;
 import org.bukkit.entity.LivingEntity;
@@ -40,7 +42,7 @@ public interface EquippedItemSlot extends PaperItemSlot, UserSlot<PaperItem> {
         entity().getEquipment().setItem(slot(), val);
     }
 
-    static EquippedItemSlot slot(LivingUser user, EquipmentSlot slot) {
-        return new EquippedItemSlotImpl(user, slot);
+    static EquippedItemSlot slot(SokolPlugin plugin, LivingUser user, EquipmentSlot slot) {
+        return new EquippedItemSlotImpl(plugin, user, slot);
     }
 }
