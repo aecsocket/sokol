@@ -8,9 +8,7 @@ import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 public interface Node {
     Component value();
@@ -24,11 +22,15 @@ public interface Node {
     Optional<? extends TreeData<?>> treeData();
 
     Map<String, ? extends Node> nodes();
+    Set<String> nodeKeys();
+    Collection<? extends Node> nodeValues();
     Optional<? extends Node> node(String... path);
     Optional<? extends Node> node(NodePath path);
     Node removeNode(String key);
 
     Map<String, ? extends FeatureInstance<?>> features();
+    Set<String> featureKeys();
+    Collection<? extends FeatureInstance<?>> featureValues();
     Optional<? extends FeatureInstance<?>> feature(String key);
 
     Node initialize();
@@ -58,12 +60,14 @@ public interface Node {
         @Override Optional<TreeData.Scoped<N>> treeData();
 
         @Override Map<String, N> nodes();
+        @Override Collection<N> nodeValues();
         @Override Optional<N> node(String... path);
         @Override Optional<N> node(NodePath path);
         @Override N removeNode(String key);
         N node(String key, N val) throws IncompatibilityException;
 
         @Override Map<String, F> features();
+        @Override Collection<F> featureValues();
         @Override Optional<F> feature(String key);
         N feature(String key, F feature);
 

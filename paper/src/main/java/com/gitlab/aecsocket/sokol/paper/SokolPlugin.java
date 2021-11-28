@@ -7,6 +7,7 @@ import com.gitlab.aecsocket.minecommons.core.Ticks;
 import com.gitlab.aecsocket.minecommons.core.scheduler.Task;
 import com.gitlab.aecsocket.minecommons.core.scheduler.ThreadScheduler;
 import com.gitlab.aecsocket.minecommons.core.serializers.QuantifierSerializer;
+import com.gitlab.aecsocket.minecommons.paper.effect.PaperEffectors;
 import com.gitlab.aecsocket.minecommons.paper.plugin.BasePlugin;
 import com.gitlab.aecsocket.minecommons.paper.scheduler.PaperScheduler;
 import com.gitlab.aecsocket.sokol.core.SokolPlatform;
@@ -50,7 +51,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     private final Registry<StatDisplayFeature.FormatType> statFormats = new Registry<>();
     private final Registry<FeatureType.Keyed> featureTypes = new Registry<>();
     private final SokolPersistence persistence = new SokolPersistence(this);
-    private final SokolInterfaces interfaces = new SokolInterfaces(this);
+    private final PaperEffectors effectors = new PaperEffectors(this);
     private final PaperScheduler paperScheduler = new PaperScheduler(this);
     private final ThreadScheduler threadScheduler = new ThreadScheduler(Executors.newSingleThreadExecutor());
     private final Map<Player, PlayerData> playerData = new HashMap<>();
@@ -64,7 +65,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
     public Registry<StatDisplayFeature.FormatType> statFormats() { return statFormats; }
     public Registry<FeatureType.Keyed> featureTypes() { return featureTypes; }
     public SokolPersistence persistence() { return persistence; }
-    public SokolInterfaces interfaces() { return interfaces; }
+    public PaperEffectors effectors() { return effectors; }
     public MapFont font() { return font; }
     public Rule.Serializer ruleSerializer() { return ruleSerializer; }
     public StatMap.Serializer statMapSerializer() { return statMapSerializer; }
@@ -87,7 +88,7 @@ public class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatfor
         featureTypes.register(PaperSlotDisplayFeature.TYPE);
         featureTypes.register(PaperStatDisplayFeature.TYPE);
         featureTypes.register(PaperNodeHolderFeature.TYPE);
-        featureTypes.register(NodeTreeFeature.TYPE);
+        featureTypes.register(PaperNodeViewFeature.TYPE);
 
         PaperStatDisplayFeature.Formats.registerAll(statFormats);
 

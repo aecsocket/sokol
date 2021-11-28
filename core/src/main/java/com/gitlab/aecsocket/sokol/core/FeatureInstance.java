@@ -7,7 +7,7 @@ public interface FeatureInstance<N extends Node.Scoped<N, ?, ?, ?>> {
     Feature<?, N> type();
     N parent();
 
-    void build(NodeEvent<N> event, StatIntermediate stats);
+    void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats);
 
     FeatureInstance<N> copy(N parent);
 }

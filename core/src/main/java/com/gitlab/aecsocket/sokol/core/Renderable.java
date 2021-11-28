@@ -11,7 +11,7 @@ import static net.kyori.adventure.text.format.NamedTextColor.*;
 public interface Renderable {
     NamedTextColor CONSTANT = WHITE;
     NamedTextColor OPERATOR = AQUA;
-    NamedTextColor BRACKET = DARK_GRAY;
+    NamedTextColor SEPARATOR = DARK_GRAY;
     NamedTextColor SYMBOL = GRAY;
     NamedTextColor PATH = DARK_GREEN;
 

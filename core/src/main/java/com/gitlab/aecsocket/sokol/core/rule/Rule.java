@@ -19,8 +19,8 @@ import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 import static net.kyori.adventure.text.Component.*;
 
 public interface Rule extends Renderable {
-    Component OPEN_BRACKET = text("(", BRACKET);
-    Component CLOSED_BRACKET = text(")", BRACKET);
+    Component OPEN_BRACKET = text("(", SEPARATOR);
+    Component CLOSED_BRACKET = text(")", SEPARATOR);
 
     static Component wrapBrackets(Component component) {
         return OPEN_BRACKET.append(component).append(CLOSED_BRACKET);

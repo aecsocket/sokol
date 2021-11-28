@@ -137,6 +137,16 @@ public abstract class AbstractNode<
     }
 
     @Override
+    public Set<String> nodeKeys() {
+        return nodes.keySet();
+    }
+
+    @Override
+    public Collection<N> nodeValues() {
+        return nodes.values();
+    }
+
+    @Override
     public N removeNode(String key) {
         N old = nodes.remove(key);
         if (old != null)
@@ -165,6 +175,16 @@ public abstract class AbstractNode<
     @Override
     public Map<String, F> features() {
         return new HashMap<>(features);
+    }
+
+    @Override
+    public Set<String> featureKeys() {
+        return features.keySet();
+    }
+
+    @Override
+    public Collection<F> featureValues() {
+        return features.values();
     }
 
     @Override
@@ -249,7 +269,7 @@ public abstract class AbstractNode<
     protected void buildTree(NodeEvent<N> event, List<StatPair> forwardStats, List<StatPair> reverseStats, AbstractNode<N, I, C, F> parent) {
         StatIntermediate stats = new StatIntermediate(value.stats());
         for (var feature : features.values()) {
-            feature.build(event, stats);
+            feature.build(event, treeData, stats);
         }
         forwardStats.add(new StatPair(this, stats.forward()));
         reverseStats.add(0, new StatPair(this, stats.reverse()));

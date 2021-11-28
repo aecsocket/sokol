@@ -3,13 +3,14 @@ package com.gitlab.aecsocket.sokol.paper.impl;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Point2;
 import com.gitlab.aecsocket.sokol.core.impl.BasicSlot;
 import com.gitlab.aecsocket.sokol.core.Component;
+import com.gitlab.aecsocket.sokol.core.nodeview.OffsetSlot;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
 import java.util.Set;
 
 @ConfigSerializable
-public final class PaperSlot extends BasicSlot {
+public final class PaperSlot extends BasicSlot implements OffsetSlot {
     private final Point2 offset;
 
     public PaperSlot(Component parent, String key, Set<String> tags, Rule rule, Point2 offset) {
@@ -22,7 +23,7 @@ public final class PaperSlot extends BasicSlot {
         offset = Point2.ZERO;
     }
 
-    public Point2 offset() { return offset; }
+    @Override public Point2 offset() { return offset; }
 
     @Override
     public String toString() {

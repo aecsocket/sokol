@@ -9,6 +9,7 @@ import com.gitlab.aecsocket.minecommons.core.serializers.Serializers;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.TreeData;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
@@ -161,11 +162,9 @@ public abstract class StatDisplayFeature<F extends StatDisplayFeature<F, N, I>.I
         protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
 
         @Override
-        public void build(NodeEvent<N> event, StatIntermediate stats) {
-            parent.treeData().ifPresent(treeData -> {
-                var events = treeData.events();
-                events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
-            });
+        public void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats) {
+            var events = tree.events();
+            events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
         }
 
         private record KeyData(Component component, int width) {}
@@ -229,8 +228,7 @@ public abstract class StatDisplayFeature<F extends StatDisplayFeature<F, N, I>.I
         }
 
         private void onCreateItem(CreateItemEvent<N, I> event) {
-            if (!parent.isRoot())
-                return;
+            if (!parent.isRoot()) return;
             Locale locale = event.locale();
             List<Component> lines = new ArrayList<>();
             List<Component> separator = platform().lc().lines(locale, lcKey("separator")).orElse(null);

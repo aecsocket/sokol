@@ -4,8 +4,6 @@ import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.gitlab.aecsocket.minecommons.paper.PaperUtils;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import org.bukkit.Location;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Player;
 
 public interface PaperUser extends ItemUser {
     Location location();

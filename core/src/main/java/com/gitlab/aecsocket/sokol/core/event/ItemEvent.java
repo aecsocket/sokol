@@ -15,7 +15,16 @@ public interface ItemEvent<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Sco
         TaskContext context();
     }
 
-    interface InventoryClick<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>> extends ItemEvent<N, I>, Cancellable {
+    enum InventoryPosition {
+        TOP,
+        BOTTOM
+    }
+
+    interface Inventory<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>> extends ItemEvent<N, I>, Cancellable {
+        InventoryPosition inventoryPosition();
+    }
+
+    interface InventoryClick<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>> extends Inventory<N, I> {
         boolean left();
         boolean right();
         boolean shift();
@@ -29,7 +38,7 @@ public interface ItemEvent<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Sco
         ItemSlot<I> clicked();
     }
 
-    interface SlotDrag<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>> extends ItemEvent<N, I>, Cancellable {
+    interface SlotDrag<N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>> extends Inventory<N, I> {
         int rawSlot();
     }
 }

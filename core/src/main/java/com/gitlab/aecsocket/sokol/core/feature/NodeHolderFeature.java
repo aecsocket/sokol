@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.core.feature;
 import com.gitlab.aecsocket.minecommons.core.Quantifier;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.TreeData;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
@@ -102,17 +103,14 @@ public abstract class NodeHolderFeature<F extends NodeHolderFeature<F, N, I>.Ins
         protected abstract TypeToken<? extends ItemEvent.SlotClick<N, I>> eventSlotClick();
 
         @Override
-        public void build(NodeEvent<N> event, StatIntermediate stats) {
-            parent.treeData().ifPresent(treeData -> {
-                var events = treeData.events();
-                events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
-                events.register(eventSlotClick(), this::onSlotClick, listenerPriority);
-            });
+        public void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats) {
+            var events = tree.events();
+            events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
+            events.register(eventSlotClick(), this::onSlotClick, listenerPriority);
         }
 
         private void onCreateItem(CreateItemEvent<N, I> event) {
-            if (!parent.isRoot())
-                return;
+            if (!parent.isRoot()) return;
             Locale locale = event.locale();
             N node = event.node();
             List<Component> lines = new ArrayList<>();
@@ -144,8 +142,8 @@ public abstract class NodeHolderFeature<F extends NodeHolderFeature<F, N, I>.Ins
         }
 
         private void onSlotClick(ItemEvent.SlotClick<N, I> event) {
-            if (!parent.isRoot())
-                return;
+            if (!parent.isRoot()) return;
+            if (event.cancelled()) return;
             N node = event.node();
             ItemUser user = event.user();
             event.cursor().get().ifPresentOrElse(cursor -> {
