@@ -113,7 +113,9 @@ public final class SokolPersistence {
 
             Map<String, PaperFeatureInstance> features = new HashMap<>();
             @SuppressWarnings("deprecation") // internal use
-            PaperNode root = new PaperNode(value, null, features, null);
+            PaperNode root = new PaperNode(value, null, features);
+            Locale locale = plugin.defaultLocale();
+            var treeCtx = root.build(locale);
             PersistentDataContainer pdcSlots = pdc.get(keySlots, PersistentDataType.TAG_CONTAINER);
             if (pdcSlots != null) {
                 for (var key : pdcSlots.getKeys()) {
@@ -122,11 +124,11 @@ public final class SokolPersistence {
                     //noinspection ConstantConditions - we know the key exists
                     PaperNode child = fromPrimitive(pdcSlots.get(key, PersistentDataType.TAG_CONTAINER), ctx);
                     try {
-                        slot.compatibility(root, child);
+                        slot.compatibility(root, child, treeCtx, child.build(locale));
                     } catch (IncompatibilityException e) {
                         throw new IllegalArgumentException("Incompatible node for slot '" + key + "'", e);
                     }
-                    root.unsafeNode(key.value(), child);
+                    root.forceNode(key.value(), child);
                 }
             }
 

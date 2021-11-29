@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.core;
 
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.node.ItemCreationException;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
@@ -19,7 +18,6 @@ public interface Node {
     NodePath path();
     Node root();
     boolean isRoot();
-    Optional<? extends TreeData<?>> treeData();
 
     Map<String, ? extends Node> nodes();
     Set<String> nodeKeys();
@@ -33,9 +31,8 @@ public interface Node {
     Collection<? extends FeatureInstance<?>> featureValues();
     Optional<? extends FeatureInstance<?>> feature(String key);
 
-    Node initialize();
-    Node initialize(Locale locale);
-    Node initialize(ItemUser user);
+    TreeContext<?> build(Locale locale);
+    TreeContext<?> build(ItemUser user);
 
     Item createItem(Locale locale) throws ItemCreationException;
     Item createItem(ItemUser user) throws ItemCreationException;
@@ -57,30 +54,26 @@ public interface Node {
         N parent(N parent, String key);
         N orphan();
         @Override N root();
-        @Override Optional<TreeData.Scoped<N>> treeData();
 
         @Override Map<String, N> nodes();
         @Override Collection<N> nodeValues();
         @Override Optional<N> node(String... path);
         @Override Optional<N> node(NodePath path);
         @Override N removeNode(String key);
-        N node(String key, N val) throws IncompatibilityException;
+        N node(String key, N val, TreeContext<N> ctx , TreeContext<N> valCtx) throws IncompatibilityException;
 
         @Override Map<String, F> features();
         @Override Collection<F> featureValues();
         @Override Optional<F> feature(String key);
         N feature(String key, F feature);
 
-        @Override N initialize();
-        @Override N initialize(Locale locale);
-        @Override N initialize(ItemUser user);
+        @Override TreeContext<N> build(Locale locale);
+        @Override TreeContext<N> build(ItemUser user);
 
         @Override I createItem(Locale locale) throws ItemCreationException;
         @Override I createItem(ItemUser user) throws ItemCreationException;
 
         @Override N copy();
         @Override N asRoot();
-
-        <E extends NodeEvent<N>> E call(E event);
     }
 }

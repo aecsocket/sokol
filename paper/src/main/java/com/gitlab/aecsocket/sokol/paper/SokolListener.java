@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
+import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import com.gitlab.aecsocket.sokol.paper.wrapper.PaperItem;
@@ -37,12 +38,13 @@ import org.incendo.interfaces.core.view.InterfaceView;
         NodeEvent<PaperNode> create(PaperNode node, PaperItem item);
     }
 
-    private void forward(@Nullable ItemStack stack, EventFactory... eventFactories) {
+    private void forward(@Nullable ItemStack stack, ItemUser user, EventFactory... eventFactories) {
         plugin.persistence().safeLoad(stack).ifPresent(node -> {
             @SuppressWarnings("ConstantConditions")
             PaperItem item = plugin.wrap(stack);
+            var ctx = node.build(user);
             for (var eventFactory : eventFactories) {
-                node.call(eventFactory.create(node, item));
+                ctx.call(eventFactory.create(node, item));
             }
         });
     }
@@ -61,8 +63,8 @@ import org.incendo.interfaces.core.view.InterfaceView;
         InterfaceView<?, ?> ifView = event.getInventory().getHolder() instanceof InterfaceView<?, ?> e ? e : null;
 
         PaperUser user = PlayerUser.user(plugin, player);
-        forward(event.getCurrentItem(), (node, item) -> PaperItemEvent.SlotClick.of(plugin, node, user, item, event));
-        forward(event.getCursor(), (node, item) -> PaperItemEvent.CursorClick.of(plugin, node, user, item, event));
+        forward(event.getCurrentItem(), user, (node, item) -> PaperItemEvent.SlotClick.of(plugin, node, user, item, event));
+        forward(event.getCursor(), user, (node, item) -> PaperItemEvent.CursorClick.of(plugin, node, user, item, event));
 
         PlayerInventory inventory = player.getInventory();
         if (event.getSlot() == inventory.getHeldItemSlot()) {
@@ -102,7 +104,7 @@ import org.incendo.interfaces.core.view.InterfaceView;
         InventoryView view = event.getView();
         PaperUser user = PlayerUser.user(plugin, player);
         for (int rawSlot : event.getRawSlots()) {
-            forward(view.getItem(rawSlot), (node, item) -> PaperItemEvent.SlotDrag.of(plugin, node, user, item, rawSlot, event));
+            forward(view.getItem(rawSlot), user, (node, item) -> PaperItemEvent.SlotDrag.of(plugin, node, user, item, rawSlot, event));
         }
 
         if (!event.isCancelled() && ifView != null) {

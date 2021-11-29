@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper;
 
 import com.gitlab.aecsocket.minecommons.core.scheduler.TaskContext;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.paper.event.PaperItemEvent;
 import com.gitlab.aecsocket.sokol.paper.impl.PaperNode;
 import com.gitlab.aecsocket.sokol.paper.wrapper.slot.EquippedItemSlot;
@@ -14,7 +15,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class PlayerData {
-    private record CacheEntry(ItemStack item, PaperNode node) {}
+    private record CacheEntry(ItemStack item, PaperNode node, TreeContext<PaperNode> ctx) {}
 
     private final SokolPlugin plugin;
     private final Player player;
@@ -38,11 +39,11 @@ public final class PlayerData {
             if (item == null)
                 continue;
             plugin.persistence().safeLoad(item).ifPresentOrElse(node -> {
-                CacheEntry entry = new CacheEntry(item, node);
+                CacheEntry entry = new CacheEntry(item, node, node.build(user));
                 nodeCache.put(slot, entry);
                 //noinspection SynchronizationOnLocalVariableOrMethodParameter
                 synchronized (entry) {
-                    node.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(plugin, user, slot), plugin.wrap(item),
+                    entry.ctx.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(plugin, user, slot), plugin.wrap(item),
                             true, ctx));
                 }
             }, () -> nodeCache.remove(slot));
@@ -57,8 +58,8 @@ public final class PlayerData {
         for (var entry : nodeCache.entrySet()) {
             //noinspection SynchronizationOnLocalVariableOrMethodParameter
             synchronized (entry) {
-                PaperNode node = entry.getValue().node;
-                node.call(new PaperItemEvent.Hold(node, user, EquippedItemSlot.slot(plugin, user, entry.getKey()), plugin.wrap(entry.getValue().item),
+                var cache = entry.getValue();
+                cache.ctx.call(new PaperItemEvent.Hold(cache.node, user, EquippedItemSlot.slot(plugin, user, entry.getKey()), plugin.wrap(entry.getValue().item),
                         false, ctx));
             }
         }

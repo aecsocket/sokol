@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.minecommons.core.CollectionBuilder;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Renderable;
 import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -26,8 +27,10 @@ public interface Rule extends Renderable {
         return OPEN_BRACKET.append(component).append(CLOSED_BRACKET);
     }
 
-    void applies(Node node) throws RuleException;
+    void applies(Node node, TreeContext<?> treeCtx) throws RuleException;
     void visit(Visitor visitor);
+
+    String name();
 
     static CollectionBuilder.OfMap<String, Class<? extends Rule>> types() {
         return CollectionBuilder.map(new HashMap<>());
@@ -54,15 +57,18 @@ public interface Rule extends Renderable {
         }
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             if (!value)
-                throw new RuleException(this, "constant");
+                throw new RuleException(this);
         }
 
         @Override
         public void visit(Visitor visitor) {
             visitor.visit(this);
         }
+
+        @Override
+        public String name() { return "constant:" + value; }
 
         @Override
         public boolean equals(Object o) {
@@ -85,6 +91,11 @@ public interface Rule extends Renderable {
     }
 
     final class Serializer implements TypeSerializer<Rule> {
+        private static final Map<String, Class<? extends Rule>> defaultTypes = CollectionBuilder.map(new HashMap<String, Class<? extends Rule>>())
+                .put(ContextRule.AsParent.TYPE, ContextRule.AsParent.class)
+                .put(ContextRule.AsChild.TYPE, ContextRule.AsChild.class)
+                .build();
+
         private @Nullable Map<String, Class<? extends Rule>> types;
 
         public @Nullable Map<String, Class<? extends Rule>> types() { return types; }
@@ -104,6 +115,8 @@ public interface Rule extends Renderable {
             if (types == null)
                 throw new SerializationException(node, type, "No types provided");
 
+            var types = new HashMap<>(defaultTypes);
+            types.putAll(this.types);
             if (node.raw() instanceof Boolean value)
                 return Constant.of(value);
             if (node.isList()) {

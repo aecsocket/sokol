@@ -5,7 +5,6 @@ import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Point2;
 import com.gitlab.aecsocket.sokol.core.Component;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.Slot;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.event.UserEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractNode;
 import com.gitlab.aecsocket.sokol.core.wrapper.Item;
@@ -53,14 +52,13 @@ public class NodeView<S extends OffsetSlot, N extends AbstractNode<N, ?, ? exten
 
     public interface Renderer<S extends OffsetSlot, N extends Node.Scoped<N, ?, ? extends Component.Scoped<?, S, ?, ?>, ?>> {
         void render(Point2 pos, N root);
-        void render(Point2 pos, N parent, S slot);
-        void render(Point2 pos, N parent, S slot, N child);
+        void render(Point2 pos, N parent, S slot, @Nullable N child);
     }
 
     protected N stripSlots(N node) {
-        node = node.copy();
+        node = node.asRoot();
         for (var key : new HashSet<>(node.nodeKeys())) {
-            node.unsafeNode(key, null);
+            node.forceNode(key, null);
         }
         return node;
     }
@@ -76,10 +74,7 @@ public class NodeView<S extends OffsetSlot, N extends AbstractNode<N, ?, ? exten
     }
 
     protected void build(Locale locale, @Nullable Item cursor, Renderer<S, N> renderer, Point2 pos, N parent, S slot, @Nullable N node) {
-        if (node == null)
-            renderer.render(pos, parent, slot);
-        else
-            renderer.render(pos, parent, slot, node);
+        renderer.render(pos, parent, slot, node);
 
         if (node != null) {
             for (var entry : node.value().slots().entrySet()) {
@@ -100,9 +95,22 @@ public class NodeView<S extends OffsetSlot, N extends AbstractNode<N, ?, ? exten
             S slot();
         }
 
-        public interface PreModify<S extends OffsetSlot, N extends Node.Scoped<N, I, ? extends Component.Scoped<?, S, ?, ?>, ?>, I extends Item.Scoped<I, N>>
+        public interface PreModifyParent<S extends OffsetSlot, N extends Node.Scoped<N, I, ? extends Component.Scoped<?, S, ?, ?>, ?>, I extends Item.Scoped<I, N>>
                 extends Base<S, N, I> {
+            @Nullable N child();
             @Nullable N cursor();
+        }
+
+        public interface PreModifyChild<S extends OffsetSlot, N extends Node.Scoped<N, I, ? extends Component.Scoped<?, S, ?, ?>, ?>, I extends Item.Scoped<I, N>>
+                extends Base<S, N, I> {
+            N parent();
+            @Nullable N cursor();
+        }
+
+        public interface PreModifyCursor<S extends OffsetSlot, N extends Node.Scoped<N, I, ? extends Component.Scoped<?, S, ?, ?>, ?>, I extends Item.Scoped<I, N>>
+                extends Base<S, N, I> {
+            N parent();
+            @Nullable N child();
         }
 
         public interface SlotModify<S extends OffsetSlot, N extends Node.Scoped<N, I, ? extends Component.Scoped<?, S, ?, ?>, ?>, I extends Item.Scoped<I, N>>

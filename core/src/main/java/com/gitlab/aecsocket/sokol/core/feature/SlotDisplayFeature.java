@@ -4,9 +4,8 @@ import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.Slot;
-import com.gitlab.aecsocket.sokol.core.TreeData;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractNode;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
@@ -61,8 +60,9 @@ public abstract class SlotDisplayFeature<F extends SlotDisplayFeature<F, N, I>.I
         protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
 
         @Override
-        public void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats) {
-            var events = tree.events();
+        public void build(TreeContext<N> treeCtx, StatIntermediate stats) {
+            super.build(treeCtx, stats);
+            var events = treeCtx.events();
             events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
         }
 

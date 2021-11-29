@@ -3,8 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.feature;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.minecommons.core.vector.cartesian.Vector2;
 import com.gitlab.aecsocket.sokol.core.Pools;
-import com.gitlab.aecsocket.sokol.core.TreeData;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
@@ -97,7 +96,7 @@ public final class DummyFeature extends AbstractFeature<DummyFeature.Instance, P
         @Override public DummyFeature type() { return DummyFeature.this; }
 
         @Override
-        public void build(NodeEvent<PaperNode> event, TreeData.Scoped<PaperNode> tree, StatIntermediate stats) {}
+        public void build(TreeContext<PaperNode> treeCtx, StatIntermediate stats) {}
 
         @Override
         public void save(Type type, ConfigurationNode node) throws SerializationException {}

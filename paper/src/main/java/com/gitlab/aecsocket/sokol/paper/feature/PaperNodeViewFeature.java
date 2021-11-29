@@ -1,12 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
-import com.gitlab.aecsocket.sokol.core.TreeData;
 import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.feature.NodeViewFeature;
 import com.gitlab.aecsocket.sokol.core.nodeview.NodeView;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
-import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.stat.StatTypes;
 import com.gitlab.aecsocket.sokol.paper.FeatureType;
 import com.gitlab.aecsocket.sokol.paper.SokolPlugin;
@@ -85,12 +82,6 @@ public final class PaperNodeViewFeature extends NodeViewFeature<PaperNodeViewFea
             super(parent);
         }
 
-        @Override
-        public void build(NodeEvent<PaperNode> event, TreeData.Scoped<PaperNode> tree, StatIntermediate stats) {
-            super.build(event, tree, stats);
-            var events = tree.events();
-        }
-
         @Override protected TypeToken<PaperItemEvent.SlotClick> eventSlotClick() { return new TypeToken<>() {}; }
         @Override protected TypeToken<PaperItemEvent.SlotDrag> eventSlotDrag() { return new TypeToken<>() {}; }
         @Override protected TypeToken<Events.CombineOntoParent> eventCombineOntoParent() { return new TypeToken<>() {}; }
@@ -132,13 +123,13 @@ public final class PaperNodeViewFeature extends NodeViewFeature<PaperNodeViewFea
         @Override
         protected boolean callCombineOntoParent(ItemEvent.SlotClick<PaperNode, PaperItem> event, PaperNode node, PaperNode parent) {
             if (!(event instanceof PaperItemEvent.SlotClick paper)) return false;
-            return node.call(new Events.CombineOntoParent(node, paper.user(), paper.slot(), paper.item(), this, parent)).cancelled();
+            return treeCtx.call(new Events.CombineOntoParent(node, paper.user(), paper.slot(), paper.item(), this, parent)).cancelled();
         }
 
         @Override
         protected boolean callCombineChildOnto(ItemEvent.SlotClick<PaperNode, PaperItem> event, PaperNode node, PaperNode child) {
             if (!(event instanceof PaperItemEvent.SlotClick paper)) return false;
-            return node.call(new Events.CombineChildOnto(node, paper.user(), paper.slot(), paper.item(), this, parent)).cancelled();
+            return treeCtx.call(new Events.CombineChildOnto(node, paper.user(), paper.slot(), paper.item(), this, parent)).cancelled();
         }
 
         @Override

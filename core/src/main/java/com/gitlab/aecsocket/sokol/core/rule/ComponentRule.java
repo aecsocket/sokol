@@ -3,12 +3,10 @@ package com.gitlab.aecsocket.sokol.core.rule;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
 import com.gitlab.aecsocket.sokol.core.Renderable;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import net.kyori.adventure.text.Component;
 
-import java.util.Collections;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 import static net.kyori.adventure.text.Component.*;
 import static com.gitlab.aecsocket.sokol.core.rule.Rule.*;
@@ -18,6 +16,20 @@ public final class ComponentRule {
 
     private static Component formatStrings(Set<String> strings) {
         return text(String.join(",", strings), Renderable.CONSTANT);
+    }
+
+    public static final class MissingKeysException extends RuleException {
+        private final Set<String> required;
+        private final Set<String> found;
+
+        private MissingKeysException(Rule rule, Set<String> required, Set<String> found) {
+            super(rule, "Found " + found + ", required any of " + required);
+            this.required = required;
+            this.found = found;
+        }
+
+        public Set<String> required() { return required; }
+        public Set<String> found() { return found; }
     }
 
     public static final class HasTags implements Rule {
@@ -30,17 +42,19 @@ public final class ComponentRule {
         public Set<String> tags() { return tags; }
 
         @Override
-        public void applies(Node node) throws RuleException {
-            if (Collections.disjoint(node.value().tags(), tags))
-                throw new RuleException(this, "not_have_tag",
-                        "has", String.join(", ", node.value().tags()),
-                        "requires", String.join(", ", tags));
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
+            Set<String> nodeTags = node.value().tags();
+            if (Collections.disjoint(nodeTags, tags))
+                throw new MissingKeysException(this, tags, nodeTags);
         }
 
         @Override
         public void visit(Visitor visitor) {
             visitor.visit(this);
         }
+
+        @Override
+        public String name() { return "has_tags"; }
 
         @Override
         public boolean equals(Object o) {
@@ -75,12 +89,14 @@ public final class ComponentRule {
         public Set<String> features() { return features; }
 
         @Override
-        public void applies(Node node) throws RuleException {
-            if (Collections.disjoint(node.value().features().keySet(), features))
-                throw new RuleException(this, "not_have_features",
-                        "has", String.join(", ", node.value().features().keySet()),
-                        "requires", String.join(", ", features));
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
+            Set<String> nodeFeatures = node.featureKeys();
+            if (Collections.disjoint(nodeFeatures, features))
+                throw new MissingKeysException(this, features, nodeFeatures);
         }
+
+        @Override
+        public String name() { return "has_features"; }
 
         @Override
         public void visit(Visitor visitor) {
@@ -116,15 +132,18 @@ public final class ComponentRule {
         private IsComplete() {}
 
         @Override
-        public void applies(Node node) throws RuleException {
-            if (!node.treeData().orElseThrow(() -> new RuleException(this, "no_tree_data")).complete())
-                throw new RuleException(this, "not_complete");
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
+            if (!treeCtx.complete())
+                throw new Exception(this);
         }
 
         @Override
         public void visit(Visitor visitor) {
             visitor.visit(this);
         }
+
+        @Override
+        public String name() { return "is_complete"; }
 
         @Override
         public boolean equals(Object obj) {
@@ -142,6 +161,12 @@ public final class ComponentRule {
         @Override
         public Component render(Locale locale, Localizer lc) {
             return text("/~", OPERATOR);
+        }
+
+        public static final class Exception extends RuleException {
+            private Exception(Rule rule) {
+                super(rule);
+            }
         }
     }
 }

@@ -3,10 +3,9 @@ package com.gitlab.aecsocket.sokol.core.feature;
 import com.gitlab.aecsocket.minecommons.core.Quantifier;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
-import com.gitlab.aecsocket.sokol.core.TreeData;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
@@ -103,8 +102,9 @@ public abstract class NodeHolderFeature<F extends NodeHolderFeature<F, N, I>.Ins
         protected abstract TypeToken<? extends ItemEvent.SlotClick<N, I>> eventSlotClick();
 
         @Override
-        public void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats) {
-            var events = tree.events();
+        public void build(TreeContext<N> treeCtx, StatIntermediate stats) {
+            super.build(treeCtx, stats);
+            var events = treeCtx.events();
             events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
             events.register(eventSlotClick(), this::onSlotClick, listenerPriority);
         }
@@ -156,7 +156,7 @@ public abstract class NodeHolderFeature<F extends NodeHolderFeature<F, N, I>.Ins
                     return;
                 cursor.node().ifPresent(cursorNode -> {
                     try {
-                        rule.applies(cursorNode);
+                        rule.applies(cursorNode, treeCtx);
                     } catch (IncompatibilityException e) {
                         // TODO send msg
                         return;
@@ -173,7 +173,7 @@ public abstract class NodeHolderFeature<F extends NodeHolderFeature<F, N, I>.Ins
                 if (nodes.isEmpty())
                     return;
                 var last = nodes.removeLast();
-                event.cursor().set(last.object().createItem(user).amount(last.amount()));;
+                event.cursor().set(last.object().createItem(user).amount(last.amount()));
                 // TODO update meth THIS IGNORES THE EXISTING ITEM STACK AMOUNT OMG FIX
                 event.slot().set(node.createItem(user));
             });

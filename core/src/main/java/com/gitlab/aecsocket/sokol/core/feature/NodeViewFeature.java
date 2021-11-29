@@ -4,15 +4,13 @@ import com.gitlab.aecsocket.minecommons.core.effect.SoundEffect;
 import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
-import com.gitlab.aecsocket.sokol.core.TreeData;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.event.FeatureEvent;
 import com.gitlab.aecsocket.sokol.core.event.ItemEvent;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.node.IncompatibilityException;
 import com.gitlab.aecsocket.sokol.core.nodeview.NodeView;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
-import com.gitlab.aecsocket.sokol.core.stat.StatMap;
 import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 import com.gitlab.aecsocket.sokol.core.wrapper.ItemUser;
 import io.leangen.geantyref.TypeToken;
@@ -57,8 +55,9 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
         protected abstract TypeToken<? extends NodeView.Events.RemoveFrom<?, N, I>> eventRemoveFrom();
 
         @Override
-        public void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats) {
-            var events = tree.events();
+        public void build(TreeContext<N> treeCtx, StatIntermediate stats) {
+            super.build(treeCtx, stats);
+            var events = treeCtx.events();
             events.register(eventSlotClick(), this::onSlotClick, listenerPriority);
             events.register(eventSlotDrag(), this::onSlotDrag, listenerPriority);
             events.register(eventCombineOntoParent(), this::onCombineOntoParent, listenerPriority);
@@ -90,7 +89,7 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
                 if (!event.left() || !combine.modifiable())
                     return;
                 cursor.node().ifPresent(nCursor -> {
-                    if (!combine(node.root(), nCursor))
+                    if (!combine(node.root(), nCursor, treeCtx, nCursor.build(user)))
                         return;
                     event.cancel();
                     if (callCombineOntoParent(event, node, parent) | callCombineChildOnto(event, parent, node))
@@ -99,7 +98,7 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
                     int amtCursor = cursor.amount();
                     int amtClicked = clicked.amount();
                     if (amtCursor >= amtClicked) {
-                        // UPDATE
+                        // TODO UPDATE
                         event.slot().set(node.createItem(user).amount(amtClicked));
                         cursor.subtract(amtClicked);
                     } else {
@@ -118,19 +117,19 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
             });
         }
 
-        private boolean combine(N parent, N append) {
+        private boolean combine(N parent, N child, TreeContext<N> parentCtx, TreeContext<N> childCtx) {
             for (var entry : parent.value().slots().entrySet()) {
                 if (combine.limited() && !NodeView.modifiable(entry.getValue()))
                     continue;
                 try {
-                    parent.node(entry.getKey(), append);
+                    parent.node(entry.getKey(), child, parentCtx, childCtx);
                 } catch (IncompatibilityException e) {
                     continue;
                 }
                 return true;
             }
-            for (var child : parent.nodes().values())  {
-                if (combine(child, append))
+            for (var sub : parent.nodes().values())  {
+                if (combine(sub, child, parentCtx, childCtx))
                     return true;
             }
             return false;
@@ -148,10 +147,8 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
             if (!parent.isRoot()) return;
             if (event.cancelled()) return;
 
-            N node = event.node();
-            StatMap stats = treeData(node).stats();
             ItemUser user = event.user();
-            stats.<List<? extends SoundEffect>>value(KEY_SLOT_COMBINE_SOUND).ifPresent(sounds -> {
+            treeCtx.stats().<List<? extends SoundEffect>>value(KEY_SLOT_COMBINE_SOUND).ifPresent(sounds -> {
                 sounds.forEach(sound -> user.play(sound, user.position()));
             });
         }
@@ -160,10 +157,8 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
             if (!parent.isRoot()) return;
             if (event.cancelled()) return;
 
-            N node = event.node();
-            StatMap stats = treeData(node).stats();
             ItemUser user = event.user();
-            stats.<List<? extends SoundEffect>>value(KEY_SLOT_INSERT_SOUND).ifPresent(sounds -> {
+            treeCtx.stats().<List<? extends SoundEffect>>value(KEY_SLOT_INSERT_SOUND).ifPresent(sounds -> {
                 sounds.forEach(sound -> user.play(sound, user.position()));
             });
         }
@@ -172,12 +167,8 @@ public abstract class NodeViewFeature<F extends NodeViewFeature<F, N, I>.Instanc
             if (!parent.isRoot()) return;
             if (event.cancelled()) return;
 
-            // TODO stupid !
             ItemUser user = event.user();
-            N node = event.node().asRoot();
-            node.initialize(user);
-            StatMap stats = treeData(node).stats();
-            stats.<List<? extends SoundEffect>>value(KEY_SLOT_REMOVE_SOUND).ifPresent(sounds -> {
+            treeCtx.stats().<List<? extends SoundEffect>>value(KEY_SLOT_REMOVE_SOUND).ifPresent(sounds -> {
                 sounds.forEach(sound -> user.play(sound, user.position()));
             });
         }

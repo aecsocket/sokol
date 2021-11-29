@@ -245,29 +245,27 @@ import static net.kyori.adventure.text.JoinConfiguration.*;
         ItemStack item = target.getInventory().getItem(slot);
         PaperNode node = plugin.persistence().safeLoad(item)
                 .orElseThrow(() -> error("item_not_tree"));
-        if (pSender == null || ctx.flags().isPresent("contextless"))
-            node.initialize(locale);
-        else
-            node.initialize(PlayerUser.user(plugin, pSender));
+        var treeData = pSender == null || ctx.flags().isPresent("contextless")
+                ? node.build(locale)
+                : node.build(PlayerUser.user(plugin, pSender));
         tree(ctx, sender, locale, pSender, node, "header");
 
-        node.treeData().ifPresent(treeData -> {
-            List<NodePath> incomplete = treeData.incomplete();
-            if (incomplete.isEmpty())
-                send(sender, locale, "tree.complete.complete");
-            else {
-                send(sender, locale, "tree.complete.incomplete",
-                        "missing", ""+incomplete.size());
-                for (var path : incomplete)
-                    send(sender, locale, "tree.complete.incomplete_entry",
-                            "path", ""+path);
-            }
-            StatMap stats = treeData.stats();
-            Component hover = join(separator(newline()), renderStats(locale, stats));
-            lc.lines(locale, PREFIX_COMMAND + ".tree.stats",
-                    "amount", ""+stats.size())
-                    .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
-        });
+
+        List<NodePath> incomplete = treeData.incomplete();
+        if (incomplete.isEmpty())
+            send(sender, locale, "tree.complete.complete");
+        else {
+            send(sender, locale, "tree.complete.incomplete",
+                    "missing", ""+incomplete.size());
+            for (var path : incomplete)
+                send(sender, locale, "tree.complete.incomplete_entry",
+                        "path", ""+path);
+        }
+        StatMap stats = treeData.stats();
+        Component hover = join(separator(newline()), renderStats(locale, stats));
+        lc.lines(locale, PREFIX_COMMAND + ".tree.stats",
+                "amount", ""+stats.size())
+                .ifPresent(m -> m.forEach(c -> sender.sendMessage(c.hoverEvent(hover))));
     }
 
     private void component(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {

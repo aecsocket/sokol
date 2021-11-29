@@ -1,7 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.feature;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
-import com.gitlab.aecsocket.sokol.core.TreeData;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
@@ -82,17 +82,15 @@ public final class ItemFeature extends AbstractFeature<ItemFeature.Instance, Pap
         @Override public ItemFeature type() { return ItemFeature.this; }
 
         @Override
-        public void build(NodeEvent<PaperNode> event, TreeData.Scoped<PaperNode> tree, StatIntermediate stats) {
-            parent.treeData().ifPresent(treeData -> {
-                var events = treeData.events();
-                events.register(new TypeToken<CreateItemEvent<PaperNode, PaperItem>>(){}, this::onCreateItem, listenerPriority);
-            });
+        public void build(TreeContext<PaperNode> treeCtx, StatIntermediate stats) {
+            super.build(treeCtx, stats);
+            var events = this.treeCtx.events();
+            events.register(new TypeToken<CreateItemEvent<PaperNode, PaperItem>>(){}, this::onCreateItem, listenerPriority);
         }
 
         private void onCreateItem(CreateItemEvent<PaperNode, PaperItem> event) {
-            if (!parent.isRoot())
-                return;
-
+            if (!parent.isRoot()) return;
+            // TODO junk
         }
 
         @Override

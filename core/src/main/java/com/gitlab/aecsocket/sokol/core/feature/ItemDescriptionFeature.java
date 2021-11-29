@@ -2,9 +2,8 @@ package com.gitlab.aecsocket.sokol.core.feature;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
-import com.gitlab.aecsocket.sokol.core.TreeData;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractFeature;
 import com.gitlab.aecsocket.sokol.core.stat.Primitives;
 import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
@@ -38,8 +37,9 @@ public abstract class ItemDescriptionFeature<F extends ItemDescriptionFeature<F,
         protected abstract TypeToken<? extends CreateItemEvent<N, I>> eventCreateItem();
 
         @Override
-        public void build(NodeEvent<N> event, TreeData.Scoped<N> tree, StatIntermediate stats) {
-            var events = tree.events();
+        public void build(TreeContext<N> treeCtx, StatIntermediate stats) {
+            super.build(treeCtx, stats);
+            var events = treeCtx.events();
             events.register(eventCreateItem(), this::onCreateItem, listenerPriority);
         }
 
@@ -47,7 +47,7 @@ public abstract class ItemDescriptionFeature<F extends ItemDescriptionFeature<F,
             if (!parent.isRoot()) return;
             Locale locale = event.locale();
             N node = event.node();
-            StatMap stats = treeData(node).stats();
+            StatMap stats = treeCtx.stats();
             List<Component> lines = new ArrayList<>();
 
             stats.value(STAT_ITEM_NAME_KEY).flatMap(itemNameKey -> platform().lc().get(locale, itemNameKey))

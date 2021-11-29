@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.node.NodePath;
 import net.kyori.adventure.text.Component;
 
@@ -31,16 +32,18 @@ public final class NavigationRule {
         public NodePath path() { return path; }
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             if (node.node(path).isEmpty())
-                throw new RuleException(this, "no_node_at",
-                        "path", ""+path);
+                throw new RuleException(this);
         }
 
         @Override
         public void visit(Visitor visitor) {
             visitor.visit(this);
         }
+
+        @Override
+        public String name() { return "has"; }
 
         @Override
         public boolean equals(Object o) {
@@ -102,18 +105,19 @@ public final class NavigationRule {
         }
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             var child = node.node(path);
             if (child.isEmpty())
-                throw new RuleException(this, "no_node_at",
-                        "path", path);
+                throw new RuleException(this);
             try {
-                term.applies(child.get());
+                term.applies(child.get(), treeCtx);
             } catch (RuleException e) {
-                throw new RuleException(this, e, "fail_at",
-                        "path", path);
+                throw new RuleException(this);
             }
         }
+
+        @Override
+        public String name() { return "as"; }
 
         @Override
         protected String symbol() { return "$"; }
@@ -138,18 +142,19 @@ public final class NavigationRule {
         }
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             var child = node.root().node(path);
             if (child.isEmpty())
-                throw new RuleException(this, "no_node_root_at",
-                        "path", path);
+                throw new RuleException(this);
             try {
-                term.applies(child.get());
+                term.applies(child.get(), treeCtx);
             } catch (RuleException e) {
-                throw new RuleException(this, e, "fail_as_root",
-                        "path", path);
+                throw new RuleException(this, e);
             }
         }
+
+        @Override
+        public String name() { return "as_root"; }
 
         @Override
         protected String symbol() { return "/"; }
@@ -174,7 +179,7 @@ public final class NavigationRule {
         private IsRoot() {}
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             if (!node.isRoot())
                 throw new RuleException(this, "not_root");
         }
@@ -183,6 +188,9 @@ public final class NavigationRule {
         public void visit(Visitor visitor) {
             visitor.visit(this);
         }
+
+        @Override
+        public String name() { return "is_root"; }
 
         @Override
         public boolean equals(Object obj) {

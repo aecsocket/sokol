@@ -60,7 +60,7 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
 
     public int clickedSlot() { return clickedSlot; }
 
-    private ItemStack slotElement(Locale locale, @Nullable ItemStack cursor, PaperNode parent, Slot slot) {
+    private ItemStack slotElement(ItemUser user, Locale locale, @Nullable ItemStack cursor, PaperNode parent, Slot slot) {
         String key = SLOT_DEFAULT;
         if (cursor == null) {
             if (AbstractNode.required(slot))
@@ -71,7 +71,7 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
             key = plugin.persistence().safeLoad(cursor)
                     .map(cursorNode -> {
                         try {
-                            slot.compatibility(parent, cursorNode);
+                            slot.compatibility(parent, cursorNode, parent.build(user), cursorNode.build(user));
                             return true;
                         } catch (IncompatibilityException e) {
                             return false;
@@ -105,7 +105,7 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
             if (cursor != null && plugin.persistence().safeLoad(cursor)
                     .map(cursorNode -> {
                         try {
-                            slot.compatibility(parent, cursorNode);
+                            slot.compatibility(parent, cursorNode, parent.build(user), cursorNode.build(user));
                             return true;
                         } catch (IncompatibilityException e) {
                             return false;
@@ -113,7 +113,7 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
                     })
                     .orElse(false)) {
                 // TODO glint api
-                meta.addEnchant(Enchantment.ARROW_INFINITE, 0, true);
+                meta.addEnchant(Enchantment.ARROW_INFINITE, 1, true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
             }
         });
@@ -150,7 +150,6 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
                     }
 
                     private void update(InventoryView ivView, ClickContext<?, ?, ?> ctx) {
-                        root.initialize(user);
                         nextCursor = ivView.getCursor();
                         if (nextCursor != null && nextCursor.getAmount() <= 0)
                             nextCursor = null;
@@ -162,10 +161,12 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
                     }
 
                     @Override
-                    public void render(Point2 pos, PaperNode parent, PaperSlot slot) {
+                    public void render(Point2 pos, PaperNode parent, PaperSlot slot, @Nullable PaperNode child) {
                         pos = correct(pos);
                         rPane.set(rPane.get().element(ItemStackElement.of(
-                                slotElement(locale, cursor, parent, slot),
+                                child == null
+                                        ? slotElement(user, locale, cursor, parent, slot)
+                                        : nodeElement(user, locale, cursor, parent, slot, stripSlots(child)),
                                 canClick(slot) ? ctx -> {
                                     ctx.cancel(true);
                                     if (!ctx.click().leftClick())
@@ -173,85 +174,71 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
                                     InventoryClickEvent event = ctx.cause();
                                     InventoryView ivView = event.getView();
                                     ItemStack ivCursor = ivView.getCursor();
-                                    PaperNode nCursor = plugin.persistence().safeLoad(ivCursor).orElse(null);
-                                    if (parent.call(new Events.PreModify(parent, slot, user, nCursor)).cancelled())
-                                        return;
+                                    PaperNode cursor = plugin.persistence().safeLoad(ivCursor).orElse(null);
 
-                                    if (ivCursor == null || ivCursor.getAmount() < amount)
-                                        return;
-                                    if (nCursor == null)
-                                        return;
-                                    try {
-                                        slot.compatibility(parent, nCursor);
-                                        if (
-                                                parent.call(new Events.SlotModify(parent, slot, user, null, nCursor)).cancelled()
-                                                | nCursor.call(new Events.InsertInto(nCursor, slot, user, parent, null)).cancelled()
-                                        ) return;
-                                        parent.node(slot.key(), nCursor);
-                                    } catch (IncompatibilityException e) {
-                                        // TODO event/send msg
-                                        return;
-                                    }
-                                    ivCursor.subtract(amount);
-                                    update(ivView, ctx);
-                                } : ctx -> {}
-                        ), pos.x(), pos.y()));
-                    }
+                                    PaperNode orphan = child == null ? null : child.asRoot();
+                                    var rootCtx = root.build(user);
+                                    var cursorCtx = cursor == null ? null : cursor.build(user);
+                                    var orphanCtx = orphan == null ? null : orphan.build(user);
+                                    if (
+                                            rootCtx.call(new Events.PreModifyParent(parent, slot, user, orphan, cursor)).cancelled()
+                                            | (orphan != null && orphanCtx.call(new Events.PreModifyChild(orphan, slot, user, parent, cursor)).cancelled())
+                                            | (cursor != null && cursorCtx.call(new Events.PreModifyCursor(cursor, slot, user, parent, orphan)).cancelled())
+                                    ) return;
 
-                    @Override
-                    public void render(Point2 pos, PaperNode parent, PaperSlot slot, PaperNode child) {
-                        pos = correct(pos);
-                        rPane.set(rPane.get().element(ItemStackElement.of(
-                                nodeElement(user, locale, cursor, parent, slot, stripSlots(child)),
-                                canClick(slot) ? ctx -> {
-                                    ctx.cancel(true);
-                                    if (!ctx.click().leftClick())
-                                        return;
-                                    InventoryClickEvent event = ctx.cause();
-                                    InventoryView ivView = event.getView();
-                                    ItemStack ivCursor = ivView.getCursor();
-                                    PaperNode nCursor = plugin.persistence().safeLoad(ivCursor).orElse(null);
-                                    if (parent.call(new Events.PreModify(parent, slot, user, nCursor)).cancelled())
-                                        return;
-
-                                    PaperNode nOrphan = child.asRoot();
-                                    ItemStack orphan = nOrphan.createItem(user).handle();
-                                    if (ivCursor == null || ivCursor.getAmount() == 0) {
-                                        if (
-                                                parent.call(new Events.SlotModify(parent, slot, user, child, null)).cancelled()
-                                                | child.call(new Events.RemoveFrom(child, slot, user, parent, null)).cancelled()
-                                        ) return;
-                                        parent.removeNode(slot.key());
-                                        ivView.setCursor(orphan);
-                                    } else {
-                                        if (ivCursor.isSimilar(orphan)) {
-                                            if (ivCursor.getAmount() + amount > ivCursor.getMaxStackSize())
-                                                return;
-
+                                    if (orphan == null) {
+                                        if (ivCursor == null || ivCursor.getAmount() < amount || cursor == null)
+                                            return;
+                                        try {
+                                            slot.compatibility(parent, cursor, rootCtx, cursorCtx);
                                             if (
-                                                    parent.call(new Events.SlotModify(parent, slot, user, child, null)).cancelled()
-                                                    | child.call(new Events.RemoveFrom(child, slot, user, parent, null)).cancelled()
+                                                    rootCtx.call(new Events.SlotModify(parent, slot, user, null, cursor)).cancelled()
+                                                    | cursorCtx.call(new Events.InsertInto(cursor, slot, user, parent, null)).cancelled()
+                                            ) return;
+                                            parent.node(slot.key(), cursor, rootCtx, cursorCtx);
+                                            ivCursor.subtract(amount);
+                                        } catch (IncompatibilityException e) {
+                                            // TODO event/send msg
+                                            return;
+                                        }
+                                    } else {
+                                        ItemStack orphanStack = orphan.createItem(user).handle();
+                                        if (ivCursor == null || ivCursor.getAmount() == 0) {
+                                            if (
+                                                    rootCtx.call(new Events.SlotModify(parent, slot, user, orphan, null)).cancelled()
+                                                    | orphanCtx.call(new Events.RemoveFrom(orphan, slot, user, parent, null)).cancelled()
                                             ) return;
                                             parent.removeNode(slot.key());
-                                            ivCursor.add(amount);
-                                        } else if (ivCursor.getAmount() == amount) {
-                                            try {
-                                                //noinspection ConstantConditions
-                                                slot.compatibility(parent, nCursor);
+                                            ivView.setCursor(orphanStack);
+                                        } else {
+                                            if (ivCursor.isSimilar(orphanStack)) {
+                                                if (ivCursor.getAmount() + amount > ivCursor.getMaxStackSize())
+                                                    return;
 
                                                 if (
-                                                        parent.call(new Events.SlotModify(parent, slot, user, child, nCursor)).cancelled()
-                                                        | child.call(new Events.RemoveFrom(child, slot, user, parent, nCursor)).cancelled()
-                                                        | nCursor.call(new Events.InsertInto(nCursor, slot, user, parent, child)).cancelled()
+                                                        rootCtx.call(new Events.SlotModify(parent, slot, user, orphan, null)).cancelled()
+                                                        | orphanCtx.call(new Events.RemoveFrom(orphan, slot, user, parent, null)).cancelled()
                                                 ) return;
-                                                parent.node(slot.key(), nCursor);
-                                            } catch (IncompatibilityException e) {
-                                                // TODO send message
+                                                parent.removeNode(slot.key());
+                                                ivCursor.add(amount);
+                                            } else if (ivCursor.getAmount() == amount) {
+                                                try {
+                                                    //noinspection ConstantConditions
+                                                    slot.compatibility(parent, cursor, rootCtx, cursorCtx);
+                                                    if (
+                                                            rootCtx.call(new Events.SlotModify(parent, slot, user, orphan, cursor)).cancelled()
+                                                            | orphanCtx.call(new Events.RemoveFrom(orphan, slot, user, parent, cursor)).cancelled()
+                                                            | cursorCtx.call(new Events.InsertInto(cursor, slot, user, parent, orphan)).cancelled()
+                                                    ) return;
+                                                    parent.node(slot.key(), cursor, rootCtx, cursorCtx);
+                                                } catch (IncompatibilityException e) {
+                                                    // TODO send message
+                                                    return;
+                                                }
+                                                ivView.setCursor(orphanStack);
+                                            } else
                                                 return;
-                                            }
-                                            ivView.setCursor(orphan);
-                                        } else
-                                            return;
+                                        }
                                     }
                                     update(ivView, ctx);
                                 } : ctx -> {}
@@ -284,15 +271,46 @@ public final class PaperNodeView<T extends GridPane<T, ItemStackElement<T>>> ext
             @Override public void cancelled(boolean cancelled) { this.cancelled = cancelled; }
         }
 
-        public static final class PreModify extends Base implements NodeView.Events.PreModify<PaperSlot, PaperNode, PaperItem> {
+        public static final class PreModifyParent extends Base implements NodeView.Events.PreModifyParent<PaperSlot, PaperNode, PaperItem> {
+            private final @Nullable PaperNode child;
             private final @Nullable PaperNode cursor;
 
-            public PreModify(PaperNode node, PaperSlot slot, PaperUser user, @Nullable PaperNode cursor) {
+            public PreModifyParent(PaperNode node, PaperSlot slot, PaperUser user, @Nullable PaperNode child, @Nullable PaperNode cursor) {
                 super(node, slot, user);
+                this.child = child;
                 this.cursor = cursor;
             }
 
             @Override public PaperNode cursor() { return cursor; }
+            @Override public @Nullable PaperNode child() { return child; }
+        }
+
+        public static final class PreModifyChild extends Base implements NodeView.Events.PreModifyChild<PaperSlot, PaperNode, PaperItem> {
+            private final PaperNode parent;
+            private final @Nullable PaperNode cursor;
+
+            public PreModifyChild(PaperNode node, PaperSlot slot, PaperUser user, PaperNode parent, @Nullable PaperNode cursor) {
+                super(node, slot, user);
+                this.parent = parent;
+                this.cursor = cursor;
+            }
+
+            @Override public PaperNode parent() { return parent; }
+            @Override public PaperNode cursor() { return cursor; }
+        }
+
+        public static final class PreModifyCursor extends Base implements NodeView.Events.PreModifyCursor<PaperSlot, PaperNode, PaperItem> {
+            private final PaperNode parent;
+            private final @Nullable PaperNode child;
+
+            public PreModifyCursor(PaperNode node, PaperSlot slot, PaperUser user, PaperNode parent, @Nullable PaperNode child) {
+                super(node, slot, user);
+                this.parent = parent;
+                this.child = child;
+            }
+
+            @Override public PaperNode parent() { return parent; }
+            @Override public @Nullable PaperNode child() { return child; }
         }
 
         public static final class SlotModify extends Base implements NodeView.Events.SlotModify<PaperSlot, PaperNode, PaperItem> {

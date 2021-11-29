@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.impl;
 
 import com.gitlab.aecsocket.minecommons.core.Components;
 import com.gitlab.aecsocket.sokol.core.Slot;
-import com.gitlab.aecsocket.sokol.core.TreeData;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.event.CreateItemEvent;
 import com.gitlab.aecsocket.sokol.core.event.UserEvent;
 import com.gitlab.aecsocket.sokol.core.impl.AbstractNode;
@@ -28,8 +28,8 @@ import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
 
 public final class PaperNode extends AbstractNode<PaperNode, PaperItem, PaperComponent, PaperFeatureInstance> {
     @Deprecated
-    public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key, Map<String, PaperFeatureInstance> features, TreeData.@Nullable Scoped<PaperNode> treeData) {
-        super(value, key, features, treeData);
+    public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key, Map<String, PaperFeatureInstance> features) {
+        super(value, key, features);
     }
 
     public PaperNode(PaperComponent value, @Nullable NodeKey<PaperNode> key) {
@@ -55,10 +55,10 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperItem, PaperCom
 
     @Override public PaperNode self() { return this; }
 
-    private PaperItem createItem0(Locale locale) throws ItemCreationException {
+    private PaperItem createItem0(Locale locale, TreeContext<PaperNode> treeCtx) throws ItemCreationException {
         PaperItem item;
         try {
-            ItemStack stack = treeData.stats().require(PaperComponent.STAT_ITEM)
+            ItemStack stack = treeCtx.stats().require(PaperComponent.STAT_ITEM)
                     .buildStack();
             stack.editMeta(meta -> {
                 value.platform().persistence().save(meta.getPersistentDataContainer(), this);
@@ -73,19 +73,17 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperItem, PaperCom
 
     @Override
     public PaperItem createItem(ItemUser user) throws ItemCreationException {
-        // Required to build the tree data, to get the STAT_ITEM stat
-        initialize(user);
-        PaperItem item = createItem0(user.locale());
-        call(new Events.CreateItemUser(this, user, item));
+        var ctx = build(user);
+        PaperItem item = createItem0(user.locale(), ctx);
+        ctx.call(new Events.CreateItemUser(this, user, item));
         return item;
     }
 
     @Override
     public PaperItem createItem(Locale locale) throws ItemCreationException {
-        // Required to build the tree data, to get the STAT_ITEM stat
-        initialize(locale);
-        PaperItem item = createItem0(locale);
-        call(new Events.CreateItemLocalized(this, locale, item));
+        var ctx = build(locale);
+        PaperItem item = createItem0(locale, ctx);
+        ctx.call(new Events.CreateItemLocalized(this, locale, item));
         return item;
     }
 
@@ -125,7 +123,9 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperItem, PaperCom
                     .orElseThrow(() -> new SerializationException(node, type, "No component with ID '" + id + "'"));
 
             Map<String, PaperFeatureInstance> features = new HashMap<>();
-            PaperNode root = new PaperNode(value, null, features, null);
+            PaperNode root = new PaperNode(value, null, features);
+            Locale locale = plugin.defaultLocale();
+            var ctx = root.build(locale);
             if (node.isMap()) {
                 for (var entry : node.node("nodes").childrenMap().entrySet()) {
                     String key = entry.getKey()+"";
@@ -134,11 +134,11 @@ public final class PaperNode extends AbstractNode<PaperNode, PaperItem, PaperCom
                             .orElseThrow(() -> new SerializationException(childConfig, type, "No slot '" + key + "' exists on component '" + value.id() + "'"));
                     PaperNode child = deserialize(type, childConfig);
                     try {
-                        slot.compatibility(root, child);
+                        slot.compatibility(root, child, ctx, child.build(locale));
                     } catch (IncompatibilityException e) {
                         throw new SerializationException(childConfig, type, "Incompatible node for slot '" + key + "'", e);
                     }
-                    root.unsafeNode(key, child);
+                    root.forceNode(key, child);
                 }
 
                 plugin.featureSerializer().base(root);

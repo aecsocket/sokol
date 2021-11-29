@@ -13,7 +13,7 @@ public interface Slot extends Renderable {
     Set<String> tags();
     boolean tagged(String tag);
 
-    void compatibility(Node parent, Node child) throws IncompatibilityException;
+    <N extends Node.Scoped<N, ?, ?, ?>> void compatibility(N parent, N child, TreeContext<N> parentCtx, TreeContext<N> childCtx) throws IncompatibilityException;
 
     static String renderKey(String key) { return "slot." + key + ".name"; }
 

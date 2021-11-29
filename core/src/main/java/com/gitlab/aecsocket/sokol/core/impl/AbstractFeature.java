@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.*;
 import com.gitlab.aecsocket.sokol.core.registry.Keyed;
+import com.gitlab.aecsocket.sokol.core.stat.StatIntermediate;
 import com.gitlab.aecsocket.sokol.core.wrapper.Item;
 
 public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends Node.Scoped<N, I, ?, ?>, I extends Item.Scoped<I, N>>
@@ -14,6 +15,7 @@ public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends No
 
     public static abstract class AbstractInstance<N extends Node.Scoped<N, ?, ?, ?>> implements FeatureInstance<N> {
         protected final N parent;
+        protected TreeContext<N> treeCtx;
 
         public AbstractInstance(N parent) {
             this.parent = parent;
@@ -21,8 +23,9 @@ public abstract class AbstractFeature<F extends FeatureInstance<N>, N extends No
 
         @Override public N parent() { return parent; }
 
-        protected TreeData<N> treeData(N node) {
-            return node.treeData().orElseThrow(() -> new IllegalStateException("No tree data"));
+        @Override
+        public void build(TreeContext<N> treeCtx, StatIntermediate stats) {
+            this.treeCtx = treeCtx;
         }
 
         protected String lcKey(String key) {

@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core.impl;
 
 import com.gitlab.aecsocket.sokol.core.Component;
 import com.gitlab.aecsocket.sokol.core.Slot;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import com.gitlab.aecsocket.sokol.core.rule.RuleException;
 import com.gitlab.aecsocket.sokol.core.rule.Rule;
 import com.gitlab.aecsocket.sokol.core.Node;
@@ -48,7 +49,7 @@ public class BasicSlot implements Slot {
     }
 
     @Override
-    public void compatibility(Node parent, Node child) throws RuleException {
-        rule.applies(child);
+    public <N extends Node.Scoped<N, ?, ?, ?>> void compatibility(N parent, N child, TreeContext<N> parentCtx, TreeContext<N> childCtx) throws RuleException {
+        rule.applies(child, new CompatibilityTreeContext<>(parent, child, parentCtx, childCtx));
     }
 }

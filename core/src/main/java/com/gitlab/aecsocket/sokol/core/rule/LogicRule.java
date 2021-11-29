@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core.rule;
 
 import com.gitlab.aecsocket.minecommons.core.translation.Localizer;
 import com.gitlab.aecsocket.sokol.core.Node;
+import com.gitlab.aecsocket.sokol.core.TreeContext;
 import net.kyori.adventure.text.Component;
 
 import java.util.*;
@@ -23,10 +24,10 @@ public final class LogicRule {
         public Rule term() { return term; }
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             try {
-                term.applies(node);
-                throw new RuleException(this, "not");
+                term.applies(node, treeCtx);
+                throw new RuleException(this);
             } catch (RuleException ignore) {}
         }
 
@@ -35,6 +36,9 @@ public final class LogicRule {
             visitor.visit(this);
             term.visit(visitor);
         }
+
+        @Override
+        public String name() { return "not"; }
 
         @Override
         public boolean equals(Object o) {
@@ -113,17 +117,18 @@ public final class LogicRule {
         }
 
         @Override
-        public void applies(Node node) throws RuleException {
-            for (int i = 0; i < terms.size(); i++) {
-                var term = terms.get(i);
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
+            for (var term : terms) {
                 try {
-                    term.applies(node);
+                    term.applies(node, treeCtx);
                 } catch (RuleException e) {
-                    throw new RuleException(this, e, "and",
-                            "index", ""+i);
+                    throw new RuleException(this, e);
                 }
             }
         }
+
+        @Override
+        public String name() { return "and"; }
 
         @Override
         protected String symbol() { return "&"; }
@@ -135,15 +140,18 @@ public final class LogicRule {
         }
 
         @Override
-        public void applies(Node node) throws RuleException {
+        public void applies(Node node, TreeContext<?> treeCtx) throws RuleException {
             for (var term : terms) {
                 try {
-                    term.applies(node);
+                    term.applies(node, treeCtx);
                     return;
                 } catch (RuleException ignore) {}
             }
             throw new RuleException(this, "or");
         }
+
+        @Override
+        public String name() { return "or"; }
 
         @Override
         protected String symbol() { return "|"; }
