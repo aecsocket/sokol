@@ -1,10 +1,12 @@
+import org.gradle.api.tasks.javadoc.Javadoc
+
 plugins {
     id("java-library")
     id("maven-publish")
 }
 
 allprojects {
-    group = "com.gitlab.aecsocket.sokol"
+    group = "com.github.aecsocket"
     version = "2.0"
     description = "Platform-agnostic, data-driven item framework"
 }
@@ -12,55 +14,39 @@ allprojects {
 subprojects {
     apply<JavaLibraryPlugin>()
 
-    repositories {
-        //mavenLocal()
-        mavenCentral()
-        maven("https://oss.sonatype.org/content/repositories/snapshots/")
-        maven("https://repo.incendo.org/content/repositories/snapshots/")
-        maven("https://gitlab.com/api/v4/projects/27049637/packages/maven") // Minecommons
-    }
-
-    dependencies {
-        testImplementation("org.junit.jupiter", "junit-jupiter", "5.7.1")
+    java {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(17))
     }
 
     tasks {
-        compileJava {
-            options.encoding = Charsets.UTF_8.name()
-            options.release.set(17)
+        javadoc {
+            var opt = options as StandardJavadocDocletOptions
+            opt.encoding = "UTF-8";
+            opt.links(
+                    "https://docs.oracle.com/en/java/javase/17/docs/api/",
+                    "https://guava.dev/releases/snapshot-jre/api/docs/",
+                    "https://configurate.aoeu.xyz/4.1.2/apidocs/",
+                    "https://jd.adventure.kyori.net/api/4.9.3/",
+                    "https://www.javadoc.io/doc/io.leangen.geantyref/geantyref/1.3.11/",
+
+                    "https://papermc.io/javadocs/paper/1.18/",
+                    "https://javadoc.commandframework.cloud/",
+                    "https://aadnk.github.io/ProtocolLib/Javadoc/"
+                    //"https://aecsocket.gitlab.io/minecommons/javadoc/core/" TODO minecommons javadocs
+                    //"https://aecsocket.gitlab.io/minecommons/javadoc/paper/",
+            )
+
+            opt.addBooleanOption("html5", true)
+            opt.addStringOption("-release", "17")
+            opt.linkSource()
         }
 
-        javadoc {
-            val opt = options as StandardJavadocDocletOptions
-            opt.encoding = Charsets.UTF_8.name()
-            opt.source("17")
-            opt.linkSource(true)
-            opt.author(true)
+        compileJava {
+            options.encoding = Charsets.UTF_8.name()
         }
 
         test {
             useJUnitPlatform()
-        }
-    }
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("gitlab") {
-            from(components["java"])
-        }
-    }
-
-    repositories {
-        maven {
-            url = uri("https://gitlab.com/api/v4/projects/27149151/packages/maven")
-            credentials(HttpHeaderCredentials::class) {
-                name = "Job-Token"
-                value = System.getenv("CI_JOB_TOKEN")
-            }
-            authentication {
-                create<HttpHeaderAuthentication>("header")
-            }
         }
     }
 }

@@ -1,12 +1,10 @@
 plugins {
     id("java-library")
     id("maven-publish")
-    id("com.github.johnrengelman.shadow") version "7.0.0"
-    id("net.minecrell.plugin-yml.bukkit") version "0.4.0"
-    id("xyz.jpenilla.run-paper") version "1.0.3"
+    id("com.github.johnrengelman.shadow")
+    id("net.minecrell.plugin-yml.bukkit")
+    id("xyz.jpenilla.run-paper")
 }
-
-val minecraftVersion = "1.17"
 
 repositories {
     maven("https://papermc.io/repo/repository/maven-public/")
@@ -14,36 +12,28 @@ repositories {
 }
 
 dependencies {
-    api(project(":core"))
-    compileOnly("io.papermc.paper", "paper-api", "1.17.1-R0.1-SNAPSHOT") {
-        exclude("junit", "junit")
-    }
+    api(project(":${rootProject.name}-core"))
+    compileOnly(libs.paperApi)
+    //compileOnly("io.papermc.paper", "paper-api", "1.17.1-R0.1-SNAPSHOT") {
+    //    exclude("junit", "junit")
+    //}
 
-    implementation("org.bstats", "bstats-bukkit", "2.2.1")
-    implementation("org.incendo.interfaces", "interfaces-paper", "1.0.0-SNAPSHOT")
+    implementation(libs.bstats)
+    implementation(libs.interfacesPaper)
+
+    compileOnly(libs.minecommonsPaper)
+    compileOnly(libs.protocolLib)
+
+    //implementation("org.bstats", "bstats-bukkit", "2.2.1")
+    //implementation("org.incendo.interfaces", "interfaces-paper", "1.0.0-SNAPSHOT")
 
     // Plugins
-    compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.3")
-    compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
+    //compileOnly("com.gitlab.aecsocket.minecommons", "paper", "1.3")
+    //compileOnly("com.comphenix.protocol", "ProtocolLib", "4.7.0")
 }
 
 tasks {
-    javadoc {
-        val opt = options as StandardJavadocDocletOptions
-        opt.links(
-                "https://docs.oracle.com/en/java/javase/16/docs/api/",
-                "https://aecsocket.gitlab.io/minecommons/javadoc/core/",
-                "https://aecsocket.gitlab.io/minecommons/javadoc/paper/",
-                "https://configurate.aoeu.xyz/4.1.1/apidocs/",
-                "https://jd.adventure.kyori.net/api/4.8.1/",
-                "https://papermc.io/javadocs/paper/1.17/",
-                "https://javadoc.commandframework.cloud/",
-                "https://aadnk.github.io/ProtocolLib/Javadoc/"
-        )
-    }
-
     shadowJar {
-        archiveFileName.set("${rootProject.name}-${project.name}-${rootProject.version}.jar")
         listOf(
                 "org.bstats"
         ).forEach { relocate(it, "${rootProject.group}.lib.$it") }
@@ -54,36 +44,15 @@ tasks {
     }
 
     runServer {
-        minecraftVersion(minecraftVersion)
+        minecraftVersion("1.18.1")
     }
 }
 
 bukkit {
     name = "Sokol"
-    main = "${project.group}.paper.SokolPlugin"
-    apiVersion = "1.17"
+    main = "${project.group}.${rootProject.name}.paper.SokolPlugin"
+    apiVersion = "1.18"
     depend = listOf("Minecommons", "ProtocolLib")
-    website = "https://gitlab.com/aecsocket/sokol"
+    website = "https://github.com/aecsocket/sokol"
     authors = listOf("aecsocket")
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("gitlab") {
-            from(components["java"])
-        }
-    }
-
-    repositories {
-        maven {
-            url = uri("https://gitlab.com/api/v4/projects/27149151/packages/maven")
-            credentials(HttpHeaderCredentials::class) {
-                name = "Job-Token"
-                value = System.getenv("CI_JOB_TOKEN")
-            }
-            authentication {
-                create<HttpHeaderAuthentication>("header")
-            }
-        }
-    }
 }
