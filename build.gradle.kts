@@ -1,5 +1,3 @@
-import org.gradle.api.tasks.javadoc.Javadoc
-
 plugins {
     id("java-library")
     id("maven-publish")
@@ -20,8 +18,8 @@ subprojects {
 
     tasks {
         javadoc {
-            var opt = options as StandardJavadocDocletOptions
-            opt.encoding = "UTF-8";
+            val opt = options as StandardJavadocDocletOptions
+            opt.encoding = "UTF-8"
             opt.links(
                     "https://docs.oracle.com/en/java/javase/17/docs/api/",
                     "https://guava.dev/releases/snapshot-jre/api/docs/",

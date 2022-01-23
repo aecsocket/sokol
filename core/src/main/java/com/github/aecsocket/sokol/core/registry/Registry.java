@@ -1,7 +1,6 @@
 package com.github.aecsocket.sokol.core.registry;
 
 import java.util.*;
-import java.util.function.Supplier;
 
 public final class Registry<T extends Keyed> {
     private final Map<String, T> registry = new HashMap<>();
