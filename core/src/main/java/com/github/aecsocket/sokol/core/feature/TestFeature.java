@@ -40,7 +40,7 @@ public class TestFeature implements Feature<TestFeature.Config> {
 
         @Override
         public Data<?> load(ConfigurationNode node) throws SerializationException {
-            return
+            return null;
         }
 
         public class Data<B extends Blueprint.Scoped<B, N, ?, ?>> implements FeatureData<TestFeature, N, B, ?> {

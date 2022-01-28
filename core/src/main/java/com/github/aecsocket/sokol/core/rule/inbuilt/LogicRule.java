@@ -42,8 +42,6 @@ public final class LogicRule {
     }
 
     public static final class Not implements BaseRule, NodeRule {
-        private final
-
         private Not() {}
     }
 }

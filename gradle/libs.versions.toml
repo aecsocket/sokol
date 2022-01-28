@@ -1,27 +1,27 @@
 [versions]
 
-interfaces = "1.0.0-SNAPSHOT"
-minecommons = "1.4"
-bstats = "2.2.1"
 junit = "5.7.2"
 
-# Paper
+interfaces = "1.0.0-SNAPSHOT"
+minecommons = "1.4.0-SNAPSHOT"
+bstats = "2.2.1"
+
 paper = "1.18.1-R0.1-SNAPSHOT"
-paperProtocolLib = "4.8.0-SNAPSHOT"
+protocolLib = "4.8.0-SNAPSHOT"
 
 [libraries]
-
-interfacesCore = { group = "org.incendo.interfaces", name = "interfaces-core", version.ref = "interfaces" }
-minecommonsCore = { group = "com.github.aecsocket", name = "minecommons-core", version.ref = "minecommons" }
 
 jupiterApi = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junit" }
 jupiterEngine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
 
+minecommons = { group = "com.github.aecsocket", name = "minecommons-core", version.ref = "minecommons" }
+interfaces = { group = "org.incendo.interfaces", name = "interfaces-core", version.ref = "interfaces" }
+
 paper = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper" }
-paperBstats = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats" }
-paperInterfaces = { group = "org.incendo.interfaces", name = "interfaces-paper", version.ref = "interfaces" }
-paperMinecommons = { group = "com.github.aecsocket", name = "minecommons-paper", version.ref = "minecommons" }
-paperProtocolLib = { group = "com.comphenix.protocol", name = "ProtocolLib", version.ref = "paperProtocolLib" }
+bstatsPaper = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats" }
+interfacesPaper = { group = "org.incendo.interfaces", name = "interfaces-paper", version.ref = "interfaces" }
+minecommonsPaper = { group = "com.github.aecsocket", name = "minecommons-paper", version.ref = "minecommons" }
+protocolLib = { group = "com.comphenix.protocol", name = "ProtocolLib", version.ref = "protocolLib" }
 
 [bundles]
 

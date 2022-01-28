@@ -8,20 +8,23 @@ plugins {
 
 dependencies {
     api(projects.sokolCore)
-    compileOnly(libs.paper)
+    compileOnly(libs.paper) {
+        exclude("junit", "junit")
+    }
 
-    implementation(libs.paperBstats)
-    implementation(libs.paperInterfaces)
+    implementation(libs.bstatsPaper)
+    implementation(libs.interfacesPaper)
 
-    compileOnly(libs.paperMinecommons)
-    compileOnly(libs.paperProtocolLib)
+    // Plugins + library loader
+    compileOnly(libs.minecommonsPaper)
+    compileOnly(libs.protocolLib)
 }
 
 tasks {
     shadowJar {
         listOf(
                 "org.bstats"
-        ).forEach { relocate(it, "${rootProject.group}.lib.$it") }
+        ).forEach { relocate(it, "${rootProject.group}.${rootProject.name}.lib.$it") }
     }
 
     assemble {
@@ -40,4 +43,23 @@ bukkit {
     depend = listOf("Minecommons", "ProtocolLib")
     website = "https://github.com/aecsocket/sokol"
     authors = listOf("aecsocket")
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("github") {
+            from(components["java"])
+        }
+    }
+
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/aecsocket/sokol")
+            credentials {
+                username = System.getenv("GPR_ACTOR")
+                password = System.getenv("GPR_TOKEN")
+            }
+        }
+    }
 }
