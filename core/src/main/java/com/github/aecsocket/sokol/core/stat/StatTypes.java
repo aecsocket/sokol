@@ -1,11 +1,7 @@
 package com.github.aecsocket.sokol.core.stat;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-
-import java.util.*;
-
 public final class StatTypes {
-    public static final StatTypes EMPTY = new StatTypes(Collections.emptyMap());
+    /*public static final StatTypes EMPTY = new StatTypes(Collections.emptyMap());
 
     private final Map<String, Stat<?>> handle;
 
@@ -41,5 +37,5 @@ public final class StatTypes {
         }
 
         public StatTypes build() { return new StatTypes(handle); }
-    }
+    }*/
 }

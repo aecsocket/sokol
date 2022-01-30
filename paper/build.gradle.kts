@@ -17,7 +17,9 @@ dependencies {
 
     // Plugins + library loader
     compileOnly(libs.minecommonsPaper)
+    compileOnly(libs.bundles.cloudPaper)
     compileOnly(libs.protocolLib)
+    library(libs.bundles.libsPaper)
 }
 
 tasks {

@@ -1,24 +1,7 @@
 package com.github.aecsocket.sokol.core.stat;
 
-import org.checkerframework.checker.nullness.qual.Nullable;
-import org.spongepowered.configurate.ConfigurationNode;
-import org.spongepowered.configurate.objectmapping.ConfigSerializable;
-import org.spongepowered.configurate.objectmapping.meta.Required;
-import org.spongepowered.configurate.serialize.SerializationException;
-import org.spongepowered.configurate.serialize.TypeSerializer;
-
-import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.BiConsumer;
-
-import com.github.aecsocket.sokol.core.rule.node.NodeRule;
-
-import static com.gitlab.aecsocket.minecommons.core.serializers.Serializers.*;
-
 public final class StatIntermediate {
-    public record Priority(int value, boolean reverse) {
+    /*public record Priority(int value, boolean reverse) {
         public static final Priority MIN = forwardPriority(Integer.MIN_VALUE);
         public static final Priority MAX = reversePriority(Integer.MAX_VALUE);
         public static final Priority DEFAULT = forwardPriority(0);
@@ -138,5 +121,5 @@ public final class StatIntermediate {
             }
             return result;
         }
-    }
+    }*/
 }

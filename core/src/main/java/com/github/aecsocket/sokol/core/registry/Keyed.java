@@ -1,7 +1,7 @@
 package com.github.aecsocket.sokol.core.registry;
 
-import com.gitlab.aecsocket.minecommons.core.i18n.I18N;
-import com.gitlab.aecsocket.minecommons.core.i18n.Renderable;
+import com.github.aecsocket.minecommons.core.i18n.I18N;
+import com.github.aecsocket.minecommons.core.i18n.Renderable;
 import net.kyori.adventure.text.Component;
 
 import java.util.List;

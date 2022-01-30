@@ -1,22 +1,28 @@
 package com.github.aecsocket.sokol.core;
 
-import com.github.aecsocket.sokol.core.api.Blueprint;
-import com.github.aecsocket.sokol.core.api.Component;
-import com.github.aecsocket.sokol.core.api.Feature;
-import com.github.aecsocket.sokol.core.impl.KeyedBlueprint;
+import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.sokol.core.registry.Registry;
-import com.github.aecsocket.sokol.core.rule.node.NodeRule;
-import com.github.aecsocket.sokol.core.stat.Stat;
-import com.gitlab.aecsocket.minecommons.core.i18n.I18N;
-
-import java.util.Map;
 
 public interface SokolPlatform {
     I18N i18n();
 
+    Registry<? extends SokolComponent.Scoped<?, ?, ?>> components();
+
+    Registry<? extends Feature<?, ?>> features();
+
+    interface Scoped<
+        C extends SokolComponent.Scoped<C, ?, ?>,
+        F extends Feature<?, ?>
+    > extends SokolPlatform {
+        @Override Registry<C> components();
+        @Override Registry<F> features();
+    }
+
+    /*I18N i18n();
+
     interface Scoped<
             C extends Component.Scoped<C, ?, ?>,
-            B extends Blueprint.Scoped<B, ?, ?, ?>,
+            B extends BlueprintNode.Scoped<B, ?, ?, ?>,
             F extends Feature<?>
     > extends SokolPlatform {
         Registry<C> components();
@@ -28,5 +34,5 @@ public interface SokolPlatform {
         void setUpSerializers(Map<String, Stat<?>> statTypes, Map<String, Class<? extends NodeRule>> ruleTypes);
 
         void tearDownSerializers();
-    }
+    }*/
 }

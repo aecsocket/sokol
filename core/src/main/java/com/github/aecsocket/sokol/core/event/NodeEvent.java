@@ -1,11 +1,11 @@
 package com.github.aecsocket.sokol.core.event;
 
-import com.github.aecsocket.sokol.core.api.Blueprint;
-import com.github.aecsocket.sokol.core.api.Node;
+import com.github.aecsocket.minecommons.core.event.Cancellable;
+import com.github.aecsocket.sokol.core.BlueprintNode;
+import com.github.aecsocket.sokol.core.TreeNode;
 import com.github.aecsocket.sokol.core.world.ItemStack;
-import com.gitlab.aecsocket.minecommons.core.event.Cancellable;
 
-public interface NodeEvent<N extends Node.Scoped<N, ?, ?, ?, ?>> {
+public interface NodeEvent<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> {
     N node();
 
     default boolean call() {
@@ -13,9 +13,9 @@ public interface NodeEvent<N extends Node.Scoped<N, ?, ?, ?, ?>> {
     }
 
     interface CreateItem<
-            N extends Node.Scoped<N, B, ?, ?, S>,
-            B extends Blueprint.Scoped<B, N, ?, ?>,
-            S extends ItemStack.Scoped<S, B>
+        N extends TreeNode.Scoped<N, B, ?, ?, S>,
+        B extends BlueprintNode.Scoped<B, N, ?, ?>,
+        S extends ItemStack.Scoped<S, B>
     > extends NodeEvent<N> {
         S item();
     }

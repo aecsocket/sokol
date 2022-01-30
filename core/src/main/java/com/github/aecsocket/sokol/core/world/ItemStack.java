@@ -6,10 +6,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 
-import com.github.aecsocket.sokol.core.api.Blueprint;
+import com.github.aecsocket.sokol.core.BlueprintNode;
 
 public interface ItemStack {
-    Optional<? extends Blueprint> asBlueprint();
+    Optional<? extends BlueprintNode> asBlueprint();
 
     int amount();
     ItemStack amount(int amount);
@@ -32,7 +32,7 @@ public interface ItemStack {
 
     interface Scoped<
             S extends Scoped<S, B>,
-            B extends Blueprint.Scoped<B, ?, ?, ?>
+            B extends BlueprintNode.Scoped<B, ?, ?, ?>
     > extends ItemStack {
         @Override Optional<B> asBlueprint();
 

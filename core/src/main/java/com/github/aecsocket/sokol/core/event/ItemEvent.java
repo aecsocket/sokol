@@ -1,9 +1,9 @@
 package com.github.aecsocket.sokol.core.event;
 
-import com.github.aecsocket.sokol.core.api.Node;
+import com.github.aecsocket.sokol.core.TreeNode;
 
 public final class ItemEvent {
     private ItemEvent() {}
 
-    public interface Hold<N extends Node.Scoped<N, ?, ?, ?, ?>> extends NodeEvent<N> {}
+    public interface Hold<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> extends NodeEvent<N> {}
 }

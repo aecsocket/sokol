@@ -138,7 +138,7 @@ to depend on it.
 
 * [Java >=17](https://adoptium.net/)
 * [Paper >=1.18.1](https://papermc.io/)
-* [Minecommons >=1.4](https://gitlab.com/aecsocket/minecommons)
+* [Minecommons >=1.4](https://github.com/aecsocket/minecommons)
 * [ProtocolLib >=4.7.0](https://www.spigotmc.org/resources/protocollib.1997/)
 
 # Documentation
