@@ -12,6 +12,7 @@ import com.github.aecsocket.sokol.paper.PaperItemStack;
 import com.github.aecsocket.sokol.paper.SokolPlugin;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ImmutableBiMap;
 
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.EquipmentSlot;
@@ -36,14 +37,14 @@ public interface PaperItemSlot extends ItemSlot<PaperItemStack> {
     }
 
     interface Equip extends PaperItemSlot, EquipSlot<PaperItemStack> {
-        BiMap<EquipmentSlot, Position> MAPPINGS = HashBiMap.create(CollectionBuilder.map(new HashMap<EquipmentSlot, Position>())
+        BiMap<EquipmentSlot, Position> MAPPINGS = ImmutableBiMap.<EquipmentSlot, Position>builder()
                 .put(EquipmentSlot.HAND, Position.MAIN_HAND)
                 .put(EquipmentSlot.OFF_HAND, Position.OFF_HAND)
                 .put(EquipmentSlot.HEAD, Position.HEAD)
                 .put(EquipmentSlot.CHEST, Position.CHEST)
                 .put(EquipmentSlot.LEGS, Position.LEGS)
                 .put(EquipmentSlot.FEET, Position.FEET)
-                .build());
+                .build();
 
         LivingEntity entity();
         EquipmentSlot slot();

@@ -6,7 +6,7 @@ import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 
 public interface PaperFeatureData extends FeatureData<
-    PaperFeatureData, PaperFeatureProfile, PaperFeatureInstance
+    PaperFeatureData, PaperFeatureProfile, PaperFeatureInstance, PaperTreeNode
 > {
     void save(PersistentDataContainer pdc, PersistentDataAdapterContext ctx);
 }

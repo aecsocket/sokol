@@ -35,7 +35,7 @@ public abstract class AbstractComponent<
     protected final Map<String, S> slots;
     protected final StatIntermediate stats;
 
-    public AbstractComponent(String id, Set<String> tags, Map<String, P> features, Map<String, S> slots, StatIntermediate stats) {
+    protected AbstractComponent(String id, Set<String> tags, Map<String, P> features, Map<String, S> slots, StatIntermediate stats) {
         this.id = id;
         this.tags = tags;
         this.features = features;

@@ -1,11 +1,12 @@
 package com.github.aecsocket.sokol.core;
 
 public interface FeatureData<
-    D extends FeatureData<D, P, I>,
+    D extends FeatureData<D, P, I, N>,
     P extends FeatureProfile<P, ?, D>,
-    I extends FeatureInstance<I, D>
+    I extends FeatureInstance<I, D>,
+    N extends TreeNode.Scoped<N, ?, ?, ?, ?>
 > {
     P profile();
 
-    I load(); // add ctx here
+    I asInstance(N node);
 }

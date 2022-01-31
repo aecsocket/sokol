@@ -3,6 +3,7 @@ package com.github.aecsocket.sokol.core.impl;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 
 import com.github.aecsocket.minecommons.core.i18n.I18N;
@@ -19,11 +20,13 @@ import com.github.aecsocket.sokol.core.context.Context;
 import com.github.aecsocket.sokol.core.event.NodeEvent;
 import com.github.aecsocket.sokol.core.world.ItemStack;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 public abstract class AbstractTreeNode<
     N extends AbstractTreeNode<N, B, C, F, S>,
-    B extends BlueprintNode.Scoped<B, N, C, ? extends FeatureData<?, ?, F>>,
-    C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, ? extends FeatureData<?, ?, F>>>,
-    F extends FeatureInstance<F, ? extends FeatureData<?, ?, F>>,
+    B extends BlueprintNode.Scoped<B, N, C, ? extends FeatureData<?, ?, F, N>>,
+    C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, ? extends FeatureData<?, ?, F, N>>>,
+    F extends FeatureInstance<F, ? extends FeatureData<?, ?, F, N>>,
     S extends ItemStack.Scoped<S, B>
 > extends MutableAbstractMapNode<N> implements TreeNode.Scoped<N, B, C, F, S> {
     protected final C value;
@@ -31,7 +34,7 @@ public abstract class AbstractTreeNode<
     protected final Context context;
     protected Tree<N> tree;
 
-    public AbstractTreeNode(AbstractTreeNode<N, B, C, F, S> o) {
+    protected AbstractTreeNode(AbstractTreeNode<N, B, C, F, S> o) {
         super(o);
         value = o.value;
         context = o.context;
@@ -43,7 +46,72 @@ public abstract class AbstractTreeNode<
         }
     }
 
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, @Nullable Tree<N> tree, @Nullable Key<N> key) {
+        super(key);
+        this.value = value;
+        features = buildFeatures(featureData);
+        this.context = context;
+        this.tree = tree;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, @Nullable Tree<N> tree, N parent, String key) {
+        super(parent, key);
+        this.value = value;
+        features = buildFeatures(featureData);
+        this.context = context;
+        this.tree = tree;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, N parent, String key) {
+        super(parent, key);
+        this.value = value;
+        features = buildFeatures(featureData);
+        this.context = context;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, @Nullable Tree<N> tree) {
+        this.value = value;
+        features = buildFeatures(featureData);
+        this.context = context;
+        this.tree = tree;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context) {
+        this.value = value;
+        features = buildFeatures(featureData);
+        this.context = context;
+    }
+
+    private <D extends FeatureData<?, ?, F, N>> Map<String, F> buildFeatures(Map<String, D> featureData) {
+        Map<String, F> result = new HashMap<>();
+        for (var entry : value.features().entrySet()) {
+            String key = entry.getKey();
+            D data = featureData.get(key);
+            result.put(key, (data == null
+                ? entry.getValue().setUp()
+                : data)
+                .asInstance(self())
+            );
+        }
+        for (var entry : featureData.entrySet()) {
+            result.put(entry.getKey(), entry.getValue().asInstance(self()));
+        }
+        return result;
+    }
+
     public abstract SokolPlatform platform();
+
+    @Override public C value() { return value; }
+
+    @Override public Map<String, F> features() { return new HashMap<>(features); }
+    @Override public boolean hasFeature(String key) { return features.containsKey(key); }
+    @Override public Optional<F> feature(String key) { return Optional.ofNullable(features.get(key)); }
+    @Override public Optional<? extends FeatureData<?, ?, F, N>> featureData(String key) { return feature(key).map(i -> i.asData()); }
+
+    @Override public Context context() { return context; }
+
+    @Override public Tree<N> tree() { return tree;}
+    @Override public void tree(Tree<N> tree) { this.tree = tree;}
 
     @Override
     public N set(String key, N val) {

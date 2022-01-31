@@ -40,7 +40,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
                                 user,
                                 new PaperItemStack(this, item),
                                 PaperItemSlot.itemSlot(this, player, slot)
-                        )).tree().andCall(PaperItemEvent.Hold::new));
+                        )).tree().andCall(PaperEvents.Hold::new));
                 }
             }
         }, 0, 1);

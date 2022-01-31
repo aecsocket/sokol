@@ -7,7 +7,6 @@ import java.util.OptionalDouble;
 
 import com.github.aecsocket.minecommons.core.Components;
 import com.github.aecsocket.minecommons.core.Numbers;
-import com.github.aecsocket.sokol.core.BlueprintNode;
 
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
@@ -71,7 +70,7 @@ public record PaperItemStack(
             List<Component> cur = meta.lore();
             if (cur == null)
                 cur = new ArrayList<>();
-            if (cur.size() > 0)
+            if (!cur.isEmpty())
                 cur.add(Component.empty());
             
             for (var line : lore) {

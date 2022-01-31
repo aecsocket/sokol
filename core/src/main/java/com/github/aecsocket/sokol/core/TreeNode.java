@@ -17,8 +17,6 @@ public interface TreeNode extends SokolNode {
     Context context();
     Tree<?> tree();
 
-    SokolComponent component();
-
     Map<String, ? extends FeatureInstance<?, ?>> features();
     Optional<? extends FeatureInstance<?, ?>> feature(String key);
 
@@ -42,13 +40,15 @@ public interface TreeNode extends SokolNode {
 
     interface Scoped<
         N extends Scoped<N, B, C, F, S>,
-        B extends BlueprintNode.Scoped<B, N, C, ? extends FeatureData<?, ?, F>>,
-        C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, ? extends FeatureData<?, ?, F>>>,
-        F extends FeatureInstance<F, ? extends FeatureData<?, ?, F>>,
+        B extends BlueprintNode.Scoped<B, N, C, ?>,
+        C extends SokolComponent.Scoped<C, ?, ?>,
+        F extends FeatureInstance<F, ?>,
         S extends ItemStack.Scoped<S, B>
     > extends TreeNode, MapNode.Scoped<N> {
-        @Override C component();
+        @Override C value();
+
         @Override Tree<N> tree();
+        void tree(Tree<N> tree);
 
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);

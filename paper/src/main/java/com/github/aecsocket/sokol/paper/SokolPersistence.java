@@ -65,10 +65,10 @@ public final class SokolPersistence {
             pdc.set(keySlots, PersistentDataType.TAG_CONTAINER, pdcSlots);
 
             PersistentDataContainer pdcFeatures = ctx.newPersistentDataContainer();
-            for (var entry : node.features().entrySet()) {
+            for (var entry : node.featureData().entrySet()) {
                 PersistentDataContainer saved = ctx.newPersistentDataContainer();
                 entry.getValue().save(saved, ctx);
-                if (saved.getKeys().size() > 0)
+                if (!saved.getKeys().isEmpty())
                     pdcFeatures.set(plugin.key(entry.getKey()), PersistentDataType.TAG_CONTAINER, saved);
             }
             pdc.set(keyFeatures, PersistentDataType.TAG_CONTAINER, pdcFeatures);
@@ -91,8 +91,8 @@ public final class SokolPersistence {
             if (pdcSlots != null) {
                 for (var key : pdcSlots.getKeys()) {
                     String vKey = key.value();
-                    PaperNodeSlot slot = value.slot(vKey)
-                        .orElseThrow(() -> new IllegalArgumentException("No slot `" + vKey + "` exists on component `" + id + "`"));
+                    if (value.slot(vKey).isEmpty())
+                        throw new IllegalArgumentException("No slot `" + vKey + "` exists on component `" + id + "`");
                     //noinspection ConstantConditions - we know the key exists
                     PaperBlueprintNode child = fromPrimitive(pdcSlots.get(key, PersistentDataType.TAG_CONTAINER), ctx);
                     root.setUnsafe(vKey, child);

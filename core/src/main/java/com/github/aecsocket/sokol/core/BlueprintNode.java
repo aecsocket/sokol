@@ -13,10 +13,7 @@ import com.github.aecsocket.sokol.core.world.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface BlueprintNode extends SokolNode {
-    SokolComponent component();
-
-    Map<String, ? extends FeatureData<?, ?, ?>> features();
-    Optional<? extends FeatureData<?, ?, ?>> feature(String key);
+    Map<String, ? extends FeatureData<?, ?, ?, ?>> featureData();
 
     TreeNode asTreeNode(Context context);
 
@@ -37,14 +34,14 @@ public interface BlueprintNode extends SokolNode {
 
     interface Scoped<
         B extends Scoped<B, N, C, F>,
-        N extends TreeNode.Scoped<N, B, C, ? extends FeatureInstance<?, F>, ? extends ItemStack.Scoped<?, B>>,
-        C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, F>>,
-        F extends FeatureData<F, ?, ? extends FeatureInstance<?, F>>
+        N extends TreeNode.Scoped<N, B, C, ?, ?>,
+        C extends SokolComponent.Scoped<C, ?, ?>,
+        F extends FeatureData<F, ?, ?, N>
     > extends BlueprintNode, MapNode.Mutable<B> {
-        @Override C component();
+        @Override C value();
 
-        @Override Map<String, F> features();
-        @Override Optional<F> feature(String key);
+        @Override Map<String, F> featureData();
+        @Override Optional<F> featureData(String key);
 
         @Override N asTreeNode(Context context);
     }
