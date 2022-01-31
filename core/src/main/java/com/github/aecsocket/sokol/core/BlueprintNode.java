@@ -8,7 +8,6 @@ import java.util.function.Consumer;
 import com.github.aecsocket.minecommons.core.node.MapNode;
 import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.sokol.core.context.Context;
-import com.github.aecsocket.sokol.core.world.ItemStack;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 

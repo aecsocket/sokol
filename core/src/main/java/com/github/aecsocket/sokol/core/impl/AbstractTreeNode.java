@@ -140,4 +140,10 @@ public abstract class AbstractTreeNode<
 
         return item;
     }
+
+    @Override
+    public N build() {
+        tree = Tree.build(self());
+        return self();
+    }
 }
