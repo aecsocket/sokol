@@ -8,14 +8,7 @@ import java.util.function.Consumer;
 
 import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.node.MutableAbstractMapNode;
-import com.github.aecsocket.sokol.core.BlueprintNode;
-import com.github.aecsocket.sokol.core.FeatureData;
-import com.github.aecsocket.sokol.core.FeatureInstance;
-import com.github.aecsocket.sokol.core.FeatureProfile;
-import com.github.aecsocket.sokol.core.SokolComponent;
-import com.github.aecsocket.sokol.core.SokolPlatform;
-import com.github.aecsocket.sokol.core.Tree;
-import com.github.aecsocket.sokol.core.TreeNode;
+import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.context.Context;
 import com.github.aecsocket.sokol.core.event.NodeEvent;
 import com.github.aecsocket.sokol.core.world.ItemStack;
@@ -26,7 +19,7 @@ public abstract class AbstractTreeNode<
     N extends AbstractTreeNode<N, B, C, F, S>,
     B extends BlueprintNode.Scoped<B, N, C, ? extends FeatureData<?, ?, F, N>>,
     C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, ? extends FeatureData<?, ?, F, N>>>,
-    F extends FeatureInstance<F, ? extends FeatureData<?, ?, F, N>>,
+    F extends FeatureInstance<F, ? extends FeatureData<?, ?, F, N>, N>,
     S extends ItemStack.Scoped<S, B>
 > extends MutableAbstractMapNode<N> implements TreeNode.Scoped<N, B, C, F, S> {
     protected final C value;
@@ -106,7 +99,7 @@ public abstract class AbstractTreeNode<
     @Override public Map<String, F> features() { return new HashMap<>(features); }
     @Override public boolean hasFeature(String key) { return features.containsKey(key); }
     @Override public Optional<F> feature(String key) { return Optional.ofNullable(features.get(key)); }
-    @Override public Optional<? extends FeatureData<?, ?, F, N>> featureData(String key) { return feature(key).map(i -> i.asData()); }
+    @Override public Optional<? extends FeatureData<?, ?, F, N>> featureData(String key) { return feature(key).map(FeatureInstance::asData); }
 
     @Override public Context context() { return context; }
 
@@ -145,5 +138,10 @@ public abstract class AbstractTreeNode<
     public N build() {
         tree = Tree.build(self());
         return self();
+    }
+
+    @Override
+    public boolean complete() {
+        return tree.complete();
     }
 }

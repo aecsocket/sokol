@@ -17,11 +17,13 @@ public interface TreeNode extends SokolNode {
     Context context();
     Tree<?> tree();
 
-    Map<String, ? extends FeatureInstance<?, ?>> features();
-    Optional<? extends FeatureInstance<?, ?>> feature(String key);
+    Map<String, ? extends FeatureInstance<?, ?, ?>> features();
+    Optional<? extends FeatureInstance<?, ?, ?>> feature(String key);
 
     BlueprintNode asBlueprintNode();
     ItemStack asItem() throws ItemCreationException;
+
+    TreeNode build();
 
 
     @Override @Nullable TreeNode parent();
@@ -42,11 +44,9 @@ public interface TreeNode extends SokolNode {
         N extends Scoped<N, B, C, F, S>,
         B extends BlueprintNode.Scoped<B, N, C, ?>,
         C extends SokolComponent.Scoped<C, ?, ?>,
-        F extends FeatureInstance<F, ?>,
+        F extends FeatureInstance<F, ?, N>,
         S extends ItemStack.Scoped<S, B>
     > extends TreeNode, MapNode.Scoped<N> {
-        @Override C value();
-
         @Override Tree<N> tree();
         void tree(Tree<N> tree);
 
@@ -55,5 +55,7 @@ public interface TreeNode extends SokolNode {
 
         @Override B asBlueprintNode();
         @Override S asItem();
+
+        @Override N build();
     }
 }

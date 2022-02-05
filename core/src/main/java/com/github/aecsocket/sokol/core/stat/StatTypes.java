@@ -1,23 +1,23 @@
 package com.github.aecsocket.sokol.core.stat;
 
-public final class StatTypes {
-    /*public static final StatTypes EMPTY = new StatTypes(Collections.emptyMap());
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
-    private final Map<String, Stat<?>> handle;
+public interface StatTypes {
+    Map<String, Stat<?>> map();
 
-    public StatTypes(Map<String, Stat<?>> handle) {
-        this.handle = Collections.unmodifiableMap(handle);
+    static StatTypes empty() {
+        return EmptyStatTypes.INSTANCE;
     }
 
-    public static Builder builder() { return new Builder(); }
-
-    public Map<String, Stat<?>> handle() { return new HashMap<>(handle); }
-
-    public @Nullable Stat<?> get(String key) {
-        return handle.get(key);
+    static StatTypes statTypes(Map<String, Stat<?>> map) {
+        var copy = Collections.unmodifiableMap(map);
+        return () -> copy;
     }
 
-    public static final class Builder {
+    final class Builder {
         private final Map<String, Stat<?>> handle = new HashMap<>();
 
         public Builder add(Stat<?> stat) {
@@ -32,10 +32,10 @@ public final class StatTypes {
         }
 
         public Builder add(StatTypes stats) {
-            handle.putAll(stats.handle);
+            handle.putAll(stats.map());
             return this;
         }
 
-        public StatTypes build() { return new StatTypes(handle); }
-    }*/
+        public StatTypes build() { return statTypes(handle); }
+    }
 }

@@ -18,6 +18,7 @@ pluginManagement {
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        mavenLocal()
         maven {
             url = uri("https://maven.pkg.github.com/aecsocket/minecommons")
             credentials {

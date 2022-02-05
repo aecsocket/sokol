@@ -1,7 +1,23 @@
 package com.github.aecsocket.sokol.core.stat;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiConsumer;
+
+import com.github.aecsocket.minecommons.core.serializers.Serializers;
+import com.github.aecsocket.sokol.core.rule.Rule;
+
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.objectmapping.ConfigSerializable;
+import org.spongepowered.configurate.objectmapping.meta.Required;
+import org.spongepowered.configurate.serialize.SerializationException;
+import org.spongepowered.configurate.serialize.TypeSerializer;
+
 public final class StatIntermediate {
-    /*public record Priority(int value, boolean reverse) {
+    public record Priority(int value, boolean reverse) {
         public static final Priority MIN = forwardPriority(Integer.MIN_VALUE);
         public static final Priority MAX = reversePriority(Integer.MAX_VALUE);
         public static final Priority DEFAULT = forwardPriority(0);
@@ -31,9 +47,9 @@ public final class StatIntermediate {
                     List<? extends ConfigurationNode> nodes = node.childrenList();
                     if (nodes.size() != 1)
                         throw new SerializationException("Reverse priority must have 1 number element");
-                    return reversePriority(require(nodes.get(0), int.class));
+                    return reversePriority(Serializers.require(nodes.get(0), int.class));
                 }
-                return forwardPriority(require(node, int.class));
+                return forwardPriority(Serializers.require(node, int.class));
             }
         }
     }
@@ -47,7 +63,7 @@ public final class StatIntermediate {
     }
 
     @ConfigSerializable
-    public record MapData(@Required StatMap entries, @Required Priority priority, @Required NodeRule rule) {}
+    public record MapData(@Required StatMap entries, @Required Priority priority, @Required Rule rule) {}
 
     private final List<MapData> forward;
     private final List<MapData> reverse;
@@ -88,11 +104,11 @@ public final class StatIntermediate {
             forward.add(data);
     }
 
-    public void addForward(StatMap stats, Priority priority, NodeRule rule) {
+    public void addForward(StatMap stats, Priority priority, Rule rule) {
         forward.add(new MapData(stats, priority, rule));
     }
 
-    public void addReverse(StatMap stats, Priority priority, NodeRule rule) {
+    public void addReverse(StatMap stats, Priority priority, Rule rule) {
         reverse.add(new MapData(stats, priority, rule));
     }
 
@@ -117,9 +133,9 @@ public final class StatIntermediate {
 
             StatIntermediate result = new StatIntermediate();
             for (var child : node.childrenList()) {
-                result.add(require(child, MapData.class));
+                result.add(Serializers.require(child, MapData.class));
             }
             return result;
         }
-    }*/
+    }
 }

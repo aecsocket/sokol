@@ -25,6 +25,7 @@ public interface BlueprintNode extends SokolNode {
 
     @Override Optional<? extends BlueprintNode> get(NodePath path);
     @Override Optional<? extends BlueprintNode> get(String... path);
+    @Override Optional<? extends BlueprintNode> get(String path);
 
     void visitBlueprints(Consumer<BlueprintNode> visitor);
 
@@ -36,9 +37,7 @@ public interface BlueprintNode extends SokolNode {
         N extends TreeNode.Scoped<N, B, C, ?, ?>,
         C extends SokolComponent.Scoped<C, ?, ?>,
         F extends FeatureData<F, ?, ?, N>
-    > extends BlueprintNode, MapNode.Mutable<B> {
-        @Override C value();
-
+    > extends BlueprintNode, MapNode.Scoped<B> {
         @Override Map<String, F> featureData();
         @Override Optional<F> featureData(String key);
 

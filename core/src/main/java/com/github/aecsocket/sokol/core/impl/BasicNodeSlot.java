@@ -3,11 +3,8 @@ package com.github.aecsocket.sokol.core.impl;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.github.aecsocket.sokol.core.IncompatibleException;
-import com.github.aecsocket.sokol.core.NodeSlot;
-import com.github.aecsocket.sokol.core.Rule;
-import com.github.aecsocket.sokol.core.SokolComponent;
-import com.github.aecsocket.sokol.core.SokolNode;
+import com.github.aecsocket.sokol.core.*;
+import com.github.aecsocket.sokol.core.rule.Rule;
 
 public class BasicNodeSlot<
     S extends BasicNodeSlot<S, C>,
@@ -30,9 +27,14 @@ public class BasicNodeSlot<
 
     @Override public Set<String> tags() { return new HashSet<>(tags); }
     @Override public boolean tagged(String key) { return tags.contains(key); }
-    
+
+    @Override
+    public boolean required() {
+        return tags.contains(REQUIRED);
+    }
+
     @Override
     public <N extends SokolNode> void compatible(N target, N parent) throws IncompatibleException {
-        return; // todo
+        rule.withParent(parent).applies(target);
     }
 }
