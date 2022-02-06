@@ -37,10 +37,11 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
                     ItemStack item = inventory.getItem(slot);
                     persistence.load(item).ifPresent(bp ->
                         bp.asTreeNode(PaperContext.context(
-                                user,
-                                new PaperItemStack(this, item),
-                                PaperItemSlot.itemSlot(this, player, slot)
-                        )).tree().andCall(PaperEvents.Hold::new));
+                            user,
+                            new PaperItemStack(this, item),
+                            PaperItemSlot.itemSlot(this, player, slot)
+                        )).tree().andCall(PaperEvents.Hold::new)
+                    );
                 }
             }
         }, 0, 1);

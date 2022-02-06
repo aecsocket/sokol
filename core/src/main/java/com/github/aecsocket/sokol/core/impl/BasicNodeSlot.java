@@ -10,8 +10,8 @@ public class BasicNodeSlot<
     S extends BasicNodeSlot<S, C>,
     C extends SokolComponent.Scoped<C, S, ?>
 > implements NodeSlot.Scoped<S, C> {
-    protected final C parent;
-    protected final String key;
+    protected C parent;
+    protected String key;
     protected final Set<String> tags;
     protected final Rule rule;
 
@@ -36,5 +36,12 @@ public class BasicNodeSlot<
     @Override
     public <N extends SokolNode> void compatible(N target, N parent) throws IncompatibleException {
         rule.withParent(parent).applies(target);
+    }
+
+    protected void setUp(C parent, String key) {
+        if (this.parent != null)
+            throw new IllegalStateException("Slot is already set up");
+        this.parent = parent;
+        this.key = key;
     }
 }

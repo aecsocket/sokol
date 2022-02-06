@@ -3,7 +3,6 @@ package com.github.aecsocket.sokol.core.impl;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 import com.github.aecsocket.minecommons.core.node.MutableAbstractMapNode;
