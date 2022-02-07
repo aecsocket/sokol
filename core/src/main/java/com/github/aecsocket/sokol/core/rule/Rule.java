@@ -45,7 +45,7 @@ public interface Rule {
         private @Nullable Map<String, Class<? extends Rule>> types;
 
         public Map<String, Class<? extends Rule>> types() { return types; }
-        public void types(Map<String, Class<? extends Rule>> types) { this.types = types; }
+        public void types(@Nullable Map<String, Class<? extends Rule>> types) { this.types = types; }
 
         @Override
         public void serialize(Type type, @Nullable Rule obj, ConfigurationNode node) throws SerializationException {

@@ -32,4 +32,4 @@ protocolLib = { group = "com.comphenix.protocol", name = "ProtocolLib", version.
 
 junit = [ "jupiterApi", "jupiterEngine" ]
 cloudPaper = [ "cloudPaper", "cloudExtras" ]
-libsPaper = [ "cloudPaper", "cloudExtras" ]
+libsPaper = [ "cloudPaper", "cloudExtras", "configurate" ]

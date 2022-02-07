@@ -76,7 +76,7 @@ public final class PaperTreeNode extends AbstractTreeNode<
 
     @Override
     protected PaperItemStack createItem() {
-        //return new PaperItemStack(platform, tree.stats().require(STAT_ITEM).buildStack());
+        return new PaperItemStack(platform, tree.stats().require(PaperComponent.STAT_ITEM).stack());
     }
 
     @Override

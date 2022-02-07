@@ -68,7 +68,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
         private @Nullable Map<String, Stat<?>> types;
 
         public Map<String, Stat<?>> types() { return types; }
-        public void types(Map<String, Stat<?>> types) { this.types = types; }
+        public void types(@Nullable Map<String, Stat<?>> types) { this.types = types; }
 
         @Override
         public void serialize(Type type, @Nullable StatMap obj, ConfigurationNode node) throws SerializationException {

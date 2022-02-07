@@ -74,25 +74,22 @@ public abstract class AbstractComponent<
         F extends Feature<F, P>,
         P extends FeatureProfile<P, F, ?>
     > implements TypeSerializer<C> {
-        private final SokolPlatform.Scoped<C, F> platform;
-
-        public Serializer(SokolPlatform.Scoped<C, F> platform) {
-            this.platform = platform;
-        }
+        protected abstract SokolPlatform.Scoped<C, F> platform();
+        protected abstract Map<String, Stat<?>> defaultStatTypes();
+        protected abstract Map<String, Class<? extends Rule>> defaultRuleTypes();
+        protected abstract Class<S> slotType();
+        protected abstract C create(
+            String id, Set<String> tags, Map<String, P> features, Map<String, S> slots, StatIntermediate stats
+        );
 
         @Override
         public void serialize(Type type, @Nullable C obj, ConfigurationNode node) throws SerializationException {
             throw new UnsupportedOperationException();
         }
 
-        protected abstract Class<S> slotType();
-
-        protected abstract C create(
-            String id, Set<String> tags, Map<String, S> slots, Map<String, P> features, StatIntermediate stats
-        );
-
         @Override
         public C deserialize(Type type, ConfigurationNode node) throws SerializationException {
+            var platform = platform();
             List<F> providers = new ArrayList<>();
             Map<F, ConfigurationNode> featureConfigs = new HashMap<>();
             for (var entry : node.node(FEATURES).childrenMap().entrySet()) {
@@ -110,8 +107,8 @@ public abstract class AbstractComponent<
                     .orElseThrow(() -> new SerializationException(child, type, "No feature with ID `" + id + "`")));
             }
 
-            Map<String, Stat<?>> statTypes = new HashMap<>();
-            Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>();
+            Map<String, Stat<?>> statTypes = new HashMap<>(defaultStatTypes());
+            Map<String, Class<? extends Rule>> ruleTypes = new HashMap<>(defaultRuleTypes());
             for (var provider : providers) {
                 statTypes.putAll(provider.statTypes().map());
                 String id = provider.id();
@@ -143,8 +140,8 @@ public abstract class AbstractComponent<
             C result = create(
                 SokolPlatform.deserializeId(type, node),
                 node.node(TAGS).get(new TypeToken<Set<String>>() {}, Collections.emptySet()),
-                slots,
                 features,
+                slots,
                 node.node(STATS).get(StatIntermediate.class, new StatIntermediate())
             );
 

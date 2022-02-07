@@ -19,6 +19,7 @@ dependencies {
     compileOnly(libs.minecommonsPaper)
     compileOnly(libs.bundles.cloudPaper)
     compileOnly(libs.protocolLib)
+    compileOnly(libs.configurate)
     library(libs.bundles.libsPaper)
 }
 

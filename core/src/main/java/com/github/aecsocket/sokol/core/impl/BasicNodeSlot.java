@@ -10,8 +10,8 @@ public class BasicNodeSlot<
     S extends BasicNodeSlot<S, C>,
     C extends SokolComponent.Scoped<C, S, ?>
 > implements NodeSlot.Scoped<S, C> {
-    protected C parent;
-    protected String key;
+    protected transient C parent;
+    protected transient String key;
     protected final Set<String> tags;
     protected final Rule rule;
 

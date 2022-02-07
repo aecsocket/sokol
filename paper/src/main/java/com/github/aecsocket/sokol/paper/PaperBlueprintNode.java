@@ -55,4 +55,26 @@ public final class PaperBlueprintNode extends AbstractBlueprintNode<
     public PaperTreeNode asTreeNode(Context context) {
         return asTreeNode(context, null, null).build();
     }
+
+    public static final class Serializer extends AbstractBlueprintNode.Serializer<
+        PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeature, PaperFeatureProfile, PaperFeatureData, PaperFeatureInstance
+    > {
+        private final SokolPlugin platform;
+
+        public Serializer(SokolPlugin platform) {
+            this.platform = platform;
+        }
+
+        @Override public SokolPlugin platform() { return platform; }
+
+        @Override
+        protected PaperBlueprintNode create(
+            PaperComponent value, Map<String, PaperFeatureData> featureData, @Nullable PaperBlueprintNode parent, @Nullable String key
+        ) {
+            if (parent == null || key == null)
+                return new PaperBlueprintNode(platform, value, featureData);
+            else
+                return new PaperBlueprintNode(platform, value, featureData, parent, key);
+        }
+    }
 }
