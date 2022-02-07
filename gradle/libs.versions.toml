@@ -4,6 +4,7 @@ junit = "5.7.2"
 
 interfaces = "1.0.0-SNAPSHOT"
 minecommons = "1.4.0-SNAPSHOT"
+findBugs = "3.0.2"
 configurate = "4.1.2"
 bstats = "2.2.1"
 
@@ -17,6 +18,7 @@ jupiterApi = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.
 jupiterEngine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junit" }
 
 minecommons = { group = "com.github.aecsocket", name = "minecommons-core", version.ref = "minecommons" }
+findBugs = { group = "com.google.code.findbugs", name = "jsr305", version.ref = "findBugs" }
 configurate = { group = "org.spongepowered", name = "configurate-hocon", version.ref = "configurate" }
 interfaces = { group = "org.incendo.interfaces", name = "interfaces-core", version.ref = "interfaces" }
 

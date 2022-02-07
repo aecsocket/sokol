@@ -5,6 +5,7 @@ plugins {
 
 dependencies {
     compileOnly(libs.minecommons)
+    compileOnly(libs.findBugs)
     compileOnly(libs.configurate)
     implementation(libs.interfaces)
 

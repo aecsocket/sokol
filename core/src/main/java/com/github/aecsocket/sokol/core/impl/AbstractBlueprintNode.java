@@ -83,7 +83,7 @@ public abstract class AbstractBlueprintNode<
 
     public abstract static class Serializer<
         B extends AbstractBlueprintNode<B, N, C, D>,
-        N extends TreeNode.Scoped<N, B, C, I, ?>,
+        N extends TreeNode.Scoped<N, B, C, I, ? extends ItemStack.Scoped<?, B>>,
         C extends SokolComponent.Scoped<C, ?, P>,
         F extends Feature<F, P>,
         P extends FeatureProfile<P, F, D>,
