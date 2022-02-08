@@ -1,6 +1,6 @@
 package com.github.aecsocket.sokol.core.stat;
 
-public class StatAccessException extends RuntimeException {
+public class StatAccessException extends Exception {
     public StatAccessException() {}
 
     public StatAccessException(String message) {

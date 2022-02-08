@@ -1,6 +1,7 @@
 package com.github.aecsocket.sokol.core;
 
 import com.github.aecsocket.minecommons.core.i18n.I18N;
+import com.github.aecsocket.minecommons.core.serializers.Serializers;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.registry.Registry;
 import com.github.aecsocket.sokol.core.registry.ValidationException;
@@ -31,7 +32,17 @@ public interface SokolPlatform {
         void tearDownSerializers();
     }
 
-    static String deserializeId(Type type, ConfigurationNode node) throws SerializationException {
+    static String idByValue(Type type, ConfigurationNode node) throws SerializationException {
+        String id = Serializers.require(node, String.class);
+        try {
+            Keyed.validate(id);
+        } catch (ValidationException e) {
+            throw new SerializationException(node, type, "Invalid ID `" + id + "`");
+        }
+        return id;
+    }
+
+    static String idByKey(Type type, ConfigurationNode node) throws SerializationException {
         String id = ""+node.key();
         try {
             Keyed.validate(id);

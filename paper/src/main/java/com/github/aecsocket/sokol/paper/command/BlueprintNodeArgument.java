@@ -15,6 +15,7 @@ import com.github.aecsocket.sokol.paper.SokolPlugin;
 import org.bukkit.entity.Player;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.spongepowered.configurate.ConfigurateException;
+import org.spongepowered.configurate.serialize.SerializationException;
 
 import javax.annotation.Nullable;
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ import java.util.function.Predicate;
  * @param <C> The command sender type.
  */
 public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlueprintNode> {
+    /** When a component for the node is not found in the registry. */
+    public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY = Caption.of("argument.parse.failure.blueprint_node.registry");
     /** When a node cannot be parsed. */
     public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC = Caption.of("argument.parse.failure.blueprint_node.generic");
     /** When a parsed node is not considered valid. */
@@ -179,13 +182,17 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
                 value = plugin.loaderBuilder()
                     .buildAndLoadString(input)
                     .get(PaperBlueprintNode.class);
+                if (value == null)
+                    return ArgumentParseResult.failure(new ParseException(input, ctx, new NullPointerException()));
+            } catch (SerializationException e) {
+                return ArgumentParseResult.failure(new ParseException(input, ctx, e));
             } catch (ConfigurateException e) {
-                value = plugin.components().get(input)
-                    .map(PaperBlueprintNode::new)
-                    .orElse(null);
+                var opt = plugin.components().get(input)
+                    .map(PaperBlueprintNode::new);
+                if (opt.isEmpty())
+                    return ArgumentParseResult.failure(new RegistryException(input, ctx));
+                value = opt.get();
             }
-            if (value == null)
-                return ArgumentParseResult.failure(new ParseException(input, ctx, new NullPointerException()));
 
             if (test != null && !test.test(value))
                 return ArgumentParseResult.failure(new InvalidException(value.value().id(), ctx));
@@ -205,6 +212,13 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
             result.add(SELF);
             result.addAll(plugin.components().keySet());
             return result;
+        }
+    }
+
+    public static final class RegistryException extends ParserException {
+        public RegistryException(String input, CommandContext<?> ctx) {
+            super(PaperBlueprintNode.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY,
+                CaptionVariable.of("input", input));
         }
     }
 

@@ -10,7 +10,6 @@ import com.github.aecsocket.sokol.core.rule.Rule;
 import com.github.aecsocket.sokol.core.stat.Stat;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 
-import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -131,15 +130,20 @@ public abstract class AbstractComponent<
                 }
             }
 
+            Set<String> tags = new HashSet<>();
+            for (var child : node.node(TAGS).childrenList()) {
+                tags.add(SokolPlatform.idByValue(String.class, child));
+            }
+
             Map<String, S> slots = new HashMap<>();
             for (var entry : node.node(SLOTS).childrenMap().entrySet()) {
                 ConfigurationNode config = entry.getValue();
-                slots.put(SokolPlatform.deserializeId(slotType(), config), config.get(slotType()));
+                slots.put(SokolPlatform.idByKey(slotType(), config), config.get(slotType()));
             }
 
             C result = create(
-                SokolPlatform.deserializeId(type, node),
-                node.node(TAGS).get(new TypeToken<Set<String>>() {}, Collections.emptySet()),
+                SokolPlatform.idByKey(type, node),
+                tags,
                 features,
                 slots,
                 node.node(STATS).get(StatIntermediate.class, new StatIntermediate())

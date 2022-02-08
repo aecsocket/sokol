@@ -7,25 +7,31 @@ plugins {
 }
 
 dependencies {
-    api(projects.sokolCore)
+    api(projects.sokolCore) {
+        exclude("com.github.aecsocket", "minecommons-core")
+    }
     compileOnly(libs.paper) {
         exclude("junit", "junit")
     }
 
+    implementation(libs.minecommonsPaper)
     implementation(libs.bstatsPaper)
-    implementation(libs.interfacesPaper)
 
-    // Plugins + library loader
-    compileOnly(libs.minecommonsPaper)
-    compileOnly(libs.bundles.cloudPaper)
     compileOnly(libs.protocolLib)
-    compileOnly(libs.configurate)
-    library(libs.bundles.libsPaper)
 }
 
 tasks {
     shadowJar {
         listOf(
+            "io.leangen.geantyref",
+            "org.spongepowered.configurate",
+            "com.typesafe.config",
+            "au.com.bytecode.opencsv",
+            "org.incendo.interfaces",
+            "cloud.commandframework",
+            "net.kyori.adventure.text.minimessage",
+            "net.kyori.adventure.serializer.configurate4",
+            "com.github.aecsocket.minecommons",
             "org.bstats"
         ).forEach { relocate(it, "${rootProject.group}.${rootProject.name}.lib.$it") }
     }
@@ -35,7 +41,7 @@ tasks {
     }
 
     runServer {
-        minecraftVersion("1.18.1")
+        minecraftVersion(libs.versions.minecraft.forUseAtConfigurationTime().get())
     }
 }
 
@@ -43,7 +49,7 @@ bukkit {
     name = "Sokol"
     main = "${project.group}.${rootProject.name}.paper.SokolPlugin"
     apiVersion = "1.18"
-    depend = listOf("Minecommons", "ProtocolLib")
+    depend = listOf("ProtocolLib")
     website = "https://github.com/aecsocket/sokol"
     authors = listOf("aecsocket")
 }

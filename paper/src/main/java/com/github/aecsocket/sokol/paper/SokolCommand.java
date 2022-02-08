@@ -21,9 +21,17 @@ import java.util.List;
 import java.util.Locale;
 
 /* package */ final class SokolCommand extends BaseCommand<SokolPlugin> {
+    public static final String
+        ERROR_ITEM_CREATION = "error.item_creation",
+        COMMAND_GIVE = "command.give";
+
     public SokolCommand(SokolPlugin plugin) throws Exception {
         super(plugin, "sokol",
                 (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
+
+        registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY);
+        registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC);
+        registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_INVALID);
 
         manager.command(root
             .literal("give", ArgumentDescription.of("Gives a blueprint tree to players."))
@@ -36,7 +44,7 @@ import java.util.Locale;
     }
 
     private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
-        PaperBlueprintNode blueprint = ctx.get("blueprint");
+        PaperBlueprintNode blueprint = ctx.get("node");
 
         ItemStack baseItem;
         try {
@@ -46,7 +54,7 @@ import java.util.Locale;
                     : PaperContext.context(PaperItemUser.user(plugin, pSender))
             ).asItem().handle();
         } catch (ItemCreationException e) {
-            throw error("item_creation", e);
+            throw error(ERROR_ITEM_CREATION, e);
         }
 
         @SuppressWarnings("ConstantConditions")
@@ -62,7 +70,7 @@ import java.util.Locale;
             }
         }
 
-        send(sender, locale, "give",
+        send(sender, locale, COMMAND_GIVE,
             c -> c.of("amount", ""+amount),
             c -> c.of("item", baseItem.displayName()),
             c -> c.of("targets", targets.size() == 1

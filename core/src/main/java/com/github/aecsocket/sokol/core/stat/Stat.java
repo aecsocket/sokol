@@ -117,6 +117,11 @@ public abstract class Stat<T> {
         public Node<T> copy() {
             return new Node<>(stat, op, next == null ? null : next.copy());
         }
+
+        @Override
+        public String toString() {
+            return op + (next == null ? "" : " -> " + next);
+        }
     }
 
     protected final String key;

@@ -8,6 +8,8 @@ import com.github.aecsocket.sokol.core.context.Context;
 import com.github.aecsocket.sokol.core.event.NodeEvent.CreateItem;
 import com.github.aecsocket.sokol.core.impl.AbstractTreeNode;
 
+import com.github.aecsocket.sokol.core.stat.StatAccessException;
+import com.github.aecsocket.sokol.core.world.ItemCreationException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PaperTreeNode extends AbstractTreeNode<
@@ -68,7 +70,11 @@ public final class PaperTreeNode extends AbstractTreeNode<
 
     @Override
     protected PaperItemStack createItem() {
-        return new PaperItemStack(value.platform(), tree.stats().require(PaperComponent.STAT_ITEM).stack());
+        try {
+            return new PaperItemStack(value.platform(), tree.stats().require(PaperComponent.STAT_ITEM).stack());
+        } catch (StatAccessException e) {
+            throw new ItemCreationException("Could not get item stat", e);
+        }
     }
 
     @Override

@@ -11,6 +11,7 @@ import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.registry.Registry;
 import com.github.aecsocket.sokol.core.rule.Rule;
 import com.github.aecsocket.sokol.core.stat.Stat;
+import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.paper.context.PaperContext;
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
@@ -79,7 +80,12 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
         super.configOptionsDefaults(serializers, mapperFactory);
         serializers
             .register(StatMap.class, statsSerializer)
-            .register(Rule.class, rulesSerializer);
+            .register(Rule.class, rulesSerializer)
+            .register(StatIntermediate.class, new StatIntermediate.Serializer())
+            .register(StatIntermediate.Priority.class, new StatIntermediate.Priority.Serializer())
+
+            .register(PaperComponent.class, new PaperComponent.Serializer(this))
+            .register(PaperBlueprintNode.class, new PaperBlueprintNode.Serializer(this));
     }
 
     @Override

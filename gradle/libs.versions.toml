@@ -1,15 +1,13 @@
 [versions]
 
 junit = "5.7.2"
+minecraft = "1.18.1"
 
-interfaces = "1.0.0-SNAPSHOT"
 minecommons = "1.4.0-SNAPSHOT"
 findBugs = "3.0.2"
-configurate = "4.1.2"
 bstats = "2.2.1"
 
 paper = "1.18.1-R0.1-SNAPSHOT"
-cloud = "1.5.0"
 protocolLib = "4.8.0-SNAPSHOT"
 
 [libraries]
@@ -19,19 +17,12 @@ jupiterEngine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", ve
 
 minecommons = { group = "com.github.aecsocket", name = "minecommons-core", version.ref = "minecommons" }
 findBugs = { group = "com.google.code.findbugs", name = "jsr305", version.ref = "findBugs" }
-configurate = { group = "org.spongepowered", name = "configurate-hocon", version.ref = "configurate" }
-interfaces = { group = "org.incendo.interfaces", name = "interfaces-core", version.ref = "interfaces" }
 
 paper = { group = "io.papermc.paper", name = "paper-api", version.ref = "paper" }
 bstatsPaper = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats" }
-interfacesPaper = { group = "org.incendo.interfaces", name = "interfaces-paper", version.ref = "interfaces" }
 minecommonsPaper = { group = "com.github.aecsocket", name = "minecommons-paper", version.ref = "minecommons" }
-cloudPaper = { group = "cloud.commandframework", name = "cloud-paper", version.ref = "cloud" }
-cloudExtras = { group = "cloud.commandframework", name = "cloud-minecraft-extras", version.ref = "cloud" }
 protocolLib = { group = "com.comphenix.protocol", name = "ProtocolLib", version.ref = "protocolLib" }
 
 [bundles]
 
 junit = [ "jupiterApi", "jupiterEngine" ]
-cloudPaper = [ "cloudPaper", "cloudExtras" ]
-libsPaper = [ "cloudPaper", "cloudExtras", "configurate" ]

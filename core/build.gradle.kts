@@ -4,13 +4,10 @@ plugins {
 }
 
 dependencies {
-    compileOnly(libs.minecommons)
+    implementation(libs.minecommons)
     compileOnly(libs.findBugs)
-    compileOnly(libs.configurate)
-    implementation(libs.interfaces)
 
     testImplementation(libs.bundles.junit)
-    testImplementation(libs.minecommons)
 }
 
 publishing {

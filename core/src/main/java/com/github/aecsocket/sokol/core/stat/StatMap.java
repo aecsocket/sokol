@@ -31,7 +31,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
 
     public <T> Optional<T> value(Stat<T> key) throws StatAccessException {
         @SuppressWarnings("unchecked")
-        Stat.Node<T> node = (Stat.Node<T>) get(key);
+        Stat.Node<T> node = (Stat.Node<T>) get(key.key);
         return node == null ? key.defaultValue() : Optional.of(node.compute());
     }
 
@@ -106,19 +106,19 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
                 if (!(nodes = opNode.childrenList()).isEmpty() && nodes.get(0).raw() instanceof String opName) {
                     opType = opTypes.get(opName);
                     if (opType == null)
-                        throw new SerializationException(node, type, "Invalid operation type `" + opName + "`");
+                        throw new SerializationException(opNode, type, "Invalid operation type `" + opName + "`");
                     nodes.remove(0);
                     args = nodes.toArray(new ConfigurationNode[0]);
                 } else {
                     opType = opTypes.defaultOp()
-                        .orElseThrow(() -> new SerializationException(node, type, "No default operation - you must provide an operator"));
-                    args = new ConfigurationNode[] { node };
+                        .orElseThrow(() -> new SerializationException(opNode, type, "No default operation - you must provide an operator"));
+                    args = new ConfigurationNode[] { opNode };
                 }
 
                 if (opType.args().length != args.length)
-                    throw new SerializationException(node, type, "Operation `" + opType.name() + "` requires [" +
+                    throw new SerializationException(opNode, type, "Operation `" + opType.name() + "` requires [" +
                             String.join(", ", opType.args()) + "], found " + nodes.size());
-                Stat.Op<T> op = opType.create(type, node, args);
+                Stat.Op<T> op = opType.create(type, opNode, args);
                 result.chain(stat.node(op));
             }
         }

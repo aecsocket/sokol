@@ -1,10 +1,12 @@
 package com.github.aecsocket.sokol.core.impl;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.rule.Rule;
+import com.github.aecsocket.sokol.core.rule.impl.LogicRule;
 
 public class BasicNodeSlot<
     S extends BasicNodeSlot<S, C>,
@@ -20,6 +22,11 @@ public class BasicNodeSlot<
         this.key = key;
         this.tags = tags;
         this.rule = rule;
+    }
+
+    protected BasicNodeSlot() {
+        tags = Collections.emptySet();
+        rule = null;
     }
 
     @Override public C parent() { return parent; }
