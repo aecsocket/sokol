@@ -30,7 +30,7 @@ public final class PaperComponent extends AbstractComponent<
         this.platform = platform;
     }
 
-    @Override public SokolPlatform platform() { return platform; }
+    @Override public SokolPlugin platform() { return platform; }
 
     public static final class Serializer extends AbstractComponent.Serializer<
         PaperComponent, PaperNodeSlot, PaperFeature, PaperFeatureProfile

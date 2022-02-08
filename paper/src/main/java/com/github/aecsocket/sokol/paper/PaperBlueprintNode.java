@@ -10,31 +10,28 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public final class PaperBlueprintNode extends AbstractBlueprintNode<
     PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData
 > {
-    private final SokolPlugin platform;
-
     public PaperBlueprintNode(PaperBlueprintNode o) {
         super(o);
-        platform = o.platform;
     }
 
-    public PaperBlueprintNode(SokolPlugin platform, AbstractBlueprintNode<PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData> o) {
+    public PaperBlueprintNode(AbstractBlueprintNode<PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData> o) {
         super(o);
-        this.platform = platform;
     }
 
-    private PaperBlueprintNode(SokolPlugin platform, PaperComponent value, Map<String, PaperFeatureData> featureData, @Nullable Key<PaperBlueprintNode> key) {
+    private PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData> featureData, @Nullable Key<PaperBlueprintNode> key) {
         super(value, featureData, key);
-        this.platform = platform;
     }
 
-    public PaperBlueprintNode(SokolPlugin platform, PaperComponent value, Map<String, PaperFeatureData> featureData, PaperBlueprintNode parent, String key) {
+    public PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData> featureData, PaperBlueprintNode parent, String key) {
         super(value, featureData, parent, key);
-        this.platform = platform;
     }
 
-    public PaperBlueprintNode(SokolPlugin platform, PaperComponent value, Map<String, PaperFeatureData> featureData) {
+    public PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData> featureData) {
         super(value, featureData);
-        this.platform = platform;
+    }
+
+    public PaperBlueprintNode(PaperComponent value) {
+        super(value);
     }
 
     @Override public PaperBlueprintNode self() { return this; }
@@ -42,8 +39,8 @@ public final class PaperBlueprintNode extends AbstractBlueprintNode<
 
     private PaperTreeNode asTreeNode(Context context, @Nullable PaperTreeNode parent, @Nullable String key) {
         PaperTreeNode node = parent == null || key == null
-            ? new PaperTreeNode(platform, value, featureData, context)
-            : new PaperTreeNode(platform, value, featureData, context, parent, key);
+            ? new PaperTreeNode(value, featureData, context)
+            : new PaperTreeNode(value, featureData, context, parent, key);
         for (var entry : children.entrySet()) {
             String subKey = entry.getKey();
             node.setUnsafe(subKey, entry.getValue().asTreeNode(context, node, subKey));
@@ -72,9 +69,9 @@ public final class PaperBlueprintNode extends AbstractBlueprintNode<
             PaperComponent value, Map<String, PaperFeatureData> featureData, @Nullable PaperBlueprintNode parent, @Nullable String key
         ) {
             if (parent == null || key == null)
-                return new PaperBlueprintNode(platform, value, featureData);
+                return new PaperBlueprintNode(value, featureData);
             else
-                return new PaperBlueprintNode(platform, value, featureData, parent, key);
+                return new PaperBlueprintNode(value, featureData, parent, key);
         }
     }
 }

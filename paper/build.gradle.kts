@@ -26,7 +26,7 @@ dependencies {
 tasks {
     shadowJar {
         listOf(
-                "org.bstats"
+            "org.bstats"
         ).forEach { relocate(it, "${rootProject.group}.${rootProject.name}.lib.$it") }
     }
 

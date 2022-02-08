@@ -85,7 +85,7 @@ public final class SokolPersistence {
                 .orElseThrow(() -> new IllegalArgumentException("No component with ID `" + id + "`"));
 
             Map<String, PaperFeatureData> features = new HashMap<>();
-            PaperBlueprintNode root = new PaperBlueprintNode(plugin, value, features);
+            PaperBlueprintNode root = new PaperBlueprintNode(value, features);
 
             PersistentDataContainer pdcSlots = pdc.get(keySlots, PersistentDataType.TAG_CONTAINER);
             if (pdcSlots != null) {

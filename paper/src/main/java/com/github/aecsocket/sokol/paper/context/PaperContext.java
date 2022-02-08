@@ -8,6 +8,10 @@ import com.github.aecsocket.sokol.paper.world.slot.PaperItemSlot;
 public interface PaperContext extends Context.User {
     @Override PaperItemUser user();
 
+    static PaperContext context(PaperItemUser user) {
+        return new PaperContextImpl(user);
+    }
+
     interface Item extends PaperContext, Context.Item<PaperItemStack> {
         @Override PaperItemSlot slot();
     }

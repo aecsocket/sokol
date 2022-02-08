@@ -1,6 +1,7 @@
 package com.github.aecsocket.sokol.core.impl;
 
 import java.lang.reflect.Type;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -50,6 +51,11 @@ public abstract class AbstractBlueprintNode<
     protected AbstractBlueprintNode(C value, Map<String, F> featureData) {
         this.value = value;
         this.featureData = featureData;
+    }
+
+    public AbstractBlueprintNode(C value) {
+        this.value = value;
+        featureData = Collections.emptyMap();
     }
 
     @Override public C value() { return value; }
