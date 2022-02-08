@@ -3,6 +3,7 @@ package com.github.aecsocket.sokol.core;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
@@ -14,6 +15,7 @@ public interface SokolNode extends MapNode {
     SokolComponent value();
 
     boolean hasFeature(String key);
+    Set<String> featureKeys();
     Optional<? extends FeatureData<?, ?, ?, ?>> featureData(String key);
 
     boolean complete();

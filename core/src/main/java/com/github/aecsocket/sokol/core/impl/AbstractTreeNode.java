@@ -1,9 +1,6 @@
 package com.github.aecsocket.sokol.core.impl;
 
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 
 import com.github.aecsocket.minecommons.core.i18n.I18N;
@@ -102,6 +99,7 @@ public abstract class AbstractTreeNode<
 
     @Override public Map<String, F> features() { return new HashMap<>(features); }
     @Override public boolean hasFeature(String key) { return features.containsKey(key); }
+    @Override public Set<String> featureKeys() { return features.keySet(); }
     @Override public Optional<F> feature(String key) { return Optional.ofNullable(features.get(key)); }
     @Override public Optional<? extends FeatureData<?, ?, F, N>> featureData(String key) { return feature(key).map(FeatureInstance::asData); }
 

@@ -1,10 +1,7 @@
 package com.github.aecsocket.sokol.core.impl;
 
 import java.lang.reflect.Type;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 import java.util.function.Consumer;
 
 import com.github.aecsocket.minecommons.core.node.MutableAbstractMapNode;
@@ -62,6 +59,7 @@ public abstract class AbstractBlueprintNode<
     
     @Override public Map<String, F> featureData() { return new HashMap<>(featureData); }
     @Override public boolean hasFeature(String key) { return featureData.containsKey(key); }
+    @Override public Set<String> featureKeys() { return featureData.keySet(); }
     @Override public Optional<F> featureData(String key) { return Optional.ofNullable(featureData.get(key)); }
 
     @Override

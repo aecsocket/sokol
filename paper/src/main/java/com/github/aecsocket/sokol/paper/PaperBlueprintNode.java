@@ -9,7 +9,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PaperBlueprintNode extends AbstractBlueprintNode<
     PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData
-> {
+> implements PaperNode {
     public PaperBlueprintNode(PaperBlueprintNode o) {
         super(o);
     }

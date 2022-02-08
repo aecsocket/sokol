@@ -2,6 +2,7 @@ package com.github.aecsocket.sokol.paper;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import com.github.aecsocket.sokol.core.Tree;
 import com.github.aecsocket.sokol.core.context.Context;
@@ -10,11 +11,12 @@ import com.github.aecsocket.sokol.core.impl.AbstractTreeNode;
 
 import com.github.aecsocket.sokol.core.stat.StatAccessException;
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
+import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PaperTreeNode extends AbstractTreeNode<
     PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance, PaperItemStack
-> {
+> implements PaperNode {
     public PaperTreeNode(PaperTreeNode o) {
         super(o);
     }
@@ -48,6 +50,11 @@ public final class PaperTreeNode extends AbstractTreeNode<
 
     @Override public SokolPlugin platform() { return value.platform(); }
 
+    @Override
+    public Optional<? extends PaperFeatureData> featureData(String key) {
+        return feature(key).map(PaperFeatureInstance::asData);
+    }
+
     private PaperBlueprintNode asBlueprintNode(@Nullable PaperBlueprintNode parent, @Nullable String key) {
         Map<String, PaperFeatureData> featureData = new HashMap<>();
         for (var entry : features.entrySet()) {
@@ -71,7 +78,11 @@ public final class PaperTreeNode extends AbstractTreeNode<
     @Override
     protected PaperItemStack createItem() {
         try {
-            return new PaperItemStack(value.platform(), tree.stats().require(PaperComponent.STAT_ITEM).stack());
+            ItemStack item = tree.stats().require(PaperComponent.STAT_ITEM).stack();
+            item.editMeta(meta -> {
+                value.platform().persistence().save(meta.getPersistentDataContainer(), this);
+            });
+            return new PaperItemStack(value.platform(), item);
         } catch (StatAccessException e) {
             throw new ItemCreationException("Could not get item stat", e);
         }

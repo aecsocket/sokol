@@ -14,7 +14,8 @@ import org.jetbrains.annotations.NotNull;
 
 public final class SokolPersistence {
     private final SokolPlugin plugin;
-    private final DataType dataType;
+    private final SerializeDataType toDataType;
+    private final DeserializeDataType fromDataType;
     private final NamespacedKey keyTree;
     private final NamespacedKey keyId;
     private final NamespacedKey keySlots;
@@ -22,7 +23,8 @@ public final class SokolPersistence {
 
     SokolPersistence(SokolPlugin plugin) {
         this.plugin = plugin;
-        dataType = new DataType();
+        toDataType = new SerializeDataType();
+        fromDataType = new DeserializeDataType();
         keyTree = plugin.key("tree");
         keyId = plugin.key("id");
         keySlots = plugin.key("slots");
@@ -30,7 +32,7 @@ public final class SokolPersistence {
     }
 
     public PaperBlueprintNode loadRaw(PersistentDataContainer pdc) throws IllegalArgumentException {
-        return pdc.get(keyTree, dataType);
+        return pdc.get(keyTree, fromDataType);
     }
 
     public Optional<PaperBlueprintNode> load(PersistentDataContainer pdc) {
@@ -49,12 +51,16 @@ public final class SokolPersistence {
         return load(item.getItemMeta().getPersistentDataContainer());
     }
 
-    private final class DataType implements PersistentDataType<PersistentDataContainer, PaperBlueprintNode> {
+    public void save(PersistentDataContainer pdc, PaperNode node) {
+        pdc.set(keyTree, toDataType, node);
+    }
+
+    private final class SerializeDataType implements PersistentDataType<PersistentDataContainer, PaperNode> {
         @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
-        @Override public Class<PaperBlueprintNode> getComplexType() { return PaperBlueprintNode.class; }
+        @Override public Class<PaperNode> getComplexType() { return PaperNode.class; }
 
         @Override
-        public PersistentDataContainer toPrimitive(PaperBlueprintNode node, PersistentDataAdapterContext ctx) {
+        public PersistentDataContainer toPrimitive(PaperNode node, PersistentDataAdapterContext ctx) {
             PersistentDataContainer pdc = ctx.newPersistentDataContainer();
             pdc.set(keyId, PersistentDataType.STRING, node.value().id());
 
@@ -65,15 +71,32 @@ public final class SokolPersistence {
             pdc.set(keySlots, PersistentDataType.TAG_CONTAINER, pdcSlots);
 
             PersistentDataContainer pdcFeatures = ctx.newPersistentDataContainer();
-            for (var entry : node.featureData().entrySet()) {
+            for (var key : node.featureKeys()) {
+                PaperFeatureData data = node.featureData(key)
+                    .orElseThrow();
                 PersistentDataContainer saved = ctx.newPersistentDataContainer();
-                entry.getValue().save(saved, ctx);
+                data.save(saved, ctx);
                 if (!saved.getKeys().isEmpty())
-                    pdcFeatures.set(plugin.key(entry.getKey()), PersistentDataType.TAG_CONTAINER, saved);
+                    pdcFeatures.set(plugin.key(key), PersistentDataType.TAG_CONTAINER, saved);
             }
             pdc.set(keyFeatures, PersistentDataType.TAG_CONTAINER, pdcFeatures);
 
             return pdc;
+        }
+
+        @Override
+        public PaperNode fromPrimitive(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {
+            throw new UnsupportedOperationException();
+        }
+    }
+
+    private final class DeserializeDataType implements PersistentDataType<PersistentDataContainer, PaperBlueprintNode> {
+        @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
+        @Override public Class<PaperBlueprintNode> getComplexType() { return PaperBlueprintNode.class; }
+
+        @Override
+        public PersistentDataContainer toPrimitive(PaperBlueprintNode node, PersistentDataAdapterContext ctx) {
+            throw new UnsupportedOperationException();
         }
 
         @Override
