@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 import java.util.function.BiFunction;
-import java.util.function.Predicate;
 
 /**
  * Command argument which parses a {@link PaperBlueprintNode}.
@@ -33,28 +32,20 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
     public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY = Caption.of("argument.parse.failure.blueprint_node.registry");
     /** When a node cannot be parsed. */
     public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC = Caption.of("argument.parse.failure.blueprint_node.generic");
-    /** When a parsed node is not considered valid. */
-    public static final Caption ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_INVALID = Caption.of("argument.parse.failure.blueprint_node.invalid");
     /** The token used for referencing the currently held node. */
     public static final String SELF = ".";
-
-    private final Predicate<PaperBlueprintNode> test;
 
     private BlueprintNodeArgument(
         final SokolPlugin plugin,
         final boolean required,
         final @NonNull String name,
-        final Predicate<PaperBlueprintNode> test,
         final @NonNull String defaultValue,
         final @Nullable BiFunction<@NonNull CommandContext<C>,
             @NonNull String, @NonNull List<@NonNull String>> suggestionsProvider,
         final @NonNull ArgumentDescription defaultDescription
     ) {
-        super(required, name, new BlueprintNodeParser<>(plugin, test), defaultValue, PaperBlueprintNode.class, suggestionsProvider, defaultDescription);
-        this.test = test;
+        super(required, name, new BlueprintNodeParser<>(plugin), defaultValue, PaperBlueprintNode.class, suggestionsProvider, defaultDescription);
     }
-
-    public Predicate<PaperBlueprintNode> test() { return test; }
 
     /**
      * Create a new builder
@@ -112,19 +103,11 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
 
     public static final class Builder<C> extends CommandArgument.Builder<C, PaperBlueprintNode> {
         private final SokolPlugin plugin;
-        private Predicate<PaperBlueprintNode> test;
 
         private Builder(final @NonNull SokolPlugin plugin, final @NonNull String name) {
             super(PaperBlueprintNode.class, name);
             this.plugin = plugin;
         }
-
-        /**
-         * Specifies a test that a node tree must pass to be considered valid.
-         * @param test The test.
-         * @return This instance.
-         */
-        public Builder<C> test(Predicate<PaperBlueprintNode> test) { this.test = test; return this; }
 
         /**
          * Builder a new example component
@@ -137,7 +120,6 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
                 plugin,
                 this.isRequired(),
                 this.getName(),
-                test,
                 this.getDefaultValue(),
                 this.getSuggestionsProvider(),
                 this.getDefaultDescription()
@@ -148,11 +130,9 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
 
     public static final class BlueprintNodeParser<C> implements ArgumentParser<C, PaperBlueprintNode> {
         private final SokolPlugin plugin;
-        private final @Nullable Predicate<PaperBlueprintNode> test;
 
-        public BlueprintNodeParser(SokolPlugin plugin, @Nullable Predicate<PaperBlueprintNode> test) {
+        public BlueprintNodeParser(SokolPlugin plugin) {
             this.plugin = plugin;
-            this.test = test;
         }
 
         @Override
@@ -182,22 +162,16 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
                 value = plugin.loaderBuilder()
                     .buildAndLoadString(input)
                     .get(PaperBlueprintNode.class);
-                if (value == null)
-                    return ArgumentParseResult.failure(new ParseException(input, ctx, new NullPointerException()));
+                return value == null
+                    ? ArgumentParseResult.failure(new ParseException(input, ctx, new NullPointerException()))
+                    : ArgumentParseResult.success(value);
             } catch (SerializationException e) {
                 return ArgumentParseResult.failure(new ParseException(input, ctx, e));
             } catch (ConfigurateException e) {
-                var opt = plugin.components().get(input)
-                    .map(PaperBlueprintNode::new);
-                if (opt.isEmpty())
-                    return ArgumentParseResult.failure(new RegistryException(input, ctx));
-                value = opt.get();
+                return plugin.components().get(input)
+                    .map(comp -> ArgumentParseResult.success(new PaperBlueprintNode(comp)))
+                    .orElseGet(() -> ArgumentParseResult.failure(new RegistryException(input, ctx)));
             }
-
-            if (test != null && !test.test(value))
-                return ArgumentParseResult.failure(new InvalidException(value.value().id(), ctx));
-
-            return ArgumentParseResult.success(value);
         }
 
         @Override
@@ -227,13 +201,6 @@ public final class BlueprintNodeArgument<C> extends CommandArgument<C, PaperBlue
             super(PaperBlueprintNode.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC,
                 CaptionVariable.of("input", input),
                 CaptionVariable.of("error", Text.mergeMessages(e)));
-        }
-    }
-
-    public static final class InvalidException extends ParserException {
-        public InvalidException(String id, CommandContext<?> ctx) {
-            super(PaperBlueprintNode.class, ctx, ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_INVALID,
-                CaptionVariable.of("id", id));
         }
     }
 }

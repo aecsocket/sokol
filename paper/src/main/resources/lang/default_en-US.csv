@@ -3,7 +3,7 @@ locale,en-US
 
 chat_prefix,,"{sokol} "
 
-keyed.hover,,"<id> <type>","<command>"
+keyed.hover,,"<type> <id>","Click to run <command>"
 
 error.command,,"<message>"
 error.exception.no_message,,"  <type>"
@@ -13,14 +13,17 @@ error.caption.argument.parse.failure.key,,"Could not parse key '{input}': {error
 error.caption.argument.parse.failure.blueprint_node.registry,,"Could not find component with ID '{input}'"
 error.caption.argument.parse.failure.blueprint_node.generic,,"Could not parse blueprint node: {error}"
 error.caption.argument.parse.failure.blueprint_node.invalid,,"Invalid blueprint node: {error}"
+error.caption.argument.parse.failure.component.registry,,"Could not find component with ID '{input}'"
 error.no_arg,,"No valid argument for `<arg>`!"
 error.no_targets,,"No targets selected!"
 error.no_node_value,,"No value for node <path>!"
 error.no_config,,"No config provided for feature `<feature>`!"
 error.item_creation,,"Could not create item."
 
-command.version,,"<name> v<version> by <authors>"
+command.version,,"<name> v<version> by <authors>."
 command.reload.start,,"Reloading..."
 command.reload.end,,"Reloaded. Check console for details."
 command.setting,,"<line>"
+command.list.entry,," - <type> <name> <id>"
+command.list.total,,"<results> result(s) found."
 command.give,,"Gave <amount>x <item> to <targets>"

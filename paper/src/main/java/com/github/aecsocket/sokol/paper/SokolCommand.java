@@ -13,9 +13,11 @@ import com.github.aecsocket.sokol.core.context.Context;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
 import com.github.aecsocket.sokol.paper.command.BlueprintNodeArgument;
+import com.github.aecsocket.sokol.paper.command.ComponentArgument;
 import com.github.aecsocket.sokol.paper.context.PaperContext;
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
@@ -26,9 +28,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.function.Function;
+
+import static net.kyori.adventure.text.Component.*;
 
 /* package */ final class SokolCommand extends BaseCommand<SokolPlugin> {
+    private static final JoinConfiguration NEWLINE = JoinConfiguration.separator(newline());
     private static final List<String> REGISTRY_TYPES = List.of(
         PaperComponent.class.getSimpleName()
         // todo bp
@@ -47,7 +51,7 @@ import java.util.function.Function;
 
         registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY);
         registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC);
-        registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_INVALID);
+        registerCaption(ComponentArgument.ARGUMENT_PARSE_FAILURE_COMPONENT_REGISTRY);
 
         manager.command(root
             .literal("list", ArgumentDescription.of("List all registered objects."))
@@ -64,6 +68,11 @@ import java.util.function.Function;
             .permission(permission("list"))
             .handler(c -> handle(c, this::list)));
         manager.command(root
+            .literal("component", ArgumentDescription.of("Shows information on a component."))
+            .argument(ComponentArgument.of(plugin, "component"), ArgumentDescription.of("The component to list information on."))
+            .permission(permission("component"))
+            .handler(c -> handle(c, this::component)));
+        manager.command(root
             .literal("give", ArgumentDescription.of("Gives a blueprint tree to players."))
             .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the item to."))
             .argument(BlueprintNodeArgument.of(plugin, "node"), ArgumentDescription.of("The blueprint tree to give."))
@@ -73,12 +82,11 @@ import java.util.function.Function;
             .handler(c -> handle(c, this::give)));
     }
 
-    private <T extends Renderable & Keyed> Component renderKeyed(Locale locale, T obj, String command) {
-        return obj.render(i18n, locale)
-            .hoverEvent(i18n.line(locale, KEYED_HOVER,
-                c -> c.of("id", obj.id()),
-                c -> c.of("type", obj.getClass().getName()),
-                c -> c.of("command", command)));
+    private <T extends Renderable & Keyed> Component renderKeyedHover(Locale locale, T obj, String command) {
+        return Component.join(NEWLINE, i18n.lines(locale, KEYED_HOVER,
+            c -> c.of("id", obj.id()),
+            c -> c.of("type", obj.getClass().getName()),
+            c -> c.of("command", command)));
     }
 
     private void list(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
@@ -95,7 +103,7 @@ import java.util.function.Function;
                 if (!typeName.contains(type))
                     continue;
             }
-            Component rendered = Component.empty(); // todo
+            Component rendered = object.render(i18n, locale);
             String id = object.id();
             if (filter != null) {
                 if (
@@ -110,18 +118,22 @@ import java.util.function.Function;
                 rootName,
                 object instanceof PaperComponent ? "component" : "?", // todo add bps
                 object.id());
-            Component hover = renderKeyed(locale, object, command);
+            Component hover = renderKeyedHover(locale, object, command);
             ClickEvent click = ClickEvent.runCommand(command);
-            i18n.lines(locale, COMMAND_LIST_ENTRY,
+            plugin.send(sender, i18n.modLines(locale, COMMAND_LIST_ENTRY,
+                line -> line.hoverEvent(hover).clickEvent(click),
                 c -> c.of("type", object.getClass().getSimpleName()),
                 c -> c.of("name", object.render(i18n, locale)),
-                c -> c.of("id", id))
-                .forEach(line -> sender.sendMessage(line.hoverEvent(hover).clickEvent(click)));
+                c -> c.of("id", id)));
         }
 
         int fResults = results;
-        send(sender, locale, COMMAND_LIST_TOTAL,
-            c -> c.of("results", ""+fResults));
+        plugin.send(sender, i18n.lines(locale, COMMAND_LIST_TOTAL,
+            c -> c.of("results", ""+fResults)));
+    }
+
+    private void component(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+        // todo impl
     }
 
     private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
@@ -151,11 +163,11 @@ import java.util.function.Function;
             }
         }
 
-        send(sender, locale, COMMAND_GIVE,
+        plugin.send(sender, i18n.lines(locale, COMMAND_GIVE,
             c -> c.of("amount", ""+amount),
             c -> c.of("item", baseItem.displayName()),
             c -> c.of("targets", targets.size() == 1
                 ? targets.get(0).displayName()
-                : Component.text(""+targets.size())));
+                : Component.text(""+targets.size()))));
     }
 }
