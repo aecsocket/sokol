@@ -1,17 +1,14 @@
 package com.github.aecsocket.sokol.paper.world.slot;
 
-import java.util.HashMap;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import com.github.aecsocket.minecommons.core.CollectionBuilder;
 import com.github.aecsocket.sokol.core.world.EquipSlot;
 import com.github.aecsocket.sokol.core.world.ItemSlot;
 import com.github.aecsocket.sokol.paper.PaperItemStack;
 import com.github.aecsocket.sokol.paper.SokolPlugin;
 import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
 import com.google.common.collect.ImmutableBiMap;
 
 import org.bukkit.entity.LivingEntity;

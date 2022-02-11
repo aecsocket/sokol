@@ -1,6 +1,5 @@
 package com.github.aecsocket.sokol.paper;
 
-import com.github.aecsocket.minecommons.core.Files;
 import com.github.aecsocket.minecommons.core.Logging;
 import com.github.aecsocket.minecommons.paper.effect.PaperEffectors;
 import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
@@ -31,6 +30,9 @@ import org.spongepowered.configurate.objectmapping.ObjectMapper;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 
+import java.io.IOException;
+import java.nio.file.*;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 
 public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<PaperComponent, PaperFeature> {
@@ -117,40 +119,54 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
             font.setChar(key.charAt(0), new MapFont.CharacterSprite(width, 0, new boolean[0]));
         }
 
-        loadRegistry(PATH_COMPONENT, PaperComponent.class.getSimpleName(), new TypeToken<PaperComponent>() {}, components);
+        loadRegistry(path(PATH_COMPONENT), PaperComponent.class.getSimpleName(), new TypeToken<PaperComponent>() {}, components);
         // TODO keyed ver of BPs
         //loadRegistry(PATH_BLUEPRINT, PaperBlueprint.class.getSimpleName(), new TypeToken<KeyedBlueprint<PaperBlueprint>>() {}, blueprints);
     }
 
-    private <T extends Keyed> void loadRegistry(String root, String typeName, TypeToken<T> type, Registry<T> registry) {
+    private <T extends Keyed> void loadRegistry(Path root, String typeName, TypeToken<T> type, Registry<T> registry) {
         registry.unregisterAll();
-        Files.recursively(file(root), (file, path) -> {
-            if (!file.getName().endsWith(CONFIG_EXTENSION))
-                return;
-            ConfigurationNode node;
-            try {
-                node = loader(file).load();
-            } catch (ConfigurateException e) {
-                log(Logging.Level.WARNING, e, "Could not load any %s from /%s", typeName, path);
-                return;
-            }
+        try {
+            Files.walkFileTree(root, new SimpleFileVisitor<>() {
+                @Override
+                public FileVisitResult visitFile(Path path, BasicFileAttributes attrs) {
+                    if (!path.toString().endsWith(CONFIG_EXTENSION))
+                        return FileVisitResult.CONTINUE;
+                    ConfigurationNode node;
+                    try {
+                        node = loaderBuilder().path(path).build().load();
+                    } catch (ConfigurateException e) {
+                        log(Logging.Level.WARNING, e, "Could not load any %s from /%s", typeName, path);
+                        return FileVisitResult.CONTINUE;
+                    }
 
-            for (var entry : node.node("entries").childrenMap().entrySet()) {
-                T object;
-                try {
-                    object = entry.getValue().get(type);
-                    if (object == null)
-                        throw new NullPointerException("Null object deserialized");
-                } catch (SerializationException e) {
-                    log(Logging.Level.WARNING, e, "Could not load %s from /%s", typeName, path);
-                    continue;
-                } catch (Exception e) {
-                    log(Logging.Level.WARNING, e, "Could not load %s from /%s @ %s", typeName, path, entry.getValue().path());
-                    continue;
+                    for (var entry : node.node("entries").childrenMap().entrySet()) {
+                        T object;
+                        try {
+                            object = entry.getValue().get(type);
+                            if (object == null)
+                                throw new NullPointerException("Null object deserialized");
+                        } catch (SerializationException e) {
+                            log(Logging.Level.WARNING, e, "Could not load %s from /%s", typeName, path);
+                            continue;
+                        } catch (Exception e) {
+                            log(Logging.Level.WARNING, e, "Could not load %s from /%s @ %s", typeName, path, entry.getValue().path());
+                            continue;
+                        }
+                        registry.register(object);
+                    }
+                    return FileVisitResult.CONTINUE;
                 }
-                registry.register(object);
-            }
-        });
+
+                @Override
+                public FileVisitResult visitFileFailed(Path path, IOException e) {
+                    log(Logging.Level.WARNING, e, "Could not load %s from /%s", typeName, path);
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            log(Logging.Level.ERROR, e, "Could not open %s for reading", root);
+        }
 
         for (var elem : registry.values())
             log(Logging.Level.VERBOSE, "Registered %s %s", typeName, elem.id());

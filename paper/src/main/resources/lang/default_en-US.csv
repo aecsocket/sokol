@@ -1,7 +1,9 @@
-key,string
+key,comments,string
 locale,en-US
 
 chat_prefix,,"{sokol} "
+
+keyed.hover,,"<id> <type>","<command>"
 
 error.command,,"<message>"
 error.exception.no_message,,"  <type>"
@@ -21,3 +23,4 @@ command.version,,"<name> v<version> by <authors>"
 command.reload.start,,"Reloading..."
 command.reload.end,,"Reloaded. Check console for details."
 command.setting,,"<line>"
+command.give,,"Gave <amount>x <item> to <targets>"
