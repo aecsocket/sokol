@@ -6,7 +6,7 @@ import java.util.Set;
 
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.rule.Rule;
-import com.github.aecsocket.sokol.core.rule.impl.LogicRule;
+import org.spongepowered.configurate.objectmapping.meta.Required;
 
 public class BasicNodeSlot<
     S extends BasicNodeSlot<S, C>,
@@ -15,7 +15,7 @@ public class BasicNodeSlot<
     protected transient C parent;
     protected transient String key;
     protected final Set<String> tags;
-    protected final Rule rule;
+    @Required protected final Rule rule;
 
     public BasicNodeSlot(C parent, String key, Set<String> tags, Rule rule) {
         this.parent = parent;
@@ -34,11 +34,9 @@ public class BasicNodeSlot<
 
     @Override public Set<String> tags() { return new HashSet<>(tags); }
     @Override public boolean tagged(String key) { return tags.contains(key); }
+    @Override public boolean required() { return tags.contains(REQUIRED); }
 
-    @Override
-    public boolean required() {
-        return tags.contains(REQUIRED);
-    }
+    public Rule rule() { return rule; }
 
     @Override
     public <N extends SokolNode> void compatible(N target, N parent) throws IncompatibleException {

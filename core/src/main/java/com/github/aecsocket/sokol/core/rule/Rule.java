@@ -4,6 +4,7 @@ import java.lang.reflect.Type;
 import java.util.*;
 import java.util.function.Consumer;
 
+import com.github.aecsocket.minecommons.core.i18n.Renderable;
 import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.sokol.core.SokolNode;
 
@@ -19,7 +20,7 @@ import org.spongepowered.configurate.util.CheckedSupplier;
 
 import static com.github.aecsocket.minecommons.core.serializers.Serializers.require;
 
-public interface Rule {
+public interface Rule extends Renderable {
     void applies(SokolNode target) throws RuleException;
 
     default void visit(Consumer<Rule> visitor) {
@@ -151,7 +152,7 @@ public interface Rule {
                         try {
                             obj = require(nodes.get(idx + 1), type);
                         } catch (SerializationException e) {
-                            throw new SerializationException(node, type, "Could not deserialize arg " + idx + " of rule");
+                            throw new SerializationException(node, type, "Could not deserialize arg " + idx + " of operator " + op, e);
                         }
                         ++idx;
                         return obj;

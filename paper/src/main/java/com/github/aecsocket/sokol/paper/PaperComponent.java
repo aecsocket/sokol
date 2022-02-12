@@ -10,6 +10,8 @@ import com.github.aecsocket.sokol.core.rule.RuleTypes;
 import com.github.aecsocket.sokol.core.stat.Stat;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatTypes;
+import com.github.aecsocket.sokol.core.stat.impl.PrimitiveStat;
+import com.github.aecsocket.sokol.core.stat.impl.StringStat;
 import com.github.aecsocket.sokol.paper.stat.ItemStat;
 import com.google.common.collect.ImmutableMap;
 
@@ -20,6 +22,8 @@ public final class PaperComponent extends AbstractComponent<
 
     public static final StatTypes STAT_TYPES = StatTypes.builder()
         .add(STAT_ITEM)
+        .add(StringStat.stringStat("string"))
+        .add(PrimitiveStat.integer("integer"))
         .build();
     public static final RuleTypes RULE_TYPES = RuleTypes.empty();
 

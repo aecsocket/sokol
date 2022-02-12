@@ -36,9 +36,10 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 
 public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<PaperComponent, PaperFeature> {
-    public static final String CONFIG_EXTENSION = "conf";
-    public static final String PATH_COMPONENT = "component";
-    public static final String PATH_BLUEPRINT = "blueprint";
+    public static final String
+        CONFIG_EXTENSION = "conf",
+        PATH_COMPONENT = "component",
+        PATH_BLUEPRINT = "blueprint";
     public static final int BSTATS_ID = 11870;
 
     private final Registry<PaperComponent> components = new Registry<>();

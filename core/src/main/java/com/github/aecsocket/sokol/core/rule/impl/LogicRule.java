@@ -1,12 +1,17 @@
 package com.github.aecsocket.sokol.core.rule.impl;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.Consumer;
 
+import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.sokol.core.SokolNode;
 import com.github.aecsocket.sokol.core.rule.Rule;
 import com.github.aecsocket.sokol.core.rule.RuleException;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
+
+import static net.kyori.adventure.text.Component.*;
 
 public final class LogicRule {
     private LogicRule() {}
@@ -14,6 +19,9 @@ public final class LogicRule {
     public static final class Constant implements Rule {
         public static final Constant TRUE = new Constant(true);
         public static final Constant FALSE = new Constant(false);
+        public static final String
+            RULE_CONSTANT_TRUE = "rule.constant.true",
+            RULE_CONSTANT_FALSE = "rule.constant.false";
 
         public static Constant of(boolean value) {
             return value ? TRUE : FALSE;
@@ -32,9 +40,16 @@ public final class LogicRule {
             if (!value)
                 throw new RuleException();
         }
+
+        @Override
+        public Component render(I18N i18n, Locale locale) {
+            return i18n.line(locale, value ? RULE_CONSTANT_TRUE : RULE_CONSTANT_FALSE);
+        }
     }
 
     public static final class Not implements Rule {
+        public static final String RULE_NOT = "rule.not";
+
         private final Rule term;
 
         public Not(Rule term) {
@@ -52,9 +67,18 @@ public final class LogicRule {
             }
             throw new RuleException();
         }
+
+        @Override
+        public Component render(I18N i18n, Locale locale) {
+            return i18n.line(locale, RULE_NOT,
+                c -> c.of("term", () -> c.rd(term)));
+        }
     }
 
     public interface WithTerms extends Rule {
+        String RULE_WITH_TERMS_RESULT = "rule.with_terms.result";
+        String RULE_WITH_TERMS_TERM = "rule.with_terms.term";
+
         List<Rule> terms();
     }
 
@@ -74,9 +98,24 @@ public final class LogicRule {
                 term.visit(visitor);
             }
         }
+
+        protected abstract Component separator(I18N i18n, Locale locale);
+
+        @Override
+        public Component render(I18N i18n, Locale locale) {
+            return i18n.line(locale, RULE_WITH_TERMS_RESULT,
+                c -> c.of("terms", () -> join(JoinConfiguration.separator(separator(i18n, locale)),
+                    terms.stream()
+                        .map(rule -> c.line(RULE_WITH_TERMS_TERM,
+                            d -> d.of("term", () -> d.rd(rule))))
+                        .toList()
+                )));
+        }
     }
     
     public static final class And extends WithTermsImpl {
+        public static final String RULE_AND_SEPARATOR = "rule.and.separator";
+
         public And(List<Rule> terms) {
             super(terms);
         }
@@ -91,9 +130,16 @@ public final class LogicRule {
                 }
             }
         }
+
+        @Override
+        protected Component separator(I18N i18n, Locale locale) {
+            return i18n.line(locale, RULE_AND_SEPARATOR);
+        }
     }
     
     public static final class Or extends WithTermsImpl {
+        public static final String RULE_OR_SEPARATOR = "rule.or.separator";
+
         public Or(List<Rule> terms) {
             super(terms);
         }
@@ -107,6 +153,11 @@ public final class LogicRule {
                 } catch (RuleException ignore) {}
             }
             throw new RuleException();
+        }
+
+        @Override
+        protected Component separator(I18N i18n, Locale locale) {
+            return i18n.line(locale, RULE_OR_SEPARATOR);
         }
     }
 }

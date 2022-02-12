@@ -14,6 +14,10 @@ import java.lang.reflect.Type;
 import java.util.Map;
 
 public interface SokolPlatform {
+    String
+        YES = "yes",
+        NO = "no";
+
     I18N i18n();
 
     Registry<? extends SokolComponent.Scoped<?, ?, ?>> components();

@@ -11,6 +11,8 @@ import com.github.aecsocket.minecommons.core.i18n.Renderable;
 import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.github.aecsocket.sokol.core.context.Context;
 import com.github.aecsocket.sokol.core.registry.Keyed;
+import com.github.aecsocket.sokol.core.stat.StatIntermediate;
+import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
 import com.github.aecsocket.sokol.paper.command.BlueprintNodeArgument;
 import com.github.aecsocket.sokol.paper.command.ComponentArgument;
@@ -41,9 +43,18 @@ import static net.kyori.adventure.text.Component.*;
     public static final String
         KEYED_HOVER = "keyed.hover",
         ERROR_ITEM_CREATION = "error.item_creation",
-        COMMAND_GIVE = "command.give",
         COMMAND_LIST_ENTRY = "command.list.entry",
-        COMMAND_LIST_TOTAL = "command.list.total";
+        COMMAND_LIST_TOTAL = "command.list.total",
+        COMMAND_INFO_HEADER = "command.info.header",
+        COMMAND_INFO_DESCRIPTION = "command.info.description",
+        COMMAND_COMPONENT_TAGS = "command.component.tags",
+        COMMAND_COMPONENT_SLOTS = "command.component.slots",
+        COMMAND_COMPONENT_SLOT = "command.component.slot",
+        COMMAND_COMPONENT_FEATURES = "command.component.features",
+        COMMAND_COMPONENT_FEATURE = "command.component.feature",
+        COMMAND_COMPONENT_STATS = "command.component.stats",
+        COMMAND_COMPONENT_STAT = "command.component.stat",
+        COMMAND_GIVE = "command.give";
 
     public SokolCommand(SokolPlugin plugin) throws Exception {
         super(plugin, "sokol",
@@ -83,10 +94,10 @@ import static net.kyori.adventure.text.Component.*;
     }
 
     private <T extends Renderable & Keyed> Component renderKeyedHover(Locale locale, T obj, String command) {
-        return Component.join(NEWLINE, i18n.lines(locale, KEYED_HOVER,
-            c -> c.of("id", obj.id()),
-            c -> c.of("type", obj.getClass().getName()),
-            c -> c.of("command", command)));
+        return join(NEWLINE, i18n.lines(locale, KEYED_HOVER,
+            c -> c.of("id", () -> text(obj.id())),
+            c -> c.of("type", () -> text(obj.getClass().getName())),
+            c -> c.of("command", () -> text(command))));
     }
 
     private void list(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
@@ -122,18 +133,75 @@ import static net.kyori.adventure.text.Component.*;
             ClickEvent click = ClickEvent.runCommand(command);
             plugin.send(sender, i18n.modLines(locale, COMMAND_LIST_ENTRY,
                 line -> line.hoverEvent(hover).clickEvent(click),
-                c -> c.of("type", object.getClass().getSimpleName()),
-                c -> c.of("name", object.render(i18n, locale)),
-                c -> c.of("id", id)));
+                c -> c.of("type", () -> text(object.getClass().getSimpleName())),
+                c -> c.of("name", () -> c.rd(object)),
+                c -> c.of("id", () -> text(id))));
         }
 
         int fResults = results;
         plugin.send(sender, i18n.lines(locale, COMMAND_LIST_TOTAL,
-            c -> c.of("results", ""+fResults)));
+            c -> c.of("amount", () -> text(fResults))));
     }
 
     private void component(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
-        // todo impl
+        PaperComponent component = ctx.get("component");
+
+        plugin.send(sender, i18n.lines(locale, COMMAND_INFO_HEADER,
+            c -> c.of("type", () -> text(component.getClass().getSimpleName())),
+            c -> c.of("name", () -> c.rd(component)),
+            c -> c.of("id", () -> text(component.id()))));
+
+        component.renderDescription(i18n, locale).ifPresent(desc -> {
+            for (var line : desc) {
+                plugin.send(sender, i18n.lines(locale, COMMAND_INFO_DESCRIPTION,
+                    c -> c.of("line", () -> line)));
+            }
+        });
+
+        plugin.send(sender, i18n.lines(locale,  COMMAND_COMPONENT_TAGS,
+            c -> c.of("tags", () -> text(String.join(", ", component.tags())))));
+
+        plugin.send(sender, i18n.lines(locale, COMMAND_COMPONENT_SLOTS,
+            c -> c.of("amount", () -> text(component.slots().size()))));
+        for (var entry : component.slots().entrySet()) {
+            String id = entry.getKey();
+            PaperNodeSlot slot = entry.getValue();
+
+            Component hover = slot.rule().render(i18n, locale);
+            plugin.send(sender, i18n.modLines(locale, COMMAND_COMPONENT_SLOT,
+                line -> line.hoverEvent(hover),
+                c -> c.of("name", () -> c.rd(slot)),
+                c -> c.of("id", () -> text(id)),
+                c -> c.of("tags", () -> text(String.join(", ", slot.tags()))),
+                c -> c.of("offset", () -> text(""+slot.offset()))));
+        }
+
+        plugin.send(sender, i18n.lines(locale, COMMAND_COMPONENT_FEATURES,
+            c -> c.of("amount", () -> text(component.features().size()))));
+        for (var entry : component.features().entrySet()) {
+            String id = entry.getKey();
+            PaperFeatureProfile profile = entry.getValue();
+
+            Component hover = empty(); // TODO some sort of hover. Either the desc or the profile setup.
+            plugin.send(sender, i18n.modLines(locale, COMMAND_COMPONENT_FEATURE,
+                line -> line.hoverEvent(hover), // TODO also a click evt to see feat info?
+                c -> c.of("name", () -> c.rd(profile.type())),
+                c -> c.of("id", () -> text(id))));
+        }
+
+        List<StatIntermediate.MapData> allData = component.stats().join();
+        plugin.send(sender, i18n.lines(locale, COMMAND_COMPONENT_STATS,
+            c -> c.of("amount", () -> text(allData.size()))));
+        for (var data : allData) {
+            StatMap stats = data.entries();
+
+            Component hover = join(NEWLINE, stats.render(i18n, locale));
+            plugin.send(sender, i18n.modLines(locale, COMMAND_COMPONENT_STAT,
+                line -> line.hoverEvent(hover),
+                c -> c.of("amount", () -> text(stats.size())),
+                c -> c.of("priority", () -> c.rd(data.priority())),
+                c -> c.of("rule", () -> c.rd(data.rule()))));
+        }
     }
 
     private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
@@ -164,10 +232,10 @@ import static net.kyori.adventure.text.Component.*;
         }
 
         plugin.send(sender, i18n.lines(locale, COMMAND_GIVE,
-            c -> c.of("amount", ""+amount),
-            c -> c.of("item", baseItem.displayName()),
-            c -> c.of("targets", targets.size() == 1
+            c -> c.of("amount", () -> text(amount)),
+            c -> c.of("item", baseItem::displayName),
+            c -> c.of("targets", () -> targets.size() == 1
                 ? targets.get(0).displayName()
-                : Component.text(""+targets.size()))));
+                : text(targets.size()))));
     }
 }

@@ -4,11 +4,15 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.function.BiConsumer;
 
+import com.github.aecsocket.minecommons.core.i18n.I18N;
+import com.github.aecsocket.minecommons.core.i18n.Renderable;
 import com.github.aecsocket.minecommons.core.serializers.Serializers;
 import com.github.aecsocket.sokol.core.rule.Rule;
 
+import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
@@ -16,11 +20,26 @@ import org.spongepowered.configurate.objectmapping.meta.Required;
 import org.spongepowered.configurate.serialize.SerializationException;
 import org.spongepowered.configurate.serialize.TypeSerializer;
 
+import static net.kyori.adventure.text.Component.*;
+
 public final class StatIntermediate {
-    public record Priority(int value, boolean reverse) {
+    public record Priority(int value, boolean reverse) implements Renderable {
         public static final Priority MIN = forwardPriority(Integer.MIN_VALUE);
         public static final Priority MAX = reversePriority(Integer.MAX_VALUE);
         public static final Priority DEFAULT = forwardPriority(0);
+
+        public static final String
+            STAT_PRIORITY_FORWARD = "stat_priority.forward",
+            STAT_PRIORITY_REVERSE = "stat_priority.reverse";
+
+        @Override
+        public Component render(I18N i18n, Locale locale) {
+            return i18n.line(locale, reverse ? STAT_PRIORITY_REVERSE : STAT_PRIORITY_FORWARD,
+                c -> c.of("value", () ->
+                    value == Integer.MAX_VALUE ? text("∞") :
+                    value == Integer.MIN_VALUE ? text("-∞") :
+                    text(value)));
+        }
 
         @Override
         public String toString() {

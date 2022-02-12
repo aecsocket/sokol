@@ -1,5 +1,7 @@
 package com.github.aecsocket.sokol.core.stat;
 
+import com.github.aecsocket.minecommons.core.i18n.I18N;
+import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -8,7 +10,14 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 import java.lang.reflect.Type;
 import java.util.*;
 
+import static net.kyori.adventure.text.Component.*;
+
 public final class StatMap extends HashMap<String, Stat.Node<?>> {
+    public static final String
+        STAT_MAP_HEADER = "stat_map.header",
+        STAT_MAP_ENTRY_SINGLE = "stat_map.entry.single",
+        STAT_MAP_ENTRY_MULTIPLE = "stat_map.entry.multiple";
+
     public StatMap(int initialCapacity, float loadFactor) {
         super(initialCapacity, loadFactor);
     }
@@ -50,7 +59,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
             if (node.op() instanceof Stat.Op.Discards)
                 put(key, copy);
             else
-                ours.next(node.copy());
+                ours.chain(node.copy());
         }
     }
 
@@ -62,6 +71,24 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
         for (var entry : o.entrySet()) {
             chain(entry.getKey(), entry.getValue());
         }
+    }
+
+    private <T> List<Component> render(I18N i18n, Locale locale, String key, Stat.Node<T> node) {
+        return i18n.lines(locale, node.next() == null ? STAT_MAP_ENTRY_SINGLE : STAT_MAP_ENTRY_MULTIPLE,
+            c -> c.of("key", () -> text(key)),
+            c -> c.of("name", () -> c.rd(node.stat())),
+            c -> c.of("value", () -> node.stat().renderValue(i18n, locale, node.compute())),
+            c -> c.of("length", () -> text(node.size())),
+            c -> c.of("stat", () -> c.rd(node)));
+    }
+
+    public List<Component> render(I18N i18n, Locale locale) {
+        List<Component> lines = new ArrayList<>(i18n.lines(locale, STAT_MAP_HEADER,
+            c -> c.of("amount", () -> text(size()))));
+        for (var entry : entrySet()) {
+            lines.addAll(render(i18n, locale, entry.getKey(), entry.getValue()));
+        }
+        return lines;
     }
 
     public static final class Serializer implements TypeSerializer<StatMap> {
@@ -103,7 +130,7 @@ public final class StatMap extends HashMap<String, Stat.Node<?>> {
                 Stat.OpType<T> opType;
                 ConfigurationNode[] args;
                 List<? extends ConfigurationNode> nodes;
-                if (!(nodes = opNode.childrenList()).isEmpty() && nodes.get(0).raw() instanceof String opName) {
+                if (!(nodes = new ArrayList<>(opNode.childrenList())).isEmpty() && nodes.get(0).raw() instanceof String opName) {
                     opType = opTypes.get(opName);
                     if (opType == null)
                         throw new SerializationException(opNode, type, "Invalid operation type `" + opName + "`");

@@ -1,15 +1,21 @@
 package com.github.aecsocket.sokol.core.stat;
 
+import com.github.aecsocket.minecommons.core.i18n.I18N;
+import com.github.aecsocket.minecommons.core.i18n.Renderable;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jetbrains.annotations.NotNull;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
 import java.util.*;
 
-public abstract class Stat<T> {
-    @FunctionalInterface
-    public interface Op<T> {
+public abstract class Stat<T> implements Renderable {
+    public static final String STAT = "stat";
+
+    public interface Op<T> extends Renderable {
         T compute(T cur);
 
         interface Discards {}
@@ -82,7 +88,9 @@ public abstract class Stat<T> {
         return new OpTypesBuilder<>();
     }
 
-    public static final class Node<T> {
+    public static final class Node<T> implements Iterable<Node<T>>, Renderable {
+        public static final String STAT_NODE_SEPARATOR = "stat_node.separator";
+
         private final Stat<T> stat;
         private final Stat.Op<T> op;
         private @Nullable Node<T> next;
@@ -104,9 +112,16 @@ public abstract class Stat<T> {
         public Node<T> next() { return next; }
         public void next(Node<T> next) { this.next = next; }
 
-        public T compute() throws StatAccessException {
+        public Node<T> chain(Node<T> next) {
+            Node<T> cur = this;
+            for (; cur.next != null; cur = cur.next);
+            cur.next = next;
+            return cur;
+        }
+
+        public T compute() {
             if (!(op instanceof Stat.Op.Initial<T> initial))
-                throw new StatAccessException("Stat chain must start with an initial operation");
+                throw new IllegalStateException("Stat chain must start with an initial operation");
             T value = initial.first();
             for (Node<T> cur = next; cur != null; cur = cur.next) {
                 value = cur.op.compute(value);
@@ -116,6 +131,48 @@ public abstract class Stat<T> {
 
         public Node<T> copy() {
             return new Node<>(stat, op, next == null ? null : next.copy());
+        }
+
+        @Override
+        public Component render(I18N i18n, Locale locale) {
+            List<Component> result = new ArrayList<>();
+            for (Node<T> cur = this; cur != null; cur = cur.next) {
+                result.add(cur.op.render(i18n, locale));
+            }
+            return Component.join(JoinConfiguration.separator(i18n.line(locale, STAT_NODE_SEPARATOR)), result);
+        }
+
+        public int size() {
+            int result = 0;
+            for (Node<T> cur = this; cur != null; cur = cur.next) {
+                ++result;
+            }
+            return result;
+        }
+
+        public List<Node<T>> asList() {
+            List<Node<T>> result = new LinkedList<>();
+            for (Node<T> cur = this; cur != null; cur = cur.next) {
+                result.add(cur);
+            }
+            return result;
+        }
+
+        @NotNull
+        @Override
+        public Iterator<Node<T>> iterator() {
+            return new Iterator<Node<T>>() {
+                Node<T> cur = Node.this;
+
+                @Override public boolean hasNext() {return cur != null; }
+
+                @Override
+                public Node<T> next() {
+                    Node<T> ret = cur;
+                    cur = cur.next;
+                    return ret;
+                }
+            };
         }
 
         @Override
@@ -138,6 +195,13 @@ public abstract class Stat<T> {
     public Node<T> node(Op<T> op) {
         return new Node<>(this, op);
     }
+
+    @Override
+    public Component render(I18N i18n, Locale locale) {
+        return i18n.line(locale, STAT + "." + key);
+    }
+
+    public abstract Component renderValue(I18N i18n, Locale locale, T value);
 
     public abstract OpTypes<T> opTypes();
 }
