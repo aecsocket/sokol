@@ -14,9 +14,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 public abstract class AbstractTreeNode<
     N extends AbstractTreeNode<N, B, C, F, S>,
-    B extends BlueprintNode.Scoped<B, N, C, ? extends FeatureData<?, ?, F, N>>,
-    C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, ? extends FeatureData<?, ?, F, N>>>,
-    F extends FeatureInstance<F, ? extends FeatureData<?, ?, F, N>, N>,
+    B extends BlueprintNode.Scoped<B, N, C, ?>,
+    C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ? extends FeatureData<?, ? extends F, N>>>,
+    F extends FeatureInstance<? extends FeatureData<?, ?, N>, N>,
     S extends ItemStack.Scoped<S, B>
 > extends MutableAbstractMapNode<N> implements TreeNode.Scoped<N, B, C, F, S> {
     public static final String ID = "id";
@@ -36,11 +36,13 @@ public abstract class AbstractTreeNode<
 
         features = new HashMap<>();
         for (var entry : o.features.entrySet()) {
-            features.put(entry.getKey(), entry.getValue().copy());
+            features.put(entry.getKey(), copy(entry.getValue()));
         }
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, @Nullable Tree<N> tree, @Nullable Key<N> key) {
+    protected abstract F copy(F instance);
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, @Nullable Key<N> key) {
         super(key);
         this.value = value;
         features = buildFeatures(featureData);
@@ -48,7 +50,7 @@ public abstract class AbstractTreeNode<
         this.tree = tree;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, @Nullable Tree<N> tree, N parent, String key) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, N parent, String key) {
         super(parent, key);
         this.value = value;
         features = buildFeatures(featureData);
@@ -56,36 +58,36 @@ public abstract class AbstractTreeNode<
         this.tree = tree;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, N parent, String key) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, N parent, String key) {
         super(parent, key);
         this.value = value;
         features = buildFeatures(featureData);
         this.context = context;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context, @Nullable Tree<N> tree) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree) {
         this.value = value;
         features = buildFeatures(featureData);
         this.context = context;
         this.tree = tree;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ?, F, N>> featureData, Context context) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context) {
         this.value = value;
         features = buildFeatures(featureData);
         this.context = context;
     }
 
-    private <D extends FeatureData<?, ?, F, N>> Map<String, F> buildFeatures(Map<String, D> featureData) {
+    private <D extends FeatureData<?, ? extends F, N>> Map<String, F> buildFeatures(Map<String, D> featureData) {
         Map<String, F> result = new HashMap<>();
         for (var entry : value.features().entrySet()) {
             String key = entry.getKey();
             D data = featureData.get(key);
-            result.put(key, (data == null
+            F instance = (data == null
                 ? entry.getValue().setUp()
-                : data)
-                .asInstance(self())
-            );
+                : data
+            ).asInstance(self());
+            result.put(key, instance);
         }
         for (var entry : featureData.entrySet()) {
             result.put(entry.getKey(), entry.getValue().asInstance(self()));
@@ -101,7 +103,7 @@ public abstract class AbstractTreeNode<
     @Override public boolean hasFeature(String key) { return features.containsKey(key); }
     @Override public Set<String> featureKeys() { return features.keySet(); }
     @Override public Optional<F> feature(String key) { return Optional.ofNullable(features.get(key)); }
-    @Override public Optional<? extends FeatureData<?, ?, F, N>> featureData(String key) { return feature(key).map(FeatureInstance::asData); }
+    @Override public Optional<? extends FeatureData<?, ?, N>> featureData(String key) { return feature(key).map(FeatureInstance::asData); }
 
     @Override public Context context() { return context; }
 

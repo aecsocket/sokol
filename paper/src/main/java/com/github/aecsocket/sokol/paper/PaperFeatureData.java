@@ -5,8 +5,9 @@ import com.github.aecsocket.sokol.core.FeatureData;
 import org.bukkit.persistence.PersistentDataAdapterContext;
 import org.bukkit.persistence.PersistentDataContainer;
 
-public interface PaperFeatureData extends FeatureData<
-    PaperFeatureData, PaperFeatureProfile, PaperFeatureInstance, PaperTreeNode
-> {
+public interface PaperFeatureData<
+    P extends PaperFeatureProfile<?, ?>,
+    I extends PaperFeatureInstance<?>
+> extends FeatureData<P, I, PaperTreeNode> {
     void save(PersistentDataContainer pdc, PersistentDataAdapterContext ctx);
 }

@@ -4,6 +4,7 @@ import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.i18n.Renderable;
 import net.kyori.adventure.text.Component;
 
+import javax.print.attribute.standard.MediaSize;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -24,5 +25,14 @@ public interface Keyed extends Renderable {
 
     String id();
 
-    Optional<List<Component>> renderDescription(I18N i18n, Locale locale);
+    String i18nBase();
+
+    @Override
+    default Component render(I18N i18n, Locale locale) {
+        return i18n.line(locale, i18nBase() + "." + id() + "." + NAME);
+    }
+
+    default Optional<List<Component>> renderDescription(I18N i18n, Locale locale) {
+        return i18n.orLines(locale, i18nBase() + "." + id() + "." + DESCRIPTION);
+    }
 }

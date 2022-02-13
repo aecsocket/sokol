@@ -4,8 +4,9 @@ import com.github.aecsocket.sokol.core.FeatureProfile;
 
 import org.bukkit.persistence.PersistentDataContainer;
 
-public interface PaperFeatureProfile extends FeatureProfile<
-    PaperFeatureProfile, PaperFeature, PaperFeatureData
-> {
-    PaperFeatureData load(PersistentDataContainer pdc);
+public interface PaperFeatureProfile<
+    F extends PaperFeature<?>,
+    D extends PaperFeatureData<?, ?>
+> extends FeatureProfile<F, D> {
+    D load(PersistentDataContainer pdc);
 }

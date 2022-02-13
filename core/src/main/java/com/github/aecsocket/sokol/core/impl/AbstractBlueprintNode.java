@@ -16,9 +16,9 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 
 public abstract class AbstractBlueprintNode<
     B extends AbstractBlueprintNode<B, N, C, F>,
-    N extends TreeNode.Scoped<N, B, C, ? extends FeatureInstance<?, F, N>, ? extends ItemStack.Scoped<?, B>>,
-    C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ?, F>>,
-    F extends FeatureData<F, ?, ? extends FeatureInstance<?, F, N>, N>
+    N extends TreeNode.Scoped<N, B, C, ?, ? extends ItemStack.Scoped<?, B>>,
+    C extends SokolComponent.Scoped<C, ?, ?>,
+    F extends FeatureData<?, ?, N>
 > extends MutableAbstractMapNode<B> implements BlueprintNode.Scoped<B, N, C, F> {
     public static final String ID = "id";
     public static final String FEATURES = "features";
@@ -89,10 +89,10 @@ public abstract class AbstractBlueprintNode<
         B extends AbstractBlueprintNode<B, N, C, D>,
         N extends TreeNode.Scoped<N, B, C, I, ? extends ItemStack.Scoped<?, B>>,
         C extends SokolComponent.Scoped<C, ?, P>,
-        F extends Feature<F, P>,
-        P extends FeatureProfile<P, F, D>,
-        D extends FeatureData<D, P, I, N>,
-        I extends FeatureInstance<I, D, N>
+        F extends Feature<?>,
+        P extends FeatureProfile<?, ? extends D>,
+        D extends FeatureData<?, ?, N>,
+        I extends FeatureInstance<?, N>
     > implements TypeSerializer<B> {
         protected abstract SokolPlatform.Scoped<C, F> platform();
         protected abstract B create(C value, Map<String, D> featureData, @Nullable B parent, @Nullable String key);

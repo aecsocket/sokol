@@ -15,33 +15,38 @@ import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PaperTreeNode extends AbstractTreeNode<
-    PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance, PaperItemStack
+    PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance<?>, PaperItemStack
 > implements PaperNode {
     public PaperTreeNode(PaperTreeNode o) {
         super(o);
     }
 
-    public PaperTreeNode(AbstractTreeNode<PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance, PaperItemStack> o) {
+    @Override
+    protected PaperFeatureInstance<?> copy(PaperFeatureInstance<?> instance) {
+        return instance.copy();
+    }
+
+    public PaperTreeNode(AbstractTreeNode<PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance<?>, PaperItemStack> o) {
         super(o);
     }
 
-    private PaperTreeNode(PaperComponent value, Map<String, PaperFeatureData> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, @Nullable Key<PaperTreeNode> key) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, @Nullable Key<PaperTreeNode> key) {
         super(value, featureData, context, tree, key);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, PaperFeatureData> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, PaperTreeNode parent, String key) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, PaperTreeNode parent, String key) {
         super(value, featureData, context, tree, parent, key);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, PaperFeatureData> featureData, Context context, PaperTreeNode parent, String key) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, PaperTreeNode parent, String key) {
         super(value, featureData, context, parent, key);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, PaperFeatureData> featureData, Context context, @Nullable Tree<PaperTreeNode> tree) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree) {
         super(value, featureData, context, tree);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, PaperFeatureData> featureData, Context context) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context) {
         super(value, featureData, context);
     }
 
@@ -51,12 +56,12 @@ public final class PaperTreeNode extends AbstractTreeNode<
     @Override public SokolPlugin platform() { return value.platform(); }
 
     @Override
-    public Optional<? extends PaperFeatureData> featureData(String key) {
+    public Optional<? extends PaperFeatureData<?, ?>> featureData(String key) {
         return feature(key).map(PaperFeatureInstance::asData);
     }
 
     private PaperBlueprintNode asBlueprintNode(@Nullable PaperBlueprintNode parent, @Nullable String key) {
-        Map<String, PaperFeatureData> featureData = new HashMap<>();
+        Map<String, PaperFeatureData<?, ?>> featureData = new HashMap<>();
         for (var entry : features.entrySet()) {
             featureData.put(entry.getKey(), entry.getValue().asData());
         }

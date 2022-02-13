@@ -2,6 +2,7 @@ package com.github.aecsocket.sokol.paper;
 
 import com.github.aecsocket.minecommons.core.Logging;
 import com.github.aecsocket.minecommons.paper.effect.PaperEffectors;
+import com.github.aecsocket.minecommons.paper.inputs.PacketInputs;
 import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.github.aecsocket.minecommons.paper.plugin.BasePlugin;
 
@@ -13,6 +14,7 @@ import com.github.aecsocket.sokol.core.stat.Stat;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.paper.context.PaperContext;
+import com.github.aecsocket.sokol.paper.feature.PaperItemDescription;
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import com.github.aecsocket.sokol.paper.world.slot.PaperItemSlot;
 
@@ -35,7 +37,7 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 
-public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<PaperComponent, PaperFeature> {
+public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<PaperComponent, PaperFeature<?>> {
     public static final String
         CONFIG_EXTENSION = "conf",
         PATH_COMPONENT = "component",
@@ -43,7 +45,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     public static final int BSTATS_ID = 11870;
 
     private final Registry<PaperComponent> components = new Registry<>();
-    private final Registry<PaperFeature> features = new Registry<>();
+    private final Registry<PaperFeature<?>> features = new Registry<>();
     private final PaperEffectors effectors = new PaperEffectors(this);
     private final SokolPersistence persistence = new SokolPersistence(this);
     private final MapFont font = new MinecraftFont();
@@ -52,7 +54,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     private final Rule.Serializer rulesSerializer = new Rule.Serializer();
 
     @Override public Registry<PaperComponent> components() { return components; }
-    @Override public Registry<PaperFeature> features() { return features; }
+    @Override public Registry<PaperFeature<?>> features() { return features; }
     public PaperEffectors effectors() { return effectors; }
     public SokolPersistence persistence() { return persistence; }
     public MapFont font() { return font; }
@@ -60,6 +62,9 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     @Override
     public void onEnable() {
         super.onEnable();
+
+        features.register(new PaperItemDescription(this));
+
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             for (var player : Bukkit.getOnlinePlayers()) {
                 PaperItemUser.OfPlayer user = PaperItemUser.user(this, player);
@@ -76,6 +81,18 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
                 }
             }
         }, 0, 1);
+
+        PacketInputs packetInputs = new PacketInputs(this);
+        protocol.manager().addPacketListener(packetInputs);
+        packetInputs.events().register(PacketInputs.Events.PacketInput.class, event -> {
+            System.out.println(event.input());
+        });
+
+        /*ListenerInputs listenerInputs = new ListenerInputs();
+        Bukkit.getPluginManager().registerEvents(listenerInputs, this);
+        listenerInputs.events().register(Inputs.Events.Input.class, event -> {
+            System.out.println(event.input());
+        });*/
     }
 
     @Override

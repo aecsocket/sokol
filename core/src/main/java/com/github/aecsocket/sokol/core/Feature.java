@@ -8,11 +8,14 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 public interface Feature<
-    F extends Feature<F, P>,
-    P extends FeatureProfile<P, F, ?>
+    P extends FeatureProfile<?, ?>
 > extends Keyed {
+    String I18N_KEY = "feature";
+
     StatTypes statTypes();
     RuleTypes ruleTypes();
 
     P setUp(ConfigurationNode node) throws SerializationException;
+
+    @Override default String i18nBase() { return I18N_KEY; }
 }

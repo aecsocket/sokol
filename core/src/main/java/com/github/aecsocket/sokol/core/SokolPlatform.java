@@ -22,11 +22,11 @@ public interface SokolPlatform {
 
     Registry<? extends SokolComponent.Scoped<?, ?, ?>> components();
 
-    Registry<? extends Feature<?, ?>> features();
+    Registry<? extends Feature<?>> features();
 
     interface Scoped<
         C extends SokolComponent.Scoped<C, ?, ?>,
-        F extends Feature<?, ?>
+        F extends Feature<?>
     > extends SokolPlatform {
         @Override Registry<C> components();
         @Override Registry<F> features();

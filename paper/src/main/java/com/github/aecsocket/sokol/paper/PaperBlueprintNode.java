@@ -8,25 +8,25 @@ import com.github.aecsocket.sokol.core.impl.AbstractBlueprintNode;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PaperBlueprintNode extends AbstractBlueprintNode<
-    PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData
+    PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData<?, ?>
 > implements PaperNode {
     public PaperBlueprintNode(PaperBlueprintNode o) {
         super(o);
     }
 
-    public PaperBlueprintNode(AbstractBlueprintNode<PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData> o) {
+    public PaperBlueprintNode(AbstractBlueprintNode<PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeatureData<?, ?>> o) {
         super(o);
     }
 
-    private PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData> featureData, @Nullable Key<PaperBlueprintNode> key) {
+    private PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData<?, ?>> featureData, @Nullable Key<PaperBlueprintNode> key) {
         super(value, featureData, key);
     }
 
-    public PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData> featureData, PaperBlueprintNode parent, String key) {
+    public PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData<?, ?>> featureData, PaperBlueprintNode parent, String key) {
         super(value, featureData, parent, key);
     }
 
-    public PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData> featureData) {
+    public PaperBlueprintNode(PaperComponent value, Map<String, PaperFeatureData<?, ?>> featureData) {
         super(value, featureData);
     }
 
@@ -54,7 +54,7 @@ public final class PaperBlueprintNode extends AbstractBlueprintNode<
     }
 
     public static final class Serializer extends AbstractBlueprintNode.Serializer<
-        PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeature, PaperFeatureProfile, PaperFeatureData, PaperFeatureInstance
+        PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeature<?>, PaperFeatureProfile<?, ?>, PaperFeatureData<?, ?>, PaperFeatureInstance<?>
     > {
         private final SokolPlugin platform;
 
@@ -66,7 +66,7 @@ public final class PaperBlueprintNode extends AbstractBlueprintNode<
 
         @Override
         protected PaperBlueprintNode create(
-            PaperComponent value, Map<String, PaperFeatureData> featureData, @Nullable PaperBlueprintNode parent, @Nullable String key
+            PaperComponent value, Map<String, PaperFeatureData<?, ?>> featureData, @Nullable PaperBlueprintNode parent, @Nullable String key
         ) {
             if (parent == null || key == null)
                 return new PaperBlueprintNode(value, featureData);

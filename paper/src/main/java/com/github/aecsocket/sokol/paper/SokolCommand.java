@@ -180,7 +180,7 @@ import static net.kyori.adventure.text.Component.*;
             c -> c.of("amount", () -> text(component.features().size()))));
         for (var entry : component.features().entrySet()) {
             String id = entry.getKey();
-            PaperFeatureProfile profile = entry.getValue();
+            PaperFeatureProfile<?, ?> profile = entry.getValue();
 
             Component hover = empty(); // TODO some sort of hover. Either the desc or the profile setup.
             plugin.send(sender, i18n.modLines(locale, COMMAND_COMPONENT_FEATURE,

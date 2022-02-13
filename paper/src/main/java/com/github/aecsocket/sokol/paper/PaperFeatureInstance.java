@@ -2,8 +2,8 @@ package com.github.aecsocket.sokol.paper;
 
 import com.github.aecsocket.sokol.core.FeatureInstance;
 
-public interface PaperFeatureInstance extends FeatureInstance<
-    PaperFeatureInstance, PaperFeatureData, PaperTreeNode
-> {
-
+public interface PaperFeatureInstance<
+    D extends PaperFeatureData<?, ?>
+> extends FeatureInstance<D, PaperTreeNode> {
+    PaperFeatureInstance<D> copy();
 }

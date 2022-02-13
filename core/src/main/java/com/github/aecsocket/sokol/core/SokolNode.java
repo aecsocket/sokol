@@ -16,7 +16,7 @@ public interface SokolNode extends MapNode {
 
     boolean hasFeature(String key);
     Set<String> featureKeys();
-    Optional<? extends FeatureData<?, ?, ?, ?>> featureData(String key);
+    Optional<? extends FeatureData<?, ?, ?>> featureData(String key);
 
     boolean complete();
 

@@ -49,7 +49,7 @@ public record PaperItemStack(
 
     @Override
     public PaperItemStack name(Component name) {
-        handle.editMeta(meta -> meta.displayName(name));
+        handle.editMeta(meta -> meta.displayName(Components.BLANK.append(name)));
         return this;
     }
 

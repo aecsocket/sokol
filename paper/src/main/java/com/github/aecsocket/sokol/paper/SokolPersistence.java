@@ -72,7 +72,7 @@ public final class SokolPersistence {
 
             PersistentDataContainer pdcFeatures = ctx.newPersistentDataContainer();
             for (var key : node.featureKeys()) {
-                PaperFeatureData data = node.featureData(key)
+                PaperFeatureData<?, ?> data = node.featureData(key)
                     .orElseThrow();
                 PersistentDataContainer saved = ctx.newPersistentDataContainer();
                 data.save(saved, ctx);
@@ -107,7 +107,7 @@ public final class SokolPersistence {
             PaperComponent value = plugin.components().get(id)
                 .orElseThrow(() -> new IllegalArgumentException("No component with ID `" + id + "`"));
 
-            Map<String, PaperFeatureData> features = new HashMap<>();
+            Map<String, PaperFeatureData<?, ?>> features = new HashMap<>();
             PaperBlueprintNode root = new PaperBlueprintNode(value, features);
 
             PersistentDataContainer pdcSlots = pdc.get(keySlots, PersistentDataType.TAG_CONTAINER);
@@ -126,10 +126,10 @@ public final class SokolPersistence {
             if (pdcFeatures != null) {
                 for (var key : pdcFeatures.getKeys()) {
                     String vKey = key.value();
-                    PaperFeatureProfile profile = value.feature(vKey)
+                    PaperFeatureProfile<?, ?> profile = value.feature(vKey)
                         .orElseThrow(() -> new IllegalArgumentException("No feature profile with ID `" + vKey + "` exists on component `" + id + "`"));
                     //noinspection ConstantConditions - we know the key exists
-                    PaperFeatureData feature = profile.load(pdcFeatures.get(key, PersistentDataType.TAG_CONTAINER));
+                    PaperFeatureData<?, ?> feature = profile.load(pdcFeatures.get(key, PersistentDataType.TAG_CONTAINER));
                     features.put(vKey, feature);
                 }
             }

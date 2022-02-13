@@ -3,14 +3,12 @@ package com.github.aecsocket.sokol.core.impl;
 import java.lang.reflect.Type;
 import java.util.*;
 
-import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.serializers.Serializers;
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.rule.Rule;
 import com.github.aecsocket.sokol.core.stat.Stat;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 
-import net.kyori.adventure.text.Component;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -19,9 +17,8 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 public abstract class AbstractComponent<
     C extends AbstractComponent<C, S, P>,
     S extends NodeSlot.Scoped<S, C>,
-    P extends FeatureProfile<P, ?, ?>
+    P extends FeatureProfile<?, ?>
 > implements SokolComponent.Scoped<C, S, P> {
-    public static final String I18N_KEY = "component";
     public static final String TAGS = "tags";
     public static final String SLOTS = "slots";
     public static final String FEATURES = "features";
@@ -34,7 +31,7 @@ public abstract class AbstractComponent<
     protected final Map<String, S> slots;
     protected final StatIntermediate stats;
 
-    protected AbstractComponent(String id, Set<String> tags, Map<String, P> features, Map<String, S> slots, StatIntermediate stats) {
+    protected AbstractComponent(String id, Set<String> tags, Map<String, ? extends P> features, Map<String, ? extends S> slots, StatIntermediate stats) {
         this.id = id;
         this.tags = Collections.unmodifiableSet(tags);
         this.features = Collections.unmodifiableMap(features);
@@ -57,21 +54,11 @@ public abstract class AbstractComponent<
 
     @Override public StatIntermediate stats() { return stats; }
 
-    @Override
-    public Component render(I18N i18n, Locale locale) {
-        return i18n.line(locale, I18N_KEY + "." + id + "." + NAME);
-    }
-
-    @Override
-    public Optional<List<Component>> renderDescription(I18N i18n, Locale locale) {
-        return i18n.orLines(locale, I18N_KEY + "." + id + "." + DESCRIPTION);
-    }
-
     public abstract static class Serializer<
         C extends AbstractComponent<C, S, P>,
         S extends BasicNodeSlot<S, C>,
-        F extends Feature<F, P>,
-        P extends FeatureProfile<P, F, ?>
+        F extends Feature<? extends P>,
+        P extends FeatureProfile<?, ?>
     > implements TypeSerializer<C> {
         protected abstract SokolPlatform.Scoped<C, F> platform();
         protected abstract Map<String, Stat<?>> defaultStatTypes();

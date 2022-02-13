@@ -7,10 +7,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.Consumer;
 
 public interface PaperNode extends SokolNode {
-    @Override Optional<? extends PaperFeatureData> featureData(String key);
+    @Override Optional<? extends PaperFeatureData<?, ?>> featureData(String key);
 
 
     @Override @Nullable PaperNode parent();

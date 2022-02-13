@@ -41,11 +41,11 @@ public final class StringStat extends Stat<String> {
         super(key, def);
     }
 
-    public static StringStat stringStat(String key, String def) {
+    public static StringStat stat(String key, String def) {
         return new StringStat(key, def);
     }
 
-    public static StringStat stringStat(String key) {
+    public static StringStat stat(String key) {
         return new StringStat(key, null);
     }
 

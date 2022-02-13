@@ -2,8 +2,6 @@ package com.github.aecsocket.sokol.paper;
 
 import com.github.aecsocket.sokol.core.Feature;
 
-public interface PaperFeature extends Feature<
-    PaperFeature, PaperFeatureProfile
-> {
-    
-}
+public interface PaperFeature<
+    P extends PaperFeatureProfile<?, ?>
+> extends Feature<P> {}

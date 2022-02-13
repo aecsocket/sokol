@@ -1,0 +1,83 @@
+package com.github.aecsocket.sokol.core.feature;
+
+import com.github.aecsocket.sokol.core.*;
+import com.github.aecsocket.sokol.core.event.NodeEvent;
+import com.github.aecsocket.sokol.core.rule.RuleTypes;
+import com.github.aecsocket.sokol.core.stat.StatIntermediate;
+import com.github.aecsocket.sokol.core.stat.StatTypes;
+import com.github.aecsocket.sokol.core.stat.impl.StringStat;
+import com.github.aecsocket.sokol.core.world.ItemStack;
+import io.leangen.geantyref.TypeToken;
+import net.kyori.adventure.text.Component;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+public abstract class ItemDescription<
+    F extends ItemDescription<F, P, D, I, N, S>,
+    P extends ItemDescription<F, P, D, I, N, S>.Profile,
+    D extends ItemDescription<F, P, D, I, N, S>.Profile.Data,
+    I extends ItemDescription<F, P, D, I, N, S>.Profile.Data.Instance,
+    N extends TreeNode.Scoped<N, ?, ?, ?, S>,
+    S extends ItemStack.Scoped<S, ?>
+> implements Feature<P> {
+    public static final StringStat STAT_ITEM_NAME_KEY = StringStat.stat("item_name_key");
+    public static final StatTypes STATS = StatTypes.builder()
+        .add(STAT_ITEM_NAME_KEY)
+        .build();
+    public static final String
+        I18N_KEY = "component",
+        ID = "item_description",
+        KEY_LINE = "feature." + ID + ".line";
+
+    protected abstract F self();
+    protected abstract SokolPlatform platform();
+
+    @Override public StatTypes statTypes() { return STATS; }
+    @Override public RuleTypes ruleTypes() { return RuleTypes.empty(); }
+    @Override public final String id() { return ID; }
+
+    public abstract class Profile implements FeatureProfile<F, D> {
+        protected abstract P self();
+        @Override public F type() { return ItemDescription.this.self(); }
+
+        public abstract class Data implements FeatureData<P, I, N> {
+            protected abstract D self();
+            @Override public P profile() { return Profile.this.self(); }
+
+            @Override public void save(ConfigurationNode node) throws SerializationException {}
+
+            public abstract class Instance implements FeatureInstance<D, N> {
+                @Override public D asData() { return self(); }
+
+                @Override
+                public void build(Tree<N> tree, N node, StatIntermediate stats) {
+                    tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent);
+                }
+
+                protected void onEvent(NodeEvent.CreateItem<N, ?, S> event) {
+                    N node = event.node();
+                    S item = event.item();
+                    Locale locale = node.context().locale();
+
+                    node.tree().stats().value(STAT_ITEM_NAME_KEY).ifPresent(itemNameKey -> {
+                        item.name(platform().i18n().line(locale, itemNameKey,
+                            c -> c.of("original", item::name)));
+                    });
+
+                    node.value().renderDescription(platform().i18n(), locale).ifPresent(desc -> {
+                        List<Component> lines = new ArrayList<>();
+                        for (var line : desc) {
+                            lines.addAll(platform().i18n().lines(locale, KEY_LINE,
+                                c -> c.of("line", () -> line)));
+                        }
+                        item.addLore(lines);
+                    });
+                }
+            }
+        }
+    }
+}

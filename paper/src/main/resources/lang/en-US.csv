@@ -1,2 +1,4 @@
 key,comments,string
 locale,en-US
+
+feature.item_description.line,,"  <line>"
