@@ -90,7 +90,7 @@ public abstract class ItemDescription<
                             lines.addAll(i18n.lines(locale, KEY_LINE,
                                 c -> c.of("line", () -> line)));
                         }
-                        item.addLore(lines);
+                        item.addLore(locale, lines);
                     });
                 }
             }

@@ -117,7 +117,7 @@ public abstract class SlotDisplay<
                     preLines(keyData, slotDepths, locale, event.node(), longest);
                     lines(lines, keyData, slotDepths, locale, event.node(), longest.get(), i18n.line(locale, KEY_INDENT), 0);
 
-                    item.addLore(lines);
+                    item.addLore(locale, lines);
                 }
 
                 protected int preLines(Map<String, KeyData> keyData, Map<NodePath, Integer> slotDepths, Locale locale, N node, AtomicInteger longest) {
@@ -141,7 +141,12 @@ public abstract class SlotDisplay<
 
                 protected void lines(List<Component> lines, Map<String, KeyData> keyData, Map<NodePath, Integer> slotDepths, Locale locale, N node, int longest, Component indent, int depth) {
                     Map<String, ? extends NodeSlot> slots = node.value().slots();
-                    List<String> order = new ArrayList<>(slots.keySet());
+                    List<String> order = new ArrayList<>();
+                    for (var slot : slots.keySet()) {
+                        if (!forced.contains(slot)) {
+                            order.add(slot);
+                        }
+                    }
                     order.sort(Comparator.comparingInt(key ->
                         slotDepths.getOrDefault(node.path().append(key), 0)
                         * (displayOrder == DisplayOrder.DEEPEST_FIRST ? -1 : 1)));

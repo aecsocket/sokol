@@ -9,6 +9,7 @@ import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.github.aecsocket.minecommons.paper.plugin.BasePlugin;
 
 import com.github.aecsocket.sokol.core.SokolPlatform;
+import com.github.aecsocket.sokol.core.feature.StatDisplay;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.registry.Registry;
 import com.github.aecsocket.sokol.core.rule.Rule;
@@ -19,6 +20,7 @@ import com.github.aecsocket.sokol.paper.context.PaperContext;
 import com.github.aecsocket.sokol.paper.feature.PaperItemDescription;
 
 import com.github.aecsocket.sokol.paper.feature.PaperSlotDisplay;
+import com.github.aecsocket.sokol.paper.feature.PaperStatDisplay;
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import com.github.aecsocket.sokol.paper.world.slot.PaperItemSlot;
 import io.leangen.geantyref.TypeToken;
@@ -52,6 +54,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     private final Registry<PaperFeature<?>> features = new Registry<>();
     private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperBlueprint> blueprints = new Registry<>();
+    private final Registry<StatDisplay.Format.Type> statFormats = new Registry<>();
     private final PaperEffectors effectors = new PaperEffectors(this);
     private final SokolPersistence persistence = new SokolPersistence(this);
     private final MapFont font = new MinecraftFont();
@@ -72,6 +75,9 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
 
         features.register(new PaperItemDescription(this));
         features.register(new PaperSlotDisplay(this));
+        features.register(new PaperStatDisplay(this));
+
+        StatDisplay.Format.Type.registerDefaults(statFormats);
 
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
@@ -110,14 +116,16 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     protected void configOptionsDefaults(TypeSerializerCollection.Builder serializers, ObjectMapper.Factory.Builder mapperFactory) {
         super.configOptionsDefaults(serializers, mapperFactory);
         serializers
-            .register(StatMap.class, statsSerializer)
-            .register(Rule.class, rulesSerializer)
-            .register(StatIntermediate.class, new StatIntermediate.Serializer())
-            .register(StatIntermediate.Priority.class, new StatIntermediate.Priority.Serializer())
+            .registerExact(StatMap.class, statsSerializer)
+            .registerExact(Rule.class, rulesSerializer)
+            .registerExact(StatIntermediate.class, new StatIntermediate.Serializer())
+            .registerExact(StatIntermediate.Priority.class, new StatIntermediate.Priority.Serializer())
 
-            .register(PaperComponent.class, new PaperComponent.Serializer(this))
-            .register(PaperBlueprint.class, new PaperBlueprint.Serializer())
-            .register(PaperBlueprintNode.class, new PaperBlueprintNode.Serializer(this));
+            .registerExact(PaperComponent.class, new PaperComponent.Serializer(this))
+            .registerExact(PaperBlueprint.class, new PaperBlueprint.Serializer())
+            .registerExact(PaperBlueprintNode.class, new PaperBlueprintNode.Serializer(this))
+
+            .registerExact(new TypeToken<StatDisplay.Format<?>>() {}, new StatDisplay.Format.Serializer(statFormats));
     }
 
     @Override

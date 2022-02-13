@@ -13,10 +13,10 @@ and plugin developers to register custom item behaviour.
 # Features
 
 - [x] Node-based tree structure for items - items consist of a tree of components
-- [x] Systems drive component behaviour, and many systems can be added to one component
+- [x] Features drive component behaviour, and many features can be added to one component
 - [x] Tree-wide stat function, making it easy to modify properties throughout the tree
 - [x] Rules determining when stats or other functions apply to nodes
-- [x] Extendable and customisable, allowing developers to write systems
+- [x] Extendable and customisable, allowing developers to write their own features
 - [x] All licensed under GNU GPL v3 - free and open source
 
 # Usage

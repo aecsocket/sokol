@@ -1,9 +1,6 @@
 package com.github.aecsocket.sokol.paper;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-import java.util.OptionalDouble;
+import java.util.*;
 
 import com.github.aecsocket.minecommons.core.Components;
 import com.github.aecsocket.minecommons.core.Numbers;
@@ -65,13 +62,15 @@ public record PaperItemStack(
     }
 
     @Override
-    public PaperItemStack addLore(List<Component> lore) {
+    public PaperItemStack addLore(Locale locale, List<Component> lore) {
+        if (lore.isEmpty())
+            return this;
         handle.editMeta(meta -> {
             List<Component> cur = meta.lore();
             if (cur == null)
                 cur = new ArrayList<>();
             if (!cur.isEmpty())
-                cur.add(Component.empty());
+                cur.addAll(plugin.i18n().lines(locale, ITEM_LORE_SEPARATOR));
             
             for (var line : lore) {
                 cur.add(Components.BLANK.append(line));
