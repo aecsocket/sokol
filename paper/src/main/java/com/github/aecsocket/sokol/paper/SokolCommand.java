@@ -48,6 +48,7 @@ import static net.kyori.adventure.text.Component.*;
 
     public static final String
         KEYED_HOVER = "keyed.hover",
+        FEATURE_DESCRIPTION = "feature_description",
         ERROR_ITEM_CREATION = "error.item_creation",
         ERROR_ITEM_NOT_TREE = "error.item_not_tree",
         COMMAND_LIST_ENTRY = "command.list.entry",
@@ -75,6 +76,7 @@ import static net.kyori.adventure.text.Component.*;
         registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY);
         registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC);
         registerCaption(ComponentArgument.ARGUMENT_PARSE_FAILURE_COMPONENT_REGISTRY);
+        registerCaption(BlueprintArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_REGISTRY);
 
         manager.command(root
             .literal("list", ArgumentDescription.of("List all registered objects."))
@@ -216,9 +218,14 @@ import static net.kyori.adventure.text.Component.*;
             String id = entry.getKey();
             PaperFeatureProfile<?, ?> profile = entry.getValue();
 
-            Component hover = empty(); // TODO some sort of hover. Either the desc or the profile setup.
+            Component hover = profile.type().renderDescription(i18n, locale)
+                .map(lines -> Component.join(NEWLINE, lines.stream()
+                    .map(line -> i18n.line(locale, FEATURE_DESCRIPTION,
+                        c -> c.of("line", () -> line)))
+                    .toList()))
+                .orElse(null);
             plugin.send(sender, i18n.modLines(locale, COMMAND_COMPONENT_FEATURE,
-                line -> line.hoverEvent(hover), // TODO also a click evt to see feat info?
+                line -> line.hoverEvent(hover),
                 c -> c.of("name", () -> c.rd(profile.type())),
                 c -> c.of("id", () -> text(id))));
         }
@@ -255,7 +262,7 @@ import static net.kyori.adventure.text.Component.*;
         object.renderDescription(i18n, locale).ifPresent(desc -> {
             for (var line : desc) {
                 plugin.send(sender, i18n.lines(locale, COMMAND_INFO_DESCRIPTION,
-                        c -> c.of("line", () -> line)));
+                    c -> c.of("line", () -> line)));
             }
         });
     }
@@ -292,12 +299,10 @@ import static net.kyori.adventure.text.Component.*;
                     line -> line.hoverEvent(hover).clickEvent(click),
                     templates));
                 tree(ctx, sender, locale, pSender, indent, depth + 1, child);
-            }, () -> {
-                plugin.send(sender, i18n.lines(locale, COMMAND_TREE_EMPTY,
-                    c -> c.of("indent", () -> Components.repeat(indent, depth)),
-                    c -> c.of("slot", () -> c.rd(slot)),
-                    c -> c.of("key", () -> text(key))));
-            });
+            }, () -> plugin.send(sender, i18n.lines(locale, COMMAND_TREE_EMPTY,
+                c -> c.of("indent", () -> Components.repeat(indent, depth)),
+                c -> c.of("slot", () -> c.rd(slot)),
+                c -> c.of("key", () -> text(key)))));
         }
     }
 

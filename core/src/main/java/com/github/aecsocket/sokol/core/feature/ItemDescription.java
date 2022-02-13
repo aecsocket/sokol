@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.core.feature;
 
+import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.event.NodeEvent;
 import com.github.aecsocket.sokol.core.rule.RuleTypes;
@@ -29,9 +30,14 @@ public abstract class ItemDescription<
         .add(STAT_ITEM_NAME_KEY)
         .build();
     public static final String
-        I18N_KEY = "component",
         ID = "item_description",
         KEY_LINE = "feature." + ID + ".line";
+
+    protected final I18N i18n;
+
+    public ItemDescription(I18N i18n) {
+        this.i18n = i18n;
+    }
 
     protected abstract F self();
     protected abstract SokolPlatform platform();
@@ -41,6 +47,14 @@ public abstract class ItemDescription<
     @Override public final String id() { return ID; }
 
     public abstract class Profile implements FeatureProfile<F, D> {
+        protected final int listenerPriority;
+
+        public Profile(int listenerPriority) {
+            this.listenerPriority = listenerPriority;
+        }
+
+        public int listenerPriority() { return listenerPriority; }
+
         protected abstract P self();
         @Override public F type() { return ItemDescription.this.self(); }
 
@@ -56,7 +70,7 @@ public abstract class ItemDescription<
                 @Override
                 public void build(Tree<N> tree, N parent, StatIntermediate stats) {
                     if (parent.isRoot()) {
-                        tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent);
+                        tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent, listenerPriority);
                     }
                 }
 
@@ -66,14 +80,14 @@ public abstract class ItemDescription<
                     Locale locale = node.context().locale();
 
                     node.tree().stats().value(STAT_ITEM_NAME_KEY).ifPresent(itemNameKey -> {
-                        item.name(platform().i18n().line(locale, itemNameKey,
+                        item.name(i18n.line(locale, itemNameKey,
                             c -> c.of("original", item::name)));
                     });
 
                     node.value().renderDescription(platform().i18n(), locale).ifPresent(desc -> {
                         List<Component> lines = new ArrayList<>();
                         for (var line : desc) {
-                            lines.addAll(platform().i18n().lines(locale, KEY_LINE,
+                            lines.addAll(i18n.lines(locale, KEY_LINE,
                                 c -> c.of("line", () -> line)));
                         }
                         item.addLore(lines);

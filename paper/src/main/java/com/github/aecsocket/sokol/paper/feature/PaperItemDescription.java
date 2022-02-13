@@ -10,9 +10,13 @@ import org.spongepowered.configurate.serialize.SerializationException;
 public final class PaperItemDescription extends ItemDescription<
     PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Data.Instance, PaperTreeNode, PaperItemStack
 > implements PaperFeature<PaperItemDescription.Profile> {
+    public static final String
+        LISTENER_PRIORITY = "listener_priority";
+
     private final SokolPlugin platform;
 
     public PaperItemDescription(SokolPlugin platform) {
+        super(platform.i18n());
         this.platform = platform;
     }
 
@@ -21,13 +25,19 @@ public final class PaperItemDescription extends ItemDescription<
 
     @Override
     public Profile setUp(ConfigurationNode node) throws SerializationException {
-        return new Profile();
+        return new Profile(
+            node.node(LISTENER_PRIORITY).getInt()
+        );
     }
 
     public final class Profile extends ItemDescription<
         PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Data.Instance, PaperTreeNode, PaperItemStack
     >.Profile implements PaperFeatureProfile<PaperItemDescription, Profile.Data> {
         @Override protected Profile self() { return this; }
+
+        public Profile(int listenerPriority) {
+            super(listenerPriority);
+        }
 
         @Override
         public Data setUp() {

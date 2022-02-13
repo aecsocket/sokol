@@ -18,6 +18,7 @@ import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.paper.context.PaperContext;
 import com.github.aecsocket.sokol.paper.feature.PaperItemDescription;
 
+import com.github.aecsocket.sokol.paper.feature.PaperSlotDisplay;
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import com.github.aecsocket.sokol.paper.world.slot.PaperItemSlot;
 import io.leangen.geantyref.TypeToken;
@@ -70,6 +71,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
         super.onEnable();
 
         features.register(new PaperItemDescription(this));
+        features.register(new PaperSlotDisplay(this));
 
         Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
