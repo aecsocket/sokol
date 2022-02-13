@@ -13,7 +13,10 @@ import java.lang.reflect.Type;
 import java.util.*;
 
 public abstract class Stat<T> implements Renderable {
-    public static final String STAT = "stat";
+    public static final String
+        STAT = "stat",
+        NAME = "name",
+        FORMAT = "format";
 
     public interface Op<T> extends Renderable {
         T compute(T cur);
@@ -197,8 +200,13 @@ public abstract class Stat<T> implements Renderable {
     }
 
     @Override
-    public Component render(I18N i18n, Locale locale) {
-        return i18n.line(locale, STAT + "." + key);
+    public final Component render(I18N i18n, Locale locale) {
+        return i18n.line(locale, STAT + "." + key + "." + NAME);
+    }
+
+    public Optional<Component> renderFormat(I18N i18n, Locale locale, Component value) {
+        return i18n.orLine(locale, STAT + "." + key + "." + FORMAT,
+            c -> c.of("value", () -> value));
     }
 
     public abstract Component renderValue(I18N i18n, Locale locale, T value);
