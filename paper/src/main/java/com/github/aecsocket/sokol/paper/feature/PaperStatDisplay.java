@@ -34,7 +34,7 @@ public final class PaperStatDisplay extends StatDisplay<
         String padding = node.node(PADDING).getString(" ");
         return new Profile(
             node.node(LISTENER_PRIORITY).getInt(),
-            node.node(SECTIONS).get(new TypeToken<List<List<Format<?>>>>() {}, Collections.emptyList()),
+            node.node(SECTIONS).get(new TypeToken<List<List<FormatChain<?>>>>() {}, Collections.emptyList()),
             padding,
             platform.font().getWidth(padding) + 1
         );
@@ -45,7 +45,7 @@ public final class PaperStatDisplay extends StatDisplay<
     >.Profile implements PaperFeatureProfile<PaperStatDisplay, Profile.Data> {
         @Override protected Profile self() { return this; }
 
-        public Profile(int listenerPriority, List<List<Format<?>>> sections, String padding, int paddingWidth) {
+        public Profile(int listenerPriority, List<List<FormatChain<?>>> sections, String padding, int paddingWidth) {
             super(listenerPriority, sections, padding, paddingWidth);
         }
 

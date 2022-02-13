@@ -13,11 +13,7 @@ import static net.kyori.adventure.text.Component.text;
 
 public interface PrimitiveStat {
     String
-        STAT_TYPE_NUMBER_SET = "stat_type.number.set",
-        STAT_TYPE_NUMBER_ADD = "stat_type.number.add",
-        STAT_TYPE_NUMBER_SUBTRACT = "stat_type.number.subtract",
-        STAT_TYPE_NUMBER_MULTIPLY = "stat_type.number.multiply",
-        STAT_TYPE_NUMBER_DIVIDE = "stat_type.number.divide";
+        STAT_TYPE_NUMBER = "stat_type.number.";
 
     final class Flag extends Stat<Boolean> implements PrimitiveStat {
         public record Set(boolean value) implements Op.Initial<Boolean>, Op.Discards {
@@ -55,50 +51,62 @@ public interface PrimitiveStat {
         return new Flag(key, null);
     }
 
-    final class Integer extends Stat<Long> implements PrimitiveStat {
-        public record Set(long value) implements Op.Initial<Long>, Op.Discards {
-            @Override public Long first() { return value; }
+    interface OfNumber extends PrimitiveStat {
+        interface NumberOp<T extends Number> extends Stat.Op.Initial<T> {
+            double asDouble();
+            String name();
+
             @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_SET,
-                    c -> c.of("value", () -> text(value)));
+            default Component render(I18N i18n, Locale locale) {
+                return i18n.line(locale, STAT_TYPE_NUMBER + name(),
+                        c -> c.of("value", () -> text(asDouble())));
             }
         }
-        public record Add(long value) implements Op.Initial<Long> {
+        interface SetOp<T extends Number> extends NumberOp<T>, Stat.Op.Discards {
+            @Override default String name() { return "set"; }
+        }
+
+        interface SumOp<T extends Number> extends NumberOp<T> {}
+        interface AddOp<T extends Number> extends SumOp<T> {
+            @Override default String name() { return "add"; }
+        }
+        interface SubtractOp<T extends Number> extends SumOp<T> {
+            @Override default String name() { return "subtract"; }
+        }
+
+        interface FactorOp<T extends Number> extends NumberOp<T> {}
+        interface MultiplyOp<T extends Number> extends FactorOp<T> {
+            @Override default String name() { return "multiply"; }
+        }
+        interface DivideOp<T extends Number> extends FactorOp<T> {
+            @Override default String name() { return "divide"; }
+        }
+    }
+
+    final class Integer extends Stat<Long> implements OfNumber {
+        public record Set(long value) implements SetOp<Long> {
+            @Override public Long first() { return value; }
+            @Override public double asDouble() { return value; }
+        }
+        public record Add(long value) implements AddOp<Long> {
             @Override public Long compute(Long cur) { return cur + value; }
             @Override public Long first() { return compute(0L); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_ADD,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Subtract(long value) implements Op.Initial<Long> {
+        public record Subtract(long value) implements SubtractOp<Long> {
             @Override public Long compute(Long cur) { return cur - value; }
             @Override public Long first() { return compute(0L); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_SUBTRACT,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Multiply(double value) implements Op.Initial<Long> {
+        public record Multiply(double value) implements MultiplyOp<Long> {
             @Override public Long compute(Long cur) { return (long) (cur * value); }
             @Override public Long first() { return compute(1L); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_MULTIPLY,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Divide(double value) implements Op.Initial<Long> {
+        public record Divide(double value) implements DivideOp<Long> {
             @Override public Long compute(Long cur) { return (long) (cur / value); }
             @Override public Long first() { return compute(0L); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_DIVIDE,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
 
         private static final OpTypes<Long> OP_TYPES = Stat.<Long>buildOpTypes()
@@ -129,50 +137,30 @@ public interface PrimitiveStat {
         return new Integer(key, null);
     }
 
-    final class Decimal extends Stat<Double> implements PrimitiveStat {
-        public record Set(double value) implements Op.Initial<Double>, Op.Discards {
+    final class Decimal extends Stat<Double> implements OfNumber {
+        public record Set(Double value) implements SetOp<Double> {
             @Override public Double first() { return value; }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_SET,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Add(double value) implements Op.Initial<Double> {
+        public record Add(Double value) implements AddOp<Double> {
             @Override public Double compute(Double cur) { return cur + value; }
             @Override public Double first() { return compute(0d); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_ADD,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Subtract(double value) implements Op.Initial<Double> {
+        public record Subtract(Double value) implements SubtractOp<Double> {
             @Override public Double compute(Double cur) { return cur - value; }
             @Override public Double first() { return compute(0d); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_SUBTRACT,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Multiply(double value) implements Op.Initial<Double> {
+        public record Multiply(double value) implements MultiplyOp<Double> {
             @Override public Double compute(Double cur) { return cur * value; }
             @Override public Double first() { return compute(1d); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_MULTIPLY,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
-        public record Divide(double value) implements Op.Initial<Double> {
+        public record Divide(double value) implements DivideOp<Double> {
             @Override public Double compute(Double cur) { return cur / value; }
             @Override public Double first() { return compute(0d); }
-            @Override
-            public Component render(I18N i18n, Locale locale) {
-                return i18n.line(locale, STAT_TYPE_NUMBER_DIVIDE,
-                    c -> c.of("value", () -> text(value)));
-            }
+            @Override public double asDouble() { return value; }
         }
 
         private static final OpTypes<Double> OP_TYPES = Stat.<Double>buildOpTypes()

@@ -1,5 +1,7 @@
 package com.github.aecsocket.sokol.core.feature;
 
+import com.github.aecsocket.minecommons.core.expressions.math.MathNode;
+import com.github.aecsocket.minecommons.core.expressions.node.EvaluationException;
 import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.serializers.Serializers;
 import com.github.aecsocket.sokol.core.*;
@@ -11,10 +13,12 @@ import com.github.aecsocket.sokol.core.stat.Stat;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.core.stat.StatTypes;
+import com.github.aecsocket.sokol.core.stat.impl.PrimitiveStat;
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
 import com.github.aecsocket.sokol.core.world.ItemStack;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;
@@ -37,23 +41,29 @@ public abstract class StatDisplay<
 > implements Feature<P> {
     public static final String
         ID = "stat_display",
-        KEY_SEPARATOR = "feature." + ID + ".separator",
-        KEY_ENTRY = "feature." + ID + ".entry";
+        KEY_SECTION_SEPARATOR = "feature." + ID + ".section_separator",
+        KEY_FORMAT_SEPARATOR = "feature." + ID + ".format_separator",
+        KEY_ENTRY = "feature." + ID + ".entry",
+        STAT_FORMAT = "stat_format",
+        VALUE = "value";
 
     public interface Format<T> {
         String id();
-        String key();
+        @Nullable String i18nKey();
         boolean accepts(Stat<?> stat);
         <V extends T> Component render(I18N i18n, Locale locale, Stat.Node<V> node) throws FormatRenderException;
         default void validate() throws FormatValidationException {}
 
-        record Type(String id, Class<? extends Format<?>> type) implements Keyed {
-            public static final String I18N_KEY = "stat_format";
+        default String i18n(String key) {
+            return STAT_FORMAT + "." + (i18nKey() == null ? id() : i18nKey()) + "." + key;
+        }
 
-            @Override public String i18nBase() { return I18N_KEY; }
+        record Type(String id, Class<? extends Format<?>> type) implements Keyed {
+            @Override public String i18nBase() { return STAT_FORMAT; }
 
             public static void registerDefaults(Registry<Type> registry) {
                 registry.register(Raw.TYPE);
+                registry.register(OfNumber.TYPE);
             }
         }
 
@@ -91,7 +101,7 @@ public abstract class StatDisplay<
         }
     }
 
-    public static class FormatRenderException extends Exception {
+    public static class FormatRenderException extends RuntimeException {
         public FormatRenderException() {}
 
         public FormatRenderException(String message) {
@@ -123,6 +133,12 @@ public abstract class StatDisplay<
         }
     }
 
+    @ConfigSerializable
+    public record FormatChain<T>(
+        @Required String key,
+        @Required List<Format<T>> formats
+    ) {}
+
     protected final I18N i18n;
 
     public StatDisplay(I18N i18n) {
@@ -138,11 +154,11 @@ public abstract class StatDisplay<
 
     public abstract class Profile implements FeatureProfile<F, D> {
         protected final int listenerPriority;
-        protected final List<List<Format<?>>> sections;
+        protected final List<List<FormatChain<?>>> sections;
         protected final String padding;
         protected final int paddingWidth;
 
-        public Profile(int listenerPriority, List<List<Format<?>>> sections, String padding, int paddingWidth) {
+        public Profile(int listenerPriority, List<List<FormatChain<?>>> sections, String padding, int paddingWidth) {
             this.listenerPriority = listenerPriority;
             this.sections = sections;
             this.padding = padding;
@@ -150,7 +166,7 @@ public abstract class StatDisplay<
         }
 
         public int listenerPriority() { return listenerPriority; }
-        public List<List<Format<?>>> sections() { return sections; }
+        public List<List<FormatChain<?>>> sections() { return sections; }
         public String padding() { return padding; }
         public int paddingWidth() { return paddingWidth; }
 
@@ -192,8 +208,8 @@ public abstract class StatDisplay<
                     Map<String, KeyData> keyData = new HashMap<>();
                     int longest = 0;
                     for (var section : sections) {
-                        for (var format : section) {
-                            String key = format.key();
+                        for (var formats : section) {
+                            String key = formats.key();
                             if (keyData.containsKey(key))
                                 continue;
                             Stat.Node<?> node = stats.get(key);
@@ -211,13 +227,13 @@ public abstract class StatDisplay<
                     for (var section : sections) {
                         List<Component> secLines = new ArrayList<>();
                         for (var format : section) {
-                            secLines.addAll(lines(locale, format, stats, keyData.get(format.key()), longest));
+                            secLines.addAll(lines(locale, format, stats, keyData.get(format.key), longest));
                         }
                         if (secLines.size() > 0)
                             rendered.add(secLines);
                     }
 
-                    List<Component> separator = i18n.lines(locale, KEY_SEPARATOR);
+                    List<Component> separator = i18n.lines(locale, KEY_SECTION_SEPARATOR);
                     for (int i = 0; i < rendered.size(); i++) {
                         if (i > 0)
                             lines.addAll(separator);
@@ -225,27 +241,33 @@ public abstract class StatDisplay<
                     }
                 }
 
-                protected <T> List<Component> lines(Locale locale, Format<T> format, StatMap stats, KeyData keyData, int longest) {
-                    String key = format.key();
+                protected <T> List<Component> lines(Locale locale, FormatChain<T> formats, StatMap stats, KeyData keyData, int longest) {
+                    String key = formats.key();
                     Stat.Node<?> rawNode = stats.get(key);
                     if (rawNode == null)
                         return Collections.emptyList();
-                    if (!format.accepts(rawNode.stat()))
-                        throw new ItemCreationException("Format `" + format.id() + "` does not accept stat `" + key + "` of type `" + rawNode.stat().getClass().getName() + "`");
-                    @SuppressWarnings("unchecked")
-                    Stat.Node<T> node = (Stat.Node<T>) rawNode;
 
-                    Component rendered;
-                    try {
-                        rendered = format.render(i18n, locale, node);
-                    } catch (FormatRenderException e) {
-                        throw new ItemCreationException("Could not render stat `" + key + "`", e);
+                    List<Component> parts = new ArrayList<>();
+                    for (var format : formats.formats) {
+                        if (!format.accepts(rawNode.stat()))
+                            throw new ItemCreationException("Format `" + format.id() + "` does not accept stat `" + key + "` of type `" + rawNode.stat().getClass().getName() + "`");
+                        @SuppressWarnings("unchecked")
+                        Stat.Node<T> node = (Stat.Node<T>) rawNode;
+
+                        try {
+                            Component original = format.render(i18n, locale, node);
+                            parts.add(i18n.orLine(locale, format.i18n(VALUE),
+                                c -> c.of("value", () -> original))
+                                .orElse(original));
+                        } catch (FormatRenderException e) {
+                            throw new ItemCreationException("Could not render stat `" + key + "`", e);
+                        }
                     }
                     return i18n.lines(locale, KEY_ENTRY,
                         c -> c.of("padding", () -> text(padding.repeat((longest - keyData.width) / paddingWidth))),
                         c -> c.of("key", () -> text(key)),
                         c -> c.of("stat", () -> keyData.component),
-                        c -> c.of("value", () -> rendered));
+                        c -> c.of("value", () -> Component.join(JoinConfiguration.separator(i18n.line(locale, KEY_FORMAT_SEPARATOR)), parts)));
                 }
             }
         }
@@ -253,13 +275,14 @@ public abstract class StatDisplay<
 
     @ConfigSerializable
     public record Raw(
-        @Required String key, @Nullable String i18nKey, boolean useToString
+        @Nullable String i18nKey,
+        boolean useToString
     ) implements Format<Object> {
         public static final String ID = "raw";
         public static final Format.Type TYPE = new Format.Type(ID, Raw.class);
 
         public Raw() {
-            this(null, null, false);
+            this(null, false);
         }
 
         @Override public String id() { return ID; }
@@ -269,6 +292,92 @@ public abstract class StatDisplay<
         public <V> Component render(I18N i18n, Locale locale, Stat.Node<V> node) throws FormatRenderException {
             V value = node.compute();
             return useToString ? text(value.toString()) : node.stat().renderValue(i18n, locale, value);
+        }
+    }
+
+
+    @ConfigSerializable
+    public record NumberOptions(
+        @Required String format,
+        @Nullable MathNode expression,
+        Direction better
+    ) {
+        public static final NumberOptions INSTANCE = new NumberOptions();
+
+        public enum Direction {
+            HIGHER, LOWER, NONE
+        }
+
+        public NumberOptions() {
+            this(null, null, Direction.NONE);
+        }
+
+        public String format(Locale locale, double value) throws FormatRenderException {
+            try {
+                return String.format(locale, format, value);
+            } catch (IllegalFormatException e) {
+                throw new FormatRenderException("Invalid format `" + format + "`", e);
+            }
+        }
+
+        public double express(double value) {
+            if (expression == null)
+                return value;
+            try {
+                return expression.set("x", value).eval();
+            } catch (EvaluationException e) {
+                throw new IllegalArgumentException("Could not evaluate expression", e);
+            }
+        }
+
+        public Component render(Format<?> format, I18N i18n, Locale locale, double value, PrimitiveStat.OfNumber.NumberOp<?> op, Direction direction) {
+            value = express(value);
+            double fValue = value;
+            return i18n.line(locale, format.i18n(
+                (better == null || direction == Direction.NONE ? "neutral"
+                : direction == better ? "better" : "worse") +
+                "." + op.name()),
+                c -> c.of("value", () -> text(fValue) /* todo */));
+        }
+
+        public static Direction direction(double num, PrimitiveStat.OfNumber.NumberOp<?> op) {
+            if (op instanceof PrimitiveStat.OfNumber.SumOp) {
+                num = op instanceof PrimitiveStat.OfNumber.SubtractOp ? -num : num;
+                return num > 0 ? Direction.HIGHER : num < 0 ? Direction.LOWER : Direction.NONE;
+            }
+            if (op instanceof PrimitiveStat.OfNumber.FactorOp) {
+                num = op instanceof PrimitiveStat.OfNumber.DivideOp<?> ? 1 / num : num;
+                return num > 1 ? Direction.HIGHER : num < 1 ? Direction.LOWER : Direction.NONE;
+            }
+            return Direction.NONE;
+        }
+    }
+
+    @ConfigSerializable
+    public record OfNumber(
+        @Nullable String i18nKey,
+        @Required NumberOptions options
+    ) implements Format<Number> {
+        public static final String ID = "number";
+        public static final Format.Type TYPE = new Format.Type(ID, OfNumber.class);
+
+        public OfNumber() {
+            this(null, null);
+        }
+
+        @Override public String id() { return ID; }
+        @Override public boolean accepts(Stat<?> stat) { return stat instanceof PrimitiveStat.OfNumber; }
+
+        @Override
+        public <V extends Number> Component render(I18N i18n, Locale locale, Stat.Node<V> node) throws FormatRenderException {
+            List<Component> parts = new ArrayList<>();
+            for (var cur = node; cur != null; cur = cur.next()) {
+                if (!(cur.op() instanceof PrimitiveStat.OfNumber.NumberOp op))
+                    continue;
+                double value = op.asDouble();
+                parts.add(options.render(this, i18n, locale, value, op, NumberOptions.direction(value, op)));
+            }
+            return Component.join(JoinConfiguration.separator(i18n.line(locale, i18n("separator"))), parts);
         }
     }
 }
