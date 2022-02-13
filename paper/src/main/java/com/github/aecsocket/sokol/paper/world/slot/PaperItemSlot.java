@@ -11,6 +11,7 @@ import com.github.aecsocket.sokol.paper.SokolPlugin;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.ImmutableBiMap;
 
+import org.bukkit.Material;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -30,24 +31,24 @@ public interface PaperItemSlot extends ItemSlot<PaperItemStack> {
 
     @Override
     default void set(@Nullable PaperItemStack item) {
-        raw(item == null ? null : item.handle());
+        raw(item == null ? new ItemStack(Material.AIR) : item.handle());
     }
 
     interface Equip extends PaperItemSlot, EquipSlot<PaperItemStack> {
         BiMap<EquipmentSlot, Position> MAPPINGS = ImmutableBiMap.<EquipmentSlot, Position>builder()
-                .put(EquipmentSlot.HAND, Position.MAIN_HAND)
-                .put(EquipmentSlot.OFF_HAND, Position.OFF_HAND)
-                .put(EquipmentSlot.HEAD, Position.HEAD)
-                .put(EquipmentSlot.CHEST, Position.CHEST)
-                .put(EquipmentSlot.LEGS, Position.LEGS)
-                .put(EquipmentSlot.FEET, Position.FEET)
-                .build();
+            .put(EquipmentSlot.HAND, Position.MAIN_HAND)
+            .put(EquipmentSlot.OFF_HAND, Position.OFF_HAND)
+            .put(EquipmentSlot.HEAD, Position.HEAD)
+            .put(EquipmentSlot.CHEST, Position.CHEST)
+            .put(EquipmentSlot.LEGS, Position.LEGS)
+            .put(EquipmentSlot.FEET, Position.FEET)
+            .build();
 
         LivingEntity entity();
         EquipmentSlot slot();
     }
 
-    static PaperItemSlot itemSlot(SokolPlugin plugin, Supplier<@Nullable ItemStack> get, Consumer<@Nullable ItemStack> set) {
+    static PaperItemSlot itemSlot(SokolPlugin plugin, Supplier<@Nullable ItemStack> get, Consumer<ItemStack> set) {
         return new PaperItemSlotImpl(plugin, get, set);
     }
 

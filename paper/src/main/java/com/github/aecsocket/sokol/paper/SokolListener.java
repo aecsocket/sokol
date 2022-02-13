@@ -10,4 +10,10 @@ import org.bukkit.event.player.PlayerInteractEvent;
     public SokolListener(SokolPlugin plugin) {
         this.plugin = plugin;
     }
+
+    @EventHandler
+    private void onEvent(PlayerInteractEvent event) {
+        PaperEvents.forInventory(plugin, event.getPlayer(),
+            node -> new PaperEvents.GameClick(node, event));
+    }
 }

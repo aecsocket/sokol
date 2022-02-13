@@ -21,15 +21,17 @@ public interface SokolPlatform {
     I18N i18n();
 
     Registry<? extends SokolComponent.Scoped<?, ?, ?>> components();
-
     Registry<? extends Feature<?>> features();
+    Registry<? extends Blueprint<?>> blueprints();
 
     interface Scoped<
+        F extends Feature<?>,
         C extends SokolComponent.Scoped<C, ?, ?>,
-        F extends Feature<?>
+        B extends Blueprint<?>
     > extends SokolPlatform {
-        @Override Registry<C> components();
         @Override Registry<F> features();
+        @Override Registry<C> components();
+        @Override Registry<B> blueprints();
 
         void setUpSerializers(Map<String, Stat<?>> statTypes, Map<String, Class<? extends Rule>> ruleTypes);
 
@@ -55,22 +57,4 @@ public interface SokolPlatform {
         }
         return id;
     }
-
-    /*I18N i18n();
-
-    interface Scoped<
-            C extends Component.Scoped<C, ?, ?>,
-            B extends BlueprintNode.Scoped<B, ?, ?, ?>,
-            F extends Feature<?>
-    > extends SokolPlatform {
-        Registry<C> components();
-
-        Registry<KeyedBlueprint<B>> blueprints();
-
-        Registry<F> features();
-
-        void setUpSerializers(Map<String, Stat<?>> statTypes, Map<String, Class<? extends NodeRule>> ruleTypes);
-
-        void tearDownSerializers();
-    }*/
 }

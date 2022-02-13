@@ -1,8 +1,10 @@
 package com.github.aecsocket.sokol.paper;
 
+import com.github.aecsocket.minecommons.core.InputType;
 import com.github.aecsocket.minecommons.core.Logging;
 import com.github.aecsocket.minecommons.paper.effect.PaperEffectors;
-import com.github.aecsocket.minecommons.paper.inputs.PacketInputs;
+import com.github.aecsocket.minecommons.paper.inputs.Inputs;
+import com.github.aecsocket.minecommons.paper.inputs.ListenerInputs;
 import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.github.aecsocket.minecommons.paper.plugin.BasePlugin;
 
@@ -15,15 +17,15 @@ import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.paper.context.PaperContext;
 import com.github.aecsocket.sokol.paper.feature.PaperItemDescription;
+
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import com.github.aecsocket.sokol.paper.world.slot.PaperItemSlot;
-
 import io.leangen.geantyref.TypeToken;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
-import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.entity.Item;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.map.MapFont;
 import org.bukkit.map.MinecraftFont;
 import org.spongepowered.configurate.ConfigurateException;
@@ -37,15 +39,18 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Map;
 
-public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<PaperComponent, PaperFeature<?>> {
+public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<
+    PaperFeature<?>, PaperComponent, PaperBlueprint
+> {
     public static final String
         CONFIG_EXTENSION = "conf",
         PATH_COMPONENT = "component",
         PATH_BLUEPRINT = "blueprint";
     public static final int BSTATS_ID = 11870;
 
-    private final Registry<PaperComponent> components = new Registry<>();
     private final Registry<PaperFeature<?>> features = new Registry<>();
+    private final Registry<PaperComponent> components = new Registry<>();
+    private final Registry<PaperBlueprint> blueprints = new Registry<>();
     private final PaperEffectors effectors = new PaperEffectors(this);
     private final SokolPersistence persistence = new SokolPersistence(this);
     private final MapFont font = new MinecraftFont();
@@ -53,8 +58,9 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     private final StatMap.Serializer statsSerializer = new StatMap.Serializer();
     private final Rule.Serializer rulesSerializer = new Rule.Serializer();
 
-    @Override public Registry<PaperComponent> components() { return components; }
     @Override public Registry<PaperFeature<?>> features() { return features; }
+    @Override public Registry<PaperComponent> components() { return components; }
+    @Override public Registry<PaperBlueprint> blueprints() { return blueprints; }
     public PaperEffectors effectors() { return effectors; }
     public SokolPersistence persistence() { return persistence; }
     public MapFont font() { return font; }
@@ -65,34 +71,37 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
 
         features.register(new PaperItemDescription(this));
 
+        Bukkit.getPluginManager().registerEvents(new SokolListener(this), this);
         Bukkit.getScheduler().scheduleSyncRepeatingTask(this, () -> {
             for (var player : Bukkit.getOnlinePlayers()) {
-                PaperItemUser.OfPlayer user = PaperItemUser.user(this, player);
-                PlayerInventory inventory = player.getInventory();
-                for (var slot : EquipmentSlot.values()) {
-                    ItemStack item = inventory.getItem(slot);
-                    persistence.load(item).ifPresent(bp ->
-                        bp.asTreeNode(PaperContext.context(
-                            user,
-                            new PaperItemStack(this, item),
-                            PaperItemSlot.itemSlot(this, player, slot)
-                        )).tree().andCall(PaperEvents.Hold::new)
-                    );
-                }
+                PaperEvents.forInventory(this, player, PaperEvents.Hold::new);
             }
         }, 0, 1);
 
-        PacketInputs packetInputs = new PacketInputs(this);
-        protocol.manager().addPacketListener(packetInputs);
-        packetInputs.events().register(PacketInputs.Events.PacketInput.class, event -> {
-            System.out.println(event.input());
-        });
+        // TODO async packet-based input events
+        /*PacketInputs packetInputs = new PacketInputs(this);
+        protocol.manager().addPacketListener(packetInputs);*/
 
-        /*ListenerInputs listenerInputs = new ListenerInputs();
+        ListenerInputs listenerInputs = new ListenerInputs();
         Bukkit.getPluginManager().registerEvents(listenerInputs, this);
+        listenerInputs.events().register(ListenerInputs.Events.DropInput.class, event -> {
+            Player player = event.player();
+            Item item = event.event().getItemDrop();
+            ItemStack stack = item.getItemStack();
+            persistence.load(stack).ifPresent(bp -> {
+                bp.asTreeNode(PaperContext.context(
+                    PaperItemUser.user(this, player),
+                    new PaperItemStack(this, stack),
+                    PaperItemSlot.itemSlot(this, item::getItemStack, item::setItemStack)
+                )).tree().andCall(node -> new PaperEvents.Input(node, event));
+            });
+        });
         listenerInputs.events().register(Inputs.Events.Input.class, event -> {
-            System.out.println(event.input());
-        });*/
+            if (event.input() == InputType.DROP)
+                return;
+            PaperEvents.forInventory(this, event.player(),
+                node -> new PaperEvents.Input(node, event));
+        });
     }
 
     @Override
@@ -105,6 +114,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
             .register(StatIntermediate.Priority.class, new StatIntermediate.Priority.Serializer())
 
             .register(PaperComponent.class, new PaperComponent.Serializer(this))
+            .register(PaperBlueprint.class, new PaperBlueprint.Serializer())
             .register(PaperBlueprintNode.class, new PaperBlueprintNode.Serializer(this));
     }
 
@@ -138,8 +148,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
         }
 
         loadRegistry(path(PATH_COMPONENT), PaperComponent.class.getSimpleName(), new TypeToken<PaperComponent>() {}, components);
-        // TODO keyed ver of BPs
-        //loadRegistry(PATH_BLUEPRINT, PaperBlueprint.class.getSimpleName(), new TypeToken<KeyedBlueprint<PaperBlueprint>>() {}, blueprints);
+        loadRegistry(path(PATH_BLUEPRINT), PaperBlueprint.class.getSimpleName(), new TypeToken<PaperBlueprint>() {}, blueprints);
     }
 
     private <T extends Keyed> void loadRegistry(Path root, String typeName, TypeToken<T> type, Registry<T> registry) {
@@ -163,7 +172,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
                         try {
                             object = entry.getValue().get(type);
                             if (object == null)
-                                throw new NullPointerException("Null object deserialized");
+                                throw new NullPointerException("Null object deserialized (was the serializer registered?)");
                         } catch (SerializationException e) {
                             log(Logging.Level.WARNING, e, "Could not load %s from /%s", typeName, path);
                             continue;

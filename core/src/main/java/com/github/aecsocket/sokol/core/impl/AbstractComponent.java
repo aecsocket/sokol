@@ -60,10 +60,11 @@ public abstract class AbstractComponent<
         F extends Feature<? extends P>,
         P extends FeatureProfile<?, ?>
     > implements TypeSerializer<C> {
-        protected abstract SokolPlatform.Scoped<C, F> platform();
+        protected abstract SokolPlatform.Scoped<F, C, ?> platform();
         protected abstract Map<String, Stat<?>> defaultStatTypes();
         protected abstract Map<String, Class<? extends Rule>> defaultRuleTypes();
         protected abstract Class<S> slotType();
+
         protected abstract C create(
             String id, Set<String> tags, Map<String, P> features, Map<String, S> slots, StatIntermediate stats
         );
@@ -75,7 +76,7 @@ public abstract class AbstractComponent<
 
         @Override
         public C deserialize(Type type, ConfigurationNode node) throws SerializationException {
-            var platform = platform();
+            SokolPlatform.Scoped<F, C, ?> platform = platform();
             List<F> providers = new ArrayList<>();
             Map<F, ConfigurationNode> featureConfigs = new HashMap<>();
             for (var entry : node.node(FEATURES).childrenMap().entrySet()) {

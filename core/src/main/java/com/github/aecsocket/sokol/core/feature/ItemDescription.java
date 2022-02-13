@@ -54,8 +54,10 @@ public abstract class ItemDescription<
                 @Override public D asData() { return self(); }
 
                 @Override
-                public void build(Tree<N> tree, N node, StatIntermediate stats) {
-                    tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent);
+                public void build(Tree<N> tree, N parent, StatIntermediate stats) {
+                    if (parent.isRoot()) {
+                        tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent);
+                    }
                 }
 
                 protected void onEvent(NodeEvent.CreateItem<N, ?, S> event) {

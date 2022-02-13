@@ -94,7 +94,7 @@ public abstract class AbstractBlueprintNode<
         D extends FeatureData<?, ?, N>,
         I extends FeatureInstance<?, N>
     > implements TypeSerializer<B> {
-        protected abstract SokolPlatform.Scoped<C, F> platform();
+        protected abstract SokolPlatform.Scoped<F, C, ?> platform();
         protected abstract B create(C value, Map<String, D> featureData, @Nullable B parent, @Nullable String key);
 
         @Override
@@ -139,7 +139,7 @@ public abstract class AbstractBlueprintNode<
 
             for (var entry : node.node(CHILDREN).childrenMap().entrySet()) {
                 String childKey = ""+entry.getKey();
-                root.setUnsafe(childKey, deserialize(type, node, root, childKey));
+                root.setUnsafe(childKey, deserialize(type, entry.getValue(), root, childKey));
             }
 
             return root;

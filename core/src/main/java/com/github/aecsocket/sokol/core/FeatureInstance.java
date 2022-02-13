@@ -8,5 +8,5 @@ public interface FeatureInstance<
 > {
     D asData();
 
-    void build(Tree<N> tree, N node, StatIntermediate stats);
+    void build(Tree<N> tree, N parent, StatIntermediate stats);
 }
