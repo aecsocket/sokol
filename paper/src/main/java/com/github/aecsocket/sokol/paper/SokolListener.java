@@ -30,6 +30,8 @@ import java.util.Locale;
     private void onEvent(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player player))
             return;
+        if (event.getClickedInventory() == event.getView().getTopInventory())
+            return;
         ItemStack cursorStack = event.getCursor();
         ItemStack clickedStack = event.getCurrentItem();
         if (cursorStack == null || cursorStack.getAmount() == 0) {

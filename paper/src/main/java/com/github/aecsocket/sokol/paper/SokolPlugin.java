@@ -122,7 +122,22 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
         ChestGui gui = new ChestGui(6, ComponentHolder.of(i18n.line(locale, PaperNodeView.NODE_VIEW_TITLE,
             c -> c.of("title", () -> title))));
         InventoryComponent inv = gui.getInventoryComponent();
-        gui.addPane(new PaperNodeView(inv.getLength(), inv.getHeight(), this, nodeView, clickedSlot));
+        PaperNodeView pane = new PaperNodeView(inv.getLength(), inv.getHeight(), this, nodeView, clickedSlot);
+        gui.addPane(pane);
+        gui.setOnTopClick(event -> event.setCancelled(true));
+        gui.setOnBottomClick(event -> {
+            if (event.isShiftClick())
+                event.setCancelled(true);
+        });
+        gui.setOnGlobalClick(event -> {
+            Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
+                ItemStack cursor = event.getCursor();
+                pane.cursor(cursor);
+                event.getView().setCursor(null);
+                gui.update();
+                event.getView().setCursor(cursor);
+            });
+        });
         return gui;
     }
 

@@ -118,6 +118,11 @@ public abstract class AbstractTreeNode<
         return super.set(key, val);
     }
 
+    // TODO move this to minecommons
+    public void clearChildren() {
+        children.clear();
+    }
+
     @Override
     public void visitSokolNodes(Consumer<SokolNode> visitor) {
         visit(visitor::accept);

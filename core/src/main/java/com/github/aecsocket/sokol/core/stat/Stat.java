@@ -11,6 +11,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
 
 public abstract class Stat<T> implements Renderable {
     public static final String
@@ -97,6 +98,7 @@ public abstract class Stat<T> implements Renderable {
         private final Stat<T> stat;
         private final Stat.Op<T> op;
         private @Nullable Node<T> next;
+        private AtomicReference<T> computed = new AtomicReference<>();
 
         public Node(Stat<T> stat, Stat.Op<T> op, @Nullable Node<T> next) {
             this.stat = stat;
@@ -113,16 +115,26 @@ public abstract class Stat<T> implements Renderable {
         public Stat.Op<T> op() { return op; }
 
         public @Nullable Node<T> next() { return next; }
-        public void next(Node<T> next) { this.next = next; }
+        public void next(Node<T> next) {
+            this.next = next;
+            computed.set(null);
+            next.computed = computed;
+        }
 
         public Node<T> chain(Node<T> next) {
             Node<T> cur = this;
             for (; cur.next != null; cur = cur.next);
-            cur.next = next;
+            cur.next(next);
             return cur;
         }
 
         public T compute() {
+            if (computed.get() == null)
+                computed.set(forceCompute());
+            return computed.get();
+        }
+
+        public T forceCompute() {
             if (!(op instanceof Stat.Op.Initial<T> initial))
                 throw new IllegalStateException("Stat chain must start with an initial operation");
             T value = initial.first();

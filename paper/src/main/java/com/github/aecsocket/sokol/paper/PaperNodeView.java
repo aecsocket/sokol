@@ -2,6 +2,7 @@ package com.github.aecsocket.sokol.paper;
 
 import com.github.aecsocket.minecommons.core.Components;
 import com.github.aecsocket.minecommons.core.vector.cartesian.Point2;
+import com.github.aecsocket.sokol.core.IncompatibleException;
 import com.github.aecsocket.sokol.core.nodeview.NodeView;
 import com.github.stefvanschie.inventoryframework.gui.GuiItem;
 import com.github.stefvanschie.inventoryframework.gui.InventoryComponent;
@@ -25,13 +26,15 @@ public final class PaperNodeView extends Pane {
         NODE_VIEW_SLOT = "node_view.slot",
         SLOT_DEFAULT = "default",
         SLOT_REQUIRED = "required",
-        SLOT_MODIFIABLE = "modifiable";
+        SLOT_MODIFIABLE = "modifiable",
+        SLOT_COMPATIBLE = "compatible",
+        SLOT_INCOMPATIBLE = "incompatible";
     private static final ItemDescriptor SLOT_ITEM_DEFAULT = new ItemDescriptor(Material.BLACK_STAINED_GLASS_PANE.getKey(), 0, 0, false, new ItemFlag[0]);
 
     private final SokolPlugin plugin;
     private final NodeView<PaperTreeNode, PaperNodeSlot> backing;
     private final int clickedSlot;
-    private ItemStack nextCursor;
+    private @Nullable ItemStack cursor;
 
     private final GuiItem[] items;
 
@@ -62,8 +65,9 @@ public final class PaperNodeView extends Pane {
 
     public NodeView<PaperTreeNode, PaperNodeSlot> backing() { return backing; }
     public int clickedSlot() { return clickedSlot; }
-    public ItemStack nextCursor() { return nextCursor; }
     public GuiItem[] items() { return items; }
+
+    void cursor(@Nullable ItemStack cursor) { this.cursor = cursor; }
 
     private void callback() {
         backing.callback().accept(backing.root());
@@ -77,31 +81,35 @@ public final class PaperNodeView extends Pane {
 
     private ItemStack buildNodeItem(PaperTreeNode node) {
         node = node.asRoot();
-        for (var key : node.childKeys()) {
-            node.setUnsafe(key, null);
-        }
+        node.clearChildren();
         return node.build().asItem().handle();
     }
 
-    private ItemStack buildSlotItem(Locale locale, @Nullable ItemStack cursor, PaperNodeSlot slot) {
+    private ItemStack buildSlotItem(Locale locale, PaperTreeNode parent, PaperNodeSlot slot) {
         String key = SLOT_DEFAULT;
-        if (cursor == null) {
+        if (cursor == null || cursor.getAmount() == 0) {
             if (slot.required())
                 key = SLOT_REQUIRED;
             else if (slot.modifiable())
                 key = SLOT_MODIFIABLE;
         } else {
-
+            key = plugin.persistence().load(cursor)
+                .map(cursorNode -> {
+                    try {
+                        slot.compatible(cursorNode, parent);
+                        return true;
+                    } catch (IncompatibleException e) {
+                        return false;
+                    }
+                }).orElse(false)
+                ? SLOT_COMPATIBLE : SLOT_INCOMPATIBLE;
         }
 
-        System.out.println(SLOT_ITEM_DEFAULT.key());
         ItemStack item = plugin.setting(SLOT_ITEM_DEFAULT, (n, d) -> n.get(ItemDescriptor.class, d), "node_view", "slot", key)
             .stack();
-        item.editMeta(meta -> {
-            meta.displayName(Components.BLANK.append(plugin.i18n().line(locale, NODE_VIEW_SLOT,
-                c -> c.of("key", () -> Component.text(slot.key())),
-                c -> c.of("slot", () -> c.rd(slot)))));
-        });
+        item.editMeta(meta -> meta.displayName(Components.BLANK.append(plugin.i18n().line(locale, NODE_VIEW_SLOT,
+            c -> c.of("key", () -> Component.text(slot.key())),
+            c -> c.of("slot", () -> c.rd(slot))))));
         return item;
     }
 
@@ -113,10 +121,10 @@ public final class PaperNodeView extends Pane {
     public void display(@NotNull InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight) {
         Point2 pos = backing.options().center();
         set(inv, offX, offY, maxLength, maxHeight, pos.x(), pos.y(), buildRoot());
-        build(inv, offX, offY, maxLength, maxHeight, null, /* todo */ backing.root(), pos);
+        build(inv, offX, offY, maxLength, maxHeight, backing.root(), pos);
     }
 
-    private void build(InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight, @Nullable ItemStack cursor, PaperTreeNode node, Point2 origin) {
+    private void build(InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight, PaperTreeNode node, Point2 origin) {
         Locale locale = node.context().locale();
         for (var entry : node.value().slots().entrySet()) {
             String key = entry.getKey();
@@ -135,20 +143,27 @@ public final class PaperNodeView extends Pane {
                         c -> c.of("slot", () -> c.rd(slot))));
                     meta.lore(lore);
 
-                    if (false) { // compat
+                    if (cursor != null && plugin.persistence().load(cursor)
+                        .map(cursorNode -> {
+                            try {
+                                slot.compatible(cursorNode, node);
+                                return true;
+                            } catch (IncompatibleException e) {
+                                return false;
+                            }
+                        }).orElse(false)
+                    ) {
                         // TODO glint API
                         meta.addEnchant(Enchantment.ARROW_INFINITE, 1, true);
                         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                     }
                 });
                 set(inv, offX, offY, maxLength, maxHeight, pos.x(), pos.y(), new GuiItem(item, event -> {
-
                 }));
-                build(inv, offX, offY, maxLength, maxHeight, cursor, child, pos);
+                build(inv, offX, offY, maxLength, maxHeight, child, pos);
             }, () -> {
-                ItemStack item = buildSlotItem(locale, cursor, slot);
+                ItemStack item = buildSlotItem(locale, node, slot);
                 set(inv, offX, offY, maxLength, maxHeight, pos.x(), pos.y(), new GuiItem(item, event -> {
-
                 }));
             });
         }
