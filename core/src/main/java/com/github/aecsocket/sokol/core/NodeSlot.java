@@ -8,8 +8,10 @@ import java.util.Locale;
 import java.util.Set;
 
 public interface NodeSlot extends Renderable {
-    String REQUIRED = "required";
-    String NODE_SLOT = "node_slot";
+    String
+        I18N_KEY = "slot",
+        REQUIRED = "required",
+        MODIFIABLE = "modifiable";
 
     SokolComponent parent();
     String key();
@@ -18,12 +20,13 @@ public interface NodeSlot extends Renderable {
     boolean tagged(String key);
 
     boolean required();
+    boolean modifiable();
 
     <N extends SokolNode> void compatible(N target, N parent) throws IncompatibleException;
 
     @Override
     default Component render(I18N i18n, Locale locale) {
-        return i18n.line(locale, NODE_SLOT + "." + key());
+        return i18n.line(locale, I18N_KEY + "." + key());
     }
 
     interface Scoped<

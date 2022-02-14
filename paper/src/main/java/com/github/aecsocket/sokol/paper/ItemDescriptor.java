@@ -1,7 +1,6 @@
 package com.github.aecsocket.sokol.paper;
 
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
-import com.github.aecsocket.sokol.paper.stat.ItemStat;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -9,12 +8,13 @@ import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
+import org.spongepowered.configurate.objectmapping.meta.Required;
 
 import java.util.Arrays;
 
 @ConfigSerializable
 public record ItemDescriptor(
-    NamespacedKey key,
+    @Required NamespacedKey key,
     int modelData,
     int damage,
     boolean unbreakable,

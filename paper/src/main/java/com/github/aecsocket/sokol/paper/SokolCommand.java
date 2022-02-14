@@ -12,7 +12,9 @@ import com.github.aecsocket.minecommons.core.Colls;
 import com.github.aecsocket.minecommons.core.Components;
 import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.i18n.Renderable;
+import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
+import com.github.aecsocket.sokol.core.Tree;
 import com.github.aecsocket.sokol.core.context.Context;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
@@ -67,6 +69,9 @@ import static net.kyori.adventure.text.Component.*;
         COMMAND_TREE_EMPTY = "command.tree.empty",
         COMMAND_TREE_CHILD = "command.tree.child",
         COMMAND_TREE_CHILD_HOVER = "command.tree.child_hover",
+        COMMAND_TREE_STATS = "command.tree.stats",
+        COMMAND_TREE_INCOMPLETE_HEADER = "command.tree.incomplete.header",
+        COMMAND_TREE_INCOMPLETE_ENTRY = "command.tree.incomplete.entry",
         COMMAND_GIVE = "command.give";
 
     public SokolCommand(SokolPlugin plugin) throws Exception {
@@ -250,7 +255,7 @@ import static net.kyori.adventure.text.Component.*;
 
         info(ctx, sender, locale, pSender, object);
 
-        tree(ctx, sender, locale, pSender, object.create());
+        tree(ctx, sender, locale, pSender, object.create(), 1);
     }
 
     private void info(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, Keyed object) {
@@ -276,10 +281,10 @@ import static net.kyori.adventure.text.Component.*;
         PaperBlueprintNode node = plugin.persistence().load(item)
             .orElseThrow(() -> error(ERROR_ITEM_NOT_TREE));
 
-        tree(ctx, sender, locale, pSender, node);
+        tree(ctx, sender, locale, pSender, node, 0);
     }
 
-    private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, Component indent, int depth, PaperBlueprintNode node) {
+    private void subTree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, Component indent, int depth, PaperBlueprintNode node) {
         for (var entry : node.value().slots().entrySet()) {
             String key = entry.getKey();
             PaperNodeSlot slot = entry.getValue();
@@ -298,7 +303,7 @@ import static net.kyori.adventure.text.Component.*;
                 plugin.send(sender, i18n.modLines(locale, COMMAND_TREE_CHILD,
                     line -> line.hoverEvent(hover).clickEvent(click),
                     templates));
-                tree(ctx, sender, locale, pSender, indent, depth + 1, child);
+                subTree(ctx, sender, locale, pSender, indent, depth + 1, child);
             }, () -> plugin.send(sender, i18n.lines(locale, COMMAND_TREE_EMPTY,
                 c -> c.of("indent", () -> Components.repeat(indent, depth)),
                 c -> c.of("slot", () -> c.rd(slot)),
@@ -306,15 +311,32 @@ import static net.kyori.adventure.text.Component.*;
         }
     }
 
-    private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperBlueprintNode node) {
+    private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperBlueprintNode node, int depth) {
         String command = command(node.value());
-        Component hover = renderKeyedHover(locale, node.value(), command);
-        ClickEvent click = ClickEvent.runCommand(command);
+        Component indent = i18n.line(locale, COMMAND_TREE_INDENT);
+        Component rootHover = renderKeyedHover(locale, node.value(), command);
+        ClickEvent rootClick = ClickEvent.runCommand(command);
         plugin.send(sender, i18n.modLines(locale, COMMAND_TREE_ROOT,
-            line -> line.hoverEvent(hover).clickEvent(click),
+            line -> line.hoverEvent(rootHover).clickEvent(rootClick),
+            c -> c.of("indent", () -> Components.repeat(indent, depth)),
             c -> c.of("name", () -> c.rd(node.value())),
             c -> c.of("id", () -> text(node.value().id()))));
-        tree(ctx, sender, locale, pSender, i18n.line(locale, COMMAND_TREE_INDENT), 0, node);
+        subTree(ctx, sender, locale, pSender, indent, depth, node);
+
+        Tree<PaperTreeNode> tree = node.asTreeNode(Context.context(locale)).tree();
+        StatMap stats = tree.stats();
+        List<NodePath> incomplete = tree.incomplete();
+
+        Component statsHover = Component.join(NEWLINE, stats.render(i18n, locale));
+        plugin.send(sender, i18n.modLines(locale, COMMAND_TREE_STATS,
+            line -> line.hoverEvent(statsHover),
+            c -> c.of("amount", () -> text(stats.size()))));
+        plugin.send(sender, i18n.lines(locale, COMMAND_TREE_INCOMPLETE_HEADER,
+            c -> c.of("amount", () -> text(incomplete.size()))));
+        for (var path : incomplete) {
+            plugin.send(sender, i18n.lines(locale, COMMAND_TREE_INCOMPLETE_ENTRY,
+                c -> c.of("path", () -> text(String.join("/", path)))));
+        }
     }
 
     private void give(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperBlueprintNode blueprint) {

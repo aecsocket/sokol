@@ -35,6 +35,7 @@ public class BasicNodeSlot<
     @Override public Set<String> tags() { return new HashSet<>(tags); }
     @Override public boolean tagged(String key) { return tags.contains(key); }
     @Override public boolean required() { return tags.contains(REQUIRED); }
+    @Override public boolean modifiable() { return tags.contains(MODIFIABLE); }
 
     public Rule rule() { return rule; }
 

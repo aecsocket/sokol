@@ -10,6 +10,7 @@ import com.github.aecsocket.minecommons.paper.plugin.BasePlugin;
 
 import com.github.aecsocket.sokol.core.SokolPlatform;
 import com.github.aecsocket.sokol.core.feature.StatDisplay;
+import com.github.aecsocket.sokol.core.nodeview.NodeView;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.registry.Registry;
 import com.github.aecsocket.sokol.core.rule.Rule;
@@ -23,7 +24,11 @@ import com.github.aecsocket.sokol.paper.feature.PaperSlotDisplay;
 import com.github.aecsocket.sokol.paper.feature.PaperStatDisplay;
 import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import com.github.aecsocket.sokol.paper.world.slot.PaperItemSlot;
+import com.github.stefvanschie.inventoryframework.adventuresupport.ComponentHolder;
+import com.github.stefvanschie.inventoryframework.gui.InventoryComponent;
+import com.github.stefvanschie.inventoryframework.gui.type.ChestGui;
 import io.leangen.geantyref.TypeToken;
+import net.kyori.adventure.text.Component;
 import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Item;
@@ -40,6 +45,7 @@ import org.spongepowered.configurate.serialize.TypeSerializerCollection;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Locale;
 import java.util.Map;
 
 public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolPlatform.Scoped<
@@ -110,6 +116,14 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
             PaperEvents.forInventory(this, event.player(),
                 node -> new PaperEvents.Input(node, event));
         });
+    }
+
+    public ChestGui createNodeView(Locale locale, Component title, NodeView<PaperTreeNode, PaperNodeSlot> nodeView, int clickedSlot) {
+        ChestGui gui = new ChestGui(6, ComponentHolder.of(i18n.line(locale, PaperNodeView.NODE_VIEW_TITLE,
+            c -> c.of("title", () -> title))));
+        InventoryComponent inv = gui.getInventoryComponent();
+        gui.addPane(new PaperNodeView(inv.getLength(), inv.getHeight(), this, nodeView, clickedSlot));
+        return gui;
     }
 
     @Override

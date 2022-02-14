@@ -27,10 +27,10 @@ tasks {
             "org.spongepowered.configurate",
             "com.typesafe.config",
             "au.com.bytecode.opencsv",
-            "org.incendo.interfaces",
             "cloud.commandframework",
             "net.kyori.adventure.text.minimessage",
             "net.kyori.adventure.serializer.configurate4",
+            "com.github.stefvanschie.inventoryframework",
             "com.github.aecsocket.minecommons",
             "org.bstats"
         ).forEach { relocate(it, "${rootProject.group}.${rootProject.name}.lib.$it") }

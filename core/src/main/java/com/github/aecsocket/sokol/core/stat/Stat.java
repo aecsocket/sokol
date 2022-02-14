@@ -112,7 +112,7 @@ public abstract class Stat<T> implements Renderable {
         public Stat<T> stat() { return stat; }
         public Stat.Op<T> op() { return op; }
 
-        public Node<T> next() { return next; }
+        public @Nullable Node<T> next() { return next; }
         public void next(Node<T> next) { this.next = next; }
 
         public Node<T> chain(Node<T> next) {
