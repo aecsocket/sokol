@@ -20,13 +20,12 @@ public record NodeView<
     @ConfigSerializable
     public record Options(
         boolean modifiable,
-        boolean limited,
-        Point2 center
+        boolean limited
     ) {
-        public static final Options DEFAULT = new Options(true, true, Point2.point2(4, 3));
+        public static final Options DEFAULT = new Options(true, true);
 
         public Options() {
-            this(true, true, Point2.point2(4, 3));
+            this(true, true);
         }
     }
 }

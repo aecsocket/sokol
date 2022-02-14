@@ -126,12 +126,16 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
         gui.addPane(pane);
         gui.setOnTopClick(event -> event.setCancelled(true));
         gui.setOnBottomClick(event -> {
-            if (event.isShiftClick())
+            if (
+                event.isShiftClick()
+                || event.getSlot() == pane.clickedSlot()
+                || event.getHotbarButton() == pane.clickedSlot()
+            )
                 event.setCancelled(true);
         });
         gui.setOnGlobalClick(event -> {
             Bukkit.getScheduler().scheduleSyncDelayedTask(this, () -> {
-                ItemStack cursor = event.getCursor();
+                ItemStack cursor = event.getView().getCursor();
                 pane.cursor(cursor);
                 event.getView().setCursor(null);
                 gui.update();

@@ -4,6 +4,8 @@ import com.github.aecsocket.minecommons.core.Components;
 import com.github.aecsocket.minecommons.core.vector.cartesian.Point2;
 import com.github.aecsocket.sokol.core.IncompatibleException;
 import com.github.aecsocket.sokol.core.nodeview.NodeView;
+import com.github.aecsocket.sokol.paper.context.PaperContext;
+import com.github.aecsocket.sokol.paper.world.PaperItemUser;
 import com.github.stefvanschie.inventoryframework.gui.GuiItem;
 import com.github.stefvanschie.inventoryframework.gui.InventoryComponent;
 import com.github.stefvanschie.inventoryframework.gui.type.util.Gui;
@@ -11,6 +13,7 @@ import com.github.stefvanschie.inventoryframework.pane.Pane;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Material;
 import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -43,6 +46,7 @@ public final class PaperNodeView extends Pane {
         this.plugin = plugin;
         this.backing = backing;
         this.clickedSlot = clickedSlot;
+        buildItems();
     }
 
     public PaperNodeView(int length, int height, SokolPlugin plugin, NodeView<PaperTreeNode, PaperNodeSlot> backing, int clickedSlot) {
@@ -50,6 +54,7 @@ public final class PaperNodeView extends Pane {
         this.plugin = plugin;
         this.backing = backing;
         this.clickedSlot = clickedSlot;
+        buildItems();
     }
 
     public PaperNodeView(int x, int y, int length, int height, SokolPlugin plugin, NodeView<PaperTreeNode, PaperNodeSlot> backing, int clickedSlot) {
@@ -57,6 +62,7 @@ public final class PaperNodeView extends Pane {
         this.plugin = plugin;
         this.backing = backing;
         this.clickedSlot = clickedSlot;
+        buildItems();
     }
 
     {
@@ -67,16 +73,9 @@ public final class PaperNodeView extends Pane {
     public int clickedSlot() { return clickedSlot; }
     public GuiItem[] items() { return items; }
 
-    void cursor(@Nullable ItemStack cursor) { this.cursor = cursor; }
-
-    private void callback() {
-        backing.callback().accept(backing.root());
-    }
-
-    private void set(InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight, int x, int y, GuiItem item) {
-        if (x + offX > Math.min(length, maxLength) || y + offY > Math.min(height, maxHeight))
-            return;
-        inv.setItem(item, x, y);
+    void cursor(@Nullable ItemStack cursor) {
+        this.cursor = cursor;
+        buildItems();
     }
 
     private ItemStack buildNodeItem(PaperTreeNode node) {
@@ -117,22 +116,47 @@ public final class PaperNodeView extends Pane {
         return new GuiItem(buildNodeItem(backing.root()), event -> event.setCancelled(true));
     }
 
-    @Override
-    public void display(@NotNull InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight) {
-        Point2 pos = backing.options().center();
-        set(inv, offX, offY, maxLength, maxHeight, pos.x(), pos.y(), buildRoot());
-        build(inv, offX, offY, maxLength, maxHeight, backing.root(), pos);
+    private void set(int x, int y, GuiItem item) {
+        if (x <= length && y <= height)
+            items[(y * length) + x] = item;
     }
 
-    private void build(InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight, PaperTreeNode node, Point2 origin) {
+    public void buildItems() {
+        Arrays.fill(items, null);
+        Point2 pos = plugin.setting(Point2.point2(4, 3), (n, d) -> n.get(Point2.class, d), "node_view", "center");
+        set(pos.x(), pos.y(), buildRoot());
+        build(backing.root(), pos);
+    }
+
+    private void update() {
+        backing.root().build();
+        backing.callback().accept(backing.root());
+        buildItems();
+    }
+
+    @Override
+    public void display(@NotNull InventoryComponent inv, int offX, int offY, int maxLength, int maxHeight) {
+        for (int i = 0; i < items.length; i++) {
+            GuiItem item = items[i];
+            if (item == null || !item.isVisible())
+                continue;
+            inv.setItem(items[i], i % length, i / length);
+        }
+    }
+
+    private void build(PaperTreeNode node, Point2 origin) {
         Locale locale = node.context().locale();
         for (var entry : node.value().slots().entrySet()) {
             String key = entry.getKey();
             PaperNodeSlot slot = entry.getValue();
             Point2 pos = Point2.point2(origin.x() + slot.offset().x(), origin.y() + slot.offset().y());
 
-            node.get(key).ifPresentOrElse(child -> {
-                ItemStack item = buildNodeItem(child);
+            PaperTreeNode child = node.get(key).orElse(null);
+            ItemStack item;
+            if (child == null) {
+                item = buildSlotItem(locale, node, slot);
+            } else {
+                item = buildNodeItem(child);
                 item.editMeta(meta -> {
                     List<Component> lore = meta.lore();
                     if (lore == null)
@@ -158,27 +182,94 @@ public final class PaperNodeView extends Pane {
                         meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
                     }
                 });
-                set(inv, offX, offY, maxLength, maxHeight, pos.x(), pos.y(), new GuiItem(item, event -> {
-                }));
-                build(inv, offX, offY, maxLength, maxHeight, child, pos);
-            }, () -> {
-                ItemStack item = buildSlotItem(locale, node, slot);
-                set(inv, offX, offY, maxLength, maxHeight, pos.x(), pos.y(), new GuiItem(item, event -> {
-                }));
-            });
+                build(child, pos);
+            }
+
+            set(pos.x(), pos.y(), new GuiItem(item,
+                backing.options().modifiable()
+                && (!backing.options().limited() || slot.modifiable()) ? event -> {
+                if (!event.isLeftClick())
+                    return;
+                if (!(event.getWhoClicked() instanceof Player player))
+                    return;
+
+                PaperTreeNode orphan = child == null ? null : child.asRoot().build();
+                ItemStack cursorStack = event.getCursor();
+                PaperTreeNode cursor = plugin.persistence().load(cursorStack)
+                    .map(bp -> bp.asTreeNode(PaperContext.context(PaperItemUser.user(plugin, player))))
+                    .orElse(null);
+
+                // pre modify evt
+
+                int amount = backing.amount();
+                if (orphan == null) {
+                    // try to place a node into an empty slot
+                    if (cursorStack == null || cursorStack.getAmount() < amount || cursor == null)
+                        return;
+                    try {
+                        // evt
+                        node.set(key, cursor);
+                        cursorStack.subtract(amount);
+                    } catch (IncompatibleException e) {
+                        // TODO send message
+                        return;
+                    }
+                } else {
+                    ItemStack orphanStack = orphan.asItem().handle();
+                    if (cursorStack == null || cursorStack.getAmount() == 0) {
+                        // evt
+                        node.removeChild(key);
+                        event.getView().setCursor(orphanStack);
+                    } else {
+                        if (cursorStack.isSimilar(orphanStack)) {
+                            if (cursorStack.getAmount() + amount > cursorStack.getMaxStackSize())
+                                return;
+                            // evt
+                            node.removeChild(key);
+                            cursorStack.add(amount);
+                        } else if (cursorStack.getAmount() == amount) {
+                            try {
+                                // evt
+                                //noinspection ConstantConditions
+                                node.set(key, cursor);
+                            } catch (IncompatibleException e) {
+                                // message
+                                return;
+                            }
+                            event.getView().setCursor(orphanStack);
+                        } else
+                            return;
+                    }
+                }
+
+                update();
+            } : null));
         }
     }
 
 
     @Override
     public boolean click(@NotNull Gui gui, @NotNull InventoryComponent inv, @NotNull InventoryClickEvent event, int slot, int offX, int offY, int maxLength, int maxHeight) {
-        ItemStack item = event.getCurrentItem();
+        ItemStack stack = event.getCurrentItem();
+        if (stack == null)
+            return false;
+        GuiItem item = findMatchingItem(getItems(), stack);
         if (item == null)
             return false;
-        return false;
+        item.callAction(event);
+        return true;
     }
 
-    @Override public @NotNull Collection<GuiItem> getItems() { return Arrays.asList(items); }
+    @Override
+    public @NotNull Collection<GuiItem> getItems() {
+        List<GuiItem> items = new ArrayList<>();
+        for (var item : this.items) {
+            if (item != null)
+                items.add(item);
+        }
+        return items;
+    }
+
     @Override public @NotNull Collection<Pane> getPanes() { return Collections.emptyList(); }
 
     @Override
