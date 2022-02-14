@@ -43,13 +43,39 @@ and plugin developers to register custom item behaviour.
 Using any package from the GitHub Packages registry requires you to
 authorize with GitHub Packages.
 
-To create a token:
+### To create a token for yourself:
 
 1. Visit https://github.com/settings/tokens/new
 2. Create a token with only the `read:packages` scope
-3. Save that token as an environment variable and use that in builds
+3. Save that token as an environment variable, `GPR_TOKEN`
+4. Save your GitHub username as another environment variable, `GPR_ACTOR`
+
+### To use a token in a workflow run:
+
+Include the `github.actor` and `secrets.GITHUB_TOKEN` variables in the `env` block of your step:
+
+```yml
+- name: "Build"
+  run: ./gradlew build
+  env:
+    GPR_ACTOR: "${{ github.actor }}"
+    GPR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+```
+
+### To use the token in your environment variable:
+
+Use the `GPR_ACTOR`, `GPR_TOKEN` environment variables in your build scripts:
+
+```kotlin
+// authenticating with the repository
+credentials {
+    username = System.getenv("GPR_ACTOR")
+    password = System.getenv("GPR_TOKEN")
+}
+```
 
 **Note: Never include your token directly in your build scripts!**
+
 Always use an environment variable (or similar).
 
 <details>
@@ -103,8 +129,6 @@ Dependency
 The Kotlin DSL is used here.
 
 ### [How to authorize](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-gradle-registry)
-
-When building, make sure the `GPR_USERNAME` and `GPR_TOKEN` environment variables are set.
 
 Repository
 ```kotlin
