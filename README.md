@@ -112,7 +112,7 @@ repositories {
     maven {
         url = uri("https://maven.pkg.github.com/aecsocket/sokol")
         credentials {
-            username = System.getenv("GPR_USERNAME")
+            username = System.getenv("GPR_ACTOR")
             password = System.getenv("GPR_TOKEN")
         }
     }
