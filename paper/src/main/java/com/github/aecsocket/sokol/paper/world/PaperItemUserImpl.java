@@ -10,6 +10,7 @@ import com.github.aecsocket.minecommons.core.effect.SoundEffect;
 import com.github.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.github.aecsocket.minecommons.paper.PaperUtils;
 import com.github.aecsocket.minecommons.paper.effect.PlayerEffector;
+import com.github.aecsocket.minecommons.paper.raycast.PaperRaycast;
 import com.github.aecsocket.sokol.paper.SokolPlugin;
 
 import org.bukkit.Location;
@@ -43,6 +44,7 @@ import net.kyori.adventure.audience.ForwardingAudience;
 
         @Override public Iterable<? extends Audience> audiences() { return audiences; }
 
+        @Override public void play(SoundEffect effect, Vector3 origin, double distance) {}
         @Override public void play(SoundEffect effect, Vector3 origin) {}
         @Override public void spawn(ParticleEffect effect, Vector3 origin) {}
     }

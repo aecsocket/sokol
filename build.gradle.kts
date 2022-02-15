@@ -35,6 +35,8 @@ subprojects {
 
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+        withSourcesJar()
+        withJavadocJar()
     }
 
     tasks {
@@ -49,12 +51,6 @@ subprojects {
 }
 
 publishing {
-    publications {
-        create<MavenPublication>("github") {
-            from(components["java"])
-        }
-    }
-
     repositories {
         maven {
             name = "GitHubPackages"

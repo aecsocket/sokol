@@ -8,6 +8,7 @@ import com.github.aecsocket.minecommons.paper.inputs.ListenerInputs;
 import com.github.aecsocket.minecommons.paper.plugin.BaseCommand;
 import com.github.aecsocket.minecommons.paper.plugin.BasePlugin;
 
+import com.github.aecsocket.minecommons.paper.raycast.PaperRaycast;
 import com.github.aecsocket.sokol.core.SokolPlatform;
 import com.github.aecsocket.sokol.core.feature.StatDisplay;
 import com.github.aecsocket.sokol.core.nodeview.NodeView;

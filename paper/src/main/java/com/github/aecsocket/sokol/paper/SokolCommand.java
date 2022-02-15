@@ -76,7 +76,7 @@ import static net.kyori.adventure.text.Component.*;
 
     public SokolCommand(SokolPlugin plugin) throws Exception {
         super(plugin, "sokol",
-                (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
+            (mgr, root) -> mgr.commandBuilder(root, ArgumentDescription.of("Plugin main command.")));
 
         registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_REGISTRY);
         registerCaption(BlueprintNodeArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_NODE_GENERIC);
@@ -84,7 +84,7 @@ import static net.kyori.adventure.text.Component.*;
         registerCaption(BlueprintArgument.ARGUMENT_PARSE_FAILURE_BLUEPRINT_REGISTRY);
 
         manager.command(root
-            .literal("list", ArgumentDescription.of("List all registered objects."))
+            .literal("list", ArgumentDescription.of("Lists all registered objects."))
             .flag(manager.flagBuilder("type").withAliases("t")
                 .withArgument(StringArgument.newBuilder("value")
                     .quoted()
