@@ -14,7 +14,9 @@ dependencies {
         exclude("junit", "junit")
     }
 
-    implementation(libs.minecommonsPaper)
+    implementation(libs.minecommonsPaper) {
+        artifact { classifier = "reobf" }
+    }
     implementation(libs.bstatsPaper)
 
     compileOnly(libs.protocolLib)
