@@ -26,8 +26,10 @@ public abstract class ItemDescription<
     S extends ItemStack.Scoped<S, ?>
 > implements Feature<P> {
     public static final StringStat STAT_ITEM_NAME_KEY = StringStat.stat("item_name_key");
+    public static final StringStat STAT_ITEM_DESCRIPTION_KEY = StringStat.stat("item_description_key");
     public static final StatTypes STATS = StatTypes.builder()
         .add(STAT_ITEM_NAME_KEY)
+        .add(STAT_ITEM_DESCRIPTION_KEY)
         .build();
     public static final String
         ID = "item_description",
@@ -84,7 +86,10 @@ public abstract class ItemDescription<
                             c -> c.of("original", item::name)));
                     });
 
-                    node.value().renderDescription(platform().i18n(), locale).ifPresent(desc -> {
+                    node.tree().stats().value(STAT_ITEM_DESCRIPTION_KEY)
+                        .map(itemDescKey -> i18n.lines(locale, itemDescKey))
+                        .or(() -> node.value().renderDescription(i18n, locale))
+                        .ifPresent(desc -> {
                         List<Component> lines = new ArrayList<>();
                         for (var line : desc) {
                             lines.addAll(i18n.lines(locale, KEY_LINE,

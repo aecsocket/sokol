@@ -24,6 +24,7 @@ public record Tree<N extends TreeNode.Scoped<N, ?, ?, ?, ?>>(
     private static <N extends TreeNode.Scoped<N, ?, ?, ?, ?>> void build(
         Tree<N> tree, List<StatPair<N>> forward, List<StatPair<N>> reverse, N node, String... path
     ) {
+        node.tree(tree);
         StatIntermediate stats = new StatIntermediate(node.value().stats());
         for (var feature : node.features().values()) {
             feature.build(tree, node, stats);

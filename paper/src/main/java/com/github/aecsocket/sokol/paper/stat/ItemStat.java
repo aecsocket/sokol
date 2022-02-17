@@ -21,10 +21,28 @@ public final class ItemStat extends Stat<ItemDescriptor> {
             return renderDescriptor(i18n, locale, value);
         }
     }
+    public record Modify(int modelData, int damage) implements Stat.Op<ItemDescriptor> {
+        @Override
+        public ItemDescriptor compute(ItemDescriptor cur) {
+            return new ItemDescriptor(
+                cur.key(), cur.modelData() + modelData, cur.damage() + damage, cur.unbreakable(), cur.flags()
+            );
+        }
 
-    public static final String STAT_TYPE_ITEM = "stat_type.item";
+        @Override
+        public Component render(I18N i18n, Locale locale) {
+            return i18n.line(locale, STAT_TYPE_ITEM_MODIFY,
+                c -> c.of("model_data", () -> text(modelData)),
+                c -> c.of("damage", () -> text(damage)));
+        }
+    }
+
+    public static final String
+        STAT_TYPE_ITEM_SET = "stat_type.item.set",
+        STAT_TYPE_ITEM_MODIFY = "stat_type.item.modify";
     private static final OpTypes<ItemDescriptor> OP_TYPES = Stat.<ItemDescriptor>buildOpTypes()
         .setDefault("=", (type, node, args) -> new Set(require(args[0], ItemDescriptor.class)), "item")
+        .set("+", (type, node, args) -> new Modify(require(args[0], int.class), require(args[1], int.class)), "model_data", "damage")
         .build();
 
     private ItemStat(String key, @Nullable ItemDescriptor def) {
@@ -47,7 +65,7 @@ public final class ItemStat extends Stat<ItemDescriptor> {
     }
 
     public static Component renderDescriptor(I18N i18n, Locale locale, ItemDescriptor value) {
-        return i18n.line(locale, STAT_TYPE_ITEM,
+        return i18n.line(locale, STAT_TYPE_ITEM_SET,
             c -> c.of("key", () -> text(""+value.key())),
             c -> c.of("model_data", () -> text(value.modelData())),
             c -> c.of("damage", () -> text(value.damage())),
