@@ -38,6 +38,8 @@ and plugin developers to register custom item behaviour.
 
 ### [Latest Snapshots](https://github.com/aecsocket/sokol/actions/workflows/build.yml)
 
+**Note: you need to download the `-all` jar.** 
+
 ## Packages
 
 Using any package from the GitHub Packages registry requires you to
