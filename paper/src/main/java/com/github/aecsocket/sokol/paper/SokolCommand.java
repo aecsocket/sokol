@@ -290,7 +290,7 @@ import static net.kyori.adventure.text.Component.*;
             PaperNodeSlot slot = entry.getValue();
             node.get(slot.key()).ifPresentOrElse(child -> {
                 String command = command(child.value());
-                I18N.TemplateFactory[] templates = new I18N.TemplateFactory[] {
+                I18N.Tags[] templates = new I18N.Tags[] {
                     c -> c.of("indent", () -> Components.repeat(indent, depth)),
                     c -> c.of("slot", () -> c.rd(slot)),
                     c -> c.of("key", () -> text(key)),

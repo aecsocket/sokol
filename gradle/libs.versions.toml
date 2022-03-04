@@ -1,7 +1,7 @@
 [versions]
 
 junit = "5.7.2"
-minecraft = "1.18.1"
+minecraft = "1.18.2"
 
 minecommons = "1.4.1-SNAPSHOT"
 findBugs = "3.0.2"
