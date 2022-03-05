@@ -6,7 +6,7 @@ plugins {
 
 allprojects {
     group = "com.github.aecsocket"
-    version = "2.0.0-SNAPSHOT"
+    version = "2.0.1-SNAPSHOT"
     description = "Platform-agnostic, data-driven item framework"
 }
 
@@ -26,7 +26,7 @@ tasks.aggregateJavadoc {
 
         "https://papermc.io/javadocs/paper/1.18/",
         "https://javadoc.commandframework.cloud/",
-        "https://aadnk.github.io/ProtocolLib/Javadoc/"
+        "https://packetevents.github.io/javadocs/"
     )
 }
 

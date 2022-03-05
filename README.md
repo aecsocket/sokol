@@ -2,7 +2,7 @@
 
 <a href="https://aecsocket.github.io/sokol"><h1>Sokol</h1></a> <!-- TODO add banner -->
 
-`2.0.0-SNAPSHOT`:
+`2.0.1-SNAPSHOT`:
 [![build](https://github.com/aecsocket/sokol/actions/workflows/build.yml/badge.svg)](https://github.com/aecsocket/sokol/actions/workflows/build.yml)
 
 </div>
@@ -29,8 +29,7 @@ and plugin developers to register custom item behaviour.
 <summary>Paper</summary>
 
 * [Java >=17](https://adoptium.net/)
-* [Paper >=1.18.1](https://papermc.io/)
-* [ProtocolLib >=4.7.0](https://www.spigotmc.org/resources/protocollib.1997/)
+* [Paper >=1.18.2](https://papermc.io/)
 
 </details>
 

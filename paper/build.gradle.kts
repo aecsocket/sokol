@@ -10,7 +10,7 @@ dependencies {
     api(projects.sokolCore) {
         exclude("com.github.aecsocket", "minecommons-core")
     }
-    compileOnly(libs.paper) {
+    compileOnly("io.papermc.paper", "paper-api", "${libs.versions.minecraft.get()}-R0.1-SNAPSHOT") {
         exclude("junit", "junit")
     }
 
@@ -18,8 +18,6 @@ dependencies {
         artifact { classifier = "reobf" }
     }
     implementation(libs.bstatsPaper)
-
-    compileOnly(libs.protocolLib)
 }
 
 tasks {
@@ -33,6 +31,7 @@ tasks {
             "net.kyori.adventure.text.minimessage",
             "net.kyori.adventure.serializer.configurate4",
             "com.github.stefvanschie.inventoryframework",
+            "com.github.retrooper.packetevents",
             "com.github.aecsocket.minecommons",
             "org.bstats"
         ).forEach { relocate(it, "${rootProject.group}.${rootProject.name}.lib.$it") }
@@ -51,7 +50,6 @@ bukkit {
     name = "Sokol"
     main = "${project.group}.${rootProject.name}.paper.SokolPlugin"
     apiVersion = "1.18"
-    depend = listOf("ProtocolLib")
     website = "https://github.com/aecsocket/sokol"
     authors = listOf("aecsocket")
 }

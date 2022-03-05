@@ -30,6 +30,7 @@ dependencyResolutionManagement {
         maven("https://papermc.io/repo/repository/maven-public/")
         maven("https://repo.dmulloy2.net/nexus/repository/public/")
         mavenCentral()
+        maven("https://jitpack.io")
     }
 }
 
