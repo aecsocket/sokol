@@ -8,7 +8,7 @@ import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
 
 public final class PaperItemDescription extends ItemDescription<
-    PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Data.Instance, PaperTreeNode, PaperItemStack
+    PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Instance, PaperTreeNode, PaperItemStack
 > implements PaperFeature<PaperItemDescription.Profile> {
     public static final String
         LISTENER_PRIORITY = "listener_priority";
@@ -31,7 +31,7 @@ public final class PaperItemDescription extends ItemDescription<
     }
 
     public final class Profile extends ItemDescription<
-        PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Data.Instance, PaperTreeNode, PaperItemStack
+        PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Instance, PaperTreeNode, PaperItemStack
     >.Profile implements PaperFeatureProfile<PaperItemDescription, Profile.Data> {
         @Override protected Profile self() { return this; }
 
@@ -55,10 +55,8 @@ public final class PaperItemDescription extends ItemDescription<
         }
 
         public final class Data extends ItemDescription<
-            PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Data.Instance, PaperTreeNode, PaperItemStack
-        >.Profile.Data implements PaperFeatureData<Profile, Data.Instance> {
-            @Override protected Data self() { return this; }
-
+            PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Instance, PaperTreeNode, PaperItemStack
+        >.Profile.Data implements PaperFeatureData<Profile, Instance> {
             @Override
             public Instance asInstance(PaperTreeNode node) {
                 return new Instance();
@@ -66,14 +64,19 @@ public final class PaperItemDescription extends ItemDescription<
 
             @Override
             public void save(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {}
+        }
 
-            public final class Instance extends ItemDescription<
-                PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Data.Instance, PaperTreeNode, PaperItemStack
-            >.Profile.Data.Instance implements PaperFeatureInstance<Data> {
-                @Override
-                public Instance copy() {
-                    return new Instance();
-                }
+        public final class Instance extends ItemDescription<
+            PaperItemDescription, PaperItemDescription.Profile, PaperItemDescription.Profile.Data, PaperItemDescription.Profile.Instance, PaperTreeNode, PaperItemStack
+        >.Profile.Instance implements PaperFeatureInstance<Profile, Data> {
+            @Override
+            public Data asData() {
+                return new Data();
+            }
+
+            @Override
+            public Instance copy() {
+                return new Instance();
             }
         }
     }

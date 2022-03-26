@@ -15,38 +15,38 @@ import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class PaperTreeNode extends AbstractTreeNode<
-    PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance<?>, PaperItemStack
+    PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance<?, ?>, PaperItemStack
 > implements PaperNode {
     public PaperTreeNode(PaperTreeNode o) {
         super(o);
     }
 
     @Override
-    protected PaperFeatureInstance<?> copy(PaperFeatureInstance<?> instance) {
+    protected PaperFeatureInstance<?, ?> copy(PaperFeatureInstance<?, ?> instance) {
         return instance.copy();
     }
 
-    public PaperTreeNode(AbstractTreeNode<PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance<?>, PaperItemStack> o) {
+    public PaperTreeNode(AbstractTreeNode<PaperTreeNode, PaperBlueprintNode, PaperComponent, PaperFeatureInstance<?, ?>, PaperItemStack> o) {
         super(o);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, @Nullable Key<PaperTreeNode> key) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?, ?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, @Nullable Key<PaperTreeNode> key) {
         super(value, featureData, context, tree, key);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, PaperTreeNode parent, String key) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?, ?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree, PaperTreeNode parent, String key) {
         super(value, featureData, context, tree, parent, key);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, PaperTreeNode parent, String key) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?, ?>>> featureData, Context context, PaperTreeNode parent, String key) {
         super(value, featureData, context, parent, key);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?, ?>>> featureData, Context context, @Nullable Tree<PaperTreeNode> tree) {
         super(value, featureData, context, tree);
     }
 
-    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?>>> featureData, Context context) {
+    public PaperTreeNode(PaperComponent value, Map<String, ? extends PaperFeatureData<?, ? extends PaperFeatureInstance<?, ?>>> featureData, Context context) {
         super(value, featureData, context);
     }
 
@@ -55,6 +55,7 @@ public final class PaperTreeNode extends AbstractTreeNode<
 
     @Override public SokolPlugin platform() { return value.platform(); }
 
+    // TODO ?????
     @Override
     public Optional<? extends PaperFeatureData<?, ?>> featureData(String key) {
         return feature(key).map(PaperFeatureInstance::asData);
@@ -84,9 +85,7 @@ public final class PaperTreeNode extends AbstractTreeNode<
     protected PaperItemStack createItem() {
         try {
             ItemStack item = tree.stats().require(PaperComponent.STAT_ITEM).stack();
-            item.editMeta(meta -> {
-                value.platform().persistence().save(meta.getPersistentDataContainer(), this);
-            });
+            item.editMeta(meta -> value.platform().persistence().save(meta.getPersistentDataContainer(), this));
             return new PaperItemStack(value.platform(), item);
         } catch (StatAccessException e) {
             throw new ItemCreationException("Could not get item stat", e);

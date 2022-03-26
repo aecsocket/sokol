@@ -12,7 +12,7 @@ import java.util.Collections;
 import java.util.List;
 
 public final class PaperStatDisplay extends StatDisplay<
-    PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Data.Instance, PaperTreeNode, PaperItemStack
+    PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Instance, PaperTreeNode, PaperItemStack
 > implements PaperFeature<PaperStatDisplay.Profile> {
     public static final String
         LISTENER_PRIORITY = "listener_priority",
@@ -41,7 +41,7 @@ public final class PaperStatDisplay extends StatDisplay<
     }
 
     public final class Profile extends StatDisplay<
-        PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Data.Instance, PaperTreeNode, PaperItemStack
+        PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Instance, PaperTreeNode, PaperItemStack
     >.Profile implements PaperFeatureProfile<PaperStatDisplay, Profile.Data> {
         @Override protected Profile self() { return this; }
 
@@ -64,11 +64,14 @@ public final class PaperStatDisplay extends StatDisplay<
             return new Data();
         }
 
-        public final class Data extends StatDisplay<
-            PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Data.Instance, PaperTreeNode, PaperItemStack
-        >.Profile.Data implements PaperFeatureData<Profile, Data.Instance> {
-            @Override protected Data self() { return this; }
+        @Override
+        protected int width(String text) {
+            return platform.font().getWidth(text);
+        }
 
+        public final class Data extends StatDisplay<
+            PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Instance, PaperTreeNode, PaperItemStack
+        >.Profile.Data implements PaperFeatureData<Profile, Instance> {
             @Override
             public Instance asInstance(PaperTreeNode node) {
                 return new Instance();
@@ -76,19 +79,19 @@ public final class PaperStatDisplay extends StatDisplay<
 
             @Override
             public void save(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {}
+        }
 
+        public final class Instance extends StatDisplay<
+            PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Instance, PaperTreeNode, PaperItemStack
+        >.Profile.Instance implements PaperFeatureInstance<Profile, Data> {
             @Override
-            protected int width(String text) {
-                return platform.font().getWidth(text);
+            public Data asData() {
+                return new Data();
             }
 
-            public final class Instance extends StatDisplay<
-                PaperStatDisplay, PaperStatDisplay.Profile, PaperStatDisplay.Profile.Data, PaperStatDisplay.Profile.Data.Instance, PaperTreeNode, PaperItemStack
-            >.Profile.Data.Instance implements PaperFeatureInstance<Data> {
-                @Override
-                public Instance copy() {
-                    return new Instance();
-                }
+            @Override
+            public Instance copy() {
+                return new Instance();
             }
         }
     }

@@ -36,15 +36,13 @@ public record Tree<N extends TreeNode.Scoped<N, ?, ?, ?, ?>>(
             String key = entry.getKey();
             String[] newPath = Arrays.copyOfRange(path, 0, path.length + 1);
 
-            node.get(key).ifPresentOrElse(
-                child -> build(tree, forward, reverse, child, newPath),
-                () -> {
-                    if (entry.getValue().required()) {
-                        newPath[path.length] = key;
-                        tree.incomplete(NodePath.path(newPath));
-                    }
-                }
-            );
+            var oChild = node.get(key);
+            if (oChild.isPresent()) {
+                build(tree, forward, reverse, oChild.get(), newPath);
+            } else if (entry.getValue().required()) {
+                newPath[path.length] = key;
+                tree.incomplete(NodePath.path(newPath));
+            }
         }
     }
 

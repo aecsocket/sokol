@@ -10,6 +10,7 @@ import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgu
 import cloud.commandframework.context.CommandContext;
 import com.github.aecsocket.minecommons.core.Colls;
 import com.github.aecsocket.minecommons.core.Components;
+import com.github.aecsocket.minecommons.core.ConfigurationNodes;
 import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.i18n.Renderable;
 import com.github.aecsocket.minecommons.core.node.NodePath;
@@ -35,6 +36,8 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.spongepowered.configurate.ConfigurationNode;
+import org.spongepowered.configurate.serialize.SerializationException;
 
 import java.util.List;
 import java.util.Locale;
@@ -53,6 +56,7 @@ import static net.kyori.adventure.text.Component.*;
         FEATURE_DESCRIPTION = "feature_description",
         ERROR_ITEM_CREATION = "error.item_creation",
         ERROR_ITEM_NOT_TREE = "error.item_not_tree",
+        ERROR_SERIALIZE_TREE = "error.serialize_tree",
         COMMAND_LIST_ENTRY = "command.list.entry",
         COMMAND_LIST_TOTAL = "command.list.total",
         COMMAND_INFO_HEADER = "command.info.header",
@@ -72,6 +76,8 @@ import static net.kyori.adventure.text.Component.*;
         COMMAND_TREE_STATS = "command.tree.stats",
         COMMAND_TREE_INCOMPLETE_HEADER = "command.tree.incomplete.header",
         COMMAND_TREE_INCOMPLETE_ENTRY = "command.tree.incomplete.entry",
+        COMMAND_SERIALIZE_ROOT = "command.serialize.root",
+        COMMAND_SERIALIZE_LINE = "command.serialize.line",
         COMMAND_GIVE = "command.give";
 
     public SokolCommand(SokolPlugin plugin) throws Exception {
@@ -108,11 +114,17 @@ import static net.kyori.adventure.text.Component.*;
             .permission(permission("blueprint"))
             .handler(c -> handle(c, this::blueprint)));
         manager.command(root
-            .literal("tree", ArgumentDescription.of("Shows information on the currently held node tree."))
+            .literal("tree", ArgumentDescription.of("Shows information on an equipped node tree."))
             .argument(EnumArgument.optional(EquipmentSlot.class, "slot"), ArgumentDescription.of("The slot to get the item from."))
             .argument(PlayerArgument.optional("target"), ArgumentDescription.of("The player to get the item from."))
             .permission(permission("tree"))
             .handler(c -> handle(c, this::tree)));
+        manager.command(root
+            .literal("serialize", ArgumentDescription.of("Prints the serialized form of an equipped node tree."))
+            .argument(EnumArgument.optional(EquipmentSlot.class, "slot"), ArgumentDescription.of("The slot to get the item from."))
+            .argument(PlayerArgument.optional("target"), ArgumentDescription.of("The player to get the item from."))
+            .permission(permission("serialize"))
+            .handler(c -> handle(c, this::serialize)));
         manager.command(root
             .literal("give", ArgumentDescription.of("Gives a blueprint tree to players."))
             .argument(MultiplePlayerSelectorArgument.of("targets"), ArgumentDescription.of("The players to give the item to."))
@@ -272,16 +284,27 @@ import static net.kyori.adventure.text.Component.*;
         });
     }
 
-    private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+    private PaperBlueprintNode equippedNode(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
         EquipmentSlot slot = ctx.getOrDefault("slot", EquipmentSlot.HAND);
         Player target = defaultedArg(ctx, "target", pSender, p -> p);
 
         @SuppressWarnings("ConstantConditions")
         ItemStack item = target.getInventory().getItem(slot);
-        PaperBlueprintNode node = plugin.persistence().load(item)
+        return plugin.persistence().load(item)
             .orElseThrow(() -> error(ERROR_ITEM_NOT_TREE));
+    }
 
-        tree(ctx, sender, locale, pSender, node, 0);
+    private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+        tree(ctx, sender, locale, pSender, equippedNode(ctx, sender, locale, pSender), 0);
+    }
+
+    private List<Component> renderSerialized(Locale locale, PaperBlueprintNode node) {
+        try {
+            ConfigurationNode config = plugin.loaderBuilder().build().createNode().set(node);
+            return ConfigurationNodes.render(config, ConfigurationNodes.RenderOptions.DEFAULT, false);
+        } catch (SerializationException e) {
+            return Colls.joinList(i18n.lines(locale, ERROR_SERIALIZE_TREE), errorLines(e, locale));
+        }
     }
 
     private void subTree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, Component indent, int depth, PaperBlueprintNode node) {
@@ -298,7 +321,9 @@ import static net.kyori.adventure.text.Component.*;
                     c -> c.of("id", () -> text(child.value().id()))
                 };
                 Component hover = i18n.line(locale, COMMAND_TREE_CHILD_HOVER, templates)
-                    .append(renderKeyedHover(locale, child.value(), command));
+                    .append(renderKeyedHover(locale, child.value(), command))
+                    .append(newline()).append(newline())
+                    .append(Component.join(NEWLINE, renderSerialized(locale, child)));
                 ClickEvent click = ClickEvent.runCommand(command);
                 plugin.send(sender, i18n.modLines(locale, COMMAND_TREE_CHILD,
                     line -> line.hoverEvent(hover).clickEvent(click),
@@ -314,7 +339,9 @@ import static net.kyori.adventure.text.Component.*;
     private void tree(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender, PaperBlueprintNode node, int depth) {
         String command = command(node.value());
         Component indent = i18n.line(locale, COMMAND_TREE_INDENT);
-        Component rootHover = renderKeyedHover(locale, node.value(), command);
+        Component rootHover = renderKeyedHover(locale, node.value(), command)
+            .append(newline()).append(newline())
+            .append(Component.join(NEWLINE, renderSerialized(locale, node)));
         ClickEvent rootClick = ClickEvent.runCommand(command);
         plugin.send(sender, i18n.modLines(locale, COMMAND_TREE_ROOT,
             line -> line.hoverEvent(rootHover).clickEvent(rootClick),
@@ -336,6 +363,17 @@ import static net.kyori.adventure.text.Component.*;
         for (var path : incomplete) {
             plugin.send(sender, i18n.lines(locale, COMMAND_TREE_INCOMPLETE_ENTRY,
                 c -> c.of("path", () -> text(String.join("/", path)))));
+        }
+    }
+
+    private void serialize(CommandContext<CommandSender> ctx, CommandSender sender, Locale locale, @Nullable Player pSender) {
+        PaperBlueprintNode node = equippedNode(ctx, sender, locale, pSender);
+        plugin.send(sender, i18n.lines(locale, COMMAND_SERIALIZE_ROOT,
+            c -> c.of("name", () -> c.rd(node.value())),
+            c -> c.of("id", () -> text(node.value().id()))));
+        for (var line : renderSerialized(locale, node)) {
+            plugin.send(sender, i18n.lines(locale, COMMAND_SERIALIZE_LINE,
+                c -> c.of("line", () -> line)));
         }
     }
 

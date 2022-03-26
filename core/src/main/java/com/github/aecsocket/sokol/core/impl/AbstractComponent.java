@@ -77,13 +77,19 @@ public abstract class AbstractComponent<
         @Override
         public C deserialize(Type type, ConfigurationNode node) throws SerializationException {
             SokolPlatform.Scoped<F, C, ?> platform = platform();
+
+            Set<String> tags = new HashSet<>();
+            for (var child : node.node(TAGS).childrenList()) {
+                tags.add(SokolPlatform.idByValue(String.class, child));
+            }
+
             List<F> providers = new ArrayList<>();
             Map<F, ConfigurationNode> featureConfigs = new HashMap<>();
             for (var entry : node.node(FEATURES).childrenMap().entrySet()) {
                 String id = ""+entry.getKey();
                 ConfigurationNode config = entry.getValue();
                 F feature = platform.features().get(id)
-                    .orElseThrow(() -> new SerializationException(config, type, "No feature with ID `" + id + "`"));
+                        .orElseThrow(() -> new SerializationException(config, type, "No feature with ID `" + id + "`"));
                 providers.add(feature);
                 featureConfigs.put(feature, config);
             }
@@ -91,7 +97,7 @@ public abstract class AbstractComponent<
             for (var child : node.node(SOFT_FEATURES).childrenList()) {
                 String id = Serializers.require(child, String.class);
                 providers.add(platform.features().get(id)
-                    .orElseThrow(() -> new SerializationException(child, type, "No feature with ID `" + id + "`")));
+                        .orElseThrow(() -> new SerializationException(child, type, "No feature with ID `" + id + "`")));
             }
 
             Map<String, Stat<?>> statTypes = new HashMap<>(defaultStatTypes());
@@ -118,11 +124,6 @@ public abstract class AbstractComponent<
                 }
             }
 
-            Set<String> tags = new HashSet<>();
-            for (var child : node.node(TAGS).childrenList()) {
-                tags.add(SokolPlatform.idByValue(String.class, child));
-            }
-
             Map<String, S> slots = new HashMap<>();
             for (var entry : node.node(SLOTS).childrenMap().entrySet()) {
                 ConfigurationNode config = entry.getValue();
@@ -136,6 +137,14 @@ public abstract class AbstractComponent<
                 slots,
                 node.node(STATS).get(StatIntermediate.class, new StatIntermediate())
             );
+
+            for (var entry : features.entrySet()) {
+                try {
+                    entry.getValue().validate(result);
+                } catch (FeatureValidationException e) {
+                    throw new SerializationException(node, type, "Could not validate feature `" + entry.getKey() + "`", e);
+                }
+            }
 
             for (var entry : slots.entrySet()) {
                 String key = entry.getKey();

@@ -5,7 +5,7 @@ import org.spongepowered.configurate.serialize.SerializationException;
 
 public interface FeatureData<
     P extends FeatureProfile<?, ?>,
-    I extends FeatureInstance<?, N>,
+    I extends FeatureInstance<?, ?, N>,
     N extends TreeNode.Scoped<N, ?, ?, ?, ?>
 > {
     P profile();

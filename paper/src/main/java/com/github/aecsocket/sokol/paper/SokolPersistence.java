@@ -57,10 +57,10 @@ public final class SokolPersistence {
 
     private final class SerializeDataType implements PersistentDataType<PersistentDataContainer, PaperNode> {
         @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
-        @Override public Class<PaperNode> getComplexType() { return PaperNode.class; }
+        @Override public @NotNull Class<PaperNode> getComplexType() { return PaperNode.class; }
 
         @Override
-        public PersistentDataContainer toPrimitive(PaperNode node, PersistentDataAdapterContext ctx) {
+        public @NotNull PersistentDataContainer toPrimitive(PaperNode node, PersistentDataAdapterContext ctx) {
             PersistentDataContainer pdc = ctx.newPersistentDataContainer();
             pdc.set(keyId, PersistentDataType.STRING, node.value().id());
 
@@ -85,22 +85,22 @@ public final class SokolPersistence {
         }
 
         @Override
-        public PaperNode fromPrimitive(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {
+        public @NotNull PaperNode fromPrimitive(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {
             throw new UnsupportedOperationException();
         }
     }
 
     private final class DeserializeDataType implements PersistentDataType<PersistentDataContainer, PaperBlueprintNode> {
         @Override public @NotNull Class<PersistentDataContainer> getPrimitiveType() { return PersistentDataContainer.class; }
-        @Override public Class<PaperBlueprintNode> getComplexType() { return PaperBlueprintNode.class; }
+        @Override public @NotNull Class<PaperBlueprintNode> getComplexType() { return PaperBlueprintNode.class; }
 
         @Override
-        public PersistentDataContainer toPrimitive(PaperBlueprintNode node, PersistentDataAdapterContext ctx) {
+        public @NotNull PersistentDataContainer toPrimitive(PaperBlueprintNode node, PersistentDataAdapterContext ctx) {
             throw new UnsupportedOperationException();
         }
 
         @Override
-        public PaperBlueprintNode fromPrimitive(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {
+        public @NotNull PaperBlueprintNode fromPrimitive(PersistentDataContainer pdc, PersistentDataAdapterContext ctx) {
             String id = pdc.get(keyId, PersistentDataType.STRING);
             if (id == null)
                 throw new IllegalArgumentException("Missing tag `id`");
@@ -108,6 +108,19 @@ public final class SokolPersistence {
                 .orElseThrow(() -> new IllegalArgumentException("No component with ID `" + id + "`"));
 
             Map<String, PaperFeatureData<?, ?>> features = new HashMap<>();
+
+            PersistentDataContainer pdcFeatures = pdc.get(keyFeatures, PersistentDataType.TAG_CONTAINER);
+            if (pdcFeatures != null) {
+                for (var key : pdcFeatures.getKeys()) {
+                    String vKey = key.value();
+                    PaperFeatureProfile<?, ?> profile = value.feature(vKey)
+                            .orElseThrow(() -> new IllegalArgumentException("No feature profile with ID `" + vKey + "` exists on component `" + id + "`"));
+                    //noinspection ConstantConditions - we know the key exists
+                    PaperFeatureData<?, ?> feature = profile.load(pdcFeatures.get(key, PersistentDataType.TAG_CONTAINER));
+                    features.put(vKey, feature);
+                }
+            }
+
             PaperBlueprintNode root = new PaperBlueprintNode(value, features);
 
             PersistentDataContainer pdcSlots = pdc.get(keySlots, PersistentDataType.TAG_CONTAINER);
@@ -119,18 +132,6 @@ public final class SokolPersistence {
                     //noinspection ConstantConditions - we know the key exists
                     PaperBlueprintNode child = fromPrimitive(pdcSlots.get(key, PersistentDataType.TAG_CONTAINER), ctx);
                     root.setUnsafe(vKey, child);
-                }
-            }
-
-            PersistentDataContainer pdcFeatures = pdc.get(keyFeatures, PersistentDataType.TAG_CONTAINER);
-            if (pdcFeatures != null) {
-                for (var key : pdcFeatures.getKeys()) {
-                    String vKey = key.value();
-                    PaperFeatureProfile<?, ?> profile = value.feature(vKey)
-                        .orElseThrow(() -> new IllegalArgumentException("No feature profile with ID `" + vKey + "` exists on component `" + id + "`"));
-                    //noinspection ConstantConditions - we know the key exists
-                    PaperFeatureData<?, ?> feature = profile.load(pdcFeatures.get(key, PersistentDataType.TAG_CONTAINER));
-                    features.put(vKey, feature);
                 }
             }
 

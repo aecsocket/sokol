@@ -54,7 +54,7 @@ public final class PaperBlueprintNode extends AbstractBlueprintNode<
     }
 
     public static final class Serializer extends AbstractBlueprintNode.Serializer<
-        PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeature<?>, PaperFeatureProfile<?, ?>, PaperFeatureData<?, ?>, PaperFeatureInstance<?>
+        PaperBlueprintNode, PaperTreeNode, PaperComponent, PaperFeature<?>, PaperFeatureProfile<?, ?>, PaperFeatureData<?, ?>, PaperFeatureInstance<?, ?>
     > {
         private final SokolPlugin platform;
 

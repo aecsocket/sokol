@@ -10,5 +10,6 @@ public interface FeatureProfile<
     F type();
 
     D setUp();
+    void validate(SokolComponent parent) throws FeatureValidationException;
     D load(ConfigurationNode node) throws SerializationException;
 }

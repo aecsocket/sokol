@@ -10,6 +10,8 @@ import com.github.aecsocket.minecommons.paper.plugin.BasePlugin;
 
 import com.github.aecsocket.sokol.core.SokolPlatform;
 import com.github.aecsocket.sokol.core.feature.StatDisplay;
+import com.github.aecsocket.sokol.core.feature.TaskScheduler;
+import com.github.aecsocket.sokol.core.feature.TaskSchedulerImpl;
 import com.github.aecsocket.sokol.core.nodeview.NodeView;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.registry.Registry;
@@ -64,6 +66,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     private final PaperEffectors effectors = new PaperEffectors(this);
     private final SokolPersistence persistence = new SokolPersistence(this);
     private final MapFont font = new MinecraftFont();
+    private final TaskSchedulerImpl.Manager taskManager = TaskSchedulerImpl.createManager();
 
     private final StatMap.Serializer statsSerializer = new StatMap.Serializer();
     private final Rule.Serializer rulesSerializer = new Rule.Serializer();
@@ -74,6 +77,7 @@ public final class SokolPlugin extends BasePlugin<SokolPlugin> implements SokolP
     public PaperEffectors effectors() { return effectors; }
     public SokolPersistence persistence() { return persistence; }
     public MapFont font() { return font; }
+    public TaskSchedulerImpl.Manager taskManager() { return taskManager; }
 
     @Override
     public void onEnable() {

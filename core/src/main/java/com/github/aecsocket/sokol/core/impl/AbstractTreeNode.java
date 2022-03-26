@@ -16,7 +16,7 @@ public abstract class AbstractTreeNode<
     N extends AbstractTreeNode<N, B, C, F, S>,
     B extends BlueprintNode.Scoped<B, N, C, ?>,
     C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ? extends FeatureData<?, ? extends F, N>>>,
-    F extends FeatureInstance<? extends FeatureData<?, ?, N>, N>,
+    F extends FeatureInstance<?, ? extends FeatureData<?, ?, N>, N>,
     S extends ItemStack.Scoped<S, B>
 > extends MutableAbstractMapNode<N> implements TreeNode.Scoped<N, B, C, F, S> {
     public static final String ID = "id";
@@ -42,43 +42,7 @@ public abstract class AbstractTreeNode<
 
     protected abstract F copy(F instance);
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, @Nullable Key<N> key) {
-        super(key);
-        this.value = value;
-        features = buildFeatures(featureData);
-        this.context = context;
-        this.tree = tree;
-    }
-
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, N parent, String key) {
-        super(parent, key);
-        this.value = value;
-        features = buildFeatures(featureData);
-        this.context = context;
-        this.tree = tree;
-    }
-
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, N parent, String key) {
-        super(parent, key);
-        this.value = value;
-        features = buildFeatures(featureData);
-        this.context = context;
-    }
-
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree) {
-        this.value = value;
-        features = buildFeatures(featureData);
-        this.context = context;
-        this.tree = tree;
-    }
-
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context) {
-        this.value = value;
-        features = buildFeatures(featureData);
-        this.context = context;
-    }
-
-    private <D extends FeatureData<?, ? extends F, N>> Map<String, F> buildFeatures(Map<String, D> featureData) {
+    private <D extends FeatureData<?, ? extends F, N>> Map<String, F> initFeatures(Map<String, ? extends D> featureData) {
         Map<String, F> result = new HashMap<>();
         for (var entry : value.features().entrySet()) {
             String key = entry.getKey();
@@ -89,10 +53,46 @@ public abstract class AbstractTreeNode<
             ).asInstance(self());
             result.put(key, instance);
         }
-        for (var entry : featureData.entrySet()) {
-            result.put(entry.getKey(), entry.getValue().asInstance(self()));
-        }
+        //for (var entry : featureData.entrySet()) {
+        //    result.put(entry.getKey(), entry.getValue().asInstance(self()));
+        //}
         return result;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, @Nullable Key<N> key) {
+        super(key);
+        this.value = value;
+        features = initFeatures(featureData);
+        this.context = context;
+        this.tree = tree;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, N parent, String key) {
+        super(parent, key);
+        this.value = value;
+        features = initFeatures(featureData);
+        this.context = context;
+        this.tree = tree;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, N parent, String key) {
+        super(parent, key);
+        this.value = value;
+        features = initFeatures(featureData);
+        this.context = context;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree) {
+        this.value = value;
+        features = initFeatures(featureData);
+        this.context = context;
+        this.tree = tree;
+    }
+
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context) {
+        this.value = value;
+        features = initFeatures(featureData);
+        this.context = context;
     }
 
     public abstract SokolPlatform platform();
@@ -107,8 +107,8 @@ public abstract class AbstractTreeNode<
 
     @Override public Context context() { return context; }
 
-    @Override public Tree<N> tree() { return tree;}
-    @Override public void tree(Tree<N> tree) { this.tree = tree;}
+    @Override public Tree<N> tree() { return tree; }
+    @Override public void tree(Tree<N> tree) { this.tree = tree; }
 
     @Override
     public N set(String key, N val) {

@@ -9,6 +9,7 @@ import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.serializers.Serializers;
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.event.NodeEvent;
+import com.github.aecsocket.sokol.core.impl.AbstractFeatureInstance;
 import com.github.aecsocket.sokol.core.registry.Keyed;
 import com.github.aecsocket.sokol.core.registry.Registry;
 import com.github.aecsocket.sokol.core.rule.RuleTypes;
@@ -41,7 +42,7 @@ public abstract class StatDisplay<
     F extends StatDisplay<F, P, D, I, N, S>,
     P extends StatDisplay<F, P, D, I, N, S>.Profile,
     D extends StatDisplay<F, P, D, I, N, S>.Profile.Data,
-    I extends StatDisplay<F, P, D, I, N, S>.Profile.Data.Instance,
+    I extends StatDisplay<F, P, D, I, N, S>.Profile.Instance,
     N extends TreeNode.Scoped<N, ?, ?, ?, S>,
     S extends ItemStack.Scoped<S, ?>
 > implements Feature<P> {
@@ -196,114 +197,116 @@ public abstract class StatDisplay<
         protected abstract P self();
         @Override public F type() { return StatDisplay.this.self(); }
 
+        @Override public void validate(SokolComponent parent) throws FeatureValidationException {}
+
+        protected abstract int width(String text);
+
         public abstract class Data implements FeatureData<P, I, N> {
-            protected abstract D self();
-            @Override public P profile() { return Profile.this.self(); }
+            @Override public P profile() { return self(); }
 
             @Override public void save(ConfigurationNode node) throws SerializationException {}
+        }
 
-            protected abstract int width(String text);
+        public abstract class Instance extends AbstractFeatureInstance<P, D, N> {
+            @Override public P profile() { return self(); }
 
-            public abstract class Instance implements FeatureInstance<D, N> {
-                @Override public D asData() { return self(); }
+            @Override
+            public void build(Tree<N> tree, N parent, StatIntermediate stats) {
+                super.build(tree, parent, stats);
+                if (parent.isRoot()) {
+                    tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent, listenerPriority);
+                }
+            }
 
-                @Override
-                public void build(Tree<N> tree, N parent, StatIntermediate stats) {
-                    if (parent.isRoot()) {
-                        tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent);
+            protected void onEvent(NodeEvent.CreateItem<N, ?, S> event) {
+                N node = event.node();
+                S item = event.item();
+                Locale locale = node.context().locale();
+                List<Component> lines = new ArrayList<>();
+
+                lines(lines, locale, node.tree().stats());
+
+                item.addLore(locale, lines);
+            }
+
+            private record KeyData(Component component, int width) {}
+
+            protected void lines(List<Component> lines, Locale locale, StatMap stats) {
+                Map<String, KeyData> keyData = new HashMap<>();
+                int longest = 0;
+                for (var section : sections) {
+                    for (var formats : section) {
+                        String key = formats.key();
+                        if (keyData.containsKey(key))
+                            continue;
+                        Stat.Node<?> node = stats.get(key);
+                        if (node == null)
+                            continue;
+                        Component component = node.stat().render(i18n, locale);
+                        int width = width(PlainTextComponentSerializer.plainText().serialize(component));
+                        keyData.put(key, new KeyData(component, width));
+                        if (width > longest)
+                            longest = width;
                     }
                 }
 
-                protected void onEvent(NodeEvent.CreateItem<N, ?, S> event) {
-                    N node = event.node();
-                    S item = event.item();
-                    Locale locale = node.context().locale();
-                    List<Component> lines = new ArrayList<>();
-
-                    lines(lines, locale, node.tree().stats());
-
-                    item.addLore(locale, lines);
+                List<List<Component>> rendered = new ArrayList<>();
+                for (var section : sections) {
+                    List<Component> secLines = new ArrayList<>();
+                    for (var format : section) {
+                        secLines.addAll(lines(locale, format, stats, keyData.get(format.key), longest));
+                    }
+                    if (secLines.size() > 0)
+                        rendered.add(secLines);
                 }
 
-                private record KeyData(Component component, int width) {}
-
-                protected void lines(List<Component> lines, Locale locale, StatMap stats) {
-                    Map<String, KeyData> keyData = new HashMap<>();
-                    int longest = 0;
-                    for (var section : sections) {
-                        for (var formats : section) {
-                            String key = formats.key();
-                            if (keyData.containsKey(key))
-                                continue;
-                            Stat.Node<?> node = stats.get(key);
-                            if (node == null)
-                                continue;
-                            Component component = node.stat().render(i18n, locale);
-                            int width = width(PlainTextComponentSerializer.plainText().serialize(component));
-                            keyData.put(key, new KeyData(component, width));
-                            if (width > longest)
-                                longest = width;
-                        }
-                    }
-
-                    List<List<Component>> rendered = new ArrayList<>();
-                    for (var section : sections) {
-                        List<Component> secLines = new ArrayList<>();
-                        for (var format : section) {
-                            secLines.addAll(lines(locale, format, stats, keyData.get(format.key), longest));
-                        }
-                        if (secLines.size() > 0)
-                            rendered.add(secLines);
-                    }
-
-                    List<Component> separator = i18n.lines(locale, KEY_SECTION_SEPARATOR);
-                    for (int i = 0; i < rendered.size(); i++) {
-                        if (i > 0)
-                            lines.addAll(separator);
-                        lines.addAll(rendered.get(i));
-                    }
+                List<Component> separator = i18n.lines(locale, KEY_SECTION_SEPARATOR);
+                for (int i = 0; i < rendered.size(); i++) {
+                    if (i > 0)
+                        lines.addAll(separator);
+                    lines.addAll(rendered.get(i));
                 }
+            }
 
-                protected <T> List<Component> lines(Locale locale, FormatChain<T> formats, StatMap stats, KeyData keyData, int longest) {
-                    String key = formats.key();
-                    Stat.Node<?> rawNode = stats.get(key);
-                    if (rawNode == null)
-                        return Collections.emptyList();
-                    // TODO we have to check if this is a safe cast. Do this at validation time somehow?
-                    // also remove the old method for validation on a format
-                    @SuppressWarnings("unchecked")
-                    Stat.Node<T> node = (Stat.Node<T>) rawNode;
+            protected <T> List<Component> lines(Locale locale, FormatChain<T> formats, StatMap stats, KeyData keyData, int longest) {
+                String key = formats.key();
+                Stat.Node<?> rawNode = stats.get(key);
+                if (rawNode == null)
+                    return Collections.emptyList();
+                // TODO we have to check if this is a safe cast. Do this at validation time somehow?
+                // also remove the old method for validation on a format
+                @SuppressWarnings("unchecked")
+                Stat.Node<T> node = (Stat.Node<T>) rawNode;
 
-                    Supplier<T> value = new Supplier<>() {
-                        T computed;
+                Supplier<T> value = new Supplier<>() {
+                    T computed;
 
-                        @Override
-                        public T get() {
-                            if (computed == null)
-                                computed = node.compute();
-                            return computed;
-                        }
-                    };
+                    @Override
+                    public T get() {
+                        if (computed == null)
+                            computed = node.compute();
+                        return computed;
+                    }
+                };
 
-                    List<Component> rdFormats = new ArrayList<>();
-                    for (var format : formats.formats) {
-                        try {
-                            Component rendered = format.render(i18n, locale, value, node);
-                            rdFormats.add(i18n.orLine(locale, format.i18n(VALUE),
-                                c -> c.of("value", () -> rendered))
+                List<Component> rdFormats = new ArrayList<>();
+                for (var format : formats.formats) {
+                    try {
+                        Component rendered = format.render(i18n, locale, value, node);
+                        rdFormats.add(i18n.orLine(locale, format.i18n(VALUE),
+                                        c -> c.of("value", () -> rendered))
                                 .orElse(rendered));
-                        } catch (FormatRenderException e) {
-                            throw new ItemCreationException("Could not render stat `" + key + "`", e);
-                        }
+                    } catch (FormatRenderException e) {
+                        throw new ItemCreationException("Could not render stat `" + key + "`", e);
                     }
-                    Component rendered = Component.join(JoinConfiguration.separator(i18n.line(locale, KEY_FORMAT_SEPARATOR)), rdFormats);
-                    return i18n.lines(locale, KEY_ENTRY,
+                }
+                Component rendered = Component.join(JoinConfiguration.separator(i18n.line(locale, KEY_FORMAT_SEPARATOR)), rdFormats);
+                return i18n.lines(locale, KEY_ENTRY,
                         c -> c.of("padding", () -> text(padding.repeat((longest - keyData.width) / paddingWidth))),
                         c -> c.of("key", () -> text(key)),
                         c -> c.of("stat", () -> keyData.component),
                         c -> c.of("value", () -> rawNode.stat().renderFormat(i18n, locale, rendered)
-                            .orElse(rendered)));
-                }
+                                .orElse(rendered)));
             }
         }
     }

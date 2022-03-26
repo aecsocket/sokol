@@ -17,7 +17,7 @@ import org.spongepowered.configurate.serialize.TypeSerializer;
 public abstract class AbstractBlueprintNode<
     B extends AbstractBlueprintNode<B, N, C, F>,
     N extends TreeNode.Scoped<N, B, C, ?, ? extends ItemStack.Scoped<?, B>>,
-    C extends SokolComponent.Scoped<C, ?, ?>,
+    C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ? extends F>>,
     F extends FeatureData<?, ?, N>
 > extends MutableAbstractMapNode<B> implements BlueprintNode.Scoped<B, N, C, F> {
     public static final String ID = "id";
@@ -33,26 +33,37 @@ public abstract class AbstractBlueprintNode<
         featureData = new HashMap<>(o.featureData);
     }
 
+    private Map<String, F> initFeatures(Map<String, F> featureData) {
+        Map<String, F> res = new HashMap<>(featureData);
+        for (var entry : value.features().entrySet()) {
+            String key = entry.getKey();
+            if (!res.containsKey(key)) {
+                res.put(key, entry.getValue().setUp());
+            }
+        }
+        return res;
+    }
+
     protected AbstractBlueprintNode(C value, Map<String, F> featureData, @Nullable Key<B> key) {
         super(key);
         this.value = value;
-        this.featureData = featureData;
+        this.featureData = initFeatures(featureData);
     }
 
     protected AbstractBlueprintNode(C value, Map<String, F> featureData, B parent, String key) {
         super(parent, key);
         this.value = value;
-        this.featureData = featureData;
+        this.featureData = initFeatures(featureData);
     }
 
     protected AbstractBlueprintNode(C value, Map<String, F> featureData) {
         this.value = value;
-        this.featureData = featureData;
+        this.featureData = initFeatures(featureData);
     }
 
     public AbstractBlueprintNode(C value) {
         this.value = value;
-        featureData = Collections.emptyMap();
+        featureData = initFeatures(Collections.emptyMap());
     }
 
     @Override public C value() { return value; }
@@ -92,7 +103,7 @@ public abstract class AbstractBlueprintNode<
         F extends Feature<?>,
         P extends FeatureProfile<?, ? extends D>,
         D extends FeatureData<?, ?, N>,
-        I extends FeatureInstance<?, N>
+        I extends FeatureInstance<?, ?, N>
     > implements TypeSerializer<B> {
         protected abstract SokolPlatform.Scoped<F, C, ?> platform();
         protected abstract B create(C value, Map<String, D> featureData, @Nullable B parent, @Nullable String key);
