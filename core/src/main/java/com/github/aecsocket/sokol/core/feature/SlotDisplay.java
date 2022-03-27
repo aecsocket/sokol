@@ -2,6 +2,7 @@ package com.github.aecsocket.sokol.core.feature;
 
 import com.github.aecsocket.minecommons.core.Colls;
 import com.github.aecsocket.minecommons.core.Components;
+import com.github.aecsocket.minecommons.core.Range;
 import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.sokol.core.*;
@@ -93,19 +94,25 @@ public abstract class SlotDisplay<
         public abstract class Data implements FeatureData<P, I, N> {
             @Override public P profile() { return self(); }
 
-            @Override public void save(ConfigurationNode node) throws SerializationException {
-                node.node("test").set("Sex!");
-            }
+            @Override public void save(ConfigurationNode node) throws SerializationException {}
         }
 
         public abstract class Instance extends AbstractFeatureInstance<P, D, N> {
             @Override public P profile() { return self(); }
+
+            protected abstract void save(ItemState state);
 
             @Override
             public void build(Tree<N> tree, N parent, StatIntermediate stats) {
                 super.build(tree, parent, stats);
                 if (parent.isRoot()) {
                     tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent, listenerPriority);
+
+                    tree.itemTransforms().register((stack, state) -> {
+                        Range.Integer loreLines = Range.ofInteger(5, 17);
+                        loreLines = state.lore(loreLines, Arrays.asList(Component.text("Line 1"), Component.text("Line 2")));
+                        save(state);
+                    }, itemTransformPriority, ItemTransforms.CREATION, ItemTransforms.TREE);
                 }
             }
 

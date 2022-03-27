@@ -28,7 +28,7 @@ public abstract class TaskSchedulerImpl<
         READY_AT = "ready_at";
 
     public interface Manager {
-        <F extends FeatureInstance<?, ?, ?>> int schedule(F feature, long delay, TaskScheduler.Task<F> task);
+        <N extends TreeNode.Scoped<N, ?, ?, ?, ?>, F extends FeatureInstance<?, ?, N>> int schedule(F feature, long delay, TaskScheduler.Task<N, F> task);
 
         void unschedule(int taskId);
 
@@ -42,16 +42,19 @@ public abstract class TaskSchedulerImpl<
     private static final class ManagerImpl implements Manager {
         private static final long EXPIRE = 100;
 
-        private record TaskData(NodePath path, String feature, long at, TaskScheduler.Task<?> task) {}
+        private record TaskData<
+            N extends TreeNode.Scoped<N, ?, ?, ?, ?>,
+            F extends FeatureInstance<?, ?, N>
+        >(NodePath path, String feature, long at, TaskScheduler.Task<N, F> task) {}
 
-        private final Map<Integer, TaskData> tasks = new HashMap<>();
+        private final Map<Integer, TaskData<?, ?>> tasks = new HashMap<>();
         private int nextId;
 
         public int nextId() { return ++nextId; }
 
         @Override
-        public <F extends FeatureInstance<?, ?, ?>> int schedule(F feature, long delay, TaskScheduler.Task<F> task) {
-            TaskData data = new TaskData(feature.parent().path(), feature.profile().type().id(), System.currentTimeMillis() + delay, task);
+        public <N extends TreeNode.Scoped<N, ?, ?, ?, ?>, F extends FeatureInstance<?, ?, N>> int schedule(F feature, long delay, TaskScheduler.Task<N, F> task) {
+            TaskData<N, F> data = new TaskData<>(feature.parent().path(), feature.profile().type().id(), System.currentTimeMillis() + delay, task);
             int id = nextId();
             tasks.put(id, data);
             return id;
@@ -65,7 +68,7 @@ public abstract class TaskSchedulerImpl<
         // returns `true` if the task id should be removed
         @Override
         public boolean handle(TreeNode node, int taskId) {
-            TaskData task = tasks.get(taskId);
+            TaskData<?, ?> task = tasks.get(taskId);
             if (task == null)
                 return true;
             long time = System.currentTimeMillis();
@@ -73,9 +76,18 @@ public abstract class TaskSchedulerImpl<
                 return false;
             if (time > task.at + EXPIRE)
                 return true;
-
-
+            run0(node, task);
             return true;
+        }
+
+        private <N extends TreeNode.Scoped<N, ?, ?, ?, ?>, F extends FeatureInstance<?, ?, N>> void run0(TreeNode node, TaskData<N, F> task) {
+            @SuppressWarnings("unchecked")
+            N scoped = (N) node;
+            node.get(task.path).flatMap(child -> child.feature(task.feature)).ifPresent(feature -> {
+                @SuppressWarnings("unchecked")
+                F casted = (F) feature;
+                task.task.run(casted, TaskScheduler.createContext(scoped));
+            });
         }
     }
 
@@ -124,7 +136,7 @@ public abstract class TaskSchedulerImpl<
             }
         }
 
-        public abstract class Instance extends AbstractFeatureInstance<P, D, N> implements TaskScheduler {
+        public abstract class Instance extends AbstractFeatureInstance<P, D, N> implements TaskScheduler<N> {
             protected final List<Integer> tasks;
             protected long readyAt;
 
@@ -148,7 +160,7 @@ public abstract class TaskSchedulerImpl<
             }
 
             @Override
-            public <G extends FeatureInstance<?, ?, ?>> int schedule(G feature, long delay, Task<G> task) {
+            public <G extends FeatureInstance<?, ?, N>> int schedule(G feature, long delay, Task<N, G> task) {
                 return taskManager().schedule(feature, delay, task);
             }
 
@@ -165,6 +177,7 @@ public abstract class TaskSchedulerImpl<
                         // update item
                     }
                 }
+                event.updateItem(map -> is -> map.apply(is).);
             }
         }
     }

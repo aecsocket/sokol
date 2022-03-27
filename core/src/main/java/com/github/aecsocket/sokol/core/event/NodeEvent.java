@@ -19,4 +19,12 @@ public interface NodeEvent<N extends TreeNode.Scoped<N, ?, ?, ?, ?>> {
     > extends NodeEvent<N> {
         S item();
     }
+
+    interface UpdateItem<
+        N extends TreeNode.Scoped<N, B, ?, ?, S>,
+        B extends BlueprintNode.Scoped<B, N, ?, ?>,
+        S extends ItemStack.Scoped<S, B>
+    > extends NodeEvent<N> {
+        S item();
+    }
 }
