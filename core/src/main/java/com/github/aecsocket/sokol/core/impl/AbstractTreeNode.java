@@ -7,18 +7,20 @@ import com.github.aecsocket.minecommons.core.i18n.I18N;
 import com.github.aecsocket.minecommons.core.node.MutableAbstractMapNode;
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.context.Context;
-import com.github.aecsocket.sokol.core.event.NodeEvent;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 
+import com.github.aecsocket.sokol.core.item.ItemState;
+import com.github.aecsocket.sokol.core.item.ItemTransforms;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public abstract class AbstractTreeNode<
-    N extends AbstractTreeNode<N, B, C, F, S>,
+    N extends AbstractTreeNode<N, B, C, F, S, T>,
     B extends BlueprintNode.Scoped<B, N, C, ?>,
     C extends SokolComponent.Scoped<C, ?, ? extends FeatureProfile<?, ? extends FeatureData<?, ? extends F, N>>>,
     F extends FeatureInstance<?, ? extends FeatureData<?, ?, N>, N>,
-    S extends ItemStack.Scoped<S, B>
-> extends MutableAbstractMapNode<N> implements TreeNode.Scoped<N, B, C, F, S> {
+    S extends ItemStack.Scoped<T, S, B>,
+    T extends ItemState.Scoped<T>
+> extends MutableAbstractMapNode<N> implements TreeNode.Scoped<N, B, C, F, S, T> {
     public static final String ID = "id";
     public static final String FEATURES = "features";
     public static final String CHILDREN = "children";
@@ -26,9 +28,9 @@ public abstract class AbstractTreeNode<
     protected final C value;
     protected final Map<String, F> features;
     protected final Context context;
-    protected Tree<N> tree;
+    protected Tree<N, B, S, T> tree;
 
-    protected AbstractTreeNode(AbstractTreeNode<N, B, C, F, S> o) {
+    protected AbstractTreeNode(AbstractTreeNode<N, B, C, F, S, T> o) {
         super(o);
         value = o.value;
         context = o.context;
@@ -59,7 +61,7 @@ public abstract class AbstractTreeNode<
         return result;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, @Nullable Key<N> key) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N, B, S, T> tree, @Nullable Key<N> key) {
         super(key);
         this.value = value;
         features = initFeatures(featureData);
@@ -67,7 +69,7 @@ public abstract class AbstractTreeNode<
         this.tree = tree;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree, N parent, String key) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N, B, S, T> tree, N parent, String key) {
         super(parent, key);
         this.value = value;
         features = initFeatures(featureData);
@@ -82,7 +84,7 @@ public abstract class AbstractTreeNode<
         this.context = context;
     }
 
-    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N> tree) {
+    protected AbstractTreeNode(C value, Map<String, ? extends FeatureData<?, ? extends F, N>> featureData, Context context, @Nullable Tree<N, B, S, T> tree) {
         this.value = value;
         features = initFeatures(featureData);
         this.context = context;
@@ -107,8 +109,8 @@ public abstract class AbstractTreeNode<
 
     @Override public Context context() { return context; }
 
-    @Override public Tree<N> tree() { return tree; }
-    @Override public void tree(Tree<N> tree) { this.tree = tree; }
+    @Override public Tree<N, B, S, T> tree() { return tree; }
+    @Override public void tree(Tree<N, B, S, T> tree) { this.tree = tree; }
 
     @Override
     public N set(String key, N val) {
@@ -128,19 +130,16 @@ public abstract class AbstractTreeNode<
         visit(visitor::accept);
     }
 
-    protected abstract S createItem();
-    protected abstract NodeEvent.CreateItem<N, B, S> createItemEvent(S item);
+    protected abstract S createStack();
 
     @Override
-    public S asItem() {
-        S item = createItem();
+    public S asStack() {
+        S stack = createStack();
         I18N i18n = platform().i18n();
         Locale locale = context.locale();
 
-        item.name(value.render(i18n, locale));
-        tree.events().call(createItemEvent(item));
-
-        return item;
+        return stack.state(tree.itemTransforms().apply(stack.state()
+            .name(value.render(i18n, locale)), ItemTransforms.CREATION));
     }
 
     @Override

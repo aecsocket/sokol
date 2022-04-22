@@ -1,5 +1,7 @@
 package com.github.aecsocket.sokol.core.world;
 
+import com.github.aecsocket.sokol.core.item.ItemStack;
+
 public interface EquipSlot<I extends ItemStack> extends ItemSlot<I> {
     enum Position {
         MAIN_HAND   (true, false),

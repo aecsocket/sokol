@@ -7,7 +7,7 @@ import java.util.function.Consumer;
 import com.github.aecsocket.minecommons.core.node.MutableAbstractMapNode;
 import com.github.aecsocket.minecommons.core.serializers.Serializers;
 import com.github.aecsocket.sokol.core.*;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.spongepowered.configurate.ConfigurationNode;

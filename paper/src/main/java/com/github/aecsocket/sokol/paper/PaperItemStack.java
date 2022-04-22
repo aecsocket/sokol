@@ -13,7 +13,7 @@ import net.kyori.adventure.text.Component;
 public record PaperItemStack(
     SokolPlugin plugin,
     ItemStack handle
-) implements com.github.aecsocket.sokol.core.world.ItemStack.Scoped<
+) implements com.github.aecsocket.sokol.core.item.ItemStack.Scoped<
     PaperItemStack,
     PaperBlueprintNode
 > {

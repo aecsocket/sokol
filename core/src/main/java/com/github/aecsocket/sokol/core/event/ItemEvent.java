@@ -5,13 +5,18 @@ import com.github.aecsocket.minecommons.core.event.Cancellable;
 import com.github.aecsocket.minecommons.core.vector.cartesian.Vector3;
 import com.github.aecsocket.sokol.core.TreeNode;
 import com.github.aecsocket.sokol.core.context.Context;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemState;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.Optional;
 import java.util.function.Function;
 
-public interface ItemEvent<N extends TreeNode.Scoped<N, ?, ?, ?, S>, S extends ItemStack.Scoped<S, ?>> extends NodeEvent<N> {
+public interface ItemEvent<
+    N extends TreeNode.Scoped<N, ?, ?, ?, S>,
+    S extends ItemStack.Scoped<T, S, ?>,
+    T extends ItemState
+> extends NodeEvent<N> {
     @FunctionalInterface
     interface Mapper<S extends ItemStack.Scoped<S, ?>> extends Function<S, S> {}
 

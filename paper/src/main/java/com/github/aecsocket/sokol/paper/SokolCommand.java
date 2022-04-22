@@ -384,7 +384,7 @@ import static net.kyori.adventure.text.Component.*;
                 pSender == null
                     ? Context.context(locale)
                     : PaperContext.context(PaperItemUser.user(plugin, pSender))
-            ).asItem().handle();
+            ).asStack().handle();
         } catch (ItemCreationException e) {
             throw error(ERROR_ITEM_CREATION, e);
         }
@@ -395,7 +395,7 @@ import static net.kyori.adventure.text.Component.*;
 
         for (var target : targets) {
             ItemStack item = blueprint.asTreeNode(PaperContext.context(PaperItemUser.user(plugin, target)))
-                .asItem().handle();
+                .asStack().handle();
             Inventory inventory = target.getInventory();
             for (int i = 0; i < amount; i++) {
                 inventory.addItem(item);

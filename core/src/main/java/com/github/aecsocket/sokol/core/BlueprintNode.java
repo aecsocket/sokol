@@ -34,7 +34,7 @@ public interface BlueprintNode extends SokolNode {
 
     interface Scoped<
         B extends Scoped<B, N, C, F>,
-        N extends TreeNode.Scoped<N, B, C, ?, ?>,
+        N extends TreeNode.Scoped<N, B, C, ?, ?, ?>,
         C extends SokolComponent.Scoped<C, ?, ?>,
         F extends FeatureData<?, ?, N>
     > extends BlueprintNode, MapNode.Scoped<B> {

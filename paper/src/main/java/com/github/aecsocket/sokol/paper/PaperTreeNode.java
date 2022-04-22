@@ -82,7 +82,7 @@ public final class PaperTreeNode extends AbstractTreeNode<
     }
 
     @Override
-    protected PaperItemStack createItem() {
+    protected PaperItemStack createStack() {
         try {
             ItemStack item = tree.stats().require(PaperComponent.STAT_ITEM).stack();
             item.editMeta(meta -> value.platform().persistence().save(meta.getPersistentDataContainer(), this));

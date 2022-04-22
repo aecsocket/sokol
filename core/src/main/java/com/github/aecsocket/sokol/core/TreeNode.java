@@ -8,20 +8,21 @@ import java.util.function.Consumer;
 import com.github.aecsocket.minecommons.core.node.MapNode;
 import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.sokol.core.context.Context;
+import com.github.aecsocket.sokol.core.item.ItemState;
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public interface TreeNode extends SokolNode {
     Context context();
-    Tree<?> tree();
+    Tree<?, ?, ?, ?> tree();
 
     Map<String, ? extends FeatureInstance<?, ?, ?>> features();
     Optional<? extends FeatureInstance<?, ?, ?>> feature(String key);
 
     BlueprintNode asBlueprintNode();
-    ItemStack asItem() throws ItemCreationException;
+    ItemStack<?> asStack() throws ItemCreationException;
 
     TreeNode build();
 
@@ -41,20 +42,21 @@ public interface TreeNode extends SokolNode {
     @Override TreeNode asRoot();
 
     interface Scoped<
-        N extends Scoped<N, B, C, F, S>,
+        N extends Scoped<N, B, C, F, S, T>,
         B extends BlueprintNode.Scoped<B, N, C, ?>,
         C extends SokolComponent.Scoped<C, ?, ?>,
         F extends FeatureInstance<?, ?, N>,
-        S extends ItemStack.Scoped<S, B>
+        S extends ItemStack.Scoped<T, S, B>,
+        T extends ItemState
     > extends TreeNode, MapNode.Scoped<N> {
-        @Override Tree<N> tree();
-        void tree(Tree<N> tree);
+        @Override Tree<N, B, S, T> tree();
+        void tree(Tree<N, B, S, T> tree);
 
         @Override Map<String, F> features();
         @Override Optional<F> feature(String key);
 
         @Override B asBlueprintNode();
-        @Override S asItem();
+        @Override S asStack();
 
         @Override N build();
     }

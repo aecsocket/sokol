@@ -3,7 +3,7 @@ package com.github.aecsocket.sokol.core.context;
 import java.util.Locale;
 
 import com.github.aecsocket.sokol.core.world.ItemSlot;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 import com.github.aecsocket.sokol.core.world.ItemUser;
 
 public interface Context {

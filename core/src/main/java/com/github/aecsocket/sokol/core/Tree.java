@@ -9,20 +9,33 @@ import java.util.function.Function;
 import com.github.aecsocket.minecommons.core.event.EventDispatcher;
 import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.sokol.core.event.NodeEvent;
+import com.github.aecsocket.sokol.core.item.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemState;
 import com.github.aecsocket.sokol.core.rule.RuleException;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatMap;
 
-public record Tree<N extends TreeNode.Scoped<N, ?, ?, ?, ?>>(
+public record Tree<
+    N extends TreeNode.Scoped<N, B, ?, ?, S, T>,
+    B extends BlueprintNode.Scoped<B, N, ?, ?>,
+    S extends ItemStack.Scoped<T, S, B>,
+    T extends ItemState.Scoped<T>
+>(
     N root,
     EventDispatcher<NodeEvent<N>> events,
+    Transforms<T> itemTransforms,
     StatMap stats,
     List<NodePath> incomplete
 ) {
-    private record StatPair<N extends TreeNode.Scoped<N, ?, ?, ?, ?>>(N node, List<StatIntermediate.MapData> data) {}
+    private record StatPair<N extends TreeNode.Scoped<N, ?, ?, ?, ?, ?>>(N node, List<StatIntermediate.MapData> data) {}
 
-    private static <N extends TreeNode.Scoped<N, ?, ?, ?, ?>> void build(
-        Tree<N> tree, List<StatPair<N>> forward, List<StatPair<N>> reverse, N node, String... path
+    private static <
+        N extends TreeNode.Scoped<N, B, ?, ?, S, T>,
+        B extends BlueprintNode.Scoped<B, N, ?, ?>,
+        S extends ItemStack.Scoped<T, S, B>,
+        T extends ItemState.Scoped<T>
+    > void build(
+        Tree<N, B, S, T> tree, List<StatPair<N>> forward, List<StatPair<N>> reverse, N node, String... path
     ) {
         node.tree(tree);
         StatIntermediate stats = new StatIntermediate(node.value().stats());
@@ -46,8 +59,13 @@ public record Tree<N extends TreeNode.Scoped<N, ?, ?, ?, ?>>(
         }
     }
 
-    public static <N extends TreeNode.Scoped<N, ?, ?, ?, ?>> Tree<N> build(N root) {
-        Tree<N> tree = new Tree<>(root, new EventDispatcher<>(), new StatMap(), new ArrayList<>());
+    public static <
+        N extends TreeNode.Scoped<N, B, ?, ?, S, T>,
+        B extends BlueprintNode.Scoped<B, N, ?, ?>,
+        S extends ItemStack.Scoped<T, S, B>,
+        T extends ItemState.Scoped<T>
+    > Tree<N, B, S, T> build(N root) {
+        Tree<N, B, S, T> tree = new Tree<>(root, new EventDispatcher<>(), new Transforms<>(), new StatMap(), new ArrayList<>());
         List<StatPair<N>> forward = new ArrayList<>();
         List<StatPair<N>> reverse = new ArrayList<>();
 

@@ -11,7 +11,6 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryCreativeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.BlockInventoryHolder;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.spongepowered.configurate.ConfigurationNode;
 
@@ -60,7 +59,7 @@ import java.util.Locale;
                             PaperItemSlot.itemSlot(plugin, () -> null, s -> {}) // TODO
                         )),
                         clickedStack.getAmount(),
-                        res -> event.setCurrentItem(res.asItem().handle())
+                        res -> event.setCurrentItem(res.asStack().handle())
                     ), event.getSlot())
                         .show(player);
                 });

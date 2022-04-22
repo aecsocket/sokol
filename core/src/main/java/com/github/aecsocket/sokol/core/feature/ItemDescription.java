@@ -8,7 +8,7 @@ import com.github.aecsocket.sokol.core.rule.RuleTypes;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatTypes;
 import com.github.aecsocket.sokol.core.stat.impl.StringStat;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import org.spongepowered.configurate.ConfigurationNode;

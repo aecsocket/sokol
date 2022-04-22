@@ -19,7 +19,7 @@ import com.github.aecsocket.sokol.core.stat.StatMap;
 import com.github.aecsocket.sokol.core.stat.StatTypes;
 import com.github.aecsocket.sokol.core.stat.impl.PrimitiveStat;
 import com.github.aecsocket.sokol.core.world.ItemCreationException;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;

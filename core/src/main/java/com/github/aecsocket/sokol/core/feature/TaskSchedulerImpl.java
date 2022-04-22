@@ -7,7 +7,7 @@ import com.github.aecsocket.sokol.core.impl.AbstractFeatureInstance;
 import com.github.aecsocket.sokol.core.rule.RuleTypes;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatTypes;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 import io.leangen.geantyref.TypeToken;
 import org.spongepowered.configurate.ConfigurationNode;
 import org.spongepowered.configurate.serialize.SerializationException;
@@ -177,7 +177,7 @@ public abstract class TaskSchedulerImpl<
                         // update item
                     }
                 }
-                event.updateItem(map -> is -> map.apply(is).);
+                event.updateItem(map -> is -> map.apply(is));
             }
         }
     }

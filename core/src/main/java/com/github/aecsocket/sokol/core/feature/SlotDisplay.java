@@ -8,10 +8,11 @@ import com.github.aecsocket.minecommons.core.node.NodePath;
 import com.github.aecsocket.sokol.core.*;
 import com.github.aecsocket.sokol.core.event.NodeEvent;
 import com.github.aecsocket.sokol.core.impl.AbstractFeatureInstance;
+import com.github.aecsocket.sokol.core.item.ItemState;
 import com.github.aecsocket.sokol.core.rule.RuleTypes;
 import com.github.aecsocket.sokol.core.stat.StatIntermediate;
 import com.github.aecsocket.sokol.core.stat.StatTypes;
-import com.github.aecsocket.sokol.core.world.ItemStack;
+import com.github.aecsocket.sokol.core.item.ItemStack;
 import io.leangen.geantyref.TypeToken;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -24,12 +25,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static net.kyori.adventure.text.Component.*;
 
 public abstract class SlotDisplay<
-    F extends SlotDisplay<F, P, D, I, N, S>,
-    P extends SlotDisplay<F, P, D, I, N, S>.Profile,
-    D extends SlotDisplay<F, P, D, I, N, S>.Profile.Data,
-    I extends SlotDisplay<F, P, D, I, N, S>.Profile.Instance,
-    N extends TreeNode.Scoped<N, ?, ?, ?, S>,
-    S extends ItemStack.Scoped<S, ?>
+    F extends SlotDisplay<F, P, D, I, N, B, S, T>,
+    P extends SlotDisplay<F, P, D, I, N, B, S, T>.Profile,
+    D extends SlotDisplay<F, P, D, I, N, B, S, T>.Profile.Data,
+    I extends SlotDisplay<F, P, D, I, N, B, S, T>.Profile.Instance,
+    N extends TreeNode.Scoped<N, B, ?, ?, S, T>,
+    B extends BlueprintNode.Scoped<B, N, ?, ?>,
+    S extends ItemStack.Scoped<T, S, B>,
+    T extends ItemState.Scoped<T>
 > implements Feature<P> {
     public static final String
         ID = "slot_display",
@@ -97,18 +100,18 @@ public abstract class SlotDisplay<
             @Override public void save(ConfigurationNode node) throws SerializationException {}
         }
 
-        public abstract class Instance extends AbstractFeatureInstance<P, D, N> {
+        public abstract class Instance extends AbstractFeatureInstance<P, D, N, B, S, T> {
             @Override public P profile() { return self(); }
 
-            protected abstract void save(ItemState state);
+            protected abstract void save(T state);
 
             @Override
-            public void build(Tree<N> tree, N parent, StatIntermediate stats) {
+            public void build(Tree<N, B, S, T> tree, N parent, StatIntermediate stats) {
                 super.build(tree, parent, stats);
                 if (parent.isRoot()) {
-                    tree.events().register(new TypeToken<NodeEvent.CreateItem<N, ?, S>>() {}, this::onEvent, listenerPriority);
+                    tree.events().register(new TypeToken<NodeEvent.CreateItem<N, B, S>>() {}, this::onEvent, listenerPriority);
 
-                    tree.itemTransforms().register((stack, state) -> {
+                    tree.itemTransforms().register(state -> {
                         Range.Integer loreLines = Range.ofInteger(5, 17);
                         loreLines = state.lore(loreLines, Arrays.asList(Component.text("Line 1"), Component.text("Line 2")));
                         save(state);

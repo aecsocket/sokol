@@ -81,7 +81,7 @@ public final class PaperNodeView extends Pane {
     private ItemStack buildNodeItem(PaperTreeNode node) {
         node = node.asRoot();
         node.clearChildren();
-        return node.build().asItem().handle();
+        return node.build().asStack().handle();
     }
 
     private ItemStack buildSlotItem(Locale locale, PaperTreeNode parent, PaperNodeSlot slot) {
@@ -215,7 +215,7 @@ public final class PaperNodeView extends Pane {
                         return;
                     }
                 } else {
-                    ItemStack orphanStack = orphan.asItem().handle();
+                    ItemStack orphanStack = orphan.asStack().handle();
                     if (cursorStack == null || cursorStack.getAmount() == 0) {
                         // evt
                         node.removeChild(key);
