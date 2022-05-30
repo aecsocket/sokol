@@ -1,40 +1,59 @@
 plugins {
-    id("java-library")
-    id("maven-publish")
+    kotlin("jvm")
     id("com.github.johnrengelman.shadow")
-    id("net.minecrell.plugin-yml.bukkit")
     id("xyz.jpenilla.run-paper")
+    id("net.minecrell.plugin-yml.bukkit")
+}
+
+/*buildscript {
+    repositories {
+        gradlePluginPortal()
+        maven {
+            url = uri("https://plugins.gradle.org/m2/")
+        }
+    }
+
+    dependencies {
+        /*classpath("org.jetbrains.dokka:dokka-base:1.6.21") {
+            exclude(group = "com.fasterxml.jackson.core")
+            exclude(group = "com.fasterxml.jackson.module")
+            exclude(group = "com.fasterxml.jackson.dataformat")
+        }
+        classpath("org.jetbrains.dokka:dokka-core:1.6.21") {
+            exclude(group = "com.fasterxml.jackson.core")
+            exclude(group = "com.fasterxml.jackson.module")
+            exclude(group = "com.fasterxml.jackson.dataformat")
+        }
+        classpath("org.jetbrains.dokka:dokka-analysis:1.6.21") {
+            exclude(group = "com.fasterxml.jackson.core")
+            exclude(group = "com.fasterxml.jackson.module")
+            exclude(group = "com.fasterxml.jackson.dataformat")
+        }*/
+        classpath("net.minecrell:plugin-yml:0.5.1")
+    }
+}
+
+apply(plugin = "net.minecrell.plugin-yml.bukkit")*/
+
+val minecraftVersion = libs.versions.minecraft.get()
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://jitpack.io")
 }
 
 dependencies {
-    api(projects.sokolCore) {
-        exclude("com.github.aecsocket", "minecommons-core")
-    }
-    compileOnly("io.papermc.paper", "paper-api", "${libs.versions.minecraft.get()}-R0.1-SNAPSHOT") {
-        exclude("junit", "junit")
-    }
-
-    implementation(libs.minecommonsPaper) {
-        artifact { classifier = "reobf" }
-    }
+    api(projects.sokolCore)
+    compileOnly("io.papermc.paper", "paper-api", "$minecraftVersion-R0.1-SNAPSHOT")
+    implementation(libs.alexandriaPaper) { artifact { classifier = "reobf" } }
     implementation(libs.bstatsPaper)
+    implementation(libs.packetEvents)
 }
 
 tasks {
     shadowJar {
-        listOf(
-            "io.leangen.geantyref",
-            "org.spongepowered.configurate",
-            "com.typesafe.config",
-            "au.com.bytecode.opencsv",
-            "cloud.commandframework",
-            "net.kyori.adventure.text.minimessage",
-            "net.kyori.adventure.serializer.configurate4",
-            "com.github.stefvanschie.inventoryframework",
-            "com.github.retrooper.packetevents",
-            "com.github.aecsocket.minecommons",
-            "org.bstats"
-        ).forEach { relocate(it, "${rootProject.group}.${rootProject.name}.lib.$it") }
     }
 
     assemble {
@@ -42,33 +61,14 @@ tasks {
     }
 
     runServer {
-        minecraftVersion(libs.versions.minecraft.forUseAtConfigurationTime().get())
+        minecraftVersion(libs.versions.minecraft.get())
     }
 }
 
 bukkit {
     name = "Sokol"
-    main = "${project.group}.${rootProject.name}.paper.SokolPlugin"
+    main = "${project.group}.paper.SokolPlugin"
     apiVersion = "1.18"
-    website = "https://github.com/aecsocket/sokol"
     authors = listOf("aecsocket")
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-        }
-    }
-
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/aecsocket/sokol")
-            credentials {
-                username = System.getenv("GPR_ACTOR")
-                password = System.getenv("GPR_TOKEN")
-            }
-        }
-    }
+    website = "https://aecsocket.github.com/sokol"
 }

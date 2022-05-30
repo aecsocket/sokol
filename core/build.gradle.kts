@@ -1,30 +1,15 @@
 plugins {
-    id("java")
-    id("maven-publish")
+    kotlin("jvm")
+}
+
+repositories {
+    mavenLocal()
+    mavenCentral()
+    maven("https://jitpack.io")
 }
 
 dependencies {
-    implementation(libs.minecommons)
-    compileOnly(libs.findBugs)
+    implementation(libs.alexandriaCore)
 
-    testImplementation(libs.bundles.junit)
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-        }
-    }
-
-    repositories {
-        maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/aecsocket/sokol")
-            credentials {
-                username = System.getenv("GPR_ACTOR")
-                password = System.getenv("GPR_TOKEN")
-            }
-        }
-    }
+    testImplementation(kotlin("test"))
 }
