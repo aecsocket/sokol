@@ -98,5 +98,5 @@ class SokolPersistence internal constructor(
 
     fun set(pdc: PersistentDataContainer, node: PaperDataNode) = pdc.set(plugin.keyNode, dataType, node)
 
-    fun setOnTick(pdc: PersistentDataContainer) = pdc.set(plugin.keyOnTick, PersistentDataType.BYTE, 0)
+    fun setTick(pdc: PersistentDataContainer) = pdc.set(plugin.keyTick, PersistentDataType.BYTE, 0)
 }

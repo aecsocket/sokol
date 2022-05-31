@@ -2,11 +2,10 @@ package com.github.aecsocket.sokol.core.event
 
 import com.github.aecsocket.sokol.core.TreeState
 
-interface NodeEvent {
-    val state: TreeState<*, *, *> // todo
-}
+interface NodeEvent<S : TreeState.Scoped<S, *, *>> {
+    val state: S
 
-data class TestEvent(
-    override val state: TreeState<*, *, *>,
-    val data: Int
-) : NodeEvent
+    data class Tick<S : TreeState.Scoped<S, *, *>>(
+        override val state: S
+    ) : NodeEvent<S>
+}

@@ -17,15 +17,16 @@ interface Feature<
         fun deserialize(node: ConfigurationNode): D
     }
 
-    interface Data<S : State<S>> {
+    interface Data<S : State<*, *>> {
         fun createState(): S
 
         fun serialize(node: ConfigurationNode)
     }
 
-    interface State<S : State<S>> {
-        fun registerEvents(events: EventDispatcher.Builder<NodeEvent>)
-
-        fun setUpState(state: TreeState.NodeState<S>)
+    interface State<F : State<F, S>, S : TreeState.Scoped<S, *, *>> {
+        fun setUp(
+            events: EventDispatcher.Builder<NodeEvent<S>>,
+            state: TreeState.NodeState<F>
+        )
     }
 }

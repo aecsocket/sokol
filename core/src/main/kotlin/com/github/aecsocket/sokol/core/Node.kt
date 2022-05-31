@@ -22,6 +22,7 @@ interface Node {
     operator fun get(key: String): Node?
     operator fun get(path: Iterable<String>): Node?
     operator fun get(vararg path: String): Node?
+    fun has(key: String): Boolean
 
     fun path(): NodePath
     fun root(): Node

@@ -15,5 +15,5 @@ interface PaperFeature : Feature<PaperDataNode, PaperFeature.Profile> {
         fun copy(): Data
     }
 
-    interface State : Feature.State<State>
+    interface State : Feature.State<State, PaperTreeState>
 }

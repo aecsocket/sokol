@@ -13,6 +13,7 @@ abstract class AbstractNode<N : AbstractNode<N>>(
         return cur
     }
     override fun get(vararg path: String) = get(path.asIterable())
+    override fun has(key: String) = children.containsKey(key)
 
     override fun detach() {
         parent = null

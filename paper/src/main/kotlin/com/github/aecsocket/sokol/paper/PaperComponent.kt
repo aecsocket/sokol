@@ -13,5 +13,9 @@ class PaperComponent(
 data class PaperSlot(
     override val key: String,
     override val tags: Set<String>,
+    val required: Boolean,
+    val modifiable: Boolean,
     val compatible: Rule
-) : Slot
+) : Slot {
+
+}

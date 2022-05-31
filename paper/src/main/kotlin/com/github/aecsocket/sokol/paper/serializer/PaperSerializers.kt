@@ -7,6 +7,7 @@ import com.github.aecsocket.sokol.core.serializer.ComponentSerializer
 import com.github.aecsocket.sokol.core.serializer.DataNodeSerializer
 import com.github.aecsocket.sokol.paper.*
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.kotlin.extensions.get
 
 class PaperComponentSerializer(
     private val plugin: SokolPlugin
@@ -16,7 +17,7 @@ class PaperComponentSerializer(
     override fun feature(id: String) = plugin.features[id]
 
     override fun slot(key: String, node: ConfigurationNode) = PaperSlot(
-        key, node.force(), Rule.Temp
+        key, node.get { emptySet() }, node.getBoolean(false), node.getBoolean(false), Rule.Temp
     )
 
     override fun create(

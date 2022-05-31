@@ -4,5 +4,12 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 @ConfigSerializable
 data class SokolSettings(
-    val temp: Int = 5
-)
+    val hostResolution: HostResolution = HostResolution()
+) {
+    @ConfigSerializable
+    data class HostResolution(
+        val enabled: Boolean = true,
+        val containerItems: Boolean = true,
+        val containerBlocks: Boolean = true
+    )
+}

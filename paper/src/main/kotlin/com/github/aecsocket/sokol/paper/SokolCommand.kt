@@ -18,9 +18,9 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
 ) {
     init {
         manager.command(root
-            .literal("representatives", desc("Gets info on the last representatives found."))
-            .permission(perm("command", "representatives"))
-            .handler { handle(it, ::representatives) }
+            .literal("hosts", desc("Gets info on the last hosts resolved on the server."))
+            .permission(perm("command", "hosts"))
+            .handler { handle(it, ::hosts) }
         )
         manager.command(root
             .literal("give")
@@ -36,27 +36,27 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
                 )
                 val item = ItemStack(Material.STICK).withMeta<ItemMeta> { meta ->
                     plugin.persistence.set(meta.persistentDataContainer, node)
-                    plugin.persistence.setOnTick(meta.persistentDataContainer)
+                    plugin.persistence.setTick(meta.persistentDataContainer)
                 }
                 player.inventory.addItem(item)
             }
         )
     }
 
-    fun representatives(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val reprs = plugin.lastRepresentatives
-        val possible = reprs.values.sumOf { (ps, _) -> ps }
-        val actual = reprs.values.sumOf { (_, ac) -> ac }
-        plugin.send(sender) { safe(locale, "command.representatives") {
+    fun hosts(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        val hosts = plugin.lastHosts
+        val possible = hosts.values.sumOf { it.possible }
+        val marked = hosts.values.sumOf { it.marked }
+        plugin.send(sender) { safe(locale, "command.hosts") {
             raw("possible") { possible }
-            raw("actual") { actual }
-            raw("percent") { 0.5 }
-            list("types") { reprs.map { (type, data) ->
+            raw("marked") { marked }
+            raw("percent") { marked.toDouble() / possible }
+            list("types") { hosts.map { (type, data) ->
                 map {
                     raw("name") { type }
-                    raw("possible") { data.first }
-                    raw("actual") { data.second }
-                    raw("percent") { data.second.toDouble() / data.first }
+                    raw("possible") { data.possible }
+                    raw("marked") { data.marked }
+                    raw("percent") { data.marked.toDouble() / data.possible }
                 }
             } }
         } }

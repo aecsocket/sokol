@@ -15,10 +15,10 @@ class PaperDataNode(
     parent: PaperNodeKey? = null,
     children: MutableMap<String, PaperDataNode> = HashMap(),
     val legacyChildren: MutableMap<NamespacedKey, PersistentDataContainer> = HashMap()
-) : AbstractDataNode<PaperDataNode, PaperComponent, PaperFeature.Data>(value, features, parent, children) {
+) : AbstractDataNode<PaperDataNode, PaperComponent, PaperFeature.Data, PaperTreeState>(value, features, parent, children) {
     override val self = this
 
-    fun createState() = TreeState.from(this)
+    fun createState() = PaperTreeState.from(this)
 
     override fun copy(): PaperDataNode = PaperDataNode(
         value,

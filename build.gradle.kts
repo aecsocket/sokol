@@ -6,7 +6,7 @@ plugins {
 
 allprojects {
     group = "com.github.aecsocket.sokol"
-    version = "2.2.0"
+    version = "2.2.1"
     description = "Platform-agnostic, data-driven item framework"
 }
 

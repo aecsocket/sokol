@@ -5,6 +5,7 @@ import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.sokol.core.TreeState
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.event.TestEvent
+import com.github.aecsocket.sokol.paper.PaperDataNode
 import com.github.aecsocket.sokol.paper.PaperFeature
 import com.github.aecsocket.sokol.paper.SokolPlugin
 import org.bukkit.persistence.PersistentDataAdapterContext
@@ -56,15 +57,15 @@ class TestFeature(
             override fun copy() = Data(dataField)
 
             inner class State : PaperFeature.State {
-                override fun registerEvents(events: EventDispatcher.Builder<NodeEvent>) {
+                override fun setUp(
+                    events: EventDispatcher.Builder<NodeEvent<PaperDataNode, PaperFeature.State>>,
+                    state: TreeState.NodeState<PaperFeature.State>
+                ) {
                     events.addListener { event -> when (event) {
                         is TestEvent -> {
                             println("EVENT RECV - event data = ${event.data} | profile data = $profileField | state data = $dataField")
                         }
                     } }
-                }
-
-                override fun setUpState(state: TreeState.NodeState<PaperFeature.State>) {
                 }
             }
         }
