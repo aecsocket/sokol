@@ -1,7 +1,6 @@
 package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.sokol.core.NodeKey
-import com.github.aecsocket.sokol.core.TreeState
 import com.github.aecsocket.sokol.core.impl.AbstractDataNode
 import org.bukkit.NamespacedKey
 import org.bukkit.persistence.PersistentDataContainer
@@ -15,10 +14,12 @@ class PaperDataNode(
     parent: PaperNodeKey? = null,
     children: MutableMap<String, PaperDataNode> = HashMap(),
     val legacyChildren: MutableMap<NamespacedKey, PersistentDataContainer> = HashMap()
-) : AbstractDataNode<PaperDataNode, PaperComponent, PaperFeature.Data, PaperTreeState>(value, features, parent, children) {
+) : AbstractDataNode<PaperDataNode, PaperNodeHost, PaperComponent, PaperFeature.Data, PaperTreeState>(
+    value, features, parent, children
+) {
     override val self = this
 
-    fun createState() = PaperTreeState.from(this)
+    override fun createState(host: PaperNodeHost) = PaperTreeState.from(this, host)
 
     override fun copy(): PaperDataNode = PaperDataNode(
         value,

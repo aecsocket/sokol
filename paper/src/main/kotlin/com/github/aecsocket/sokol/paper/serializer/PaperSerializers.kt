@@ -1,6 +1,5 @@
 package com.github.aecsocket.sokol.paper.serializer
 
-import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.sokol.core.NodeKey
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.serializer.ComponentSerializer

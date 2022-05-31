@@ -6,7 +6,7 @@ import com.github.aecsocket.sokol.core.event.NodeEvent
 import org.spongepowered.configurate.ConfigurationNode
 
 interface Feature<
-    N : DataNode,
+    N : DataNode<*>,
     P : Feature.Profile<*>
 > : Keyed {
     fun deserialize(node: ConfigurationNode): P
@@ -26,7 +26,7 @@ interface Feature<
     interface State<F : State<F, S>, S : TreeState.Scoped<S, *, *>> {
         fun setUp(
             events: EventDispatcher.Builder<NodeEvent<S>>,
-            state: TreeState.NodeState<F>
+            node: TreeState.NodeState<F>
         )
     }
 }

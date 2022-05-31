@@ -1,25 +1,26 @@
 package com.github.aecsocket.sokol.core
 
-interface DataNode : Node {
-    override val parent: NodeKey<DataNode>?
-    override val children: Map<String, DataNode>
-    override operator fun get(key: String): DataNode?
-    override operator fun get(path: Iterable<String>): DataNode?
-    override fun get(vararg path: String): DataNode?
+interface DataNode<H : NodeHost> : Node {
+    override val parent: NodeKey<DataNode<H>>?
+    override val children: Map<String, DataNode<H>>
+    override operator fun get(key: String): DataNode<H>?
+    override operator fun get(path: Iterable<String>): DataNode<H>?
+    override fun get(vararg path: String): DataNode<H>?
 
     val value: NodeComponent
     val features: Map<String, Feature.Data<*>>
 
-    fun createState(): TreeState<*, *, *>
+    fun createState(host: H): TreeState.Scoped<*, *, H>
 
     interface Scoped<
-        N : Scoped<N, C, F, S>,
+        N : Scoped<N, H, C, F, S>,
+        H : NodeHost,
         C : NodeComponent,
         F : Feature.Data<*>,
-        S : TreeState<S, N, *>
-    > : DataNode, Node.Scoped<N> {
+        S : TreeState.Scoped<S, N, H>
+    > : DataNode<H>, Node.Scoped<N> {
         override val value: C
         override val features: Map<String, F>
-        override fun createState(): S
+        override fun createState(host: H): S
     }
 }

@@ -16,6 +16,4 @@ data class PaperSlot(
     val required: Boolean,
     val modifiable: Boolean,
     val compatible: Rule
-) : Slot {
-
-}
+) : Slot

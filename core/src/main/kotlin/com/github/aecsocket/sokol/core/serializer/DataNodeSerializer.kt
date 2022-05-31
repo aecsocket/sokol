@@ -15,7 +15,7 @@ private const val FEATURES = "features"
 private const val CHILDREN = "children"
 
 abstract class DataNodeSerializer<
-    N : DataNode.Scoped<N, C, D>,
+    N : DataNode.Scoped<N, *, C, D, *>,
     C : NodeComponent.Scoped<C, P, *>,
     P : Feature.Profile<D>,
     D : Feature.Data<*>

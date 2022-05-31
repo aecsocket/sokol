@@ -7,15 +7,18 @@ import com.github.aecsocket.alexandria.core.extension.register
 import com.github.aecsocket.alexandria.core.keyed.Registry
 import com.github.aecsocket.alexandria.paper.ElementResolver
 import com.github.aecsocket.alexandria.paper.ElementType
+import com.github.aecsocket.alexandria.paper.ServerElement
 import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.github.aecsocket.alexandria.paper.packet.PacketInputListener
 import com.github.aecsocket.alexandria.paper.plugin.BasePlugin
+import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.paper.feature.TestFeature
 import com.github.aecsocket.sokol.paper.serializer.PaperComponentSerializer
 import com.github.aecsocket.sokol.paper.serializer.PaperNodeSerializer
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
+import net.kyori.adventure.text.Component.translatable
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.NamespacedKey
 import org.bukkit.block.TileState
@@ -81,30 +84,27 @@ class SokolPlugin : BasePlugin() {
     override fun serverLoad() {
         super.serverLoad()
 
-        fun handle(
-            pdh: PersistentDataHolder,
-            asString: () -> String
-        ) {
-            val pdc = pdh.persistentDataContainer
-            persistence.get(pdc)?.let { node ->
-                val state = node.createState()
-                // todo
-            } ?: run {
-                log.line(LogLevel.WARNING) { "Host ${asString()} was marked as ticking but is not node - removed tick key" }
-                pdc.remove(keyTick)
-            }
-        }
-
         val resolver = ElementResolver(
             keyTick,
             settings.hostResolution.containerItems,
-            settings.hostResolution.containerBlocks,
-            { handle(it) { "World[${it.name}]" } },
-            { handle(it) { "Chunk[${it.world.name} @ ${it.x}, ${it.z}]" } },
-            { handle(it) { "Entity[${it.name} ${it.world.name} @ ${it.location.x}, ${it.location.y}, ${it.location.z}]" } },
-            { handle(it.itemMeta) { "Stack[${PlainTextComponentSerializer.plainText().serialize(it.displayName())}]" } },
-            { handle(it.state as TileState) { "Block[@${it.world.name} @ ${it.x}, ${it.y}, ${it.z}" } }
-        )
+            settings.hostResolution.containerBlocks
+        ) { element ->
+            val host = when (element) {
+                is ServerElement.OfStack -> {
+                    val meta = element.stack.itemMeta
+                    PaperNodeHost.fromStack(element, meta)
+                    // todo use this meta later
+                }
+                else -> PaperNodeHost.from(element)
+            }
+            val pdc = host.pdc
+            persistence.get(pdc)?.let { node ->
+                node.createState(host).callEvent { NodeEvent.Tick(it) }
+            } ?: run {
+                log.line(LogLevel.WARNING) { "Host $host was marked as ticking but is not node - removed tick key" }
+                pdc.remove(keyTick)
+            }
+        }
 
         scheduleRepeating {
             lastHosts = if (settings.hostResolution.enabled) resolver.resolve() else emptyMap()

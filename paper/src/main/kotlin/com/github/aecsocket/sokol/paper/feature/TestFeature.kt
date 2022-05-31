@@ -1,13 +1,16 @@
 package com.github.aecsocket.sokol.paper.feature
 
 import com.github.aecsocket.alexandria.core.EventDispatcher
-import com.github.aecsocket.alexandria.core.extension.force
+import com.github.aecsocket.alexandria.paper.extension.location
 import com.github.aecsocket.sokol.core.TreeState
 import com.github.aecsocket.sokol.core.event.NodeEvent
-import com.github.aecsocket.sokol.core.event.TestEvent
-import com.github.aecsocket.sokol.paper.PaperDataNode
 import com.github.aecsocket.sokol.paper.PaperFeature
+import com.github.aecsocket.sokol.paper.PaperNodeEvent
+import com.github.aecsocket.sokol.paper.PaperNodeHost
 import com.github.aecsocket.sokol.paper.SokolPlugin
+import net.kyori.adventure.key.Key
+import net.kyori.adventure.sound.Sound
+import org.bukkit.Bukkit
 import org.bukkit.persistence.PersistentDataAdapterContext
 import org.bukkit.persistence.PersistentDataContainer
 import org.bukkit.persistence.PersistentDataType
@@ -58,12 +61,23 @@ class TestFeature(
 
             inner class State : PaperFeature.State {
                 override fun setUp(
-                    events: EventDispatcher.Builder<NodeEvent<PaperDataNode, PaperFeature.State>>,
-                    state: TreeState.NodeState<PaperFeature.State>
+                    events: EventDispatcher.Builder<PaperNodeEvent>,
+                    node: TreeState.NodeState<PaperFeature.State>
                 ) {
                     events.addListener { event -> when (event) {
-                        is TestEvent -> {
-                            println("EVENT RECV - event data = ${event.data} | profile data = $profileField | state data = $dataField")
+                        is NodeEvent.Tick -> {
+                            if (Bukkit.getCurrentTick() % 10 == 0) {
+                                println("Ticked with host ${event.state.host}")
+                                when (val host = event.state.host) {
+                                    is PaperNodeHost.WithPosition -> {
+                                        val world = host.world
+                                        val (x, y, z) = host.position
+                                        world.playSound(Sound.sound(
+                                            Key.key("block.dispenser.dispense"), Sound.Source.BLOCK, 1f, 1f
+                                        ), x, y, z)
+                                    }
+                                }
+                            }
                         }
                     } }
                 }

@@ -7,20 +7,18 @@ import com.github.aecsocket.sokol.core.stat.StatMap
 open class StateBuildException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
 
-interface NodeHost {
+interface NodeHost
 
-}
-
-interface TreeState {
-    val root: DataNode
+interface TreeState<N : DataNode<H>, H : NodeHost> {
+    val root: N
     val stats: StatMap
-    val host: NodeHost
+    val host: H
 
     interface Scoped<
         S : Scoped<S, N, H>,
-        N : DataNode,
+        N : DataNode<H>,
         H : NodeHost
-    > : TreeState {
+    > : TreeState<N, H> {
         val self: S
         override val root: N
         override val stats: StatMap
@@ -31,7 +29,7 @@ interface TreeState {
 
     data class BuildInfo<
         S : Scoped<S, N, H>,
-        N : DataNode,
+        N : DataNode<H>,
         H : NodeHost
     >(
         val stats: StatMap,
@@ -47,7 +45,7 @@ interface TreeState {
     companion object {
         fun <
             T : Scoped<T, N, H>,
-            N : DataNode.Scoped<N, C, D, T>,
+            N : DataNode.Scoped<N, H, C, D, T>,
             H : NodeHost,
             C : NodeComponent.Scoped<C, P, *>,
             P : Feature.Profile<D>,
@@ -63,9 +61,9 @@ interface TreeState {
                 child.value.features.forEach { (key, profile) ->
                     childFeatures[key] = (child.features[key] ?: profile.createData()).createState()
                 }
-                val state = NodeState(childFeatures)
+                val nodeState = NodeState(childFeatures)
                 childFeatures.forEach { (_, feature) ->
-                    feature.setUp(events, state)
+                    feature.setUp(events, nodeState)
                 }
 
                 walk(path, child)

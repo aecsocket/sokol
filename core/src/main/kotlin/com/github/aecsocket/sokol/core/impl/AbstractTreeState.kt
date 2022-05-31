@@ -9,7 +9,7 @@ import com.github.aecsocket.sokol.core.stat.StatMap
 
 abstract class AbstractTreeState<
     S : AbstractTreeState<S, N, H>,
-    N : DataNode,
+    N : DataNode<H>,
     H : NodeHost
 >(
     override val root: N,
