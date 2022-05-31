@@ -67,7 +67,7 @@ class TestFeature(
                     events.addListener { event -> when (event) {
                         is NodeEvent.Tick -> {
                             if (Bukkit.getCurrentTick() % 10 == 0) {
-                                println("Ticked with host ${event.state.host}")
+                                //println("Ticked with host ${event.state.host}")
                                 when (val host = event.state.host) {
                                     is PaperNodeHost.WithPosition -> {
                                         val world = host.world

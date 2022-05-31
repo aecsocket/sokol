@@ -47,7 +47,6 @@ class SokolPersistence internal constructor(
             }
             pdc[keyChildren, PersistentDataType.TAG_CONTAINER] = children
 
-            println("serializing ${obj.features.size}, res pdc = ${features.keys.size}")
             return pdc
         }
 
