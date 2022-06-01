@@ -1,8 +1,7 @@
 package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.sokol.core.Feature
-import org.bukkit.persistence.PersistentDataAdapterContext
-import org.bukkit.persistence.PersistentDataContainer
+import com.github.aecsocket.sokol.core.FeatureContext
 
 interface PaperFeature : Feature<PaperDataNode, PaperFeature.Profile> {
     interface Profile : Feature.Profile<Data>
@@ -11,5 +10,7 @@ interface PaperFeature : Feature<PaperDataNode, PaperFeature.Profile> {
         fun copy(): Data
     }
 
-    interface State : Feature.State<State, PaperDataNode, PaperNodeHost, PaperTreeState>
+    interface State : Feature.State<State, Data, PaperFeatureContext>
 }
+
+interface PaperFeatureContext : FeatureContext<PaperTreeState, PaperNodeHost, PaperDataNode>

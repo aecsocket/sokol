@@ -1,8 +1,9 @@
 package com.github.aecsocket.sokol.core
 
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
+import com.github.aecsocket.sokol.core.nbt.TagSerializable
 
-interface DataNode : Node {
+interface DataNode : Node, TagSerializable {
     override val parent: NodeKey<DataNode>?
     override val children: Map<String, DataNode>
     override fun node(key: String): DataNode?
@@ -12,13 +13,11 @@ interface DataNode : Node {
     val component: NodeComponent
     val features: Map<String, Feature.Data<*>>
 
-    fun serialize(tag: CompoundBinaryTag.Mutable)
-
     interface Scoped<
         N : Scoped<N, C, F, S>,
         C : NodeComponent,
         F : Feature.Data<*>,
-        S : TreeState.Scoped<S, N, *>
+        S : TreeState
     > : DataNode, Node.Scoped<N> {
         override val component: C
         override val features: Map<String, F>

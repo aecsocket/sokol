@@ -32,36 +32,28 @@ interface PaperNodeHost : NodeHost {
 
     interface OfStack : PaperNodeHost {
         val stack: ItemStack
-
-        fun readMeta(action: ItemMeta.() -> Unit)
+        val meta: ItemMeta
 
         fun writeMeta(action: ItemMeta.() -> Unit)
     }
 
     companion object {
-        fun useStack(stack: ItemStack, action: (OfStack) -> Unit) {
+        fun useStack(stack: () -> ItemStack, meta: () -> ItemMeta, action: (OfStack) -> Unit): Boolean {
             class OfStackImpl : OfStack {
                 override val stack: ItemStack
-                    get() = stack
+                    get() = stack()
+                override val meta: ItemMeta
+                    get() = meta()
 
-                val meta by lazy { stack.itemMeta }
                 var dirty = false
 
-                override fun readMeta(action: ItemMeta.() -> Unit) {
-                    action(meta)
-                }
-
                 override fun writeMeta(action: ItemMeta.() -> Unit) {
-                    action(meta)
+                    action(meta())
                     dirty = true
                 }
             }
 
-            val impl = OfStackImpl()
-            action(impl)
-            if (impl.dirty) {
-                stack.itemMeta = impl.meta
-            }
+            return OfStackImpl().apply(action).dirty
         }
     }
 }

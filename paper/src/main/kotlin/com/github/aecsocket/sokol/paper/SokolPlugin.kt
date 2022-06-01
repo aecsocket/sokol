@@ -64,15 +64,18 @@ class SokolPlugin : BasePlugin() {
         PacketEvents.getAPI().eventManager.apply {
             registerListener(SokolPacketListener(this@SokolPlugin))
             registerListener(PacketInputListener { event ->
-                event.player.inventory.forEach { stack ->
-                    persistence.stateOf(stack)?.let { state ->
-                        println("created state: ${state.nodeStates}")
-                        PaperNodeHost.useStack(stack) { host ->
-                            state.callEvent(host) { NodeEvent.OnInput(it, event.input) }
+                event.player.inventory.forEach { stack -> stack?.itemMeta?.let { meta ->
+                    persistence.readFromData(meta.persistentDataContainer)?.let { tag ->
+                        val state = persistence.stateFrom(tag)
+                        if (PaperNodeHost.useStack({ stack }, { meta }) { host ->
+                                state.callEvent(host, NodeEvent.OnInput(event.input))
+                                state.updatedRoot().serialize(tag)
+                            }) {
+                            stack.itemMeta = meta
                         }
                     }
                 }
-            }, PacketListenerPriority.NORMAL)
+            } }, PacketListenerPriority.NORMAL)
         }
         PacketEvents.getAPI().init()
         SokolCommand(this)

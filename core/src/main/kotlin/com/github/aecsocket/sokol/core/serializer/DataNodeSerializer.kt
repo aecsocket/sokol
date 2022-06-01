@@ -62,7 +62,7 @@ abstract class DataNodeSerializer<
                 val profile = value.features[key]
                     ?: throw SerializationException(data, type, "Component $id does not have feature $key")
                 val feature = try {
-                    profile.serialize(data)
+                    profile.createData(data)
                 } catch (ex: SerializationException) {
                     throw SerializationException(data, type, "Could not create feature $key on component $id", ex)
                 }

@@ -8,7 +8,9 @@ import com.github.aecsocket.sokol.core.nbt.TagSerializationException
 import com.github.aecsocket.sokol.core.stat.StatMap
 import net.minecraft.nbt.CompoundTag
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
+import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer
 import org.bukkit.inventory.ItemStack
+import org.bukkit.persistence.PersistentDataContainer
 
 internal const val ID = "id"
 internal const val FEATURES = "features"
@@ -19,48 +21,46 @@ class SokolPersistence internal constructor(
 ) {
     private val nodeKey = plugin.key("tree").asString()
 
-    fun stateOf(tag: CompoundBinaryTag.Mutable): PaperTreeState {
+    fun stateFrom(tag: CompoundBinaryTag): PaperTreeState {
         val stats = object : StatMap {} // todo
         val incomplete = ArrayList<NodePath>()
-        val featureStates = HashMap<PaperDataNode, NodeState>()
+        val featureStates = HashMap<PaperDataNode, Map<String, PaperFeature.State>>()
 
-        fun get0(tag: CompoundBinaryTag.Mutable, parent: PaperNodeKey?, path: NodePath): PaperDataNode {
+        fun get0(tag: CompoundBinaryTag, parent: PaperNodeKey?, path: NodePath): PaperDataNode {
             val id = tag.forceString(ID)
             val component = plugin.components[id]
                 ?: throw TagSerializationException("No component with ID '$id'")
 
-            val features = HashMap<String, PaperFeature.Data>()
+            val featureData = HashMap<String, PaperFeature.Data>()
+            val featureState = HashMap<String, PaperFeature.State>()
             val legacyFeatures = HashMap<String, BinaryTag>()
-            val nodeFeatures = HashMap<String, Pair<PaperFeature.State, CompoundBinaryTag.Mutable>>()
 
             val featuresLeft = component.features.toMutableMap()
-            val tagFeatures = tag.getOrEmpty(FEATURES)
-            tagFeatures.forEach { (key, tag) ->
+            tag.getCompound(FEATURES)?.forEach { (key, tag) ->
                 featuresLeft.remove(key)?.let { profile ->
                     try {
-                        val feature = profile.deserialize(tag as CompoundBinaryTag)
-                        features[key] = feature
-                        nodeFeatures[key] = feature.createState() to tag as CompoundBinaryTag.Mutable
+                        val feature = profile.createData(tag as CompoundBinaryTag)
+                        featureData[key] = feature
+                        featureState[key] = feature.createState()
                     } catch (ex: TagSerializationException) {
                         legacyFeatures[key] = tag
                     }
                 } ?: run { legacyFeatures[key] = tag } // this feature does not have a profile on the component
             }
-            println("features left = $featuresLeft")
             // all the non-stated features will have their state generated...
             featuresLeft.forEach { (key, profile) ->
-                nodeFeatures[key] = profile.createData().createState() to tagFeatures.getOrEmpty(key)
+                featureState[key] = profile.createData().createState()
             }
 
-            nodeFeatures.forEach { (_, feature) ->
-                feature.first.resolveDependencies { nodeFeatures[it]?.first }
+            featureState.forEach { (_, state) ->
+                state.resolveDependencies(featureState::get)
             }
 
             val children = HashMap<String, PaperDataNode>()
             val legacyChildren = HashMap<String, BinaryTag>()
-            val node = PaperDataNode(component, features, legacyFeatures, parent, children, legacyChildren)
+            val node = PaperDataNode(component, featureData, legacyFeatures, parent, children, legacyChildren)
 
-            featureStates[node] = NodeState(tag, nodeFeatures.values)
+            featureStates[node] = featureState
 
             val slotsLeft = component.slots.toMutableMap()
             tag.getCompound(CHILDREN)?.forEach { (key, tag) ->
@@ -69,7 +69,7 @@ class SokolPersistence internal constructor(
                     legacyChildren[key] = tag
                 } else {
                     try {
-                        children[key] = get0(tag as CompoundBinaryTag.Mutable, node.keyOf(key), path + key)
+                        children[key] = get0(tag as CompoundBinaryTag, node.keyOf(key), path + key)
                     } catch (ex: TagSerializationException) {
                         // couldn't deserialize this child successfully, it's legacy
                         legacyChildren[key] = tag
@@ -94,22 +94,21 @@ class SokolPersistence internal constructor(
         )
     }
 
-    fun stateOf(stack: ItemStack?): PaperTreeState? {
-        return stack?.let {
-            PaperBinaryTags.fromStack(stack)?.getCompound(nodeKey)?.let {
-                stateOf(it)
-            }
-        }
+    fun newTag(): CompoundBinaryTag.Mutable = PaperCompoundTag(CompoundTag())
+
+    fun readFromData(pdc: PersistentDataContainer): CompoundBinaryTag.Mutable? {
+        return (pdc as CraftPersistentDataContainer).raw[nodeKey]?.let { PaperCompoundTag(it as CompoundTag) }
     }
 
-    fun writeTo(node: PaperDataNode, stack: ItemStack): ItemStack {
-        val tag = NMSCompoundTag(CompoundTag())
-        node.serialize(tag)
+    fun writeToData(tag: CompoundBinaryTag, pdc: PersistentDataContainer) {
+        (pdc as CraftPersistentDataContainer).raw[nodeKey] = (tag as PaperCompoundTag).handle
+    }
 
+    fun writeToStack(tag: CompoundBinaryTag, stack: ItemStack): ItemStack {
         val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
         val nms = res.handle
         nms.tag = (nms.tag ?: CompoundTag()).apply {
-            put(nodeKey, tag.nms)
+            put(nodeKey, (tag as PaperCompoundTag).handle)
         }
         return res
     }

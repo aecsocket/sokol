@@ -2,8 +2,6 @@ package com.github.aecsocket.sokol.paper.feature
 
 import com.github.aecsocket.alexandria.core.Input
 import com.github.aecsocket.alexandria.core.Input.Companion.MOUSE_LEFT
-import com.github.aecsocket.sokol.core.FeatureContext
-import com.github.aecsocket.sokol.core.TreeState
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.paper.*
@@ -28,12 +26,12 @@ class TestFeature(
             0
         )
 
-        override fun serialize(node: ConfigurationNode) = Data(
-            node.node("data_field").getInt(0)
+        override fun createData(node: ConfigurationNode) = Data(
+            node.node("clicks").getInt(0)
         )
 
-        override fun deserialize(tag: CompoundBinaryTag) = Data(
-            tag.getInt("data_field") { 0 }
+        override fun createData(tag: CompoundBinaryTag) = Data(
+            tag.getInt("clicks") { 0 }
         )
 
         @ConfigSerializable
@@ -48,29 +46,34 @@ class TestFeature(
                 tag.setInt("clicks", clicks)
             }
 
-            override fun createState() = State()
+            override fun createState() = State(clicks)
 
             override fun copy() = Data(clicks)
+        }
 
-            inner class State : PaperFeature.State {
-                override fun resolveDependencies(get: (String) -> PaperFeature.State?) {}
+        inner class State(
+            var clicks: Int
+        ) : PaperFeature.State {
+            override fun asData() = Data(clicks)
 
-                override fun onEvent(
-                    event: NodeEvent<PaperTreeState>,
-                    ctx: FeatureContext<PaperDataNode, PaperNodeHost>
-                ) {
-                    when (event) {
-                        is NodeEvent.OnInput -> {
-                            when (val input = event.input) {
-                                is Input.Mouse -> {
-                                    if (input.button == MOUSE_LEFT) {
-                                        when (val host = ctx.host) {
-                                            is PaperNodeHost.OfStack -> {
-                                                // todo uhhh?
-                                                ctx.writeTag {
-                                                    setInt("clicks", clicks + 1)
-                                                }
-                                            }
+            override fun serialize(tag: CompoundBinaryTag.Mutable) {
+                tag.setInt("clicks", clicks)
+            }
+
+            override fun resolveDependencies(get: (String) -> PaperFeature.State?) {}
+
+            override fun onEvent(
+                event: NodeEvent,
+                ctx: PaperFeatureContext
+            ) {
+                when (event) {
+                    is NodeEvent.OnInput -> {
+                        when (val input = event.input) {
+                            is Input.Mouse -> {
+                                if (input.button == MOUSE_LEFT) {
+                                    when (val host = ctx.host) {
+                                        is PaperNodeHost.OfStack -> {
+                                            clicks++
                                         }
                                     }
                                 }

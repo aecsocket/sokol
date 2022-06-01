@@ -5,7 +5,11 @@ import java.util.UUID
 class TagSerializationException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
 
-interface BinaryTag
+interface BinaryTag {
+    interface Scoped<T : Scoped<T>> {
+        val self: T
+    }
+}
 
 interface NumericBinaryTag : BinaryTag {
     val asByte: Byte
@@ -88,18 +92,18 @@ interface CompoundBinaryTag : BinaryTag, Iterable<Pair<String, BinaryTag>> {
 
     interface Mutable : CompoundBinaryTag {
         operator fun set(key: String, tag: BinaryTag)
-        fun setBoolean(key: String, value: Boolean): NumericBinaryTag
-        fun setByte(key: String, value: Byte): NumericBinaryTag
-        fun setShort(key: String, value: Short): NumericBinaryTag
-        fun setInt(key: String, value: Int): NumericBinaryTag
-        fun setLong(key: String, value: Long): NumericBinaryTag
-        fun setFloat(key: String, value: Float): NumericBinaryTag
-        fun setDouble(key: String, value: Double): NumericBinaryTag
-        fun setString(key: String, value: String): StringBinaryTag
+        fun setBoolean(key: String, value: Boolean)
+        fun setByte(key: String, value: Byte)
+        fun setShort(key: String, value: Short)
+        fun setInt(key: String, value: Int)
+        fun setLong(key: String, value: Long)
+        fun setFloat(key: String, value: Float)
+        fun setDouble(key: String, value: Double)
+        fun setString(key: String, value: String)
         fun setUuid(key: String, value: UUID) // todo
 
         override fun getCompound(key: String): Mutable?
-        fun getOrEmpty(key: String): Mutable
-        fun setCompound(key: String, content: Mutable.() -> Unit): Mutable
+        fun newCompound(key: String): Mutable
+        fun editCompound(key: String): Mutable
     }
 }

@@ -21,16 +21,20 @@ class PaperDataNode(
 
     override fun serialize(tag: CompoundBinaryTag.Mutable) {
         tag.setString(ID, component.id)
-        tag.setCompound(FEATURES) {
-            legacyFeatures.forEach { (key, tag) -> set(key, tag) }
+        tag.newCompound(FEATURES).apply {
+            legacyFeatures.forEach(::set)
             features.forEach { (key, feature) ->
-                setCompound(key) { feature.serialize(this) }
+                newCompound(key).apply {
+                    feature.serialize(this)
+                }
             }
         }
-        tag.setCompound(CHILDREN) {
-            legacyChildren.forEach { (key, tag) -> set(key, tag) }
+        tag.newCompound(CHILDREN).apply {
+            legacyChildren.forEach(::set)
             children.forEach { (key, child) ->
-                setCompound(key) { child.serialize(this) }
+                newCompound(key).apply {
+                    child.serialize(this)
+                }
             }
         }
     }

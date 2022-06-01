@@ -3,6 +3,7 @@ package com.github.aecsocket.sokol.core
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
+import com.github.aecsocket.sokol.core.nbt.TagSerializable
 import org.spongepowered.configurate.ConfigurationNode
 
 interface Feature<
@@ -14,37 +15,38 @@ interface Feature<
     interface Profile<D : Data<*>> {
         fun createData(): D
 
-        fun serialize(node: ConfigurationNode): D
+        fun createData(node: ConfigurationNode): D
 
-        fun deserialize(tag: CompoundBinaryTag): D
+        fun createData(tag: CompoundBinaryTag): D
     }
 
-    interface Data<S : State<*, *, *, *>> {
+    interface Data<S : State<S, *, *>> : TagSerializable {
         fun createState(): S
 
         fun serialize(node: ConfigurationNode)
-
-        fun serialize(tag: CompoundBinaryTag.Mutable)
     }
 
     interface State<
-        S : State<S, N, H, T>,
-        N,
-        H : NodeHost,
-        T : TreeState.Scoped<T, N, H>
-    > where N : DataNode, N : Node.Mutable<N> {
+        S : State<S, D, C>,
+        D : Data<S>,
+        C : FeatureContext<*, *, *>
+    > : TagSerializable {
+        fun asData(): D
+
         fun resolveDependencies(get: (String) -> S?)
 
-        fun onEvent(event: NodeEvent<T>, ctx: FeatureContext<N, H>)
+        fun onEvent(event: NodeEvent, ctx: C)
     }
 }
 
-interface FeatureContext<N, H : NodeHost> where N : DataNode, N : Node.Mutable<N> {
+interface FeatureContext<
+    S : TreeState,
+    H : NodeHost,
+    N
+> where N : DataNode, N : Node.Mutable<N> {
+    val state: S
     val host: H
-    val tag: CompoundBinaryTag
     val node: DataNode
-
-    fun writeTag(action: CompoundBinaryTag.Mutable.() -> Unit)
 
     fun writeNode(action: N.() -> Unit)
 }

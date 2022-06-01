@@ -1,13 +1,19 @@
 package com.github.aecsocket.sokol.paper
 
 import cloud.commandframework.context.CommandContext
+import com.github.aecsocket.alexandria.paper.extension.withMeta
 import com.github.aecsocket.alexandria.paper.plugin.CloudCommand
 import com.github.aecsocket.alexandria.paper.plugin.desc
 import com.github.aecsocket.sokol.paper.feature.TestFeature
+import net.kyori.adventure.text.Component
+import net.minecraft.nbt.CompoundTag
 import org.bukkit.Material
 import org.bukkit.command.CommandSender
+import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
+import org.bukkit.persistence.PersistentDataType
 import java.util.Locale
 
 internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
@@ -37,7 +43,8 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
                         TestFeature.ID to TestFeature(plugin).Profile("abc 123").Data(12345)
                     )*/
                 )
-                val stack = plugin.persistence.writeTo(node, ItemStack(Material.STICK))
+                val tag = plugin.persistence.newTag().apply { node.serialize(this) }
+                val stack = plugin.persistence.writeToStack(tag, ItemStack(Material.STICK))
                 player.inventory.addItem(stack)
             }
         )
