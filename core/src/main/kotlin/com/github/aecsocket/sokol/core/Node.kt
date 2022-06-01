@@ -2,26 +2,60 @@ package com.github.aecsocket.sokol.core
 
 data class NodeKey<out N : Node>(val node: N, val key: String)
 
-data class NodePath(private val nodes: List<String>) : Iterable<String> {
-    val size = nodes.size
+interface NodePath : Iterable<String> {
+    val size: Int
 
-    operator fun get(index: Int) = nodes[index]
-    operator fun plus(node: String) = NodePath(nodes + node)
-    operator fun plus(nodes: List<String>) = NodePath(this.nodes + nodes)
-    operator fun plus(nodes: NodePath) = NodePath(this.nodes + nodes.nodes)
-    override fun iterator() = nodes.iterator()
+    operator fun get(index: Int): String?
+    operator fun plus(node: String): NodePath
+    operator fun plus(nodes: List<String>): NodePath
+    operator fun plus(nodes: NodePath): NodePath
 
     companion object {
-        @JvmStatic val EMPTY = NodePath(emptyList())
+        val EMPTY: NodePath = EmptyNodePath
+
+        fun of(nodes: List<String>): NodePath = NodePathImpl(nodes)
+
+        fun of(nodes: Iterable<String>): NodePath = NodePathImpl(nodes.toList())
+
+        fun of(vararg nodes: String): NodePath = NodePathImpl(nodes.asList())
     }
+}
+
+private object EmptyNodePath : NodePath {
+    override val size: Int
+        get() = 0
+
+    override fun get(index: Int) = null
+    override fun plus(node: String) = NodePath.of(node)
+    override fun plus(nodes: List<String>) = NodePath.of(nodes)
+    override fun plus(nodes: NodePath) = nodes
+
+    override fun iterator() = object : Iterator<String> {
+        override fun hasNext() = false
+        override fun next() = throw NoSuchElementException()
+    }
+}
+
+private data class NodePathImpl(
+    val nodes: List<String>
+) : NodePath {
+    override val size: Int
+        get() = nodes.size
+
+    override fun get(index: Int) = nodes[index]
+    override fun plus(node: String) = NodePath.of(nodes + node)
+    override fun plus(nodes: List<String>) = NodePath.of(this.nodes + nodes)
+    override fun plus(nodes: NodePath) = NodePath.of(this.nodes + nodes)
+
+    override fun iterator() = nodes.iterator()
 }
 
 interface Node {
     val parent: NodeKey<Node>?
     val children: Map<String, Node>
-    operator fun get(key: String): Node?
-    operator fun get(path: Iterable<String>): Node?
-    operator fun get(vararg path: String): Node?
+    fun node(key: String): Node?
+    fun node(path: Iterable<String>): Node?
+    fun node(vararg path: String): Node?
     fun has(key: String): Boolean
 
     fun path(): NodePath
@@ -35,9 +69,9 @@ interface Node {
         val self: N
         override val parent: NodeKey<N>?
         override val children: Map<String, N>
-        override operator fun get(key: String): N?
-        override operator fun get(path: Iterable<String>): N?
-        override operator fun get(vararg path: String): N?
+        override fun node(key: String): N?
+        override fun node(path: Iterable<String>): N?
+        override fun node(vararg path: String): N?
         override fun root(): N
         override fun copy(): N
         override fun asRoot(): N
@@ -53,3 +87,5 @@ interface Node {
         operator fun set(key: String, value: N)
     }
 }
+
+fun <N : Node> N.keyOf(key: String) = NodeKey(this, key)

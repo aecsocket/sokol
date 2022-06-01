@@ -43,7 +43,7 @@ abstract class ComponentSerializer<
             val featureId = key.toString()
             val feature = feature(featureId)
                 ?: throw SerializationException(child, type, "No feature with ID '$featureId'")
-            val data = feature.deserialize(child)
+            val data = feature.createProfile(child)
             features[featureId] = data
         }
 

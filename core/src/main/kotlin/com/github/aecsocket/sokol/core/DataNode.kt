@@ -1,26 +1,26 @@
 package com.github.aecsocket.sokol.core
 
-interface DataNode<H : NodeHost> : Node {
-    override val parent: NodeKey<DataNode<H>>?
-    override val children: Map<String, DataNode<H>>
-    override operator fun get(key: String): DataNode<H>?
-    override operator fun get(path: Iterable<String>): DataNode<H>?
-    override fun get(vararg path: String): DataNode<H>?
+import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 
-    val value: NodeComponent
+interface DataNode : Node {
+    override val parent: NodeKey<DataNode>?
+    override val children: Map<String, DataNode>
+    override fun node(key: String): DataNode?
+    override fun node(path: Iterable<String>): DataNode?
+    override fun node(vararg path: String): DataNode?
+
+    val component: NodeComponent
     val features: Map<String, Feature.Data<*>>
 
-    fun createState(host: H): TreeState.Scoped<*, *, H>
+    fun serialize(tag: CompoundBinaryTag.Mutable)
 
     interface Scoped<
-        N : Scoped<N, H, C, F, S>,
-        H : NodeHost,
+        N : Scoped<N, C, F, S>,
         C : NodeComponent,
         F : Feature.Data<*>,
-        S : TreeState.Scoped<S, N, H>
-    > : DataNode<H>, Node.Scoped<N> {
-        override val value: C
+        S : TreeState.Scoped<S, N, *>
+    > : DataNode, Node.Scoped<N> {
+        override val component: C
         override val features: Map<String, F>
-        override fun createState(host: H): S
     }
 }

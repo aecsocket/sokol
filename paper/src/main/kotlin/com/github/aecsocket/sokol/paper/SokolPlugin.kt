@@ -5,11 +5,7 @@ import com.github.aecsocket.alexandria.core.LogList
 import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.extension.register
 import com.github.aecsocket.alexandria.core.keyed.Registry
-import com.github.aecsocket.alexandria.paper.ElementResolver
-import com.github.aecsocket.alexandria.paper.ElementType
-import com.github.aecsocket.alexandria.paper.ServerElement
-import com.github.aecsocket.alexandria.paper.StackHolder
-import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
+import com.github.aecsocket.alexandria.paper.extension.registerEvents
 import com.github.aecsocket.alexandria.paper.packet.PacketInputListener
 import com.github.aecsocket.alexandria.paper.plugin.BasePlugin
 import com.github.aecsocket.sokol.core.event.NodeEvent
@@ -19,21 +15,11 @@ import com.github.aecsocket.sokol.paper.serializer.PaperNodeSerializer
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
-import net.kyori.adventure.text.Component.translatable
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-import org.bukkit.Chunk
 import org.bukkit.NamespacedKey
-import org.bukkit.World
-import org.bukkit.block.Block
-import org.bukkit.block.Container
-import org.bukkit.block.TileState
-import org.bukkit.entity.Entity
-import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
-import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.persistence.PersistentDataContainer
-import org.bukkit.persistence.PersistentDataHolder
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerQuitEvent
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
@@ -45,7 +31,7 @@ class SokolPlugin : BasePlugin() {
     lateinit var keyNode: NamespacedKey
     lateinit var keyTick: NamespacedKey
 
-    var lastHosts: Map<ElementType, ElementResolver.ElementsResolved> = emptyMap()
+    var lastHosts: Map<HostType, HostsResolved> = emptyMap()
         private set
 
     private val _components = Registry.create<PaperComponent>()
@@ -55,6 +41,11 @@ class SokolPlugin : BasePlugin() {
     private val _features = Registry.create<PaperFeature>()
     val features: Registry<PaperFeature>
         get() = _features
+
+    private val playerData = HashMap<Player, PlayerData>()
+    //private lateinit var hostResolver: HostResolver
+
+    internal fun playerData(player: Player) = playerData.computeIfAbsent(player) { PlayerData(this, it) }
 
     override fun onLoad() {
         super.onLoad()
@@ -74,14 +65,23 @@ class SokolPlugin : BasePlugin() {
             registerListener(SokolPacketListener(this@SokolPlugin))
             registerListener(PacketInputListener { event ->
                 event.player.inventory.forEach { stack ->
-                    persistence.getStack(stack)?.let { node ->
-                        // TODO fwd inputs to node
+                    persistence.stateOf(stack)?.let { state ->
+                        println("created state: ${state.nodeStates}")
+                        PaperNodeHost.useStack(stack) { host ->
+                            state.callEvent(host) { NodeEvent.OnInput(it, event.input) }
+                        }
                     }
                 }
             }, PacketListenerPriority.NORMAL)
         }
         PacketEvents.getAPI().init()
         SokolCommand(this)
+        registerEvents(object : Listener {
+            @EventHandler
+            fun onQuit(event: PlayerQuitEvent) {
+                playerData.remove(event.player)
+            }
+        })
 
         // todo proper registration system
         _components.register(
@@ -95,6 +95,7 @@ class SokolPlugin : BasePlugin() {
     override fun serverLoad() {
         super.serverLoad()
 
+        /*
         val resolver = ElementResolver(
             keyTick,
             settings.hostResolution.containerItems,
@@ -182,9 +183,11 @@ class SokolPlugin : BasePlugin() {
                         is StackHolder.ByStack -> byStackHolder(holder.parent.holder)
                     }
 
+                    // TODO add a "dirty" flag to meta, so we don't needlessly set meta,
+                    // cause that's an expensive operation!
                     handle(byStackHolder(element.holder))
 
-                    stack.itemMeta = meta
+                    //stack.itemMeta = meta
                 }
                 else -> throw IllegalArgumentException("Invalid element type ${element::class}")
             }
@@ -192,7 +195,8 @@ class SokolPlugin : BasePlugin() {
 
         scheduleRepeating {
             lastHosts = if (settings.hostResolution.enabled) resolver.resolve() else emptyMap()
-        }
+            playerData.forEach { (_, data) -> data.tick() }
+        }*/
     }
 
     override fun onDisable() {

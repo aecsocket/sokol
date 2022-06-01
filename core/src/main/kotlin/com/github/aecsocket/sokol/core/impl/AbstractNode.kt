@@ -6,13 +6,13 @@ abstract class AbstractNode<N : AbstractNode<N>>(
     override var parent: NodeKey<N>? = null,
     override val children: MutableMap<String, N> = HashMap(),
 ) : Node.Mutable<N> {
-    override fun get(key: String) = children[key]
-    override fun get(path: Iterable<String>): N? {
+    override fun node(key: String) = children[key]
+    override fun node(path: Iterable<String>): N? {
         var cur = self
-        path.forEach { cur = cur[it] ?: return null }
+        path.forEach { cur = cur.node(it) ?: return null }
         return cur
     }
-    override fun get(vararg path: String) = get(path.asIterable())
+    override fun node(vararg path: String) = node(path.asIterable())
     override fun has(key: String) = children.containsKey(key)
 
     override fun detach() {
@@ -20,7 +20,7 @@ abstract class AbstractNode<N : AbstractNode<N>>(
     }
 
     override fun attach(node: N, key: String) {
-        parent = NodeKey(node, key)
+        parent = node.keyOf(key)
     }
 
     override fun remove(key: String) {
@@ -48,4 +48,6 @@ abstract class AbstractNode<N : AbstractNode<N>>(
     }
 
     override fun walk(action: (NodePath, N) -> Unit) = walk(NodePath.EMPTY, action)
+
+    override fun toString() = children.toString()
 }

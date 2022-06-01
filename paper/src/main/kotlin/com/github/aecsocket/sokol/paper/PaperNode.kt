@@ -2,27 +2,41 @@ package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.sokol.core.NodeKey
 import com.github.aecsocket.sokol.core.impl.AbstractDataNode
-import org.bukkit.NamespacedKey
-import org.bukkit.persistence.PersistentDataContainer
+import com.github.aecsocket.sokol.core.nbt.BinaryTag
+import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 
 typealias PaperNodeKey = NodeKey<PaperDataNode>
 
 class PaperDataNode(
-    value: PaperComponent,
+    component: PaperComponent,
     features: MutableMap<String, PaperFeature.Data> = HashMap(),
-    val legacyFeatures: MutableMap<NamespacedKey, PersistentDataContainer> = HashMap(),
+    val legacyFeatures: MutableMap<String, BinaryTag> = HashMap(),
     parent: PaperNodeKey? = null,
     children: MutableMap<String, PaperDataNode> = HashMap(),
-    val legacyChildren: MutableMap<NamespacedKey, PersistentDataContainer> = HashMap()
-) : AbstractDataNode<PaperDataNode, PaperNodeHost, PaperComponent, PaperFeature.Data, PaperTreeState>(
-    value, features, parent, children
+    val legacyChildren: MutableMap<String, BinaryTag> = HashMap()
+) : AbstractDataNode<PaperDataNode, PaperComponent, PaperFeature.Data, PaperTreeState>(
+    component, features, parent, children
 ) {
     override val self = this
 
-    override fun createState(host: PaperNodeHost) = PaperTreeState.from(this, host)
+    override fun serialize(tag: CompoundBinaryTag.Mutable) {
+        tag.setString(ID, component.id)
+        tag.setCompound(FEATURES) {
+            legacyFeatures.forEach { (key, tag) -> set(key, tag) }
+            features.forEach { (key, feature) ->
+                setCompound(key) { feature.serialize(this) }
+            }
+        }
+        tag.setCompound(CHILDREN) {
+            legacyChildren.forEach { (key, tag) -> set(key, tag) }
+            children.forEach { (key, child) ->
+                setCompound(key) { child.serialize(this) }
+            }
+        }
+    }
 
     override fun copy(): PaperDataNode = PaperDataNode(
-        value,
+        component,
         features.map { (key, value) -> key to value.copy() }.associate { it }.toMutableMap(),
         legacyFeatures,
         parent,

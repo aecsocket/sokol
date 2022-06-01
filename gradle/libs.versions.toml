@@ -5,6 +5,7 @@ minecraft = "1.18.2"
 alexandria = "0.3.5"
 bstats = "2.2.1"
 packetEvents = "2.0-SNAPSHOT"
+adventure = "4.10.1"
 
 [libraries]
 
@@ -14,3 +15,5 @@ alexandriaPaper = { group = "com.github.aecsocket.alexandria", name = "alexandri
 bstatsPaper = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats" }
 
 packetEvents = { group = "com.github.retrooper", name = "packetevents", version.ref = "packetEvents" }
+
+adventureExtraKotlin = { group = "net.kyori", name = "adventure-extra-kotlin", version.ref = "adventure" }

@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm")
+    id("io.papermc.paperweight.userdev")
     id("com.github.johnrengelman.shadow")
     id("xyz.jpenilla.run-paper")
     id("net.minecrell.plugin-yml.bukkit")
@@ -46,10 +47,13 @@ repositories {
 
 dependencies {
     api(projects.sokolCore)
-    compileOnly("io.papermc.paper", "paper-api", "$minecraftVersion-R0.1-SNAPSHOT")
+    paperDevBundle("$minecraftVersion-R0.1-SNAPSHOT")
     implementation(libs.alexandriaPaper) { artifact { classifier = "reobf" } }
     implementation(libs.bstatsPaper)
     implementation(libs.packetEvents)
+    implementation(libs.adventureExtraKotlin)
+
+    testImplementation(kotlin("test"))
 }
 
 tasks {

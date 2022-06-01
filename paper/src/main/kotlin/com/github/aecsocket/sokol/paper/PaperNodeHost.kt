@@ -2,8 +2,6 @@ package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.alexandria.core.vector.Polar3
 import com.github.aecsocket.alexandria.core.vector.Vector3
-import com.github.aecsocket.alexandria.paper.ServerElement
-import com.github.aecsocket.alexandria.paper.StackHolder
 import com.github.aecsocket.alexandria.paper.extension.polar
 import com.github.aecsocket.alexandria.paper.extension.vector
 import com.github.aecsocket.sokol.core.NodeHost
@@ -18,6 +16,57 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataContainer
 
+interface PaperNodeHost : NodeHost {
+    interface OfEntity : PaperNodeHost {
+        val entity: Entity
+    }
+
+    interface OfLivingEntity : OfEntity {
+        override val entity: LivingEntity
+    }
+
+    interface OfPlayer : OfLivingEntity {
+        override val entity: Player
+    }
+
+
+    interface OfStack : PaperNodeHost {
+        val stack: ItemStack
+
+        fun readMeta(action: ItemMeta.() -> Unit)
+
+        fun writeMeta(action: ItemMeta.() -> Unit)
+    }
+
+    companion object {
+        fun useStack(stack: ItemStack, action: (OfStack) -> Unit) {
+            class OfStackImpl : OfStack {
+                override val stack: ItemStack
+                    get() = stack
+
+                val meta by lazy { stack.itemMeta }
+                var dirty = false
+
+                override fun readMeta(action: ItemMeta.() -> Unit) {
+                    action(meta)
+                }
+
+                override fun writeMeta(action: ItemMeta.() -> Unit) {
+                    action(meta)
+                    dirty = true
+                }
+            }
+
+            val impl = OfStackImpl()
+            action(impl)
+            if (impl.dirty) {
+                stack.itemMeta = impl.meta
+            }
+        }
+    }
+}
+
+/*
 interface PaperNodeHost : NodeHost {
     val pdc: PersistentDataContainer
 
@@ -83,3 +132,4 @@ interface PaperNodeHost : NodeHost {
         override fun toString() = "<$element>"
     }
 }
+*/

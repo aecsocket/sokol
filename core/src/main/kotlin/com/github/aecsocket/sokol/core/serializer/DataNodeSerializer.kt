@@ -15,7 +15,7 @@ private const val FEATURES = "features"
 private const val CHILDREN = "children"
 
 abstract class DataNodeSerializer<
-    N : DataNode.Scoped<N, *, C, D, *>,
+    N : DataNode.Scoped<N, C, D, *>,
     C : NodeComponent.Scoped<C, P, *>,
     P : Feature.Profile<D>,
     D : Feature.Data<*>
@@ -42,7 +42,7 @@ abstract class DataNodeSerializer<
             }
 
             (if (features.empty() && children.empty()) node
-                else node.node(ID)).set(obj.value.id)
+                else node.node(ID)).set(obj.component.id)
         }
 
         if (obj == null) node.set(null)
@@ -62,7 +62,7 @@ abstract class DataNodeSerializer<
                 val profile = value.features[key]
                     ?: throw SerializationException(data, type, "Component $id does not have feature $key")
                 val feature = try {
-                    profile.deserialize(data)
+                    profile.serialize(data)
                 } catch (ex: SerializationException) {
                     throw SerializationException(data, type, "Could not create feature $key on component $id", ex)
                 }
