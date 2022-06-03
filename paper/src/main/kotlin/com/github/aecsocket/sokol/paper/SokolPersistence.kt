@@ -6,22 +6,32 @@ import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializationException
 import com.github.aecsocket.sokol.core.stat.StatMap
+import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.nbt.NumericTag
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataContainer
 
+internal const val VERSION = "version"
 internal const val ID = "id"
 internal const val FEATURES = "features"
 internal const val CHILDREN = "children"
+internal const val BUKKIT_PDC = "PublicBukkitValues"
+const val NODE_VERSION = 1
 
 class SokolPersistence internal constructor(
     private val plugin: SokolPlugin
 ) {
-    private val nodeKey = plugin.key("tree").asString()
+    internal val keyNode = plugin.keyNode.asString()
+    internal val keyTick = plugin.keyTick.asString()
 
-    fun stateFrom(tag: CompoundBinaryTag): PaperTreeState {
+    fun newTag(): CompoundBinaryTag.Mutable = PaperCompoundTag(CompoundTag())
+
+    // Tag/state
+
+    fun tagToState(tag: CompoundBinaryTag): PaperTreeState {
         val stats = object : StatMap {} // todo
         val incomplete = ArrayList<NodePath>()
         val featureStates = HashMap<PaperDataNode, Map<String, PaperFeature.State>>()
@@ -94,22 +104,115 @@ class SokolPersistence internal constructor(
         )
     }
 
-    fun newTag(): CompoundBinaryTag.Mutable = PaperCompoundTag(CompoundTag())
-
-    fun readFromData(pdc: PersistentDataContainer): CompoundBinaryTag.Mutable? {
-        return (pdc as CraftPersistentDataContainer).raw[nodeKey]?.let { PaperCompoundTag(it as CompoundTag) }
+    // TODO: features mark their nodes as dirty, and they get reser'd,
+    // rather than reserializing the entire tree
+    fun nodeToTag(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
+        node.serialize(tag)
+        tag.setInt(VERSION, NODE_VERSION)
     }
 
-    fun writeToData(tag: CompoundBinaryTag, pdc: PersistentDataContainer) {
-        (pdc as CraftPersistentDataContainer).raw[nodeKey] = (tag as PaperCompoundTag).handle
+    fun stateToTag(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
+        nodeToTag(state.updatedRoot(), tag)
     }
 
-    fun writeToStack(tag: CompoundBinaryTag, stack: ItemStack): ItemStack {
+    // Tag/PDC
+
+    fun dataToTag(pdc: PersistentDataContainer): CompoundBinaryTag.Mutable? {
+        return (pdc as CraftPersistentDataContainer).raw[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
+    }
+
+    fun tagToData(tag: CompoundBinaryTag, pdc: PersistentDataContainer) {
+        (pdc as CraftPersistentDataContainer).raw[keyNode] = (tag as PaperCompoundTag).handle
+    }
+
+    // Tag/stack
+
+    fun stackToTag(stack: ItemStack): CompoundBinaryTag.Mutable? {
+        return if (stack is CraftItemStack) {
+            stack.handle.tag?.let { tag ->
+                tag.getCompound(BUKKIT_PDC).tags[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
+            }
+        } else null
+    }
+
+    /*
+    // avoid ItemMeta gets/sets
+    fun tagToStack(tag: CompoundBinaryTag, stack: ItemStack): ItemStack {
         val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
         val nms = res.handle
         nms.tag = (nms.tag ?: CompoundTag()).apply {
-            put(nodeKey, (tag as PaperCompoundTag).handle)
+            tags[BUKKIT_PDC] = (tags[BUKKIT_PDC] ?: CompoundTag()).apply {
+                (this as CompoundTag).tags[keyNode] = (tag as PaperCompoundTag).handle
+            }
+        }
+        return res
+    }*/
+
+    fun setTicks(value: Boolean, pdc: PersistentDataContainer) {
+        (pdc as CraftPersistentDataContainer).raw[keyTick] = ByteTag.valueOf(value)
+    }
+
+    fun doesTick(pdc: PersistentDataContainer): Boolean {
+        return (pdc as CraftPersistentDataContainer).raw[keyTick]?.let {
+            it is NumericTag && it.asByte != (0).toByte()
+        } == true
+    }
+
+    /*
+    fun nodeToTag(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
+        node.serialize(tag)
+        tag.setInt(VERSION, NODE_VERSION)
+    }
+
+    fun stateToTag(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
+        nodeToTag(state.updatedRoot(), tag)
+    }
+
+
+    fun dataToTag(pdc: PersistentDataContainer): CompoundBinaryTag.Mutable? {
+        return (pdc as CraftPersistentDataContainer).raw[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
+    }
+
+    fun tagToData(tag: CompoundBinaryTag, pdc: PersistentDataContainer) {
+        (pdc as CraftPersistentDataContainer).raw[keyNode] = (tag as PaperCompoundTag).handle
+    }
+
+    private fun dataTag(stack: ItemStack): Pair<CompoundTag, ItemStack> {
+        val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
+        val nms = res.handle
+        nms.tag = (nms.tag ?: CompoundTag()).let {
+            it.tags[BUKKIT_PDC] ?: CompoundTag()
+        }
+
+    }
+
+    // avoid ItemMeta gets/sets
+    fun tagToStack(tag: CompoundBinaryTag, stack: ItemStack): ItemStack {
+        val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
+        val nms = res.handle
+        nms.tag = (nms.tag ?: CompoundTag()).apply {
+            tags[BUKKIT_PDC] = (tags[BUKKIT_PDC] ?: CompoundTag()).apply {
+                (this as CompoundTag).tags[keyNode] = (tag as PaperCompoundTag).handle
+            }
         }
         return res
     }
+
+    fun nodeToStack(node: PaperDataNode, stack: ItemStack) =
+        tagToStack(newTag().apply { nodeToTag(node, this) }, stack)
+
+    fun stateToStack(state: PaperTreeState, stack: ItemStack) =
+        tagToStack(newTag().apply { stateToTag(state, this) }, stack)
+
+    fun setTicks(value: Boolean, pdc: PersistentDataContainer) {
+        (pdc as CraftPersistentDataContainer).raw[keyTick] = ByteTag.valueOf(value)
+    }
+
+    fun setTicks(value: Boolean, stack: ItemStack) {
+
+    }
+
+    fun ticks(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[keyTick]?.let {
+        it is NumericTag && it.asByte != (0).toByte()
+    }*/
 }

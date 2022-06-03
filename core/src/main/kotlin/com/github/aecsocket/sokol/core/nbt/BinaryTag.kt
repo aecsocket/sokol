@@ -105,5 +105,7 @@ interface CompoundBinaryTag : BinaryTag, Iterable<Pair<String, BinaryTag>> {
         override fun getCompound(key: String): Mutable?
         fun newCompound(key: String): Mutable
         fun editCompound(key: String): Mutable
+
+        fun remove(key: String)
     }
 }

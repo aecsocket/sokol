@@ -2,66 +2,28 @@ package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.alexandria.core.vector.Polar3
 import com.github.aecsocket.alexandria.core.vector.Vector3
-import com.github.aecsocket.alexandria.paper.extension.polar
-import com.github.aecsocket.alexandria.paper.extension.vector
+import com.github.aecsocket.alexandria.paper.extension.*
 import com.github.aecsocket.sokol.core.NodeHost
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.Component.translatable
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Chunk
 import org.bukkit.World
-import org.bukkit.block.Block
-import org.bukkit.block.TileState
+import org.bukkit.block.BlockState
 import org.bukkit.entity.Entity
+import org.bukkit.entity.Item
+import org.bukkit.entity.ItemFrame
 import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
+import org.bukkit.inventory.EquipmentSlot
+import org.bukkit.inventory.Inventory
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.PlayerInventory
 import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.persistence.PersistentDataContainer
+
+private fun format(component: Component) = PlainTextComponentSerializer.plainText().serialize(component)
 
 interface PaperNodeHost : NodeHost {
-    interface OfEntity : PaperNodeHost {
-        val entity: Entity
-    }
-
-    interface OfLivingEntity : OfEntity {
-        override val entity: LivingEntity
-    }
-
-    interface OfPlayer : OfLivingEntity {
-        override val entity: Player
-    }
-
-
-    interface OfStack : PaperNodeHost {
-        val stack: ItemStack
-        val meta: ItemMeta
-
-        fun writeMeta(action: ItemMeta.() -> Unit)
-    }
-
-    companion object {
-        fun useStack(stack: () -> ItemStack, meta: () -> ItemMeta, action: (OfStack) -> Unit): Boolean {
-            class OfStackImpl : OfStack {
-                override val stack: ItemStack
-                    get() = stack()
-                override val meta: ItemMeta
-                    get() = meta()
-
-                var dirty = false
-
-                override fun writeMeta(action: ItemMeta.() -> Unit) {
-                    action(meta())
-                    dirty = true
-                }
-            }
-
-            return OfStackImpl().apply(action).dirty
-        }
-    }
-}
-
-/*
-interface PaperNodeHost : NodeHost {
-    val pdc: PersistentDataContainer
-
     interface WithPosition : PaperNodeHost {
         val world: World
         val position: Vector3
@@ -71,57 +33,202 @@ interface PaperNodeHost : NodeHost {
         val direction: Polar3
     }
 
-    interface OfWorld : PaperNodeHost {
-        val world: World
 
-        override val pdc: PersistentDataContainer
-            get() = world.persistentDataContainer
+    data class OfWorld(val world: World) : PaperNodeHost {
+        override fun toString() = "World[${world.name}]"
     }
 
-    interface OfChunk : PaperNodeHost {
-        val chunk: Chunk
-
-        override val pdc: PersistentDataContainer
-            get() = chunk.persistentDataContainer
+    data class OfChunk(val chunk: Chunk) : PaperNodeHost {
+        override fun toString() = "Chunk[@ ${chunk.world.name}(${chunk.x}, ${chunk.z})]"
     }
 
-    interface OfEntity : PaperNodeHost, WithDirection {
-        val entity: Entity
-
-        override val pdc: PersistentDataContainer
-            get() = entity.persistentDataContainer
+    data class OfEntity(val entity: Entity) : WithDirection {
         override val world: World
             get() = entity.world
         override val position: Vector3
             get() = entity.location.vector()
         override val direction: Polar3
             get() = entity.location.polar()
+
+        override fun toString(): String {
+            val (x, y, z) = entity.location
+            return "Entity[${format(entity.name())} of ${entity.type} @ ${world.name}($x, $y, $z)]"
+        }
     }
 
     interface OfStack : PaperNodeHost {
         val stack: ItemStack
-        val meta: ItemMeta
+        val holder: StackHolder
 
-        override val pdc: PersistentDataContainer
-            get() = meta.persistentDataContainer
+        fun readMeta(action: ItemMeta.() -> Unit)
+
+        fun writeMeta(action: ItemMeta.() -> Unit)
     }
 
-    interface OfBlock : PaperNodeHost, WithPosition {
-        val block: Block
-        val state: TileState
+    data class OfWritableStack(
+        override val holder: StackHolder,
+        private val getStack: () -> ItemStack,
+        private val getMeta: () -> ItemMeta,
+        private val onDirty: () -> Unit
+    ) : OfStack {
+        override val stack: ItemStack
+            get() = getStack()
 
-        override val pdc: PersistentDataContainer
-            get() = state.persistentDataContainer
+        override fun readMeta(action: ItemMeta.() -> Unit) {
+            action(getMeta())
+        }
+
+        override fun writeMeta(action: ItemMeta.() -> Unit) {
+            action(getMeta())
+            onDirty()
+        }
+
+        override fun toString() =
+            "WritableStack[${format(getMeta().displayName() ?: translatable(stack.translationKey()))} x${stack.itemMeta} by $holder]"
+    }
+
+    data class OfBlock(val block: BlockState) : WithPosition {
         override val world: World
             get() = block.world
         override val position: Vector3
             get() = block.location.vector()
-    }
 
-    abstract class OfElement(
-        val element: ServerElement
-    ) : PaperNodeHost {
-        override fun toString() = "<$element>"
+        override fun toString() = "Block[${block.type} @ ${block.world.name}(${block.x}, ${block.y}, ${block.z})]"
     }
 }
-*/
+
+interface StackHolder {
+    val parent: PaperNodeHost
+
+    interface ByInventory : StackHolder {
+        val inventory: Inventory
+        val slotId: Int
+    }
+
+    interface ByEntity : StackHolder {
+        override val parent: PaperNodeHost.OfEntity
+    }
+
+    interface ByBlock : StackHolder {
+        override val parent: PaperNodeHost.OfBlock
+        val block: BlockState
+    }
+
+    interface ByEquipment : ByEntity {
+        val entity: LivingEntity
+        val slot: EquipmentSlot
+    }
+
+    interface ByItemEntity : ByEntity {
+        val entity: Item
+    }
+
+    interface ByItemFrame : ByEntity {
+        val entity: ItemFrame
+    }
+
+    interface ByCursor : ByEntity {
+        val player: Player
+    }
+
+    interface ByShulkerBox : StackHolder {
+        val slotId: Int
+    }
+
+    companion object {
+        fun byEquipment(
+            host: PaperNodeHost.OfEntity,
+            entity: LivingEntity,
+            slot: EquipmentSlot
+        ) = object : ByEquipment {
+            override val parent: PaperNodeHost.OfEntity
+                get() = host
+            override val entity: LivingEntity
+                get() = entity
+            override val slot: EquipmentSlot
+                get() = slot
+        }
+
+        fun byItemEntity(host: PaperNodeHost.OfEntity, entity: Item) = object : ByItemEntity {
+            override val parent: PaperNodeHost.OfEntity
+                get() = host
+            override val entity: Item
+                get() = entity
+        }
+
+        fun byItemFrame(host: PaperNodeHost.OfEntity, entity: ItemFrame) = object : ByItemFrame {
+            override val parent: PaperNodeHost.OfEntity
+                get() = host
+            override val entity: ItemFrame
+                get() = entity
+        }
+
+        fun byBlock(host: PaperNodeHost.OfBlock) = object : ByBlock {
+            override val parent: PaperNodeHost.OfBlock
+                get() = host
+            override val block: BlockState
+                get() = host.block
+        }
+
+        fun byCursor(host: PaperNodeHost.OfEntity, player: Player) = object : ByCursor {
+            override val parent: PaperNodeHost.OfEntity
+                get() = host
+            override val player: Player
+                get() = player
+        }
+
+        fun byShulkerBox(host: PaperNodeHost, slotId: Int) = object : ByShulkerBox {
+            override val parent: PaperNodeHost
+                get() = host
+            override val slotId: Int
+                get() = slotId
+        }
+
+        fun byPlayer(
+            host: PaperNodeHost.OfEntity,
+            entity: Player,
+            slotId: Int
+        ): ByEntity {
+            val inventory = entity.inventory
+            return slot(inventory, slotId)?.let { slot ->
+                object : ByInventory, ByEquipment {
+                    override val parent: PaperNodeHost.OfEntity
+                        get() = host
+                    override val entity: LivingEntity
+                        get() = entity
+                    override val inventory: Inventory
+                        get() = inventory
+                    override val slotId: Int
+                        get() = slotId
+                    override val slot: EquipmentSlot
+                        get() = slot
+                }
+            } ?: object : ByEntity, ByInventory {
+                override val parent: PaperNodeHost.OfEntity
+                    get() = host
+                override val inventory: Inventory
+                    get() = inventory
+                override val slotId: Int
+                    get() = slotId
+            }
+        }
+
+        private val SLOTS = mapOf(
+            40 to EquipmentSlot.OFF_HAND,
+            36 to EquipmentSlot.FEET,
+            37 to EquipmentSlot.LEGS,
+            38 to EquipmentSlot.CHEST,
+            39 to EquipmentSlot.HEAD
+        )
+
+        private fun slot(inventory: PlayerInventory, slotId: Int) =
+            SLOTS[slotId] ?: if (slotId == inventory.heldItemSlot) EquipmentSlot.HAND else null
+    }
+}
+
+fun StackHolder.root(): PaperNodeHost {
+    val parent = this.parent
+    return if (parent is PaperNodeHost.OfStack) {
+        parent.holder.root()
+    } else parent
+}
