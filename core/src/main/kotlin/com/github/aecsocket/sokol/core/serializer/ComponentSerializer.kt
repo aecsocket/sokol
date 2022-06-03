@@ -5,12 +5,14 @@ import com.github.aecsocket.sokol.core.Feature
 import com.github.aecsocket.sokol.core.NodeComponent
 import com.github.aecsocket.sokol.core.Slot
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
 private const val FEATURES = "features"
 private const val SLOTS = "slots"
+private const val TAGS = "tags"
 
 abstract class ComponentSerializer<
     T : NodeComponent.Scoped<T, P, S>,
@@ -25,7 +27,8 @@ abstract class ComponentSerializer<
     protected abstract fun create(
         id: String,
         features: Map<String, P>,
-        slots: Map<String, S>
+        slots: Map<String, S>,
+        tags: Set<String>
     ): T
 
     override fun serialize(type: Type, obj: T?, node: ConfigurationNode) =
@@ -57,6 +60,8 @@ abstract class ComponentSerializer<
             slots[slotKey] = slot(slotKey, child)
         }
 
-        return create(id, features, slots)
+        val tags = node.node(TAGS).get<MutableSet<String>> { HashSet() }
+
+        return create(id, features, slots, tags)
     }
 }

@@ -26,6 +26,9 @@ class TestFeature(
     inner class Profile(
         val profileField: String
     ) : PaperFeature.Profile {
+        override val type: PaperFeature
+            get() = this@TestFeature
+
         override fun createData() = Data(0, 0)
 
         override fun createData(node: ConfigurationNode) = Data(
@@ -43,6 +46,9 @@ class TestFeature(
             val clicks: Int,
             val ticksLived: Long
         ) : PaperFeature.Data {
+            override val type: PaperFeature
+                get() = this@TestFeature
+
             override fun serialize(node: ConfigurationNode) {
                 node.node("clicks").set(clicks)
             }
@@ -61,6 +67,9 @@ class TestFeature(
             var clicks: Int,
             var ticksLived: Long
         ) : PaperFeature.State {
+            override val type: PaperFeature
+                get() = this@TestFeature
+
             override fun asData() = Data(clicks, ticksLived)
 
             override fun serialize(tag: CompoundBinaryTag.Mutable) {
