@@ -13,22 +13,15 @@ abstract class BlueprintSerializer<
 > : TypeSerializer<T> {
     protected abstract val nodeType: Class<N>
 
-    protected abstract fun create(
-        id: String,
-        node: N
-    ): T
-
     override fun serialize(type: Type, obj: T?, node: ConfigurationNode) =
         throw UnsupportedOperationException()
 
-    override fun deserialize(type: Type, node: ConfigurationNode): T {
-        val id = try {
-            Keyed.validate(node.key().toString())
-        } catch (ex: Keyed.ValidationException) {
-            throw SerializationException(node, type, "Invalid key")
-        }
-
-        return create(id, node.get(nodeType)
-            ?: throw SerializationException(node, type, "Null node"))
+    protected fun id(type: Type, node: ConfigurationNode) = try {
+        Keyed.validate(node.key().toString())
+    } catch (ex: Keyed.ValidationException) {
+        throw SerializationException(node, type, "Invalid key")
     }
+
+    protected fun node(type: Type, node: ConfigurationNode) =
+        node.get(nodeType) ?: throw SerializationException(node, type, "Null node")
 }

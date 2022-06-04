@@ -7,6 +7,7 @@ import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.stat.StatMap
+import org.spongepowered.configurate.ConfigurationNode
 
 typealias PaperNodeKey = NodeKey<PaperDataNode>
 
@@ -31,6 +32,7 @@ interface PaperFeatureContext : FeatureContext<PaperTreeState, PaperNodeHost, Pa
 class PaperComponent(
     id: String,
     features: Map<String, PaperFeature.Profile>,
+    val featureConfigs: Map<String, ConfigurationNode>,
     slots: Map<String, PaperSlot>,
     tags: Set<String>
 ) : AbstractComponent<PaperComponent, PaperFeature.Profile, PaperSlot>(id, features, slots, tags)

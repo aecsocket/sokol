@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.paper
 
+import com.github.aecsocket.alexandria.paper.serializer.PaperSerializers
 import com.github.aecsocket.sokol.core.NodeKey
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.serializer.BlueprintSerializer
@@ -8,6 +9,7 @@ import com.github.aecsocket.sokol.core.serializer.DataNodeSerializer
 import com.github.aecsocket.sokol.paper.*
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
+import java.lang.reflect.Type
 
 private const val TAGS = "tags"
 private const val REQUIRED = "required"
@@ -29,12 +31,15 @@ class PaperComponentSerializer(
         Rule.Temp
     )
 
-    override fun create(
-        id: String,
-        features: Map<String, PaperFeature.Profile>,
-        slots: Map<String, PaperSlot>,
-        tags: Set<String>
-    ) = PaperComponent(id, features, slots, tags)
+    override fun deserialize(type: Type, node: ConfigurationNode) = PaperComponent(
+        id(type, node),
+        features(type, node),
+        node.node(FEATURES).childrenMap()
+            .map { (key, child) -> key.toString() to child }
+            .associate { it },
+        slots(type, node),
+        tags(type, node)
+    )
 }
 
 class PaperNodeSerializer(
@@ -57,11 +62,11 @@ class PaperBlueprintSerializer(
 ) : BlueprintSerializer<
     PaperBlueprint, PaperDataNode
 >() {
-    override fun create(
-        id: String,
-        node: PaperDataNode
-    ) = PaperBlueprint(id, node)
-
     override val nodeType: Class<PaperDataNode>
         get() = PaperDataNode::class.java
+
+    override fun deserialize(type: Type, node: ConfigurationNode) = PaperBlueprint(
+        id(type, node),
+        node(type, node)
+    )
 }

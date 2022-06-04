@@ -114,6 +114,7 @@ class SokolPlugin : BasePlugin() {
         serializers
             .register(PaperComponent::class, PaperComponentSerializer(this))
             .register(PaperDataNode::class, PaperNodeSerializer(this))
+            .register(PaperBlueprint::class, PaperBlueprintSerializer(this))
     }
 
     override fun loadInternal(log: LogList, settings: ConfigurationNode): Boolean {
@@ -149,7 +150,7 @@ class SokolPlugin : BasePlugin() {
                     }?.let { node ->
                         node.node(ENTRIES).childrenMap().forEach { (_, child) ->
                             try {
-                                child.get(type)
+                                child.get(type) ?: throw SerializationException(child, type, "Null created (is the deserializer registered?)")
                             } catch (ex: SerializationException) {
                                 log.line(LogLevel.WARNING, ex) { "Could not parse ${type.simpleName} from ${subPath.joinToString("/")}" }
                                 null

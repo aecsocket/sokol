@@ -2,6 +2,8 @@ package com.github.aecsocket.sokol.paper
 
 import cloud.commandframework.arguments.standard.StringArgument
 import cloud.commandframework.context.CommandContext
+import com.github.aecsocket.alexandria.core.extension.render
+import com.github.aecsocket.alexandria.core.extension.typeToken
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.keyed.Registry
 import com.github.aecsocket.alexandria.paper.extension.withMeta
@@ -9,7 +11,10 @@ import com.github.aecsocket.alexandria.paper.plugin.CloudCommand
 import com.github.aecsocket.alexandria.paper.plugin.desc
 import com.github.aecsocket.glossa.core.Localizable
 import com.github.aecsocket.sokol.paper.feature.TestFeature
+import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.Component.text
+import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
 import org.bukkit.command.CommandSender
@@ -55,12 +60,12 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .literal("info", desc("Gets detailed info on a specific registered item."))
         manager.command(info
             .literal("component", desc("Gets info on a registered component."))
-            .argument(StringArgument.of("id"), desc("The ID of the item."))
+            .argument(ComponentArgument(plugin, "item", desc("Item to get info for.")))
             .permission(perm("command", "info", "component"))
             .handler { handle(it, ::infoComponent) })
         manager.command(info
             .literal("blueprint", desc("Gets info on a registered blueprint."))
-            .argument(StringArgument.of("id"), desc("The ID of the item."))
+            .argument(BlueprintArgument(plugin, "item", desc("Item to get info for.")))
             .permission(perm("command", "info", "blueprint"))
             .handler { handle(it, ::infoBlueprint) })
 
@@ -71,7 +76,7 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
                 val node = PaperDataNode(
                     PaperComponent("some_component", mapOf(
                         TestFeature.ID to TestFeature(plugin).Profile("abc 123")
-                    ), emptyMap(), emptySet()),
+                    ), emptyMap(), emptyMap(), emptySet()),
                     /*mutableMapOf(
                         TestFeature.ID to TestFeature(plugin).Profile("abc 123").Data(12345)
                     )*/
@@ -132,7 +137,7 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         }
 
         val results = ArrayList<T>()
-        registry.forEach { (key, item) ->
+        registry.forEach { (_, item) ->
             if (filter?.let {
                 item.id.contains(filter)
                     || item.localize(plugin.i18n.withLocale(locale)).contains(filter)
@@ -146,7 +151,7 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             raw("total") { registry.size }
             list("entries") { results.forEach { item ->
                 map {
-                    sub("name") { item.localize(this) }
+                    tl("name") { item }
                     raw("id") { item.id }
                 }
             } }
@@ -167,36 +172,79 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
 
 
     fun infoComponent(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val component = component(ctx["id"], locale)
-        plugin.send(sender) { safe(locale, "command.info.component") {
-            sub("name") { component.localize(this) }
+        val component = ctx.get<PaperComponent>("item")
+        plugin.send(sender) { safe(locale, "command.info.component.message") {
+            tl("name") { component }
             raw("id") { component.id }
             list("tags") { component.tags.forEach {
                 raw(it)
             } }
             raw("slots_count") { component.slots.size }
             list("slots") { component.slots.forEach { (key, slot) ->
-                map {
-                    sub("name") { slot.localize(this) }
-                    raw("key") { slot.key }
+                val hover = text("") // todo
+
+                subList(safe(locale, "command.info.component.slot") {
+                    tl("name") { slot }
+                    raw("key") { key }
                     raw("required") { slot.required.toString() }
                     raw("modifiable") { slot.modifiable.toString() }
                     list("tags") { slot.tags.forEach {
                         raw(it)
                     } }
-                }
+                }.map { it.hoverEvent(hover) })
             } }
             raw("features_count") { component.features.size }
             list("features") { component.features.forEach { (key, feature) ->
-                map {
-                    sub("name") { feature.type.localize(this) }
-                    raw("id") { feature.type.id }
-                }
+                val hover = component.featureConfigs[key]!!.render()
+                    .join(JoinConfiguration.newlines())
+
+                subList(safe(locale, "command.info.component.feature") {
+                    tl("name") { feature.type }
+                    raw("id") { key }
+                }.map { it.hoverEvent(hover) })
             } }
         } }
     }
 
-    fun infoBlueprint(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+    fun infoTree(sender: CommandSender, locale: Locale, node: PaperDataNode): List<Component> {
+        val res = ArrayList<Component>()
 
+        res.addAll(plugin.i18n.safe(locale, "command.tree.header") {
+            tl("name") { node.component }
+            raw("id") { node.component.id }
+        })
+
+        fun visitSlot(slot: PaperSlot, node: PaperDataNode?, depth: Int) {
+            res.addAll(plugin.i18n.safe(locale, "command.tree.child") {
+                raw("indent") { "  ".repeat(depth) }
+                tl("slot") { slot }
+                subList("value") {
+                    node?.let {
+                        node.component.localize(this)
+                    } ?: safe("command.tree.empty_slot")
+                }
+            })
+
+            node?.let {
+                node.component.slots.forEach { (key, child) ->
+                    visitSlot(child, node.node(key), depth + 1)
+                }
+            }
+        }
+
+        node.component.slots.forEach { (key, slot) ->
+            visitSlot(slot, node.node(key), 0)
+        }
+
+        return res
+    }
+
+    fun infoBlueprint(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        val blueprint = ctx.get<PaperBlueprint>("item")
+        plugin.send(sender) { safe(locale, "command.info.blueprint") {
+            tl("name") { blueprint }
+            raw("id") { blueprint.id }
+            subList("tree") { infoTree(sender, locale, blueprint.createNode()) }
+        } }
     }
 }

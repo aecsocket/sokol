@@ -24,44 +24,33 @@ abstract class ComponentSerializer<
 
     protected abstract fun slot(key: String, node: ConfigurationNode): S
 
-    protected abstract fun create(
-        id: String,
-        features: Map<String, P>,
-        slots: Map<String, S>,
-        tags: Set<String>
-    ): T
-
     override fun serialize(type: Type, obj: T?, node: ConfigurationNode) =
         throw UnsupportedOperationException()
 
-    override fun deserialize(type: Type, node: ConfigurationNode): T {
-        val id = try {
-            Keyed.validate(node.key().toString())
-        } catch (ex: Keyed.ValidationException) {
-            throw SerializationException(node, type, "Invalid key")
-        }
+    protected fun id(type: Type, node: ConfigurationNode) = try {
+        Keyed.validate(node.key().toString())
+    } catch (ex: Keyed.ValidationException) {
+        throw SerializationException(node, type, "Invalid key")
+    }
 
-        val features = HashMap<String, P>()
-        node.node(FEATURES).childrenMap().forEach { (key, child) ->
+    protected fun features(type: Type, node: ConfigurationNode) =
+        node.node(FEATURES).childrenMap().map { (key, child) ->
             val featureId = key.toString()
             val feature = feature(featureId)
                 ?: throw SerializationException(child, type, "No feature with ID '$featureId'")
-            val data = feature.createProfile(child)
-            features[featureId] = data
-        }
+            featureId to feature.createProfile(child)
+        }.associate { it }
 
-        val slots = HashMap<String, S>()
-        node.node(SLOTS).childrenMap().forEach { (key, child) ->
+    protected fun slots(type: Type, node: ConfigurationNode) =
+        node.node(SLOTS).childrenMap().map { (key, child) ->
             val slotKey = try {
                 Keyed.validate(key.toString())
             } catch (ex: Keyed.ValidationException) {
                 throw SerializationException(child, type, "Invalid slot key")
             }
-            slots[slotKey] = slot(slotKey, child)
-        }
+            slotKey to slot(slotKey, child)
+        }.associate { it }
 
-        val tags = node.node(TAGS).get<MutableSet<String>> { HashSet() }
-
-        return create(id, features, slots, tags)
-    }
+    protected fun tags(type: Type, node: ConfigurationNode) =
+        node.node(TAGS).get<MutableSet<String>> { HashSet() }
 }
