@@ -50,7 +50,8 @@ dependencies {
     paperDevBundle("$minecraftVersion-R0.1-SNAPSHOT")
     implementation(libs.alexandriaPaper) { artifact { classifier = "reobf" } }
     implementation(libs.bstatsPaper)
-    implementation(libs.packetEvents)
+    implementation(libs.packetEventsApi)
+    implementation(libs.packetEventsSpigot)
     implementation(libs.adventureExtraKotlin)
 
     testImplementation(kotlin("test"))

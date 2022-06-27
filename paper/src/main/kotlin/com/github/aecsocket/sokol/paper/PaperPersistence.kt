@@ -1,11 +1,12 @@
 package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.sokol.core.NodePath
+import com.github.aecsocket.sokol.core.SokolPersistence
 import com.github.aecsocket.sokol.core.keyOf
 import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializationException
-import com.github.aecsocket.sokol.core.stat.StatMap
+import com.github.aecsocket.sokol.core.stat.HashStatMap
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
@@ -13,6 +14,10 @@ import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataContainer
+import org.spongepowered.configurate.ConfigurateException
+import org.spongepowered.configurate.kotlin.extensions.get
+import java.io.BufferedWriter
+import java.io.StringWriter
 
 internal const val VERSION = "version"
 internal const val ID = "id"
@@ -21,9 +26,9 @@ internal const val CHILDREN = "children"
 internal const val BUKKIT_PDC = "PublicBukkitValues"
 const val NODE_VERSION = 1
 
-class SokolPersistence internal constructor(
+class PaperPersistence internal constructor(
     private val plugin: SokolPlugin
-) {
+) : SokolPersistence<PaperDataNode> {
     internal val keyNode = plugin.keyNode.asString()
     internal val keyTick = plugin.keyTick.asString()
 
@@ -32,7 +37,7 @@ class SokolPersistence internal constructor(
     // Tag/state
 
     fun tagToState(tag: CompoundBinaryTag): PaperTreeState {
-        val stats = object : StatMap {} // todo
+        val stats = HashStatMap()
         val incomplete = ArrayList<NodePath>()
         val featureStates = HashMap<PaperDataNode, Map<String, PaperFeature.State>>()
 
@@ -133,6 +138,21 @@ class SokolPersistence internal constructor(
                 tag.getCompound(BUKKIT_PDC).tags[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
             }
         } else null
+    }
+
+    // String/node
+
+    override fun stringToNode(string: String): PaperDataNode {
+        return plugin.loaderBuilder().buildAndLoadString(string).get<PaperDataNode>()
+            ?: throw ConfigurateException("Null node created")
+    }
+
+    override fun nodeToString(node: PaperDataNode): String {
+        val writer = StringWriter()
+        plugin.loaderBuilder().sink { BufferedWriter(writer) }.build().apply {
+            save(createNode().set(node))
+        }
+        return writer.toString()
     }
 
     /*

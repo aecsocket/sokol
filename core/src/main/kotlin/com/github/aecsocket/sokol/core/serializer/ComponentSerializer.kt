@@ -16,7 +16,7 @@ private const val TAGS = "tags"
 
 abstract class ComponentSerializer<
     T : NodeComponent.Scoped<T, P, S>,
-    F : Feature<*, P>,
+    F : Feature<P>,
     P : Feature.Profile<*>,
     S : Slot
 > : TypeSerializer<T> {

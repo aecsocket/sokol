@@ -1,4 +1,4 @@
-package com.github.aecsocket.sokol.paper
+package com.github.aecsocket.sokol.core
 
 import cloud.commandframework.ArgumentDescription
 import cloud.commandframework.arguments.CommandArgument
@@ -11,6 +11,7 @@ import cloud.commandframework.exceptions.parsing.NoInputProvidedException
 import cloud.commandframework.exceptions.parsing.ParserException
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.keyed.Registry
+import org.spongepowered.configurate.ConfigurateException
 import java.util.*
 
 open class RegistryArgumentException(
@@ -65,9 +66,9 @@ abstract class RegistryItemParser<C : Any, T : Keyed>(
         registry.entries.keys.toMutableList()
 }
 
-class ComponentParser<C : Any>(
-    plugin: SokolPlugin
-) : RegistryItemParser<C, PaperComponent>(plugin.components) {
+class ComponentParser<C : Any, T : NodeComponent>(
+    platform: SokolPlatform<T, *, *, *>
+) : RegistryItemParser<C, T>(platform.components) {
     override fun exceptionOf(input: String, context: CommandContext<*>) =
         ComponentArgumentException(input, context)
 
@@ -76,18 +77,19 @@ class ComponentParser<C : Any>(
     }
 }
 
-class ComponentArgument<C : Any>(
-    plugin: SokolPlugin,
+open class ComponentArgument<C : Any, T : NodeComponent>(
+    platform: SokolPlatform<T, *, *, *>,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
     defaultValue: String = "",
+    clazz: Class<T>,
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
-) : CommandArgument<C, PaperComponent>(required, name, ComponentParser(plugin), defaultValue, PaperComponent::class.java, suggestionsProvider, description)
+) : CommandArgument<C, T>(required, name, ComponentParser(platform), defaultValue, clazz, suggestionsProvider, description)
 
-class BlueprintParser<C : Any>(
-    plugin: SokolPlugin
-) : RegistryItemParser<C, PaperBlueprint>(plugin.blueprints) {
+class BlueprintParser<C : Any, T : Blueprint<*>>(
+    platform: SokolPlatform<*, T, *, *>
+) : RegistryItemParser<C, T>(platform.blueprints) {
     override fun exceptionOf(input: String, context: CommandContext<*>) =
         BlueprintArgumentException(input, context)
 
@@ -96,11 +98,59 @@ class BlueprintParser<C : Any>(
     }
 }
 
-class BlueprintArgument<C : Any>(
-    plugin: SokolPlugin,
+open class BlueprintArgument<C : Any, T : Blueprint<*>>(
+    platform: SokolPlatform<*, T, *, *>,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
     defaultValue: String = "",
+    clazz: Class<T>,
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
-) : CommandArgument<C, PaperBlueprint>(required, name, BlueprintParser(plugin), defaultValue, PaperBlueprint::class.java, suggestionsProvider, description)
+) : CommandArgument<C, T>(required, name, BlueprintParser(platform), defaultValue, clazz, suggestionsProvider, description)
+
+
+class NodeArgumentException(
+    context: CommandContext<*>,
+    input: String,
+    error: Throwable,
+) : ParserException(
+    NodeParser::class.java, context, NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE,
+    CaptionVariable.of("input", input),
+    CaptionVariable.of("error", error.message ?: "(no message)")
+)
+
+class NodeParser<C : Any, T : DataNode>(
+    private val platform: SokolPlatform<*, *, *, T>
+) : ArgumentParser<C, T> {
+    override fun parse(
+        commandContext: CommandContext<C>,
+        inputQueue: Queue<String>
+    ): ArgumentParseResult<T> {
+        return inputQueue.peek()?.let { input ->
+            try {
+                ArgumentParseResult.success(platform.persistence.stringToNode(input))
+            } catch (ex: ConfigurateException) {
+                ArgumentParseResult.failure(NodeArgumentException(
+                    commandContext, input, ex
+                ))
+            }
+        } ?: ArgumentParseResult.failure(NoInputProvidedException(
+            NodeParser::class.java,
+            commandContext
+        ))
+    }
+
+    companion object {
+        val ARGUMENT_PARSE_FAILURE_DATA_NODE = Caption.of("argument.parse.failure.data_node")
+    }
+}
+
+open class NodeArgument<C : Any, T : DataNode>(
+    platform: SokolPlatform<*, *, *, T>,
+    name: String,
+    description: ArgumentDescription,
+    required: Boolean = true,
+    defaultValue: String = "",
+    clazz: Class<T>,
+    suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
+) : CommandArgument<C, T>(required, name, NodeParser(platform), defaultValue, clazz, suggestionsProvider, description)

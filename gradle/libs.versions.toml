@@ -14,6 +14,7 @@ alexandriaPaper = { group = "com.github.aecsocket.alexandria", name = "alexandri
 
 bstatsPaper = { group = "org.bstats", name = "bstats-bukkit", version.ref = "bstats" }
 
-packetEvents = { group = "com.github.retrooper", name = "packetevents", version.ref = "packetEvents" }
+packetEventsApi = { group = "com.github.retrooper.packetevents", name = "api", version.ref = "packetEvents" }
+packetEventsSpigot = { group = "com.github.retrooper.packetevents", name = "spigot", version.ref = "packetEvents" }
 
 adventureExtraKotlin = { group = "net.kyori", name = "adventure-extra-kotlin", version.ref = "adventure" }

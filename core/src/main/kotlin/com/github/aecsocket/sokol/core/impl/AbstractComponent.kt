@@ -22,7 +22,8 @@ abstract class AbstractComponent<
 
 open class SimpleSlot(
     override val key: String,
-    override val tags: Set<String>
+    override val tags: Set<String>,
+    override val required: Boolean
 ) : Slot {
     override fun localize(i18n: I18N<Component>) =
         i18n.safe("slot.$key")

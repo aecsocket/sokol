@@ -10,7 +10,6 @@ import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
 
 interface Feature<
-    N : DataNode,
     P : Feature.Profile<*>
 > : Keyed, Localizable<Component> {
     fun createProfile(node: ConfigurationNode): P
@@ -19,7 +18,7 @@ interface Feature<
         i18n.safe("feature.$id")
 
     interface Profile<D : Data<*>> {
-        val type: Feature<*, *>
+        val type: Feature<*>
 
         fun createData(): D
 
@@ -29,7 +28,7 @@ interface Feature<
     }
 
     interface Data<S : State<S, *, *>> : TagSerializable {
-        val type: Feature<*, *>
+        val type: Feature<*>
 
         fun createState(): S
 
@@ -41,7 +40,7 @@ interface Feature<
         D : Data<S>,
         C : FeatureContext<*, *, *>
     > : TagSerializable {
-        val type: Feature<*, *>
+        val type: Feature<*>
 
         fun asData(): D
 

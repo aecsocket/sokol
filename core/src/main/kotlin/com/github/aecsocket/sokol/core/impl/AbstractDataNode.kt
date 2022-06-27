@@ -14,4 +14,6 @@ abstract class AbstractDataNode<
     children: MutableMap<String, N>
 ) : AbstractNode<N>(parent, children), DataNode.Scoped<N, C, F, S> {
     override fun toString() = "${component.id}[$features]${super.toString()}"
+
+    override fun walkDataNodes(action: (NodePath, DataNode) -> WalkResult) = walk(action)
 }

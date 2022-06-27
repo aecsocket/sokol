@@ -1,12 +1,10 @@
 package com.github.aecsocket.sokol.paper
 
-import com.github.aecsocket.alexandria.paper.serializer.PaperSerializers
 import com.github.aecsocket.sokol.core.NodeKey
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.serializer.BlueprintSerializer
 import com.github.aecsocket.sokol.core.serializer.ComponentSerializer
 import com.github.aecsocket.sokol.core.serializer.DataNodeSerializer
-import com.github.aecsocket.sokol.paper.*
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import java.lang.reflect.Type
@@ -28,7 +26,7 @@ class PaperComponentSerializer(
         node.node(TAGS).get<MutableSet<String>> { HashSet() },
         node.node(REQUIRED).getBoolean(false),
         node.node(MODIFIABLE).getBoolean(false),
-        Rule.Temp
+        node.node(RULE).get<Rule> { Rule.True }
     )
 
     override fun deserialize(type: Type, node: ConfigurationNode) = PaperComponent(

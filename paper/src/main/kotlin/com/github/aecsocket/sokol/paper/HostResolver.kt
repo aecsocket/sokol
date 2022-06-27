@@ -156,7 +156,7 @@ internal class HostResolver(
                 world.getBlockAt(pos.x, pos.y, pos.z).getState(false)
             ) }
             if (containerBlocks && block is BaseContainerBlockEntity) {
-                block.contents.forEachIndexed { idx, stack ->
+                block.contents.forEachIndexed { _, stack ->
                     forStack(stack, StackHolder.byBlock(host))
                 }
             }

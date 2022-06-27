@@ -22,4 +22,5 @@ interface NodeComponent : Keyed, Localizable<Component> {
 interface Slot : Localizable<Component> {
     val key: String
     val tags: Set<String>
+    val required: Boolean
 }

@@ -1,6 +1,5 @@
 package com.github.aecsocket.sokol.core
 
-import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializable
 
 interface DataNode : Node, TagSerializable {
@@ -9,9 +8,12 @@ interface DataNode : Node, TagSerializable {
     override fun node(key: String): DataNode?
     override fun node(path: Iterable<String>): DataNode?
     override fun node(vararg path: String): DataNode?
+    override fun root(): DataNode
 
     val component: NodeComponent
     val features: Map<String, Feature.Data<*>>
+
+    fun walkDataNodes(action: (NodePath, DataNode) -> WalkResult): Boolean
 
     interface Scoped<
         N : Scoped<N, C, F, S>,

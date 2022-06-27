@@ -14,6 +14,11 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
     kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
 }
 
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+
 subprojects {
     apply<JavaLibraryPlugin>()
     apply(plugin = "maven-publish")

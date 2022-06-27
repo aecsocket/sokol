@@ -11,7 +11,7 @@ import org.spongepowered.configurate.ConfigurationNode
 
 typealias PaperNodeKey = NodeKey<PaperDataNode>
 
-interface PaperFeature : Feature<PaperDataNode, PaperFeature.Profile> {
+interface PaperFeature : Feature<PaperFeature.Profile> {
     interface Profile : Feature.Profile<Data> {
         override val type: PaperFeature
     }
@@ -40,10 +40,10 @@ class PaperComponent(
 class PaperSlot(
     key: String,
     tags: Set<String>,
-    val required: Boolean,
+    required: Boolean,
     val modifiable: Boolean,
     val compatible: Rule
-) : SimpleSlot(key, tags)
+) : SimpleSlot(key, tags, required)
 
 class PaperBlueprint(
     id: String,

@@ -50,20 +50,32 @@ private data class NodePathImpl(
     override fun iterator() = nodes.iterator()
 }
 
+enum class WalkResult {
+    CONTINUE,
+    STOP_BRANCH,
+    STOP_ALL
+}
+
 interface Node {
     val parent: NodeKey<Node>?
     val children: Map<String, Node>
+
     fun node(key: String): Node?
     fun node(path: Iterable<String>): Node?
     fun node(vararg path: String): Node?
+
     fun has(key: String): Boolean
+    fun has(path: Iterable<String>): Boolean
+    fun has(vararg path: String): Boolean
 
     fun path(): NodePath
     fun root(): Node
-    fun isRoot() = parent == null
+    fun isRoot(): Boolean
 
     fun copy(): Node
     fun asRoot(): Node
+
+    fun walkNodes(action: (NodePath, Node) -> WalkResult): Boolean
 
     interface Scoped<N : Scoped<N>> : Node {
         val self: N
@@ -76,7 +88,7 @@ interface Node {
         override fun copy(): N
         override fun asRoot(): N
 
-        fun walk(action: (NodePath, N) -> Unit)
+        fun walk(action: (NodePath, N) -> WalkResult): Boolean
     }
 
     interface Mutable<N : Mutable<N>> : Scoped<N> {

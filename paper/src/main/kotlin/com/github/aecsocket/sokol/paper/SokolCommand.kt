@@ -60,35 +60,25 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .literal("info", desc("Gets detailed info on a specific registered item."))
         manager.command(info
             .literal("component", desc("Gets info on a registered component."))
-            .argument(ComponentArgument(plugin, "item", desc("Item to get info for.")))
+            .argument(PaperComponentArgument(plugin, "item", desc("Item to get info for.")))
             .permission(perm("command", "info", "component"))
             .handler { handle(it, ::infoComponent) })
         manager.command(info
             .literal("blueprint", desc("Gets info on a registered blueprint."))
-            .argument(BlueprintArgument(plugin, "item", desc("Item to get info for.")))
+            .argument(PaperBlueprintArgument(plugin, "item", desc("Item to get info for.")))
             .permission(perm("command", "info", "blueprint"))
             .handler { handle(it, ::infoBlueprint) })
 
         manager.command(root
-            .literal("give")
-            .handler { ctx ->
-                val player = ctx.sender as Player
-                val node = PaperDataNode(
-                    PaperComponent("some_component", mapOf(
-                        TestFeature.ID to TestFeature(plugin).Profile("abc 123")
-                    ), emptyMap(), emptyMap(), emptySet()),
-                    /*mutableMapOf(
-                        TestFeature.ID to TestFeature(plugin).Profile("abc 123").Data(12345)
-                    )*/
-                )
-                val stack = ItemStack(Material.STICK).withMeta {
-                    val tag = plugin.persistence.newTag().apply { node.serialize(this) }
-                    plugin.persistence.tagToData(tag, persistentDataContainer)
-                    plugin.persistence.setTicks(true, persistentDataContainer)
-                }
-                player.inventory.addItem(stack)
-            }
-        )
+            .literal("give", desc("Gives a specified item-representable node tree to a player."))
+            .argument(PaperNodeArgument(plugin, "item", desc("Node to give.")))
+            .permission(perm("command", "give"))
+            .handler { handle(it, ::give) })
+        manager.command(root
+            .literal("build", desc("Builds and gives a specified item-representable blueprint to a player."))
+            .argument(PaperBlueprintArgument(plugin, "item", desc("Blueprint to give.")))
+            .permission(perm("command", "build"))
+            .handler { handle(it, ::build) })
     }
 
     fun <T : Keyed> byRegistry(registry: Registry<T>, id: String, locale: Locale) = registry[id]
@@ -246,5 +236,22 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             raw("id") { blueprint.id }
             subList("tree") { infoTree(sender, locale, blueprint.createNode()) }
         } }
+    }
+
+    fun give(
+        ctx: CommandContext<CommandSender>,
+        sender: CommandSender,
+        locale: Locale,
+        node: PaperDataNode
+    ) {
+
+    }
+
+    fun give(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        give(ctx, sender, locale, ctx.get<PaperDataNode>("item"))
+    }
+
+    fun build(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        give(ctx, sender, locale, ctx.get<PaperBlueprint>("item").createNode())
     }
 }

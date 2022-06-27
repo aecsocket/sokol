@@ -5,8 +5,6 @@ import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.NumericBinaryTag
 import com.github.aecsocket.sokol.core.nbt.StringBinaryTag
 import net.minecraft.nbt.*
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
-import org.bukkit.inventory.ItemStack
 import java.util.*
 
 internal fun fromInternal(handle: Tag) = when (handle) {

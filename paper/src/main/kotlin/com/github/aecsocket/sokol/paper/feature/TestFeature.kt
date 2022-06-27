@@ -1,9 +1,9 @@
 package com.github.aecsocket.sokol.paper.feature
 
 import com.github.aecsocket.alexandria.core.Input
-import com.github.aecsocket.alexandria.core.Input.Companion.MOUSE_RIGHT
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
+import com.github.aecsocket.sokol.core.stat.DecimalStat
 import com.github.aecsocket.sokol.paper.*
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.sound.Sound
@@ -15,6 +15,10 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 class TestFeature(
     private val plugin: SokolPlugin
 ) : PaperFeature {
+    object Stat {
+        val SOME_INT = DecimalStat(ID, "some_int")
+    }
+
     override val id: String
         get() = ID
 
@@ -87,7 +91,7 @@ class TestFeature(
                     is NodeEvent.OnInput -> {
                         when (val input = event.input) {
                             is Input.Mouse -> {
-                                if (input.button == MOUSE_RIGHT) {
+                                if (input.button == Input.MouseButton.RIGHT) {
                                     when (val host = ctx.host) {
                                         is PaperNodeHost.OfStack -> {
                                             clicks++
