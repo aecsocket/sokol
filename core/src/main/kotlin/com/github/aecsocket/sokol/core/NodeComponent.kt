@@ -2,12 +2,15 @@ package com.github.aecsocket.sokol.core
 
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.glossa.core.Localizable
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
+import com.github.aecsocket.sokol.core.stat.StatMap
 import net.kyori.adventure.text.Component
 
 interface NodeComponent : Keyed, Localizable<Component> {
+    val tags: Set<String>
     val features: Map<String, Feature.Profile<*>>
     val slots: Map<String, Slot>
-    val tags: Set<String>
+    val stats: List<ApplicableStats>
 
     interface Scoped<
         C : Scoped<C, F, S>,

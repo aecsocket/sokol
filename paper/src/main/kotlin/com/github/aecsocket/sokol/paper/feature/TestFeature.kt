@@ -3,7 +3,11 @@ package com.github.aecsocket.sokol.paper.feature
 import com.github.aecsocket.alexandria.core.Input
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
+import com.github.aecsocket.sokol.core.rule.Rule
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import com.github.aecsocket.sokol.core.stat.DecimalStat
+import com.github.aecsocket.sokol.core.stat.Stat
+import com.github.aecsocket.sokol.core.stat.statTypes
 import com.github.aecsocket.sokol.paper.*
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.sound.Sound
@@ -15,12 +19,16 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 class TestFeature(
     private val plugin: SokolPlugin
 ) : PaperFeature {
-    object Stat {
+    object Stats {
         val SOME_INT = DecimalStat(ID, "some_int")
+
+        val ALL = statTypes(SOME_INT)
     }
 
-    override val id: String
-        get() = ID
+    override val id: String get() = ID
+
+    override val statTypes: Map<Key, Stat<*>> get() = Stats.ALL
+    override val ruleTypes: Map<Key, Class<Rule>> get() = emptyMap() // todo
 
     override fun createProfile(node: ConfigurationNode) = Profile(
         node.node("profile_field").getString("")
@@ -80,8 +88,6 @@ class TestFeature(
                 tag.setInt("clicks", clicks)
                 tag.setLong("ticks_lived", ticksLived)
             }
-
-            override fun resolveDependencies(get: (String) -> PaperFeature.State?) {}
 
             override fun onEvent(
                 event: NodeEvent,

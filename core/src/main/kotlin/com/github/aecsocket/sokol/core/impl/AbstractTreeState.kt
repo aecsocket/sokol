@@ -1,8 +1,7 @@
 package com.github.aecsocket.sokol.core.impl
 
 import com.github.aecsocket.sokol.core.*
-import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
-import com.github.aecsocket.sokol.core.stat.StatMap
+import com.github.aecsocket.sokol.core.stat.CompiledStatMap
 
 abstract class AbstractTreeState<
     S : AbstractTreeState<S, N, H, D, F>,
@@ -12,7 +11,7 @@ abstract class AbstractTreeState<
     F : Feature.State<F, D, *>
 >(
     override val root: N,
-    override val stats: StatMap,
+    override val stats: CompiledStatMap,
     val nodeStates: Map<N, Map<String, F>>,
 ) : TreeState.Scoped<S, N, H> {
     override fun updatedRoot(): N {

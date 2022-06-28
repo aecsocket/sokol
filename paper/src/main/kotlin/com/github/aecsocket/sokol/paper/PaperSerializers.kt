@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.paper
 
+import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.sokol.core.NodeKey
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.serializer.BlueprintSerializer
@@ -7,9 +8,11 @@ import com.github.aecsocket.sokol.core.serializer.ComponentSerializer
 import com.github.aecsocket.sokol.core.serializer.DataNodeSerializer
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
+import org.spongepowered.configurate.serialize.SerializationException
 import java.lang.reflect.Type
 
 private const val TAGS = "tags"
+private const val SOFT_FEATURES = "soft_features"
 private const val REQUIRED = "required"
 private const val MODIFIABLE = "modifiable"
 private const val RULE = "rule"
@@ -29,15 +32,27 @@ class PaperComponentSerializer(
         node.node(RULE).get<Rule> { Rule.True }
     )
 
-    override fun deserialize(type: Type, node: ConfigurationNode) = PaperComponent(
-        id(type, node),
-        features(type, node),
-        node.node(FEATURES).childrenMap()
-            .map { (key, child) -> key.toString() to child }
-            .associate { it },
-        slots(type, node),
-        tags(type, node)
-    )
+    override fun deserialize(type: Type, node: ConfigurationNode): PaperComponent {
+        val featureDeps =
+            features(type, node).map { (_, profile) -> profile.type } +
+            node.node(SOFT_FEATURES).childrenList().map {
+                val id = it.force<String>()
+                plugin.features[id] ?: throw SerializationException(it, type, "No feature with ID '$id'")
+            }
+        plugin.statMapSerializer.types = featureStats(featureDeps)
+        val res = PaperComponent(
+            id(type, node),
+            tags(type, node),
+            features(type, node),
+            node.node(FEATURES).childrenMap()
+                .map { (key, child) -> key.toString() to child }
+                .associate { it },
+            slots(type, node),
+            stats(type, node),
+        )
+        plugin.statMapSerializer.types = emptyMap()
+        return res
+    }
 }
 
 class PaperNodeSerializer(

@@ -6,12 +6,20 @@ import com.github.aecsocket.glossa.core.Localizable
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializable
+import com.github.aecsocket.sokol.core.rule.Rule
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
+import com.github.aecsocket.sokol.core.stat.Stat
+import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
 
 interface Feature<
     P : Feature.Profile<*>
 > : Keyed, Localizable<Component> {
+    val statTypes: Map<Key, Stat<*>>
+
+    val ruleTypes: Map<Key, Class<Rule>>
+
     fun createProfile(node: ConfigurationNode): P
 
     override fun localize(i18n: I18N<Component>) =
@@ -44,7 +52,9 @@ interface Feature<
 
         fun asData(): D
 
-        fun resolveDependencies(get: (String) -> S?)
+        fun resolveDependencies(get: (String) -> S?) {}
+
+        fun createStats(): List<ApplicableStats> = emptyList()
 
         fun onEvent(event: NodeEvent, ctx: C)
     }

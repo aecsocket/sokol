@@ -1,18 +1,24 @@
 package com.github.aecsocket.sokol.core.serializer
 
+import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.sokol.core.Feature
 import com.github.aecsocket.sokol.core.NodeComponent
 import com.github.aecsocket.sokol.core.Slot
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
+import com.github.aecsocket.sokol.core.stat.StatMap
+import com.github.aecsocket.sokol.core.stat.emptyStatMap
+import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
+private const val TAGS = "tags"
 private const val FEATURES = "features"
 private const val SLOTS = "slots"
-private const val TAGS = "tags"
+private const val STATS = "stats"
 
 abstract class ComponentSerializer<
     T : NodeComponent.Scoped<T, P, S>,
@@ -33,6 +39,9 @@ abstract class ComponentSerializer<
         throw SerializationException(node, type, "Invalid key")
     }
 
+    protected fun tags(type: Type, node: ConfigurationNode) =
+        node.node(TAGS).get { HashSet<String>() }
+
     protected fun features(type: Type, node: ConfigurationNode) =
         node.node(FEATURES).childrenMap().map { (key, child) ->
             val featureId = key.toString()
@@ -51,6 +60,14 @@ abstract class ComponentSerializer<
             slotKey to slot(slotKey, child)
         }.associate { it }
 
-    protected fun tags(type: Type, node: ConfigurationNode) =
-        node.node(TAGS).get<MutableSet<String>> { HashSet() }
+    protected fun stats(type: Type, node: ConfigurationNode) =
+        node.node(STATS).get { emptyList<ApplicableStats>() }
+
+    protected fun featureStats(features: Iterable<Feature<*>>) = features
+        .flatMap { it.statTypes.entries.map { (key, stat) ->
+            if (key.namespace() != it.id)
+                throw IllegalStateException("Feature '${it.id}' registers stat keys with namespace '${key.namespace()}'")
+            key to stat
+        } }
+        .associate { (key, stat) -> key.toString() to stat }
 }

@@ -7,7 +7,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
-class NodePathSerializer : TypeSerializer<NodePath> {
+object NodePathSerializer : TypeSerializer<NodePath> {
     override fun serialize(type: Type, obj: NodePath?, node: ConfigurationNode) {
         if (obj == null) node.set(null)
         else {

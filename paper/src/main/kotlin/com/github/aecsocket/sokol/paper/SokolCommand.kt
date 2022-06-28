@@ -30,11 +30,11 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         val hosts = root
             .literal("hosts", desc("Gets info on the last hosts resolved on the server."))
         manager.command(hosts
-            .permission(perm("command", "hosts"))
+            .permission(perm("hosts"))
             .handler { handle(it, ::hosts) })
         manager.command(hosts
             .literal("toggle", desc("Toggle the hosts HUD element."))
-            .permission(perm("command", "hosts", "toggle"))
+            .permission(perm("hosts", "toggle"))
             .senderType(Player::class.java)
             .handler { handle(it, ::hostsToggle) })
 
@@ -43,17 +43,17 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         manager.command(list
             .literal("features", desc("Lists all registered features."))
             .argument(StringArgument.optional("filter"), desc("Filter for the name or ID, case-insensitive."))
-            .permission(perm("command", "list", "features"))
+            .permission(perm("list", "features"))
             .handler { handle(it, ::listFeatures) })
         manager.command(list
             .literal("components", desc("Lists all registered components."))
             .argument(StringArgument.optional("filter"), desc("Filter for the name or ID, case-insensitive."))
-            .permission(perm("command", "list", "components"))
+            .permission(perm("list", "components"))
             .handler { handle(it, ::listComponents) })
         manager.command(list
             .literal("blueprints", desc("Lists all registered blueprints."))
             .argument(StringArgument.optional("filter"), desc("Filter for the name or ID, case-insensitive."))
-            .permission(perm("command", "list", "blueprints"))
+            .permission(perm("list", "blueprints"))
             .handler { handle(it, ::listBlueprints) })
 
         val info = root
@@ -61,23 +61,23 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         manager.command(info
             .literal("component", desc("Gets info on a registered component."))
             .argument(PaperComponentArgument(plugin, "item", desc("Item to get info for.")))
-            .permission(perm("command", "info", "component"))
+            .permission(perm("info", "component"))
             .handler { handle(it, ::infoComponent) })
         manager.command(info
             .literal("blueprint", desc("Gets info on a registered blueprint."))
             .argument(PaperBlueprintArgument(plugin, "item", desc("Item to get info for.")))
-            .permission(perm("command", "info", "blueprint"))
+            .permission(perm("info", "blueprint"))
             .handler { handle(it, ::infoBlueprint) })
 
         manager.command(root
             .literal("give", desc("Gives a specified item-representable node tree to a player."))
             .argument(PaperNodeArgument(plugin, "item", desc("Node to give.")))
-            .permission(perm("command", "give"))
+            .permission(perm("give"))
             .handler { handle(it, ::give) })
         manager.command(root
             .literal("build", desc("Builds and gives a specified item-representable blueprint to a player."))
             .argument(PaperBlueprintArgument(plugin, "item", desc("Blueprint to give.")))
-            .permission(perm("command", "build"))
+            .permission(perm("build"))
             .handler { handle(it, ::build) })
     }
 
@@ -169,11 +169,11 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             list("tags") { component.tags.forEach {
                 raw(it)
             } }
-            raw("slots_count") { component.slots.size }
+            raw("qt_slots") { component.slots.size }
             list("slots") { component.slots.forEach { (key, slot) ->
                 val hover = text("") // todo
 
-                subList(safe(locale, "command.info.component.slot") {
+                subList(safe("command.info.component.slot") {
                     tl("name") { slot }
                     raw("key") { key }
                     raw("required") { slot.required.toString() }
@@ -183,15 +183,25 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
                     } }
                 }.map { it.hoverEvent(hover) })
             } }
-            raw("features_count") { component.features.size }
+            raw("qt_features") { component.features.size }
             list("features") { component.features.forEach { (key, feature) ->
                 val hover = component.featureConfigs[key]!!.render()
                     .join(JoinConfiguration.newlines())
 
-                subList(safe(locale, "command.info.component.feature") {
+                subList(safe("command.info.component.feature") {
                     tl("name") { feature.type }
                     raw("id") { key }
                 }.map { it.hoverEvent(hover) })
+            } }
+            raw("qt_stats") { component.stats.size }
+            list("stats") { component.stats.forEach { stats ->
+                // todo hover
+
+                subList(safe("command.info.component.stats") {
+                    raw("priority") { stats.priority }
+                    raw("reversed") { stats.reversed.toString() }
+                    raw("qt_entries") { stats.stats.entries.size }
+                })
             } }
         } }
     }

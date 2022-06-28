@@ -6,7 +6,8 @@ import com.github.aecsocket.sokol.core.keyOf
 import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializationException
-import com.github.aecsocket.sokol.core.stat.HashStatMap
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
+import com.github.aecsocket.sokol.core.stat.statMapOf
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
@@ -37,7 +38,10 @@ class PaperPersistence internal constructor(
     // Tag/state
 
     fun tagToState(tag: CompoundBinaryTag): PaperTreeState {
-        val stats = HashStatMap()
+        data class NodeStat(val node: PaperDataNode, val stats: List<ApplicableStats>)
+
+        val forwardStats = ArrayList<NodeStat>()
+        val reverseStats = ArrayList<NodeStat>()
         val incomplete = ArrayList<NodePath>()
         val featureStates = HashMap<PaperDataNode, Map<String, PaperFeature.State>>()
 
@@ -67,8 +71,10 @@ class PaperPersistence internal constructor(
                 featureState[key] = profile.createData().createState()
             }
 
+            val stats = component.stats.toMutableList()
             featureState.forEach { (_, state) ->
                 state.resolveDependencies(featureState::get)
+                stats += state.createStats()
             }
 
             val children = HashMap<String, PaperDataNode>()
@@ -76,6 +82,8 @@ class PaperPersistence internal constructor(
             val node = PaperDataNode(component, featureData, legacyFeatures, parent, children, legacyChildren)
 
             featureStates[node] = featureState
+            forwardStats.add(NodeStat(node, stats.filter { !it.reversed }))
+            reverseStats.add(0, NodeStat(node, stats.filter { it.reversed }))
 
             val slotsLeft = component.slots.toMutableMap()
             tag.getCompound(CHILDREN)?.forEach { (key, tag) ->
@@ -101,9 +109,22 @@ class PaperPersistence internal constructor(
             return node
         }
 
+        val root = get0(tag, null, NodePath.EMPTY)
+
+        val stats = statMapOf()
+        fun add(nodeStats: List<NodeStat>) {
+            nodeStats.forEach { (node, applicable) ->
+                applicable.sortedBy { it.priority }.forEach {
+                    stats.merge(it.stats)
+                }
+            }
+        }
+        add(forwardStats)
+        add(reverseStats)
+
         return PaperTreeState(
-            get0(tag, null, NodePath.EMPTY),
-            stats,
+            root,
+            stats.compile(),
             featureStates,
             incomplete
         )

@@ -6,17 +6,26 @@ import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.extension.register
 import com.github.aecsocket.alexandria.core.keyed.MutableRegistry
 import com.github.aecsocket.alexandria.core.keyed.Registry
+import com.github.aecsocket.alexandria.paper.extension.key
 import com.github.aecsocket.alexandria.paper.extension.registerEvents
 import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.github.aecsocket.alexandria.paper.packet.PacketInputListener
 import com.github.aecsocket.alexandria.paper.plugin.BasePlugin
+import com.github.aecsocket.alexandria.paper.plugin.ConfigOptionsAction
+import com.github.aecsocket.sokol.core.NodePath
 import com.github.aecsocket.sokol.core.SokolPlatform
 import com.github.aecsocket.sokol.core.event.NodeEvent
+import com.github.aecsocket.sokol.core.rule.Rule
+import com.github.aecsocket.sokol.core.serializer.ApplicableStatsSerializer
+import com.github.aecsocket.sokol.core.serializer.NodePathSerializer
+import com.github.aecsocket.sokol.core.serializer.RuleSerializer
+import com.github.aecsocket.sokol.core.serializer.StatMapSerializer
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
+import com.github.aecsocket.sokol.core.stat.StatMap
 import com.github.aecsocket.sokol.paper.feature.TestFeature
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
-import org.bukkit.NamespacedKey
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -31,36 +40,39 @@ private const val BLUEPRINT = "blueprint"
 
 class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     SokolPlatform<PaperComponent, PaperBlueprint, PaperFeature, PaperDataNode> {
-    interface LoadScope {
+    interface LoadScope : BasePlugin.LoadScope {
         val features: MutableRegistry<PaperFeature>
     }
 
-    override fun createLoadScope() = object : LoadScope {
+    override fun createLoadScope(configOptionActions: MutableList<ConfigOptionsAction>): LoadScope = object : LoadScope {
         override val features: MutableRegistry<PaperFeature>
             get() = _features
+
+        override fun onConfigOptionsSetup(action: ConfigOptionsAction) {
+            configOptionActions.add(action)
+        }
     }
 
     private val playerData = HashMap<Player, PlayerData>()
+    private val hostResolver = HostResolver(this, this::onHostResolve)
     lateinit var settings: SokolSettings
-    lateinit var keyNode: NamespacedKey
-    lateinit var keyTick: NamespacedKey
-    override lateinit var persistence: PaperPersistence
-    private lateinit var hostResolver: HostResolver
+    val keyNode = key("node")
+    val keyTick = key("tick")
+    override val persistence = PaperPersistence(this)
+    val statMapSerializer = StatMapSerializer()
+    val ruleSerializer = RuleSerializer()
 
     var lastHosts: Map<HostType, HostsResolved> = emptyMap()
         private set
 
     private val _features = Registry.create<PaperFeature>()
-    override val features: Registry<PaperFeature>
-        get() = _features
+    override val features: Registry<PaperFeature> get() = _features
 
     private val _blueprints = Registry.create<PaperBlueprint>()
-    override val blueprints: Registry<PaperBlueprint>
-        get() = _blueprints
+    override val blueprints: Registry<PaperBlueprint> get() = _blueprints
 
     private val _components = Registry.create<PaperComponent>()
-    override val components: Registry<PaperComponent>
-        get() = _components
+    override val components: Registry<PaperComponent> get() = _components
 
     internal fun playerData(player: Player) = playerData.computeIfAbsent(player) { PlayerData(this, it) }
 
@@ -75,10 +87,6 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
 
     override fun onEnable() {
         super.onEnable()
-        keyNode = key("node")
-        keyTick = key("tick")
-        persistence = PaperPersistence(this)
-        hostResolver = HostResolver(this, this::onHostResolve)
         PacketEvents.getAPI().eventManager.apply {
             registerListener(SokolPacketListener(this@SokolPlugin))
             registerListener(PacketInputListener(this@SokolPlugin::onInputReceived), PacketListenerPriority.NORMAL)
@@ -118,9 +126,13 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     ) {
         super.setupConfigOptions(serializers, mapper)
         serializers
+            .register(NodePath::class, NodePathSerializer)
             .register(PaperComponent::class, PaperComponentSerializer(this))
             .register(PaperDataNode::class, PaperNodeSerializer(this))
             .register(PaperBlueprint::class, PaperBlueprintSerializer(this))
+            .register(StatMap::class, statMapSerializer)
+            .register(ApplicableStats::class, ApplicableStatsSerializer)
+            .register(Rule::class, ruleSerializer)
     }
 
     override fun loadInternal(log: LogList, settings: ConfigurationNode): Boolean {

@@ -6,6 +6,8 @@ import com.github.aecsocket.sokol.core.impl.*
 import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.rule.Rule
+import com.github.aecsocket.sokol.core.stat.ApplicableStats
+import com.github.aecsocket.sokol.core.stat.CompiledStatMap
 import com.github.aecsocket.sokol.core.stat.StatMap
 import org.spongepowered.configurate.ConfigurationNode
 
@@ -31,11 +33,12 @@ interface PaperFeatureContext : FeatureContext<PaperTreeState, PaperNodeHost, Pa
 
 class PaperComponent(
     id: String,
+    tags: Set<String>,
     features: Map<String, PaperFeature.Profile>,
     val featureConfigs: Map<String, ConfigurationNode>,
     slots: Map<String, PaperSlot>,
-    tags: Set<String>
-) : AbstractComponent<PaperComponent, PaperFeature.Profile, PaperSlot>(id, features, slots, tags)
+    stats: List<ApplicableStats>,
+) : AbstractComponent<PaperComponent, PaperFeature.Profile, PaperSlot>(id, tags, features, slots, stats)
 
 class PaperSlot(
     key: String,
@@ -94,7 +97,7 @@ class PaperDataNode(
 
 class PaperTreeState(
     root: PaperDataNode,
-    stats: StatMap,
+    stats: CompiledStatMap,
     nodeStates: Map<PaperDataNode, Map<String, PaperFeature.State>>,
     val incomplete: List<NodePath>
 ) : AbstractTreeState<PaperTreeState, PaperDataNode, PaperNodeHost, PaperFeature.Data, PaperFeature.State>(

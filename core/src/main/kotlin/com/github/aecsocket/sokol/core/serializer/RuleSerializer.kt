@@ -9,17 +9,14 @@ import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
 class RuleSerializer(
-    var types: Map<String, Class<Rule>>
+    var types: Map<String, Class<Rule>> = emptyMap()
 ) : TypeSerializer<Rule> {
-    override fun serialize(type: Type, obj: Rule?, node: ConfigurationNode) =
-        throw UnsupportedOperationException()
+    override fun serialize(type: Type, obj: Rule?, node: ConfigurationNode) {}
 
     override fun deserialize(type: Type, node: ConfigurationNode): Rule {
-        /*
-        [ "all", [ "is_root", "as",  ] ]
-         */
         if (node.isMap) {
             // todo typed
+            throw SerializationException()
         } else if (node.isList) {
             val args = node.childrenList().drop(1)
 
@@ -41,13 +38,10 @@ class RuleSerializer(
                 "has_tags" -> HasTagsRule(args.map { it.force<String>() }.toSet())
                 "has_features" -> HasFeaturesRule(args.map { it.force<String>() }.toSet())
                 "is_complete" -> IsCompleteRule
-                else -> {
-
-                }
+                else -> throw SerializationException(node, type, "No primitive rule of type '$key'")
             }
         } else {
-            val raw = node.raw()
-            return when (raw) {
+            return when (val raw = node.raw()) {
                 is Boolean -> Rule.of(raw)
                 is String -> types[raw]?.let {
                     node.force(TypeToken.get(it))
