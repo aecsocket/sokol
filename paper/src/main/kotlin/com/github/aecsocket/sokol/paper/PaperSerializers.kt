@@ -39,7 +39,8 @@ class PaperComponentSerializer(
                 val id = it.force<String>()
                 plugin.features[id] ?: throw SerializationException(it, type, "No feature with ID '$id'")
             }
-        plugin.statMapSerializer.types = featureStats(featureDeps)
+        plugin.statMapSerializer.types = featureStatTypes(featureDeps)
+        plugin.ruleSerializer.types = featureRuleTypes(featureDeps)
         val res = PaperComponent(
             id(type, node),
             tags(type, node),
@@ -51,6 +52,7 @@ class PaperComponentSerializer(
             stats(type, node),
         )
         plugin.statMapSerializer.types = emptyMap()
+        plugin.ruleSerializer.types = emptyMap()
         return res
     }
 }

@@ -22,6 +22,7 @@ import com.github.aecsocket.sokol.core.serializer.RuleSerializer
 import com.github.aecsocket.sokol.core.serializer.StatMapSerializer
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import com.github.aecsocket.sokol.core.stat.StatMap
+import com.github.aecsocket.sokol.paper.feature.PaperItemHost
 import com.github.aecsocket.sokol.paper.feature.TestFeature
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
@@ -76,6 +77,8 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
 
     internal fun playerData(player: Player) = playerData.computeIfAbsent(player) { PlayerData(this, it) }
 
+    override fun nodeOf(component: PaperComponent) = PaperDataNode(component)
+
     override fun onLoad() {
         super.onLoad()
         PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
@@ -101,7 +104,10 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
             }
         })
 
-        onLoad { features.register(TestFeature(this@SokolPlugin)) }
+        onLoad {
+            features.register(TestFeature(this@SokolPlugin))
+            features.register(PaperItemHost())
+        }
     }
 
     override fun serverLoad(): Boolean {
@@ -162,7 +168,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     private fun onInputReceived(event: PacketInputListener.Event) {
         val player = event.player
         persistence.dataToTag(player.persistentDataContainer)?.let { tag ->
-            val state = persistence.tagToState(tag)
+            val state = paperStateOf(persistence.tagToNode(tag))
             // todo make player host
             // call events
             persistence.stateToTag(state, tag)
@@ -171,7 +177,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
         val host = PaperNodeHost.OfEntity(player)
         player.inventory.forEachIndexed { idx, stack -> stack?.let {
             persistence.stackToTag(stack)?.let { tag ->
-                val state = persistence.tagToState(tag)
+                val state = paperStateOf(persistence.tagToNode(tag))
                 val meta by lazy { stack.itemMeta }
                 var dirty = false
                 PaperNodeHost.OfWritableStack(

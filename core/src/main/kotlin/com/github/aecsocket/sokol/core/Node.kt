@@ -9,16 +9,6 @@ interface NodePath : Iterable<String> {
     operator fun plus(node: String): NodePath
     operator fun plus(nodes: List<String>): NodePath
     operator fun plus(nodes: NodePath): NodePath
-
-    companion object {
-        val EMPTY: NodePath = EmptyNodePath
-
-        fun of(nodes: List<String>): NodePath = NodePathImpl(nodes)
-
-        fun of(nodes: Iterable<String>): NodePath = NodePathImpl(nodes.toList())
-
-        fun of(vararg nodes: String): NodePath = NodePathImpl(nodes.asList())
-    }
 }
 
 private object EmptyNodePath : NodePath {
@@ -26,8 +16,8 @@ private object EmptyNodePath : NodePath {
         get() = 0
 
     override fun get(index: Int) = null
-    override fun plus(node: String) = NodePath.of(node)
-    override fun plus(nodes: List<String>) = NodePath.of(nodes)
+    override fun plus(node: String) = nodePathOf(node)
+    override fun plus(nodes: List<String>) = nodePathOf(nodes)
     override fun plus(nodes: NodePath) = nodes
 
     override fun iterator() = object : Iterator<String> {
@@ -43,12 +33,20 @@ private data class NodePathImpl(
         get() = nodes.size
 
     override fun get(index: Int) = nodes[index]
-    override fun plus(node: String) = NodePath.of(nodes + node)
-    override fun plus(nodes: List<String>) = NodePath.of(this.nodes + nodes)
-    override fun plus(nodes: NodePath) = NodePath.of(this.nodes + nodes)
+    override fun plus(node: String) = nodePathOf(nodes + node)
+    override fun plus(nodes: List<String>) = nodePathOf(this.nodes + nodes)
+    override fun plus(nodes: NodePath) = nodePathOf(this.nodes + nodes)
 
     override fun iterator() = nodes.iterator()
 }
+
+fun emptyNodePath(): NodePath = EmptyNodePath
+
+fun nodePathOf(nodes: List<String>): NodePath = NodePathImpl(nodes)
+
+fun nodePathOf(nodes: Iterable<String>): NodePath = NodePathImpl(nodes.toList())
+
+fun nodePathOf(vararg nodes: String): NodePath = NodePathImpl(nodes.asList())
 
 enum class WalkResult {
     CONTINUE,

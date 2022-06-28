@@ -8,7 +8,6 @@ import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import com.github.aecsocket.sokol.core.stat.CompiledStatMap
-import com.github.aecsocket.sokol.core.stat.StatMap
 import org.spongepowered.configurate.ConfigurationNode
 
 typealias PaperNodeKey = NodeKey<PaperDataNode>
@@ -126,4 +125,9 @@ class PaperTreeState(
         }
         return event
     }
+}
+
+fun paperStateOf(root: PaperDataNode): PaperTreeState {
+    val (stats, nodeStates, incomplete) = treeStateData(root)
+    return PaperTreeState(root, stats, nodeStates, incomplete)
 }

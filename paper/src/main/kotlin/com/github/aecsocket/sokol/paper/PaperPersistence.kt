@@ -2,12 +2,11 @@ package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.sokol.core.NodePath
 import com.github.aecsocket.sokol.core.SokolPersistence
+import com.github.aecsocket.sokol.core.emptyNodePath
 import com.github.aecsocket.sokol.core.keyOf
 import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializationException
-import com.github.aecsocket.sokol.core.stat.ApplicableStats
-import com.github.aecsocket.sokol.core.stat.statMapOf
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
@@ -35,23 +34,15 @@ class PaperPersistence internal constructor(
 
     fun newTag(): CompoundBinaryTag.Mutable = PaperCompoundTag(CompoundTag())
 
-    // Tag/state
+    // Tag/node
 
-    fun tagToState(tag: CompoundBinaryTag): PaperTreeState {
-        data class NodeStat(val node: PaperDataNode, val stats: List<ApplicableStats>)
-
-        val forwardStats = ArrayList<NodeStat>()
-        val reverseStats = ArrayList<NodeStat>()
-        val incomplete = ArrayList<NodePath>()
-        val featureStates = HashMap<PaperDataNode, Map<String, PaperFeature.State>>()
-
+    fun tagToNode(tag: CompoundBinaryTag): PaperDataNode {
         fun get0(tag: CompoundBinaryTag, parent: PaperNodeKey?, path: NodePath): PaperDataNode {
             val id = tag.forceString(ID)
             val component = plugin.components[id]
                 ?: throw TagSerializationException("No component with ID '$id'")
 
             val featureData = HashMap<String, PaperFeature.Data>()
-            val featureState = HashMap<String, PaperFeature.State>()
             val legacyFeatures = HashMap<String, BinaryTag>()
 
             val featuresLeft = component.features.toMutableMap()
@@ -60,30 +51,19 @@ class PaperPersistence internal constructor(
                     try {
                         val feature = profile.createData(tag as CompoundBinaryTag)
                         featureData[key] = feature
-                        featureState[key] = feature.createState()
                     } catch (ex: TagSerializationException) {
+                        // couldn't deserialize this feature successfully, it's legacy
                         legacyFeatures[key] = tag
                     }
-                } ?: run { legacyFeatures[key] = tag } // this feature does not have a profile on the component
-            }
-            // all the non-stated features will have their state generated...
-            featuresLeft.forEach { (key, profile) ->
-                featureState[key] = profile.createData().createState()
-            }
-
-            val stats = component.stats.toMutableList()
-            featureState.forEach { (_, state) ->
-                state.resolveDependencies(featureState::get)
-                stats += state.createStats()
+                } ?: run {
+                    // this feature does not have a profile on the component
+                    legacyFeatures[key] = tag
+                }
             }
 
             val children = HashMap<String, PaperDataNode>()
             val legacyChildren = HashMap<String, BinaryTag>()
             val node = PaperDataNode(component, featureData, legacyFeatures, parent, children, legacyChildren)
-
-            featureStates[node] = featureState
-            forwardStats.add(NodeStat(node, stats.filter { !it.reversed }))
-            reverseStats.add(0, NodeStat(node, stats.filter { it.reversed }))
 
             val slotsLeft = component.slots.toMutableMap()
             tag.getCompound(CHILDREN)?.forEach { (key, tag) ->
@@ -99,43 +79,19 @@ class PaperPersistence internal constructor(
                     }
                 }
             }
-            // all the non-filled slots will be checked...
-            slotsLeft.forEach { (key, slot) ->
-                if (slot.required) {
-                    incomplete.add(path + key)
-                }
-            }
 
             return node
         }
 
-        val root = get0(tag, null, NodePath.EMPTY)
-
-        val stats = statMapOf()
-        fun add(nodeStats: List<NodeStat>) {
-            nodeStats.forEach { (node, applicable) ->
-                applicable.sortedBy { it.priority }.forEach {
-                    stats.merge(it.stats)
-                }
-            }
-        }
-        add(forwardStats)
-        add(reverseStats)
-
-        return PaperTreeState(
-            root,
-            stats.compile(),
-            featureStates,
-            incomplete
-        )
+        return get0(tag, null, emptyNodePath())
     }
 
-    // TODO: features mark their nodes as dirty, and they get reser'd,
-    // rather than reserializing the entire tree
     fun nodeToTag(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
         node.serialize(tag)
         tag.setInt(VERSION, NODE_VERSION)
     }
+
+    // Tag/state
 
     fun stateToTag(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
         nodeToTag(state.updatedRoot(), tag)

@@ -12,6 +12,7 @@ import cloud.commandframework.exceptions.parsing.ParserException
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.keyed.Registry
 import org.spongepowered.configurate.ConfigurateException
+import org.spongepowered.configurate.serialize.SerializationException
 import java.util.*
 
 open class RegistryArgumentException(
@@ -52,8 +53,8 @@ abstract class RegistryItemParser<C : Any, T : Keyed>(
         inputQueue: Queue<String>
     ): ArgumentParseResult<T> {
         return inputQueue.peek()?.let { input ->
+            inputQueue.remove()
             registry[input]?.let {
-                inputQueue.remove()
                 ArgumentParseResult.success(it)
             } ?: ArgumentParseResult.failure(exceptionOf(input, commandContext))
         } ?: ArgumentParseResult.failure(NoInputProvidedException(
@@ -109,29 +110,44 @@ open class BlueprintArgument<C : Any, T : Blueprint<*>>(
 ) : CommandArgument<C, T>(required, name, BlueprintParser(platform), defaultValue, clazz, suggestionsProvider, description)
 
 
-class NodeArgumentException(
+class NodeArgMalformedException(
     context: CommandContext<*>,
     input: String,
     error: Throwable,
 ) : ParserException(
-    NodeParser::class.java, context, NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE,
+    NodeParser::class.java, context, NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED,
     CaptionVariable.of("input", input),
-    CaptionVariable.of("error", error.message ?: "(no message)")
+    CaptionVariable.of("error", error.message ?: "-"),
 )
 
-class NodeParser<C : Any, T : DataNode>(
-    private val platform: SokolPlatform<*, *, *, T>
+class NodeArgRegistryException(
+    context: CommandContext<*>,
+    input: String,
+) : ParserException(
+    NodeParser::class.java, context, NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY,
+    CaptionVariable.of("input", input),
+)
+
+class NodeParser<C : Any, O : NodeComponent, T : DataNode>(
+    private val platform: SokolPlatform<O, *, *, T>
 ) : ArgumentParser<C, T> {
     override fun parse(
         commandContext: CommandContext<C>,
         inputQueue: Queue<String>
     ): ArgumentParseResult<T> {
         return inputQueue.peek()?.let { input ->
+            inputQueue.remove()
             try {
                 ArgumentParseResult.success(platform.persistence.stringToNode(input))
-            } catch (ex: ConfigurateException) {
-                ArgumentParseResult.failure(NodeArgumentException(
+            } catch (ex: SerializationException) {
+                ArgumentParseResult.failure(NodeArgMalformedException(
                     commandContext, input, ex
+                ))
+            } catch (ex: ConfigurateException) {
+                platform.components[input]?.let {
+                    ArgumentParseResult.success(platform.nodeOf(it))
+                } ?: ArgumentParseResult.failure(NodeArgRegistryException(
+                    commandContext, input
                 ))
             }
         } ?: ArgumentParseResult.failure(NoInputProvidedException(
@@ -140,8 +156,12 @@ class NodeParser<C : Any, T : DataNode>(
         ))
     }
 
+    override fun suggestions(commandContext: CommandContext<C>, input: String) =
+        platform.components.entries.keys.toMutableList()
+
     companion object {
-        val ARGUMENT_PARSE_FAILURE_DATA_NODE = Caption.of("argument.parse.failure.data_node")
+        val ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED = Caption.of("argument.parse.failure.data_node.malformed")
+        val ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY = Caption.of("argument.parse.failure.data_node.registry")
     }
 }
 

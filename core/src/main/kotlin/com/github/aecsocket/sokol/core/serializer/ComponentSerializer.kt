@@ -1,14 +1,10 @@
 package com.github.aecsocket.sokol.core.serializer
 
-import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.sokol.core.Feature
 import com.github.aecsocket.sokol.core.NodeComponent
 import com.github.aecsocket.sokol.core.Slot
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
-import com.github.aecsocket.sokol.core.stat.StatMap
-import com.github.aecsocket.sokol.core.stat.emptyStatMap
-import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.serialize.SerializationException
@@ -63,11 +59,19 @@ abstract class ComponentSerializer<
     protected fun stats(type: Type, node: ConfigurationNode) =
         node.node(STATS).get { emptyList<ApplicableStats>() }
 
-    protected fun featureStats(features: Iterable<Feature<*>>) = features
+    protected fun featureStatTypes(features: Iterable<Feature<*>>) = features
         .flatMap { it.statTypes.entries.map { (key, stat) ->
             if (key.namespace() != it.id)
-                throw IllegalStateException("Feature '${it.id}' registers stat keys with namespace '${key.namespace()}'")
+                throw IllegalStateException("Feature '${it.id}' registers stat type keys with namespace '${key.namespace()}'")
             key to stat
         } }
         .associate { (key, stat) -> key.toString() to stat }
+
+    protected fun featureRuleTypes(features: Iterable<Feature<*>>) = features
+        .flatMap { it.ruleTypes.entries.map { (key, type) ->
+            if (key.namespace() != it.id)
+                throw IllegalStateException("Feature '${it.id} registers rule type keys with namespace '${key.namespace()}'")
+            key to type
+        } }
+        .associate { (key, type) -> key.toString() to type }
 }

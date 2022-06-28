@@ -1,25 +1,31 @@
 package com.github.aecsocket.sokol.paper
 
+import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.arguments.standard.StringArgument
+import cloud.commandframework.bukkit.arguments.selector.MultiplePlayerSelector
+import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import cloud.commandframework.context.CommandContext
 import com.github.aecsocket.alexandria.core.extension.render
-import com.github.aecsocket.alexandria.core.extension.typeToken
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.keyed.Registry
-import com.github.aecsocket.alexandria.paper.extension.withMeta
 import com.github.aecsocket.alexandria.paper.plugin.CloudCommand
 import com.github.aecsocket.alexandria.paper.plugin.desc
+import com.github.aecsocket.alexandria.paper.plugin.get
 import com.github.aecsocket.glossa.core.Localizable
-import com.github.aecsocket.sokol.paper.feature.TestFeature
+import com.github.aecsocket.sokol.core.BlueprintParser
+import com.github.aecsocket.sokol.core.ComponentParser
+import com.github.aecsocket.sokol.core.NodeParser
+import com.github.aecsocket.sokol.core.feature.ItemHostFeature
+import com.github.aecsocket.sokol.paper.extension.asStack
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.Component.newline
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
+import net.kyori.adventure.text.format.NamedTextColor.WHITE
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-import org.bukkit.Material
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.inventory.ItemStack
 import java.util.Locale
 
 internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
@@ -27,6 +33,13 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
     { manager, rootName -> manager.commandBuilder(rootName, desc("Core plugin command.")) }
 ) {
     init {
+        captions?.apply {
+            registerMessageFactory(ComponentParser.ARGUMENT_PARSE_FAILURE_COMPONENT, captionLocalizer)
+            registerMessageFactory(BlueprintParser.ARGUMENT_PARSE_FAILURE_BLUEPRINT, captionLocalizer)
+            registerMessageFactory(NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY, captionLocalizer)
+            registerMessageFactory(NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED, captionLocalizer)
+        }
+
         val hosts = root
             .literal("hosts", desc("Gets info on the last hosts resolved on the server."))
         manager.command(hosts
@@ -71,12 +84,16 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
 
         manager.command(root
             .literal("give", desc("Gives a specified item-representable node tree to a player."))
+            .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
             .argument(PaperNodeArgument(plugin, "item", desc("Node to give.")))
+            .argument(IntegerArgument.optional("amount"), desc("Amount of the item to give."))
             .permission(perm("give"))
             .handler { handle(it, ::give) })
         manager.command(root
             .literal("build", desc("Builds and gives a specified item-representable blueprint to a player."))
+            .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
             .argument(PaperBlueprintArgument(plugin, "item", desc("Blueprint to give.")))
+            .argument(IntegerArgument.optional("amount"), desc("Amount of the item to give."))
             .permission(perm("build"))
             .handler { handle(it, ::build) })
     }
@@ -254,7 +271,40 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         locale: Locale,
         node: PaperDataNode
     ) {
+        val targets = ctx.get<MultiplePlayerSelector?>("targets") { null }.orSender("targets", sender, locale)
+        val amount = ctx.get("amount") { 1 }
 
+        val state = paperStateOf(node)
+        sender.sendMessage("states = ${state.nodeStates}")
+        sender.sendMessage("stats = ${state.stats.entries}")
+        val itemHost = state.nodeStates[node]?.get(ItemHostFeature.ID)?.let {
+            it as ItemHostFeature<*>.Profile<*>.State<*, *, *>
+        } ?: error { safe(locale, "error.no_item_host") }
+        val stack = try {
+            itemHost.asItem(state).asStack()
+        } catch (ex: Exception) {
+            error(ex) { safe(locale, "error.creating_item") }
+        }
+
+        targets.forEach { target ->
+            (0 until amount).forEach { _ -> target.inventory.addItem(stack) }
+        }
+
+        plugin.send(sender) {
+            if (targets.size == 1) {
+                safe(locale, "command.give.one") {
+                    sub("item") { stack.displayName() }
+                    sub("target") { targets.first().displayName() }
+                    raw("amount") { amount }
+                }
+            } else {
+                safe(locale, "command.give.other") {
+                    sub("item") { stack.displayName() }
+                    raw("qt_targets") { targets.size }
+                    raw("amount") { amount }
+                }
+            }
+        }
     }
 
     fun give(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {

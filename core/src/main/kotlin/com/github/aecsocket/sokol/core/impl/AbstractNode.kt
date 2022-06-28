@@ -36,7 +36,7 @@ abstract class AbstractNode<N : AbstractNode<N>>(
         children[key] = value
     }
 
-    override fun path(): NodePath = parent?.let { it.node.path() + it.key } ?: NodePath.EMPTY
+    override fun path(): NodePath = parent?.let { it.node.path() + it.key } ?: emptyNodePath()
     override fun root(): N = parent?.node?.root() ?: self
     override fun isRoot() = parent == null
 
@@ -52,7 +52,7 @@ abstract class AbstractNode<N : AbstractNode<N>>(
         }
     }
 
-    override fun walk(action: (NodePath, N) -> WalkResult) = walk(NodePath.EMPTY, action)
+    override fun walk(action: (NodePath, N) -> WalkResult) = walk(emptyNodePath(), action)
 
     override fun walkNodes(action: (NodePath, Node) -> WalkResult) = walk(action)
 

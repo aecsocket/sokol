@@ -87,7 +87,7 @@ internal class HostResolver(
                     tagPdc[plugin.persistence.keyNode]?.let { tagNodeNms ->
                         resolved.marked++
                         val tagNode = PaperCompoundTag(tagNodeNms as CompoundTag)
-                        val state = plugin.persistence.tagToState(tagNode)
+                        val state = paperStateOf(plugin.persistence.tagToNode(tagNode))
                         callback(state, host)
                         plugin.persistence.stateToTag(state, tagNode)
                         return true

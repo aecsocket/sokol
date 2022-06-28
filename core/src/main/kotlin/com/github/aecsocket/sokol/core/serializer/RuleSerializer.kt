@@ -8,15 +8,21 @@ import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
+private const val TYPE = "type"
+
 class RuleSerializer(
     var types: Map<String, Class<Rule>> = emptyMap()
 ) : TypeSerializer<Rule> {
     override fun serialize(type: Type, obj: Rule?, node: ConfigurationNode) {}
 
+    private fun noRuleType(type: Type, node: ConfigurationNode, key: String): Nothing =
+        throw SerializationException(node, type, "No rule type for key '$key' - available: [${types.keys.joinToString()}]")
+
     override fun deserialize(type: Type, node: ConfigurationNode): Rule {
         if (node.isMap) {
-            // todo typed
-            throw SerializationException()
+            val key = node.node(TYPE).force<String>()
+            val clazz = types[key] ?: noRuleType(type, node, key)
+            return node.force(TypeToken.get(clazz))
         } else if (node.isList) {
             val args = node.childrenList().drop(1)
 
@@ -45,7 +51,7 @@ class RuleSerializer(
                 is Boolean -> Rule.of(raw)
                 is String -> types[raw]?.let {
                     node.force(TypeToken.get(it))
-                } ?: throw SerializationException(node, type, "No rule of type '$raw'")
+                } ?: noRuleType(type, node, raw)
                 else -> throw SerializationException(node, type, "Rule must be represented as map, list, boolean, or string")
             }
         }

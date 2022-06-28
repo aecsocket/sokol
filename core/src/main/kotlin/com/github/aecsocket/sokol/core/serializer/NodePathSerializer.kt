@@ -16,6 +16,6 @@ object NodePathSerializer : TypeSerializer<NodePath> {
     }
 
     override fun deserialize(type: Type, node: ConfigurationNode): NodePath {
-        return NodePath.of(node.forceList(type).map { it.force() })
+        return nodePathOf(node.forceList(type).map { it.force() })
     }
 }

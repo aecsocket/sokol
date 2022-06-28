@@ -22,6 +22,8 @@ interface SokolPlatform<
     val features: Registry<F>
     val persistence: SokolPersistence<N>
 
+    fun nodeOf(component: C): N
+
     companion object {
         private const val CONFIG_EXTENSION = "conf"
         private const val IGNORE = "__"

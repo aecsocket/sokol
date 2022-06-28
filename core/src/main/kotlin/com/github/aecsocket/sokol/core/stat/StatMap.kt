@@ -11,14 +11,14 @@ interface CompiledStatMap {
 
     fun <T : Any> node(key: Key): Stat.Node.First<T>?
 
-    fun <T : Any> node(
+    fun <T : Any> nodeOr(
         key: Key,
         default: () -> Stat.Node.First<T> = keyError(key)
     ) = node(key) ?: default()
 
     fun <T : Any> node(stat: Stat<T>): Stat.Node.First<T>? = node(stat.key)
 
-    fun <T : Any> node(
+    fun <T : Any> nodeOr(
         stat: Stat<T>,
         default: () -> Stat.Node.First<T> = keyError(stat.key)
     ) = node(stat) ?: default()
@@ -50,14 +50,14 @@ interface StatMap {
 
     fun <T : Any> node(key: Key): Stat.Node<T>?
 
-    fun <T : Any> node(
+    fun <T : Any> nodeOr(
         key: Key,
         default: () -> Stat.Node<T> = keyError(key)
     ) = node(key) ?: default()
 
     fun <T : Any> node(stat: Stat<T>): Stat.Node<T>? = node(stat.key)
 
-    fun <T : Any> node(
+    fun <T : Any> nodeOr(
         stat: Stat<T>,
         default: () -> Stat.Node<T> = keyError(stat.key)
     ) = node(stat) ?: default()
