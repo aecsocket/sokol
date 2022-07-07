@@ -72,6 +72,8 @@ private object EmptyStatMap : StatMap {
     override fun <T : Any> node(key: Key) = null
 
     override fun compile() = emptyCompiledStatMap()
+
+    override fun toString() = "Stats{}"
 }
 
 interface MutableStatMap : StatMap {
@@ -122,6 +124,8 @@ class WrapperStatMap(
             else throw IllegalStateException("Value for stat $key is not a first node")
         }.associate { it })
     }
+
+    override fun toString() = "Stats$entries"
 }
 
 fun emptyStatMap(): StatMap = EmptyStatMap

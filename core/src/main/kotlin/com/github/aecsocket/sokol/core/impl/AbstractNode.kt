@@ -44,17 +44,17 @@ abstract class AbstractNode<N : AbstractNode<N>>(
         detach()
     }
 
-    private fun walk(path: NodePath, action: (NodePath, N) -> WalkResult): Boolean {
-        return when (action(path, self)) {
+    private fun walk(path: NodePath, action: (N, NodePath) -> WalkResult): Boolean {
+        return when (action(self, path)) {
             WalkResult.CONTINUE -> children.all { (key, child) -> child.walk(path + key, action) }
             WalkResult.STOP_BRANCH -> true
             WalkResult.STOP_ALL -> false
         }
     }
 
-    override fun walk(action: (NodePath, N) -> WalkResult) = walk(emptyNodePath(), action)
+    override fun walk(action: (N, NodePath) -> WalkResult) = walk(emptyNodePath(), action)
 
-    override fun walkNodes(action: (NodePath, Node) -> WalkResult) = walk(action)
+    override fun walkNodes(action: (Node, NodePath) -> WalkResult) = walk(action)
 
     override fun toString() = children.toString()
 }

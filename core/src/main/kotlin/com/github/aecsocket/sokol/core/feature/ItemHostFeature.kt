@@ -13,43 +13,43 @@ import com.github.aecsocket.sokol.core.stat.statTypes
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 
-abstract class ItemHostFeature<P : Feature.Profile<*>> : Feature<P> {
-    override val id: String get() = ID
+object ItemHostFeature {
+    const val ID = "item_host"
 
     object Stats {
-        val ITEM = ItemDescriptorStat(ID, "item")
+        val Item = ItemDescriptorStat(ID, "item")
 
-        val ALL = statTypes(ITEM)
+        val All = statTypes(Item)
     }
 
-    override val statTypes: Map<Key, Stat<*>> get() = Stats.ALL
-    override val ruleTypes: Map<Key, Class<Rule>> get() = emptyMap()
+    abstract class Type<P : Feature.Profile<*>> : Feature<P> {
+        override val id: String get() = ID
 
-    abstract inner class Profile<D : Feature.Data<*>> : Feature.Profile<D> {
-        override val type: ItemHostFeature<P> get() = this@ItemHostFeature
-
-        abstract inner class Data<S : Feature.State<S, *, *>> : Feature.Data<S> {
-            override val type: ItemHostFeature<P> get() = this@ItemHostFeature
-
-            override fun serialize(node: ConfigurationNode) {}
-
-            override fun serialize(tag: CompoundBinaryTag.Mutable) {}
-        }
-
-        abstract inner class State<S : State<S, D, C>, D : Data<S>, C : FeatureContext<*, *, *>>: Feature.State<S, D, C> {
-            override val type: ItemHostFeature<P> get() = this@ItemHostFeature
-
-            override fun onEvent(event: NodeEvent, ctx: C) {}
-
-            override fun serialize(tag: CompoundBinaryTag.Mutable) {}
-
-            fun asItem(state: TreeState): ItemDescriptor {
-                return state.stats.nodeOr(Stats.ITEM).compute()
-            }
-        }
+        override val statTypes: Map<Key, Stat<*>> get() = Stats.All
+        override val ruleTypes: Map<Key, Class<Rule>> get() = emptyMap()
     }
 
-    companion object {
-        const val ID = "item_host"
+    abstract class Profile<D : Feature.Data<*>> : Feature.Profile<D> {
+        abstract override val type: Type<*>
+    }
+
+    abstract class Data<S : Feature.State<S, *, *>> : Feature.Data<S> {
+        abstract override val type: Feature<*>
+
+        override fun serialize(tag: CompoundBinaryTag.Mutable) {}
+
+        override fun serialize(node: ConfigurationNode) {}
+    }
+
+    abstract class State<S : Feature.State<S, D, C>, D : Feature.Data<S>, C : FeatureContext<*, *, *>> : Feature.State<S, D, C> {
+        abstract override val type: Feature<*>
+
+        override fun onEvent(event: NodeEvent, ctx: C) {}
+
+        override fun serialize(tag: CompoundBinaryTag.Mutable) {}
+
+        fun itemDescriptor(state: TreeState): ItemDescriptor {
+            return state.stats.nodeOr(Stats.Item).compute()
+        }
     }
 }

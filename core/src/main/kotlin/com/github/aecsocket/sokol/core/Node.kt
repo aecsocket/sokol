@@ -73,7 +73,7 @@ interface Node {
     fun copy(): Node
     fun asRoot(): Node
 
-    fun walkNodes(action: (NodePath, Node) -> WalkResult): Boolean
+    fun walkNodes(action: (Node, NodePath) -> WalkResult): Boolean
 
     interface Scoped<N : Scoped<N>> : Node {
         val self: N
@@ -86,7 +86,7 @@ interface Node {
         override fun copy(): N
         override fun asRoot(): N
 
-        fun walk(action: (NodePath, N) -> WalkResult): Boolean
+        fun walk(action: (N, NodePath) -> WalkResult): Boolean
     }
 
     interface Mutable<N : Mutable<N>> : Scoped<N> {

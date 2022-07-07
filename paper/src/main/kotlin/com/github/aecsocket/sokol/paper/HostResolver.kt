@@ -92,7 +92,7 @@ internal class HostResolver(
                         plugin.persistence.stateToTag(state, tagNode)
                         return true
                     } ?: run {
-                        plugin.log.line(LogLevel.WARNING) { "Host $host was marked as ticking but is not node - removed tick key" }
+                        plugin.log.line(LogLevel.Warning) { "Host $host was marked as ticking but is not node - removed tick key" }
                         tagPdc.remove(plugin.persistence.keyTick)
                     }
                 }
@@ -164,8 +164,13 @@ internal class HostResolver(
             runCallback(block.persistentDataContainer.raw, resolved) { host }
         }
 
-        private fun forBukkitStack(stack: org.bukkit.inventory.ItemStack, holder: StackHolder) =
-            forStack((stack as CraftItemStack).handle, holder)
+        private fun forBukkitStack(stack: org.bukkit.inventory.ItemStack, holder: StackHolder) {
+            if (!stack.hasItemMeta()) return
+            val craft = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
+            craft.handle?.let {
+                forStack(it, holder)
+            }
+        }
 
         private fun forStack(stack: ItemStack, holder: StackHolder) {
             if (stack.isEmpty)

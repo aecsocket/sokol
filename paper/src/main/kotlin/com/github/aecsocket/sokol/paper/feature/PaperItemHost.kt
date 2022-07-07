@@ -6,10 +6,10 @@ import com.github.aecsocket.sokol.paper.PaperFeature
 import com.github.aecsocket.sokol.paper.PaperFeatureContext
 import org.spongepowered.configurate.ConfigurationNode
 
-class PaperItemHost : ItemHostFeature<PaperFeature.Profile>(), PaperFeature {
+class PaperItemHost : ItemHostFeature.Type<PaperFeature.Profile>(), PaperFeature {
     override fun createProfile(node: ConfigurationNode) = Profile()
 
-    inner class Profile : ItemHostFeature<PaperFeature.Profile>.Profile<PaperFeature.Data>(), PaperFeature.Profile {
+    inner class Profile : ItemHostFeature.Profile<PaperFeature.Data>(), PaperFeature.Profile {
         override val type: PaperItemHost get() = this@PaperItemHost
 
         override fun createData() = Data()
@@ -18,7 +18,7 @@ class PaperItemHost : ItemHostFeature<PaperFeature.Profile>(), PaperFeature {
 
         override fun createData(tag: CompoundBinaryTag) = Data()
 
-        inner class Data : ItemHostFeature<PaperFeature.Profile>.Profile<PaperFeature.Data>.Data<PaperFeature.State>(), PaperFeature.Data {
+        inner class Data : ItemHostFeature.Data<PaperFeature.State>(), PaperFeature.Data {
             override val type: PaperItemHost get() = this@PaperItemHost
 
             override fun createState() = State()
@@ -26,7 +26,7 @@ class PaperItemHost : ItemHostFeature<PaperFeature.Profile>(), PaperFeature {
             override fun copy() = Data()
         }
 
-        inner class State : ItemHostFeature<PaperFeature.Profile>.Profile<PaperFeature.Data>.State<PaperFeature.State, PaperFeature.Data, PaperFeatureContext>(), PaperFeature.State {
+        inner class State : ItemHostFeature.State<PaperFeature.State, PaperFeature.Data, PaperFeatureContext>(), PaperFeature.State {
             override val type: PaperItemHost get() = this@PaperItemHost
 
             override fun asData() = Data()

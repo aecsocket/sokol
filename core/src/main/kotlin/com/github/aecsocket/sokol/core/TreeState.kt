@@ -54,7 +54,7 @@ fun <
     val incomplete = ArrayList<NodePath>()
     val nodeStates = HashMap<N, Map<String, FS>>()
 
-    root.walk { path, child ->
+    root.walk { child, path ->
         val component = child.component
 
         // states
@@ -78,6 +78,8 @@ fun <
             state.resolveDependencies(nodeState::get)
             stats += state.createStats()
         }
+        forwardStats.add(NodeStat(child, stats.filter { !it.reversed }))
+        reverseStats.add(0, NodeStat(child, stats.filter { it.reversed }))
 
         // incomplete
         component.slots.forEach { (key, slot) ->

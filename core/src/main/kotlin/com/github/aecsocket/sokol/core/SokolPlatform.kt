@@ -43,14 +43,14 @@ interface SokolPlatform<
                         try {
                             loaderBuilder().file(file).build().load()
                         } catch (ex: ConfigurateException) {
-                            log.line(LogLevel.WARNING, ex) { "Could not parse ${type.simpleName} from ${subPath.joinToString("/")}" }
+                            log.line(LogLevel.Warning, ex) { "Could not parse ${type.simpleName} from ${subPath.joinToString("/")}" }
                             null
                         }?.let { node ->
                             node.node(ENTRIES).childrenMap().forEach { (_, child) ->
                                 try {
                                     child.get(type) ?: throw SerializationException(child, type, "Null created (is the deserializer registered?)")
                                 } catch (ex: SerializationException) {
-                                    log.line(LogLevel.WARNING, ex) { "Could not parse ${type.simpleName} from ${subPath.joinToString("/")}" }
+                                    log.line(LogLevel.Warning, ex) { "Could not parse ${type.simpleName} from ${subPath.joinToString("/")}" }
                                     null
                                 }?.let {
                                     registry.register(it)
@@ -61,7 +61,7 @@ interface SokolPlatform<
                     true
                 }
             }
-            log.line(LogLevel.INFO) { "Registered ${registry.size}x ${type.simpleName}" }
+            log.line(LogLevel.Info) { "Registered ${registry.size}x ${type.simpleName}" }
         }
     }
 }

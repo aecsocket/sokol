@@ -39,6 +39,8 @@ interface Stat<T : Any> {
             last().next = node
         }
 
+        override fun toString() = next?.let { "$value -> ${it.value}" } ?: value.toString()
+
         class First<T : Any>(
             stat: Stat<T>,
             override val value: Value.First<T>,
@@ -48,6 +50,8 @@ interface Stat<T : Any> {
                 val res = value.first()
                 return next?.value(res) ?: res
             }
+
+            override fun toString() = "First(${super.toString()})"
         }
     }
 }
@@ -60,8 +64,10 @@ abstract class AbstractStat<T : Any>(
 
 
 private fun <T : Any> statNodeOfInternal(stat: Stat<T>, values: Collection<Stat.Value<T>>): Stat.Node<T>? {
-    return if (values.isEmpty()) null
-    else Stat.Node(stat, values.first(), statNodeOfInternal(stat, values.drop(1)))
+    if (values.isEmpty()) return null
+    val first = values.first()
+    return if (first is Stat.Value.First) Stat.Node.First(stat, first, statNodeOfInternal(stat, values.drop(1)))
+    else Stat.Node(stat, first, statNodeOfInternal(stat, values.drop(1)))
 }
 
 fun <T : Any> statNodeOf(stat: Stat<T>, values: Collection<Stat.Value<T>>): Stat.Node<T> {

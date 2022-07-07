@@ -2,10 +2,16 @@ package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.LogList
+import com.github.aecsocket.alexandria.core.bound.Bound
 import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.extension.register
+import com.github.aecsocket.alexandria.core.extension.registerExact
 import com.github.aecsocket.alexandria.core.keyed.MutableRegistry
 import com.github.aecsocket.alexandria.core.keyed.Registry
+import com.github.aecsocket.alexandria.core.serializer.BoundSerializer
+import com.github.aecsocket.alexandria.core.serializer.QuaternionSerializer
+import com.github.aecsocket.alexandria.core.spatial.Quaternion
+import com.github.aecsocket.alexandria.paper.effect.PaperEffectors
 import com.github.aecsocket.alexandria.paper.extension.key
 import com.github.aecsocket.alexandria.paper.extension.registerEvents
 import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
@@ -22,6 +28,7 @@ import com.github.aecsocket.sokol.core.serializer.RuleSerializer
 import com.github.aecsocket.sokol.core.serializer.StatMapSerializer
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import com.github.aecsocket.sokol.core.stat.StatMap
+import com.github.aecsocket.sokol.paper.feature.InspectFeature
 import com.github.aecsocket.sokol.paper.feature.PaperItemHost
 import com.github.aecsocket.sokol.paper.feature.TestFeature
 import com.github.retrooper.packetevents.PacketEvents
@@ -30,6 +37,7 @@ import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
@@ -45,7 +53,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
         val features: MutableRegistry<PaperFeature>
     }
 
-    override fun createLoadScope(configOptionActions: MutableList<ConfigOptionsAction>): LoadScope = object : LoadScope {
+    override fun createLoadScope(configOptionActions: MutableList<ConfigOptionsAction>) = object : LoadScope {
         override val features: MutableRegistry<PaperFeature>
             get() = _features
 
@@ -60,6 +68,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     val keyNode = key("node")
     val keyTick = key("tick")
     override val persistence = PaperPersistence(this)
+    val effectors = PaperEffectors()
     val statMapSerializer = StatMapSerializer()
     val ruleSerializer = RuleSerializer()
 
@@ -75,7 +84,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     private val _components = Registry.create<PaperComponent>()
     override val components: Registry<PaperComponent> get() = _components
 
-    internal fun playerData(player: Player) = playerData.computeIfAbsent(player) { PlayerData(this, it) }
+    fun playerData(player: Player) = playerData.computeIfAbsent(player) { PlayerData(this, it) }
 
     override fun nodeOf(component: PaperComponent) = PaperDataNode(component)
 
@@ -94,18 +103,33 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
             registerListener(SokolPacketListener(this@SokolPlugin))
             registerListener(PacketInputListener(this@SokolPlugin::onInputReceived), PacketListenerPriority.NORMAL)
         }
-
         PacketEvents.getAPI().init()
         SokolCommand(this)
         registerEvents(object : Listener {
             @EventHandler
-            fun onQuit(event: PlayerQuitEvent) {
-                playerData.remove(event.player)
+            fun PlayerQuitEvent.on() {
+                playerData.remove(player)?.destroy()
+            }
+
+            // todo move out
+            @EventHandler
+            fun InventoryClickEvent.on() {
+                val player = whoClicked
+                if (player !is Player) return
+                if (!isRightClick || !isShiftClick) return
+                currentItem?.let { persistence.stackToTag(it) }?.let { tag ->
+                    val node = persistence.tagToNode(tag)
+                    playerData(player).enterInspectState(paperStateOf(node)) // todo more
+                    player.closeInventory()
+                    isCancelled = true
+                }
             }
         })
+        effectors.init(this)
 
         onLoad {
             features.register(TestFeature(this@SokolPlugin))
+            features.register(InspectFeature(this@SokolPlugin))
             features.register(PaperItemHost())
         }
     }
@@ -123,6 +147,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
 
     override fun onDisable() {
         super.onDisable()
+        playerData.forEach { (_, data) -> data.destroy() }
         PacketEvents.getAPI().terminate()
     }
 
@@ -132,6 +157,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     ) {
         super.setupConfigOptions(serializers, mapper)
         serializers
+            .registerExact(Quaternion::class, QuaternionSerializer())
             .register(NodePath::class, NodePathSerializer)
             .register(PaperComponent::class, PaperComponentSerializer(this))
             .register(PaperDataNode::class, PaperNodeSerializer(this))
@@ -146,7 +172,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
              try {
                  this.settings = settings.force()
             } catch (ex: SerializationException) {
-                log.line(LogLevel.ERROR, ex) { "Could not load settings" }
+                log.line(LogLevel.Error, ex) { "Could not load settings" }
                  return false
             }
             this.settings.hostResolution.apply {

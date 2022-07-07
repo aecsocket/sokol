@@ -15,5 +15,5 @@ abstract class AbstractDataNode<
 ) : AbstractNode<N>(parent, children), DataNode.Scoped<N, C, F, S> {
     override fun toString() = "${component.id}[$features]${super.toString()}"
 
-    override fun walkDataNodes(action: (NodePath, DataNode) -> WalkResult) = walk(action)
+    override fun walkDataNodes(action: (DataNode, NodePath) -> WalkResult) = walk(action)
 }

@@ -13,7 +13,7 @@ interface DataNode : Node, TagSerializable {
     val component: NodeComponent
     val features: Map<String, Feature.Data<*>>
 
-    fun walkDataNodes(action: (NodePath, DataNode) -> WalkResult): Boolean
+    fun walkDataNodes(action: (DataNode, NodePath) -> WalkResult): Boolean
 
     interface Scoped<
         N : Scoped<N, C, F, S>,

@@ -20,7 +20,7 @@ data class HasFeaturesRule(
 
 object IsCompleteRule : Rule {
     override fun applies(target: DataNode): Boolean {
-        return target.walkDataNodes { _, child ->
+        return target.walkDataNodes { child, _ ->
             if (child.component.slots.all { (key, slot) -> !slot.required || child.has(key) }) WalkResult.CONTINUE
             else WalkResult.STOP_ALL
         }

@@ -1,7 +1,7 @@
 package com.github.aecsocket.sokol.paper
 
-import com.github.aecsocket.alexandria.core.vector.Polar3
-import com.github.aecsocket.alexandria.core.vector.Vector3
+import com.github.aecsocket.alexandria.core.extension.Euler3
+import com.github.aecsocket.alexandria.core.spatial.Vector3
 import com.github.aecsocket.alexandria.paper.extension.*
 import com.github.aecsocket.sokol.core.NodeHost
 import net.kyori.adventure.text.Component
@@ -30,7 +30,7 @@ interface PaperNodeHost : NodeHost {
     }
 
     interface WithDirection : WithPosition {
-        val direction: Polar3
+        val direction: Euler3
     }
 
 
@@ -47,8 +47,8 @@ interface PaperNodeHost : NodeHost {
             get() = entity.world
         override val position: Vector3
             get() = entity.location.vector()
-        override val direction: Polar3
-            get() = entity.location.polar()
+        override val direction: Euler3
+            get() = Euler3(entity.location.pitch.toDouble(), entity.location.yaw.toDouble(), 0.0)
 
         override fun toString(): String {
             val (x, y, z) = entity.location

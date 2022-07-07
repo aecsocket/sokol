@@ -1,12 +1,15 @@
 package com.github.aecsocket.sokol.paper
 
+import com.github.aecsocket.alexandria.paper.extension.withMeta
 import com.github.aecsocket.sokol.core.NodePath
 import com.github.aecsocket.sokol.core.SokolPersistence
 import com.github.aecsocket.sokol.core.emptyNodePath
+import com.github.aecsocket.sokol.core.feature.ItemHostFeature
 import com.github.aecsocket.sokol.core.keyOf
 import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializationException
+import com.github.aecsocket.sokol.paper.extension.asStack
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
@@ -25,6 +28,8 @@ internal const val FEATURES = "features"
 internal const val CHILDREN = "children"
 internal const val BUKKIT_PDC = "PublicBukkitValues"
 const val NODE_VERSION = 1
+
+class NodeItemCreationException(message: String? = null, cause: Throwable? = null) : RuntimeException(message, cause)
 
 class PaperPersistence internal constructor(
     private val plugin: SokolPlugin
@@ -111,10 +116,36 @@ class PaperPersistence internal constructor(
 
     fun stackToTag(stack: ItemStack): CompoundBinaryTag.Mutable? {
         return if (stack is CraftItemStack) {
-            stack.handle.tag?.let { tag ->
+            stack.handle?.tag?.let { tag ->
                 tag.getCompound(BUKKIT_PDC).tags[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
             }
         } else null
+    }
+
+    // Stacks
+
+    fun stateToStack(state: PaperTreeState): ItemStack {
+        val node = state.root
+        val itemHost = state.nodeStates[node]?.get(ItemHostFeature.ID)?.let {
+            it as ItemHostFeature.State<*, *, *>
+        } ?: throw NodeItemCreationException("No item host feature on state")
+
+        return try {
+            itemHost.itemDescriptor(state).asStack().withMeta {
+                with(plugin.persistence) {
+                    val tag = newTag()
+                    nodeToTag(node, tag)
+                    tagToData(tag, persistentDataContainer)
+                }
+            }
+        } catch (ex: Exception) {
+            throw NodeItemCreationException(cause = ex)
+        }
+    }
+
+    fun nodeToStack(node: PaperDataNode): ItemStack {
+        val state = paperStateOf(node)
+        return stateToStack(state)
     }
 
     // String/node
@@ -132,18 +163,6 @@ class PaperPersistence internal constructor(
         return writer.toString()
     }
 
-    /*
-    // avoid ItemMeta gets/sets
-    fun tagToStack(tag: CompoundBinaryTag, stack: ItemStack): ItemStack {
-        val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
-        val nms = res.handle
-        nms.tag = (nms.tag ?: CompoundTag()).apply {
-            tags[BUKKIT_PDC] = (tags[BUKKIT_PDC] ?: CompoundTag()).apply {
-                (this as CompoundTag).tags[keyNode] = (tag as PaperCompoundTag).handle
-            }
-        }
-        return res
-    }*/
 
     fun setTicks(value: Boolean, pdc: PersistentDataContainer) {
         (pdc as CraftPersistentDataContainer).raw[keyTick] = ByteTag.valueOf(value)
@@ -154,62 +173,4 @@ class PaperPersistence internal constructor(
             it is NumericTag && it.asByte != (0).toByte()
         } == true
     }
-
-    /*
-    fun nodeToTag(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
-        node.serialize(tag)
-        tag.setInt(VERSION, NODE_VERSION)
-    }
-
-    fun stateToTag(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
-        nodeToTag(state.updatedRoot(), tag)
-    }
-
-
-    fun dataToTag(pdc: PersistentDataContainer): CompoundBinaryTag.Mutable? {
-        return (pdc as CraftPersistentDataContainer).raw[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
-    }
-
-    fun tagToData(tag: CompoundBinaryTag, pdc: PersistentDataContainer) {
-        (pdc as CraftPersistentDataContainer).raw[keyNode] = (tag as PaperCompoundTag).handle
-    }
-
-    private fun dataTag(stack: ItemStack): Pair<CompoundTag, ItemStack> {
-        val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
-        val nms = res.handle
-        nms.tag = (nms.tag ?: CompoundTag()).let {
-            it.tags[BUKKIT_PDC] ?: CompoundTag()
-        }
-
-    }
-
-    // avoid ItemMeta gets/sets
-    fun tagToStack(tag: CompoundBinaryTag, stack: ItemStack): ItemStack {
-        val res = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
-        val nms = res.handle
-        nms.tag = (nms.tag ?: CompoundTag()).apply {
-            tags[BUKKIT_PDC] = (tags[BUKKIT_PDC] ?: CompoundTag()).apply {
-                (this as CompoundTag).tags[keyNode] = (tag as PaperCompoundTag).handle
-            }
-        }
-        return res
-    }
-
-    fun nodeToStack(node: PaperDataNode, stack: ItemStack) =
-        tagToStack(newTag().apply { nodeToTag(node, this) }, stack)
-
-    fun stateToStack(state: PaperTreeState, stack: ItemStack) =
-        tagToStack(newTag().apply { stateToTag(state, this) }, stack)
-
-    fun setTicks(value: Boolean, pdc: PersistentDataContainer) {
-        (pdc as CraftPersistentDataContainer).raw[keyTick] = ByteTag.valueOf(value)
-    }
-
-    fun setTicks(value: Boolean, stack: ItemStack) {
-
-    }
-
-    fun ticks(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[keyTick]?.let {
-        it is NumericTag && it.asByte != (0).toByte()
-    }*/
 }

@@ -5,24 +5,19 @@ import cloud.commandframework.arguments.standard.StringArgument
 import cloud.commandframework.bukkit.arguments.selector.MultiplePlayerSelector
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import cloud.commandframework.context.CommandContext
-import com.github.aecsocket.alexandria.core.extension.render
+import com.github.aecsocket.alexandria.core.extension.*
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.keyed.Registry
 import com.github.aecsocket.alexandria.paper.plugin.CloudCommand
 import com.github.aecsocket.alexandria.paper.plugin.desc
-import com.github.aecsocket.alexandria.paper.plugin.get
 import com.github.aecsocket.glossa.core.Localizable
 import com.github.aecsocket.sokol.core.BlueprintParser
 import com.github.aecsocket.sokol.core.ComponentParser
 import com.github.aecsocket.sokol.core.NodeParser
-import com.github.aecsocket.sokol.core.feature.ItemHostFeature
-import com.github.aecsocket.sokol.paper.extension.asStack
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.Component.newline
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
-import net.kyori.adventure.text.format.NamedTextColor.WHITE
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
@@ -275,14 +270,9 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         val amount = ctx.get("amount") { 1 }
 
         val state = paperStateOf(node)
-        sender.sendMessage("states = ${state.nodeStates}")
-        sender.sendMessage("stats = ${state.stats.entries}")
-        val itemHost = state.nodeStates[node]?.get(ItemHostFeature.ID)?.let {
-            it as ItemHostFeature<*>.Profile<*>.State<*, *, *>
-        } ?: error { safe(locale, "error.no_item_host") }
         val stack = try {
-            itemHost.asItem(state).asStack()
-        } catch (ex: Exception) {
+            plugin.persistence.stateToStack(state)
+        } catch (ex: NodeItemCreationException) {
             error(ex) { safe(locale, "error.creating_item") }
         }
 
