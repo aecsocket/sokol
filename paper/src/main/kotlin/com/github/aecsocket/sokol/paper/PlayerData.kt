@@ -1,12 +1,15 @@
 package com.github.aecsocket.sokol.paper
 
-import com.github.aecsocket.alexandria.core.bound.*
+import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.effect.ParticleEffect
 import com.github.aecsocket.alexandria.core.extension.*
+import com.github.aecsocket.alexandria.core.physics.*
+import com.github.aecsocket.alexandria.core.spatial.Quaternion
+import com.github.aecsocket.alexandria.core.spatial.Transform
 import com.github.aecsocket.alexandria.core.spatial.Vector3
 import com.github.aecsocket.alexandria.paper.extension.alexandria
-import com.github.aecsocket.alexandria.paper.extension.plus
-import com.github.aecsocket.alexandria.paper.extension.times
+import com.github.aecsocket.alexandria.paper.extension.bukkitCurrentTick
+import com.github.aecsocket.alexandria.paper.extension.bukkitNextEntityId
 import com.github.aecsocket.alexandria.paper.extension.vector
 import com.github.aecsocket.sokol.paper.feature.InspectFeature
 import com.github.retrooper.packetevents.PacketEvents
@@ -17,222 +20,364 @@ import com.github.retrooper.packetevents.protocol.player.Equipment
 import com.github.retrooper.packetevents.protocol.player.EquipmentSlot
 import com.github.retrooper.packetevents.util.Vector3d
 import com.github.retrooper.packetevents.util.Vector3f
+import com.github.retrooper.packetevents.wrapper.PacketWrapper
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityRelativeMove
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
 import io.github.retrooper.packetevents.util.SpigotConversionUtil
-import net.kyori.adventure.bossbar.BossBar
-import net.kyori.adventure.bossbar.BossBar.bossBar
 import net.kyori.adventure.extra.kotlin.join
-import net.kyori.adventure.key.Key.key
+import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component.empty
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
-import net.kyori.adventure.text.format.NamedTextColor.*
-import net.kyori.adventure.text.format.TextDecoration
 import net.kyori.adventure.title.Title.Times.times
 import net.kyori.adventure.title.Title.title
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
-import java.time.Duration.*
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
+import java.time.Duration.ZERO
+import java.time.Duration.ofMillis
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.math.sin
 
-@JvmInline
-value class InspectRender(val entityId: Int)
+interface InspectRender {
+    fun select()
 
-data class InspectComponent(
-    val node: PaperDataNode,
-    val position: Vector3,
-    val bound: Bound,
-    val render: InspectRender,
+    fun deselect()
+
+    fun moveTo(pos: Vector3)
+
+    fun rotateTo(rot: Quaternion)
+
+    fun remove()
+}
+
+/*
+transform hierarchy:
+  InspectPart(gun_receiver): Transform[tl = (500.0, 64.0, 500.0)]
+   -> InspectPart(gun_stock): Transform[tl = (0.0, 0.0, -0.5)]
+   -> etc.`
+ */
+data class InspectSlot(
+    val transform: Transform,
+    var part: InspectPart? = null
 )
 
-data class InspectState(
-    val tree: PaperTreeState,
-    val infoBar: BossBar,
-    val origin: Vector3,
-    val components: List<InspectComponent>,
-    var selected: InspectComponent? = null,
+@ConfigSerializable
+data class InspectDrag(
+    @Required val direction: Vector3,
+    @Required val distance: Double,
+)
+
+data class InspectPart(
+    val node: PaperDataNode,
+    val bodies: List<SimpleBody>,
+    val render: InspectRender,
+    val slots: Map<String, InspectSlot>,
+    val attachedTransform: Transform,
+    val drag: InspectDrag?,
+    val invAttachedTransform: Transform = attachedTransform.inverse,
+) {
+    fun remove() {
+        render.remove()
+        slots.forEach { (_, slot) -> slot.part?.remove() }
+    }
+}
+
+data class InspectView(
+    val root: InspectPart,
+    var transform: Transform,
+)
+
+data class InspectSelection(
+    val part: InspectPart,
+    var dragging: Boolean = false,
+    var dragTransform: Transform = Transform.Identity
 )
 
 data class PlayerData(
     private val plugin: SokolPlugin,
     val player: Player
 ) {
-    var showHosts: Boolean = false
-    var inspectState: InspectState? = null
+    inner class EntityInspectRender(
+        val entityId: Int,
+        val origin: Vector3,
+    ) : InspectRender {
+        private var lastPos = origin
 
-    val locale: Locale get() = player.locale()
+        private fun glowing(value: Boolean) {
+            sendPacket(WrapperPlayServerEntityMetadata(entityId, listOf(
+                EntityData(0, EntityDataTypes.BYTE, // generic
+                    (0x20 or (if (value) 0x40 else 0)).toByte()) // invisible + (glowing?)
+            )))
+        }
+
+        override fun select() = glowing(true)
+        override fun deselect() = glowing(false)
+
+        override fun moveTo(pos: Vector3) {
+            val (x, y, z) = pos - lastPos
+            sendPacket(WrapperPlayServerEntityRelativeMove(entityId,
+                x, y, z, true))
+            lastPos = pos
+        }
+
+        override fun rotateTo(rot: Quaternion) {
+            val angle = rot.euler().y { -it }.z { -it }.degrees
+            val (x, y, z) = angle
+            sendPacket(WrapperPlayServerEntityMetadata(entityId, listOf(
+                EntityData(16, EntityDataTypes.ROTATION,
+                    Vector3f(x.toFloat(), y.toFloat(), z.toFloat())), // head pose
+            )))
+        }
+
+        override fun remove() {
+            sendPacket(WrapperPlayServerDestroyEntities(entityId))
+        }
+    }
+
+    val effector = plugin.effectors.player(player)
+
+    var showHosts: Boolean = false
+
+    private val _inspectViews = ArrayList<InspectView>()
+    val isViews: List<InspectView> get() = _inspectViews
+    var isShowShapes = false
+    var isRotation: Quaternion? = null
+    var isSelection: InspectSelection? = null
 
     fun destroy() {
-        exitInspectState()
+        _inspectViews.forEach { it.root.remove() }
     }
 
-    private fun InspectRender.glowing(value: Boolean) {
-        PacketEvents.getAPI().playerManager.sendPacket(player, WrapperPlayServerEntityMetadata(
-            entityId, listOf(EntityData(0, EntityDataTypes.BYTE,
-                (0x20 or (if (value) 0x40 else 0)).toByte())) // invisible + glowing?
-        ))
+    private fun sendPacket(packet: PacketWrapper<*>) {
+        PacketEvents.getAPI().playerManager.sendPacket(player, packet)
     }
 
-    fun InspectRender.select() {
-        glowing(true)
+    fun addInspectView(root: InspectPart, transform: Transform): InspectView {
+        return InspectView(root, transform).also { _inspectViews.add(it) }
     }
 
-    fun InspectRender.deselect() {
-        glowing(false)
-    }
+    fun addInspectView(root: PaperDataNode, transform: Transform): InspectView {
+        val rot = (-transform.rot.euler().degrees).run {
+            Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
+        }
+        fun renderOf(pos: Vector3, node: PaperDataNode): InspectRender {
+            val entityId = bukkitNextEntityId
+            sendPacket(WrapperPlayServerSpawnEntity(entityId, Optional.of(UUID.randomUUID()), EntityTypes.ARMOR_STAND,
+                Vector3d(pos.x, pos.y - 1.45, pos.z), 0f, 0f, 0f, 0, Optional.empty()))
 
-    fun InspectRender.rotate(angles: Euler3) {
-        PacketEvents.getAPI().playerManager.sendPacket(player, WrapperPlayServerEntityMetadata(
-            entityId, listOf(EntityData(16, EntityDataTypes.ROTATION,
-                Vector3f(angles.pitch.toFloat(), angles.yaw.toFloat(), angles.roll.toFloat()))) // head rotation
-        ))
-    }
+            sendPacket(WrapperPlayServerEntityMetadata(entityId, listOf(
+                EntityData(0, EntityDataTypes.BYTE, (0x20).toByte()), // invisible
+                EntityData(15, EntityDataTypes.BYTE, (0x10).toByte()), // marker
+                EntityData(16, EntityDataTypes.ROTATION, rot), // head pose
+            )))
 
-    fun enterInspectState(tree: PaperTreeState) {
-        exitInspectState()
-        val root = tree.root
-        val locale = this.locale
-
-        val infoBar = bossBar(plugin.i18n.safe(locale, "inspect_info") {
-            list("name") {
-                root.component.localize(this).forEach { sub(it) }
+            val stack = try {
+                // remove children, so only this one component is rendered out
+                // (e.g. if this was the root of a gun tree, and the gun changed model when it was
+                //  complete, we *don't* want that)
+                plugin.persistence.nodeToStack(node.copy().apply { removeChildren() })
+            } catch (ex: NodeItemCreationException) {
+                plugin.log.line(LogLevel.Warning, ex) { "Could not make stack" } // todo
+                throw ex
             }
-        }.join(), 1f, BossBar.Color.WHITE, BossBar.Overlay.PROGRESS)
-        player.showBossBar(infoBar)
 
-        val origin = (player.eyeLocation + (player.location.direction * 2.0)).vector()
+            sendPacket(WrapperPlayServerEntityEquipment(entityId, listOf(
+                Equipment(EquipmentSlot.HELMET, SpigotConversionUtil.fromBukkitItemStack(stack))
+            )))
 
-        val components = ArrayList<InspectComponent>()
+            return EntityInspectRender(entityId, pos)
+        }
 
-        fun makeComponents(node: PaperDataNode, position: Vector3) {
+        fun partOf(node: PaperDataNode, tf: Transform, isRoot: Boolean = false): InspectPart {
             val feature = node.component.features[InspectFeature.ID]?.let {
                 it as InspectFeature.Profile
-            } ?: throw IllegalStateException("No inspect feature for ${node.path()}")
-            val stack = plugin.persistence.nodeToStack(node) // we only generate the stack for the subtree
+            } ?: throw IllegalStateException() // todo
 
-            @Suppress("DEPRECATION")
-            val entityId = Bukkit.getUnsafe().nextEntityId()
-            PacketEvents.getAPI().playerManager.apply {
-                val entityPos = origin + position
-                sendPacket(player, WrapperPlayServerSpawnEntity(
-                    entityId, Optional.of(UUID.randomUUID()), EntityTypes.ARMOR_STAND,
-                    Vector3d(entityPos.x, entityPos.y - 1.45, entityPos.z), 0f, 0f, 0f, 0, Optional.empty(),
-                ))
+            val slots = node.component.slots.map { (key, _) ->
+                val slotTf = feature.slotTransforms[key]
+                    ?: throw IllegalStateException("No slot transform for ${node.component.id}:$key at ${node.path()}") // todo
+                key to InspectSlot(slotTf, node.node(key)?.let { child ->
+                    partOf(child, tf + slotTf)
+                })
+            }.associate { it }
 
-                sendPacket(player, WrapperPlayServerEntityMetadata(
-                    entityId, listOf(
-                        EntityData(0, EntityDataTypes.BYTE, (0x20).toByte()), // invisible
-                        EntityData(15, EntityDataTypes.BYTE, (0x10).toByte()), // marker
-                    )
-                ))
+            // only combine attachedTransform if the node is non-root
+            val posTf = if (isRoot) tf else tf + feature.invAttachedTransform
 
-                sendPacket(player, WrapperPlayServerEntityEquipment(
-                    entityId, listOf(
-                        Equipment(EquipmentSlot.HELMET, SpigotConversionUtil.fromBukkitItemStack(stack))
-                    )
-                ))
-            }
-
-            components.add(InspectComponent(
-                node, position, feature.bound, InspectRender(entityId)
-            ))
-
-            node.children.forEach { (key, child) ->
-                val offset = feature.slotOffsets[key] ?: throw IllegalStateException("No slot offset for ${node.path()} : $key")
-                makeComponents(child, position + offset) // TODO this doesnt take into account rotations
-            }
+            return InspectPart(
+                node, feature.bodies, renderOf(posTf.apply(), node), slots,
+                feature.attachedTransform, feature.drag, feature.invAttachedTransform
+            )
         }
 
-        makeComponents(root, Vector3.Zero)
-
-        inspectState = InspectState(tree, infoBar, origin, components)
+        return addInspectView(partOf(root, transform, true), transform)
     }
 
-    fun exitInspectState() {
-        inspectState?.apply {
-            player.hideBossBar(infoBar)
-            inspectState = null
-        }
+    fun removeInspectView(view: InspectView) {
+        _inspectViews.remove(view)
     }
 
     fun tick() {
-        val locale = this.locale
-        if (showHosts) {
-            val hosts = plugin.lastHosts
-            val possible = hosts.values.sumOf { it.possible }
-            val marked = hosts.values.sumOf { it.marked }
-            player.sendActionBar(plugin.i18n.safe(locale, "show_hosts") {
-                raw("marked") { marked }
-                raw("possible") { possible }
-                raw("percent") { marked.toDouble() / possible }
-                raw("mspt") { Bukkit.getAverageTickTime() }
-                raw("tps") { Bukkit.getTPS()[0] }
-            }.join(JoinConfiguration.noSeparators()))
-        }
+        with(player) {
+            val locale = locale()
 
-        inspectState?.let { inspect ->
-            val origin = inspect.origin
-            val ray = Ray(player.eyeLocation.vector(), player.location.direction.alexandria())
-            plugin.effectors.player(player).apply {
-                inspect.components.forEach { component ->
-                    val position = origin + component.position
-                    val bound = component.bound
-                    //particleBound(ParticleEffect(key("minecraft:bubble_pop")), bound.translated(position), 0.1)
-                    val feature = component.node.component.features[InspectFeature.ID]?.let {
-                        it as InspectFeature.Profile
-                    } ?: error("abc")
-                    /*feature.slotOffsets.forEach { (_, offset) ->
-                        showParticle(ParticleEffect(key("minecraft:bubble")), position + offset)
-                    }*/
-                    //todo val headPose = rotation.euler().degrees.y { -it }.z { -it } * fac
-                    //component.render.rotate(headPose)
+            val pt = Array<Vector3>(10) { Vector3(0.1 * it, 0.0, 0.0) }
+            val qt = Transform(
+                rot = Euler3(0.0, 45.0, 45.0).radians.quaternion())
+            effector.showParticle(ParticleEffect(Key.key("minecraft:flame")), Vector3(0.0))
+
+            isRotation?.let { isRot ->
+                pt.forEach { ptt ->
+                    effector.showParticle(plugin.settings.inspectView.pointParticle!!, ptt)
+                    effector.showParticle(plugin.settings.inspectView.shapeParticle!!, isRot * ptt)
+                }
+
+                sendActionBar(text("rot = $isRot = ${isRot.euler().degrees}"))
+            }
+
+            if (showHosts) {
+                val hosts = plugin.lastHosts
+                val possible = hosts.values.sumOf { it.possible }
+                val marked = hosts.values.sumOf { it.marked }
+                sendActionBar(plugin.i18n.safe(locale, "show_hosts") {
+                    raw("marked") { marked }
+                    raw("possible") { possible }
+                    raw("percent") { marked.toDouble() / possible }
+                    raw("mspt") { Bukkit.getAverageTickTime() }
+                    raw("tps") { Bukkit.getTPS()[0] }
+                }.join(JoinConfiguration.noSeparators()))
+            }
+
+            /*val raycast = PaperRaycast(world)
+            raycast.cast(Ray(eyeLocation.vector(), location.direction.alexandria()), 32.0) { when (it) {
+                is PaperEntityBody -> it.entity != player
+                is PaperBlockBody -> it.fluid == null
+            } }?.let { col ->
+                val hit = col.hit
+                sendActionBar(text("[hit] %.2f @ ${col.hit}".format(col.tIn)))
+                effector.showLine(ParticleEffect(key("minecraft:bubble_pop")), col.posIn, col.posIn + col.normal * 2.0, 0.1)
+                val shape = hit.shape
+                if (shape is Box) {
+                    effector.showCuboid(ParticleEffect(key("minecraft:bubble")), verticesOf(shape).map { hit.transform.apply(it) }, 0.1)
+                }
+            } ?: run {
+                sendActionBar(text("[no hit]"))
+            }*/
+
+            data class CastInspectBody(
+                override val backing: Body,
+                val part: InspectPart
+            ) : ForwardingBody
+
+            val allBodies = ArrayList<CastInspectBody>()
+            _inspectViews.forEach { view ->
+                isRotation?.let { rot ->
+                    view.transform = view.transform.copy(rot = rot)
+                }
+
+                fun apply(part: InspectPart, originTf: Transform, isRoot: Boolean = false) {
+                    val selected = isSelection?.let { if (it.part == part) it else null }
+                    val tf = selected?.let {
+                        if (it.dragging) originTf + it.dragTransform else originTf
+                    } ?: originTf
+
+                    if (isShowShapes && isRoot) {
+                        plugin.settings.inspectView.pointParticle?.let {
+                            effector.showParticle(it, (tf + part.attachedTransform).apply())
+                        }
+                    }
+
+                    part.bodies.forEach { body ->
+                        if (isShowShapes) {
+                            plugin.settings.inspectView.shapeParticle?.let {
+                                effector.showShape(
+                                    it,
+                                    body.shape,
+                                    tf + body.transform,
+                                    plugin.settings.inspectView.shapeStep
+                                )
+                            }
+                        }
+
+                        allBodies.add(CastInspectBody(
+                            body.copy(transform = tf + body.transform), part
+                        ))
+                    }
+
+                    part.slots.forEach { (_, slot) ->
+                        if (isShowShapes) {
+                            plugin.settings.inspectView.pointParticle?.let {
+                                effector.showParticle(it, (tf + slot.transform).apply())
+                            }
+                        }
+
+                        slot.part?.let { part ->
+                            apply(part, tf + slot.transform + part.invAttachedTransform)
+                        }
+                    }
+
+                    part.render.moveTo(tf.apply())
+                    part.render.rotateTo(tf.rot)
+                }
+
+                apply(view.root, view.transform, true)
+            }
+
+            // cannot change selection while dragging
+            if (isSelection == null || isSelection?.dragging == false) {
+                fun InspectSelection.deselect() {
+                    part.render.deselect()
+                }
+
+                raycastOf(allBodies).cast(Ray(eyeLocation.vector(), location.direction.alexandria()), 8.0)?.let { col ->
+                    val hit = col.hit
+                    val part = hit.part
+
+                    fun select() {
+                        part.render.select()
+                        isSelection = InspectSelection(part)
+                    }
+
+                    isSelection?.let {
+                        if (part != it.part) {
+                            isSelection?.deselect()
+                            select()
+                        }
+                    } ?: select()
+                } ?: run {
+                    isSelection?.deselect()
+                    isSelection = null
                 }
             }
 
-            data class ComponentBoundable(
-                val component: InspectComponent,
-                override val bound: Bound,
-            ) : Boundable
+            isSelection?.let { selection ->
+                val part = selection.part
+                val dragging = selection.dragging
+                showTitle(title(
+                    empty(),
+                    text()
+                        .append(text(" ".repeat(20)))
+                        .append(part.node.component.localize(plugin.i18n).join())
+                        .append(text(if (dragging) " *" else ""))
+                        .build(),
+                    times(ZERO, ofMillis(200), ZERO)
+                ))
 
-            val raycast = FixedRaycast(inspect.components.map { ComponentBoundable(it, it.bound
-                .translated(origin + it.position))
-                // TODO rotation
-            })
-            when (val cast = raycast.cast(ray, 5.0)) {
-                is Raycast.Result.Hit -> {
-                    val component = cast.hit
-                    if (inspect.selected != component.component) {
-                        inspect.selected?.render?.deselect()
-                        component.component.render.select()
-                        inspect.selected = component.component
+                if (dragging) {
+                    part.drag?.let { drag ->
+                        selection.dragTransform = Transform(
+                            tl = drag.direction * drag.distance
+                        )
                     }
                 }
-                is Raycast.Result.Miss -> {
-                    inspect.selected?.render?.deselect()
-                    inspect.selected = null
-                    player.clearTitle()
-                }
-            }
-
-            val durability = (sin(System.currentTimeMillis() / 1000.0) * 0.5) + 0.5
-            val barSize = 50
-            val fillSize = (barSize * durability).toInt()
-
-            inspect.selected?.let { selected ->
-                /*player.showTitle(title(empty(), text()
-                    .append(text("", null, TextDecoration.STRIKETHROUGH)
-                        .append(text("\uf821".repeat(fillSize), DARK_GREEN))
-                        .append(text("\uf821".repeat(barSize - fillSize), DARK_GRAY)))
-                    .append(text(" %.0f%%".format(durability * 100), GREEN))
-                    .build(), times(ZERO, ofMillis(250), ZERO)))
-
-                 */
-                player.showTitle(title(empty(), selected.node.component.localize(plugin.i18n).join(), times(ZERO, ofMillis(250), ZERO)))
             }
         }
+
+        //isRotation = null
     }
 }

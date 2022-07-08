@@ -24,6 +24,8 @@ private object EmptyNodePath : NodePath {
         override fun hasNext() = false
         override fun next() = throw NoSuchElementException()
     }
+
+    override fun toString() = "[]"
 }
 
 private data class NodePathImpl(
@@ -38,6 +40,8 @@ private data class NodePathImpl(
     override fun plus(nodes: NodePath) = nodePathOf(this.nodes + nodes)
 
     override fun iterator() = nodes.iterator()
+
+    override fun toString() = "[${nodes.joinToString()}]"
 }
 
 fun emptyNodePath(): NodePath = EmptyNodePath
@@ -94,6 +98,7 @@ interface Node {
         fun attach(node: N, key: String)
 
         fun remove(key: String)
+        fun removeChildren()
         operator fun set(key: String, value: N)
     }
 }

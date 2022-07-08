@@ -1,21 +1,19 @@
 package com.github.aecsocket.sokol.paper
 
+import com.github.aecsocket.alexandria.core.Input
 import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.LogList
-import com.github.aecsocket.alexandria.core.bound.Bound
-import com.github.aecsocket.alexandria.core.extension.force
-import com.github.aecsocket.alexandria.core.extension.register
-import com.github.aecsocket.alexandria.core.extension.registerExact
+import com.github.aecsocket.alexandria.core.extension.*
 import com.github.aecsocket.alexandria.core.keyed.MutableRegistry
 import com.github.aecsocket.alexandria.core.keyed.Registry
-import com.github.aecsocket.alexandria.core.serializer.BoundSerializer
+import com.github.aecsocket.alexandria.core.physics.Ray
 import com.github.aecsocket.alexandria.core.serializer.QuaternionSerializer
 import com.github.aecsocket.alexandria.core.spatial.Quaternion
+import com.github.aecsocket.alexandria.core.spatial.Transform
 import com.github.aecsocket.alexandria.paper.effect.PaperEffectors
-import com.github.aecsocket.alexandria.paper.extension.key
-import com.github.aecsocket.alexandria.paper.extension.registerEvents
-import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
+import com.github.aecsocket.alexandria.paper.extension.*
 import com.github.aecsocket.alexandria.paper.packet.PacketInputListener
+import com.github.aecsocket.alexandria.paper.physics.PaperRaycast
 import com.github.aecsocket.alexandria.paper.plugin.BasePlugin
 import com.github.aecsocket.alexandria.paper.plugin.ConfigOptionsAction
 import com.github.aecsocket.sokol.core.NodePath
@@ -34,6 +32,7 @@ import com.github.aecsocket.sokol.paper.feature.TestFeature
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
+import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -43,6 +42,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializerCollection
+import kotlin.math.PI
 
 private const val COMPONENT = "component"
 private const val BLUEPRINT = "blueprint"
@@ -119,7 +119,15 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 if (!isRightClick || !isShiftClick) return
                 currentItem?.let { persistence.stackToTag(it) }?.let { tag ->
                     val node = persistence.tagToNode(tag)
-                    playerData(player).enterInspectState(paperStateOf(node)) // todo more
+                    val rot = Euler3(y = (-player.location.yaw.toDouble().radians) - PI / 2).quaternion()
+                    val pos = PaperRaycast(player.world).castBlocks(Ray(player.eyeLocation.vector(), player.location.direction.alexandria()), 8.0) {
+                        it.fluid == null
+                    }?.let { col ->
+                        playerData(player).addInspectView(node, Transform(
+                            rot = rot,
+                            tl = col.posIn.y { it + 0.05 }
+                        )) // todo more
+                    }
                     player.closeInventory()
                     isCancelled = true
                 }
@@ -132,6 +140,8 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
             features.register(InspectFeature(this@SokolPlugin))
             features.register(PaperItemHost())
         }
+
+        scheduleRepeating { Bukkit.getOnlinePlayers().forEach { playerData(it) } }
     }
 
     override fun serverLoad(): Boolean {
@@ -193,6 +203,22 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
 
     private fun onInputReceived(event: PacketInputListener.Event) {
         val player = event.player
+        playerData[player]?.let { data ->
+            data.isSelection?.let { selection ->
+                val input = event.input
+                if (input is Input.Mouse && input.button == Input.MouseButton.RIGHT) {
+                    selection.dragging = when (input.state) {
+                        Input.MouseState.DOWN -> true
+                        Input.MouseState.UP -> false
+                        Input.MouseState.UNDEFINED -> !selection.dragging
+                    }
+                    // dragging inspect components takes priority over node actions
+                    event.cancel()
+                    return
+                }
+            }
+        }
+
         persistence.dataToTag(player.persistentDataContainer)?.let { tag ->
             val state = paperStateOf(persistence.tagToNode(tag))
             // todo make player host

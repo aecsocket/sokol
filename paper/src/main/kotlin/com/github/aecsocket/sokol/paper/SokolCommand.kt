@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.paper
 
+import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.arguments.standard.StringArgument
 import cloud.commandframework.bukkit.arguments.selector.MultiplePlayerSelector
@@ -21,7 +22,7 @@ import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import java.util.Locale
+import java.util.*
 
 internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
     plugin, "sokol",
@@ -76,6 +77,26 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .argument(PaperBlueprintArgument(plugin, "item", desc("Item to get info for.")))
             .permission(perm("info", "blueprint"))
             .handler { handle(it, ::infoBlueprint) })
+
+        val inspect = root
+            .literal("inspect", desc("Options for the inspect view."), "is")
+        manager.command(inspect
+            .literal("show-shapes", desc("Toggles showing shape and point definitions on an inspect view."))
+            .argument(BooleanArgument.optional("enabled"), desc("If the feature should be enabled or not."))
+            .permission(perm("inspect", "show-shapes"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::inspectShowShapes) })
+        manager.command(inspect
+            .literal("rotate", desc("Clears the currently set inspect view rotation."))
+            .permission(perm("inspect", "rotate"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::inspectRotate) })
+        manager.command(inspect
+            .literal("rotate", desc("Rotates all inspect views by the specified angle."))
+            .argumentEuler3("rotation", desc("Angle to rotate to, in Euler degrees."))
+            .permission(perm("inspect", "rotate"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::inspectRotateSet) })
 
         manager.command(root
             .literal("give", desc("Gives a specified item-representable node tree to a player."))
@@ -258,6 +279,23 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             raw("id") { blueprint.id }
             subList("tree") { infoTree(sender, locale, blueprint.createNode()) }
         } }
+    }
+
+    fun inspectShowShapes(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        val data = plugin.playerData(sender as Player)
+        val enabled = ctx.get("enabled") { !data.isShowShapes }
+        data.isShowShapes = enabled
+        plugin.send(sender) { safe(locale, "command.inspect.show_shapes.${if (enabled) "enabled" else "disabled"}") }
+    }
+
+    fun inspectRotate(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        val data = plugin.playerData(sender as Player)
+        data.isRotation = null
+    }
+
+    fun inspectRotateSet(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        val data = plugin.playerData(sender as Player)
+        data.isRotation = ctx.get<Euler3>("rotation").radians.quaternion()
     }
 
     fun give(
