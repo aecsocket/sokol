@@ -1,9 +1,7 @@
 package com.github.aecsocket.sokol.core.serializer
 
 import com.github.aecsocket.alexandria.core.keyed.Keyed
-import com.github.aecsocket.sokol.core.Feature
-import com.github.aecsocket.sokol.core.NodeComponent
-import com.github.aecsocket.sokol.core.Slot
+import com.github.aecsocket.sokol.core.*
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -57,7 +55,7 @@ abstract class ComponentSerializer<
         }.associate { it }
 
     protected fun stats(type: Type, node: ConfigurationNode) =
-        node.node(STATS).get { emptyList<ApplicableStats>() }
+        node.node(STATS).get { ArrayList<ApplicableStats>() }
 
     protected fun featureStatTypes(features: Iterable<Feature<*>>) = features
         .flatMap { it.statTypes.entries.map { (key, stat) ->
@@ -74,4 +72,23 @@ abstract class ComponentSerializer<
             key to type
         } }
         .associate { (key, type) -> key.toString() to type }
+}
+
+abstract class BlueprintSerializer<
+        T : Blueprint<N>,
+        N : DataNode
+        > : TypeSerializer<T> {
+    protected abstract val nodeType: Class<N>
+
+    override fun serialize(type: Type, obj: T?, node: ConfigurationNode) =
+        throw UnsupportedOperationException()
+
+    protected fun id(type: Type, node: ConfigurationNode) = try {
+        Keyed.validate(node.key().toString())
+    } catch (ex: Keyed.ValidationException) {
+        throw SerializationException(node, type, "Invalid key")
+    }
+
+    protected fun node(type: Type, node: ConfigurationNode) =
+        node.get(nodeType) ?: throw SerializationException(node, type, "Null node")
 }

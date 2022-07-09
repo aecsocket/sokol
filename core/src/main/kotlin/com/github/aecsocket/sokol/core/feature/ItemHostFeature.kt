@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.core.feature
 
+import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.sokol.core.Feature
 import com.github.aecsocket.sokol.core.FeatureContext
 import com.github.aecsocket.sokol.core.ItemDescriptor
@@ -13,17 +14,17 @@ import com.github.aecsocket.sokol.core.stat.statTypes
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 
-object ItemHostFeature {
-    const val ID = "item_host"
+object ItemHostFeature : Keyed {
+    override val id get() = "item_host"
 
     object Stats {
-        val Item = ItemDescriptorStat(ID, "item")
+        val Item = ItemDescriptorStat(id, "item")
 
         val All = statTypes(Item)
     }
 
     abstract class Type<P : Feature.Profile<*>> : Feature<P> {
-        override val id: String get() = ID
+        override val id get() = ItemHostFeature.id
 
         override val statTypes: Map<Key, Stat<*>> get() = Stats.All
         override val ruleTypes: Map<Key, Class<Rule>> get() = emptyMap()

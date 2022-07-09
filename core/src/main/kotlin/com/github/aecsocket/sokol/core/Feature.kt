@@ -25,8 +25,9 @@ interface Feature<
     override fun localize(i18n: I18N<Component>) =
         i18n.safe("feature.$id")
 
-    interface Profile<D : Data<*>> {
+    interface Profile<D : Data<*>> : Keyed {
         val type: Feature<*>
+        override val id get() = type.id
 
         fun createData(): D
 
@@ -35,8 +36,9 @@ interface Feature<
         fun createData(tag: CompoundBinaryTag): D
     }
 
-    interface Data<S : State<S, *, *>> : TagSerializable {
+    interface Data<S : State<S, *, *>> : TagSerializable, Keyed {
         val type: Feature<*>
+        override val id get() = type.id
 
         fun createState(): S
 
@@ -47,8 +49,9 @@ interface Feature<
         S : State<S, D, C>,
         D : Data<S>,
         C : FeatureContext<*, *, *>
-    > : TagSerializable {
+    > : TagSerializable, Keyed {
         val type: Feature<*>
+        override val id get() = type.id
 
         fun asData(): D
 

@@ -25,3 +25,5 @@ interface DataNode : Node, TagSerializable {
         override val features: Map<String, F>
     }
 }
+
+fun DataNode.errorMsg(msg: String) = "${path()}/${component.id}: $msg"

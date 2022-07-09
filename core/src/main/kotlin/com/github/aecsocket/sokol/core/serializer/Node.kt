@@ -1,10 +1,8 @@
 package com.github.aecsocket.sokol.core.serializer
 
 import com.github.aecsocket.alexandria.core.extension.force
-import com.github.aecsocket.sokol.core.DataNode
-import com.github.aecsocket.sokol.core.Feature
-import com.github.aecsocket.sokol.core.NodeComponent
-import com.github.aecsocket.sokol.core.NodeKey
+import com.github.aecsocket.alexandria.core.extension.forceList
+import com.github.aecsocket.sokol.core.*
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
@@ -13,6 +11,19 @@ import java.lang.reflect.Type
 private const val ID = "id"
 private const val FEATURES = "features"
 private const val CHILDREN = "children"
+
+object NodePathSerializer : TypeSerializer<NodePath> {
+    override fun serialize(type: Type, obj: NodePath?, node: ConfigurationNode) {
+        if (obj == null) node.set(null)
+        else {
+            node.setList(String::class.java, obj.toList())
+        }
+    }
+
+    override fun deserialize(type: Type, node: ConfigurationNode): NodePath {
+        return nodePathOf(node.forceList(type).map { it.force() })
+    }
+}
 
 abstract class DataNodeSerializer<
     N : DataNode.Scoped<N, C, D, *>,

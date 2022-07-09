@@ -1,8 +1,8 @@
 package com.github.aecsocket.sokol.paper.feature
 
 import com.github.aecsocket.alexandria.core.physics.SimpleBody
-import com.github.aecsocket.alexandria.core.spatial.Transform
-import com.github.aecsocket.alexandria.core.spatial.Vector3
+import com.github.aecsocket.alexandria.core.physics.Transform
+import com.github.aecsocket.alexandria.core.physics.Vector3
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.rule.Rule

@@ -1,7 +1,7 @@
 package com.github.aecsocket.sokol.paper
 
-import com.github.aecsocket.alexandria.core.extension.Euler3
-import com.github.aecsocket.alexandria.core.spatial.Vector3
+import com.github.aecsocket.alexandria.core.physics.Quaternion
+import com.github.aecsocket.alexandria.core.physics.Transform
 import com.github.aecsocket.alexandria.paper.extension.*
 import com.github.aecsocket.sokol.core.NodeHost
 import net.kyori.adventure.text.Component
@@ -24,15 +24,18 @@ import org.bukkit.inventory.meta.ItemMeta
 private fun format(component: Component) = PlainTextComponentSerializer.plainText().serialize(component)
 
 interface PaperNodeHost : NodeHost {
-    interface WithPosition : PaperNodeHost {
+    interface Static : PaperNodeHost {
         val world: World
-        val position: Vector3
+        val transform: Transform
     }
 
-    interface WithDirection : WithPosition {
-        val direction: Euler3
+    interface Dynamic : Static {
+        override var transform: Transform
     }
 
+    interface Looking : Dynamic {
+        var looking: Quaternion
+    }
 
     data class OfWorld(val world: World) : PaperNodeHost {
         override fun toString() = "World[${world.name}]"
@@ -42,13 +45,14 @@ interface PaperNodeHost : NodeHost {
         override fun toString() = "Chunk[@ ${chunk.world.name}(${chunk.x}, ${chunk.z})]"
     }
 
-    data class OfEntity(val entity: Entity) : WithDirection {
-        override val world: World
-            get() = entity.world
-        override val position: Vector3
-            get() = entity.location.vector()
-        override val direction: Euler3
-            get() = Euler3(entity.location.pitch.toDouble(), entity.location.yaw.toDouble(), 0.0)
+    data class OfEntity(val entity: Entity) : Looking {
+        override val world get() = entity.world
+        override var transform
+            get() = entity.transform
+            set(value) { entity.transform = value }
+        override var looking: Quaternion
+            get() = entity.looking
+            set(value) { entity.looking = value }
 
         override fun toString(): String {
             val (x, y, z) = entity.location
@@ -87,11 +91,10 @@ interface PaperNodeHost : NodeHost {
             "WritableStack[${format(getMeta().displayName() ?: translatable(stack.translationKey()))} x${stack.itemMeta} by $holder]"
     }
 
-    data class OfBlock(val block: BlockState) : WithPosition {
-        override val world: World
-            get() = block.world
-        override val position: Vector3
-            get() = block.location.vector()
+    data class OfBlock(val block: BlockState) : Static {
+        override val world get() = block.world
+        override val transform
+            get() = Transform(tl = block.location.vector())
 
         override fun toString() = "Block[${block.type} @ ${block.world.name}(${block.x}, ${block.y}, ${block.z})]"
     }

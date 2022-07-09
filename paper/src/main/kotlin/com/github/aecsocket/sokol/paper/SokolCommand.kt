@@ -1,6 +1,8 @@
 package com.github.aecsocket.sokol.paper
 
 import cloud.commandframework.arguments.standard.BooleanArgument
+import cloud.commandframework.arguments.standard.DoubleArgument
+import cloud.commandframework.arguments.standard.EnumArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.arguments.standard.StringArgument
 import cloud.commandframework.bukkit.arguments.selector.MultiplePlayerSelector
@@ -21,7 +23,11 @@ import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.command.CommandSender
+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
+import org.bukkit.entity.AreaEffectCloud
+import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
+import org.bukkit.event.entity.CreatureSpawnEvent
 import java.util.*
 
 internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
@@ -94,6 +100,7 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         manager.command(inspect
             .literal("rotate", desc("Rotates all inspect views by the specified angle."))
             .argumentEuler3("rotation", desc("Angle to rotate to, in Euler degrees."))
+            .argument(EnumArgument.optional(EulerOrder::class.java, "order"), desc("Order for the Euler angles."))
             .permission(perm("inspect", "rotate"))
             .senderType(Player::class.java)
             .handler { handle(it, ::inspectRotateSet) })
@@ -112,6 +119,22 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .argument(IntegerArgument.optional("amount"), desc("Amount of the item to give."))
             .permission(perm("build"))
             .handler { handle(it, ::build) })
+
+        manager.command(root
+            .literal("mkr")
+            .handler { ctx ->
+                val player = ctx.sender as Player
+                player.world.spawnEntity(player.location, EntityType.AREA_EFFECT_CLOUD, CreatureSpawnEvent.SpawnReason.CUSTOM) { entity ->
+                    entity as CraftAreaEffectCloud
+                    entity.handle.apply {
+                        // avoid Bukkit limits, I know what I'm doing
+                        tickCount = Int.MIN_VALUE
+                        duration = -1
+                        waitTime = Int.MIN_VALUE
+                    }
+                }
+            }
+        )
     }
 
     fun <T : Keyed> byRegistry(registry: Registry<T>, id: String, locale: Locale) = registry[id]
@@ -283,19 +306,24 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
 
     fun inspectShowShapes(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
         val data = plugin.playerData(sender as Player)
-        val enabled = ctx.get("enabled") { !data.isShowShapes }
-        data.isShowShapes = enabled
-        plugin.send(sender) { safe(locale, "command.inspect.show_shapes.${if (enabled) "enabled" else "disabled"}") }
+        //val enabled = ctx.get("enabled") { !data.isShowShapes }
+
+        // todo data.isShowShapes = enabled
+        //plugin.send(sender) { safe(locale, "command.inspect.show_shapes.${if (enabled) "enabled" else "disabled"}") }
     }
 
     fun inspectRotate(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
         val data = plugin.playerData(sender as Player)
-        data.isRotation = null
+        // todo data.isRotation = null
     }
 
     fun inspectRotateSet(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
         val data = plugin.playerData(sender as Player)
-        data.isRotation = ctx.get<Euler3>("rotation").radians.quaternion()
+        val rotation = ctx.get<Euler3>("rotation")
+        val order = ctx.get("order") { EulerOrder.XYZ }
+
+        val quaternion = rotation.radians.quaternion(order)
+        // todo data.isRotation = quaternion
     }
 
     fun give(

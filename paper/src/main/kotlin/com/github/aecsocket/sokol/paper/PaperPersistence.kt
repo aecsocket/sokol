@@ -1,5 +1,12 @@
 package com.github.aecsocket.sokol.paper
 
+import com.github.aecsocket.alexandria.core.LogLevel
+import com.github.aecsocket.alexandria.core.keyed.by
+import com.github.aecsocket.alexandria.core.physics.Quaternion
+import com.github.aecsocket.alexandria.core.physics.Transform
+import com.github.aecsocket.alexandria.paper.datatype.QuaternionDataType
+import com.github.aecsocket.alexandria.paper.extension.key
+import com.github.aecsocket.alexandria.paper.extension.location
 import com.github.aecsocket.alexandria.paper.extension.withMeta
 import com.github.aecsocket.sokol.core.NodePath
 import com.github.aecsocket.sokol.core.SokolPersistence
@@ -10,13 +17,21 @@ import com.github.aecsocket.sokol.core.nbt.BinaryTag
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.nbt.TagSerializationException
 import com.github.aecsocket.sokol.paper.extension.asStack
+import net.kyori.adventure.key.Key
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
+import org.bukkit.Location
+import org.bukkit.World
+import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer
+import org.bukkit.entity.Entity
+import org.bukkit.entity.EntityType
+import org.bukkit.event.entity.CreatureSpawnEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataContainer
+import org.bukkit.persistence.PersistentDataType
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.kotlin.extensions.get
 import java.io.BufferedWriter
@@ -34,18 +49,49 @@ class NodeItemCreationException(message: String? = null, cause: Throwable? = nul
 class PaperPersistence internal constructor(
     private val plugin: SokolPlugin
 ) : SokolPersistence<PaperDataNode> {
-    internal val keyNode = plugin.keyNode.asString()
-    internal val keyTick = plugin.keyTick.asString()
+    val kRender = plugin.key("render")
+    val kRot = plugin.key("rot")
+    val kNode = plugin.key("node")
+    val kTick = plugin.key("tick")
+
+    internal val sNode = kNode.asString()
+    internal val sTick = kTick.asString()
+
+    // String/node
+
+    override fun stringToNode(string: String): PaperDataNode {
+        return plugin.loaderBuilder().buildAndLoadString(string).get<PaperDataNode>()
+            ?: throw ConfigurateException("Null node created")
+    }
+
+    override fun nodeToString(node: PaperDataNode): String {
+        val writer = StringWriter()
+        plugin.loaderBuilder().sink { BufferedWriter(writer) }.build().apply {
+            save(createNode().set(node))
+        }
+        return writer.toString()
+    }
+
+    // Tags
 
     fun newTag(): CompoundBinaryTag.Mutable = PaperCompoundTag(CompoundTag())
 
+    fun tagTo(tag: CompoundBinaryTag, pdc: PersistentDataContainer, key: String) {
+        (pdc as CraftPersistentDataContainer).raw[key] = (tag as PaperBinaryTag).handle
+    }
+
+    fun tagTo(tag: CompoundBinaryTag, pdc: PersistentDataContainer, key: Key) =
+        tagTo(tag, pdc, key.asString())
+
+    fun nodeTagTo(tag: CompoundBinaryTag, pdc: PersistentDataContainer) =
+        tagTo(tag, pdc, sNode)
+
     // Tag/node
 
-    fun tagToNode(tag: CompoundBinaryTag): PaperDataNode {
-        fun get0(tag: CompoundBinaryTag, parent: PaperNodeKey?, path: NodePath): PaperDataNode {
+    fun nodeOf(tag: CompoundBinaryTag): PaperDataNode? {
+        fun get0(tag: CompoundBinaryTag, parent: PaperNodeKey?, path: NodePath): PaperDataNode? {
             val id = tag.forceString(ID)
-            val component = plugin.components[id]
-                ?: throw TagSerializationException("No component with ID '$id'")
+            val component = plugin.components[id] ?: return null
 
             val featureData = HashMap<String, PaperFeature.Data>()
             val legacyFeatures = HashMap<String, BinaryTag>()
@@ -77,7 +123,7 @@ class PaperPersistence internal constructor(
                     legacyChildren[key] = tag
                 } else {
                     try {
-                        children[key] = get0(tag as CompoundBinaryTag, node.keyOf(key), path + key)
+                        get0(tag as CompoundBinaryTag, node.keyOf(key), path + key)?.let { children[key] = it }
                     } catch (ex: TagSerializationException) {
                         // couldn't deserialize this child successfully, it's legacy
                         legacyChildren[key] = tag
@@ -91,52 +137,56 @@ class PaperPersistence internal constructor(
         return get0(tag, null, emptyNodePath())
     }
 
-    fun nodeToTag(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
+    fun nodeInto(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
         node.serialize(tag)
         tag.setInt(VERSION, NODE_VERSION)
     }
 
-    // Tag/state
-
-    fun stateToTag(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
-        nodeToTag(state.updatedRoot(), tag)
+    fun stateInto(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
+        nodeInto(state.updatedRoot(), tag)
     }
 
-    // Tag/PDC
 
-    fun dataToTag(pdc: PersistentDataContainer): CompoundBinaryTag.Mutable? {
-        return (pdc as CraftPersistentDataContainer).raw[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
-    }
 
-    fun tagToData(tag: CompoundBinaryTag, pdc: PersistentDataContainer) {
-        (pdc as CraftPersistentDataContainer).raw[keyNode] = (tag as PaperCompoundTag).handle
-    }
-
-    // Tag/stack
-
-    fun stackToTag(stack: ItemStack): CompoundBinaryTag.Mutable? {
+    fun tagOf(stack: ItemStack, key: String): CompoundBinaryTag.Mutable? {
         return if (stack is CraftItemStack) {
             stack.handle?.tag?.let { tag ->
-                tag.getCompound(BUKKIT_PDC).tags[keyNode]?.let { PaperCompoundTag(it as CompoundTag) }
+                tag.getCompound(BUKKIT_PDC).tags[key]?.let { PaperCompoundTag(it as CompoundTag) }
             }
         } else null
     }
+
+    fun tagOf(stack: ItemStack, key: Key) = tagOf(stack, key.asString())
+
+    fun nodeTagOf(stack: ItemStack) = tagOf(stack, sNode)
+
+
+    fun tagOf(pdc: PersistentDataContainer, key: String): CompoundBinaryTag.Mutable? {
+        return (pdc as CraftPersistentDataContainer).raw[key]?.let { PaperCompoundTag(it as CompoundTag) }
+    }
+
+    fun tagOf(pdc: PersistentDataContainer, key: Key) = tagOf(pdc, key.asString())
+
+    fun nodeTagOf(pdc: PersistentDataContainer) = tagOf(pdc, sNode)
+
+    fun forceTagOf(pdc: PersistentDataContainer, key: String): CompoundBinaryTag.Mutable {
+        return PaperCompoundTag((pdc as CraftPersistentDataContainer).raw.computeIfAbsent(key) { CompoundTag() } as CompoundTag)
+    }
+
+    fun forceTagOf(pdc: PersistentDataContainer, key: Key) = forceTagOf(pdc, key.asString())
+
+    fun forceNodeTagOf(pdc: PersistentDataContainer) = forceTagOf(pdc, sNode)
 
     // Stacks
 
     fun stateToStack(state: PaperTreeState): ItemStack {
         val node = state.root
-        val itemHost = state.nodeStates[node]?.get(ItemHostFeature.ID)?.let {
-            it as ItemHostFeature.State<*, *, *>
-        } ?: throw NodeItemCreationException("No item host feature on state")
+        val itemHost = state.nodeStates[node]?.by<ItemHostFeature.State<*, *, *>>(ItemHostFeature)
+            ?: throw NodeItemCreationException("No feature '${ItemHostFeature.id}' to create item from")
 
         return try {
             itemHost.itemDescriptor(state).asStack().withMeta {
-                with(plugin.persistence) {
-                    val tag = newTag()
-                    nodeToTag(node, tag)
-                    tagToData(tag, persistentDataContainer)
-                }
+                nodeInto(node, forceNodeTagOf(persistentDataContainer))
             }
         } catch (ex: Exception) {
             throw NodeItemCreationException(cause = ex)
@@ -148,29 +198,50 @@ class PaperPersistence internal constructor(
         return stateToStack(state)
     }
 
-    // String/node
-
-    override fun stringToNode(string: String): PaperDataNode {
-        return plugin.loaderBuilder().buildAndLoadString(string).get<PaperDataNode>()
-            ?: throw ConfigurateException("Null node created")
-    }
-
-    override fun nodeToString(node: PaperDataNode): String {
-        val writer = StringWriter()
-        plugin.loaderBuilder().sink { BufferedWriter(writer) }.build().apply {
-            save(createNode().set(node))
-        }
-        return writer.toString()
-    }
-
+    // Ticks
 
     fun setTicks(value: Boolean, pdc: PersistentDataContainer) {
-        (pdc as CraftPersistentDataContainer).raw[keyTick] = ByteTag.valueOf(value)
+        (pdc as CraftPersistentDataContainer).raw[sTick] = ByteTag.valueOf(value)
     }
 
-    fun doesTick(pdc: PersistentDataContainer): Boolean {
-        return (pdc as CraftPersistentDataContainer).raw[keyTick]?.let {
+    fun ticks(pdc: PersistentDataContainer): Boolean {
+        return (pdc as CraftPersistentDataContainer).raw[sTick]?.let {
             it is NumericTag && it.asByte != (0).toByte()
         } == true
+    }
+
+    // Render
+
+    fun setRender(node: PaperDataNode, rot: Quaternion, pdc: PersistentDataContainer) {
+        pdc.set(kRender, PersistentDataType.TAG_CONTAINER, pdc.adapterContext.newPersistentDataContainer().apply {
+            set(kRot, QuaternionDataType, rot)
+            nodeInto(node, forceNodeTagOf(this))
+        })
+    }
+
+    fun getRender(entity: Entity): NodeRenders.State? {
+        entity.persistentDataContainer.get(kRender, PersistentDataType.TAG_CONTAINER)?.let { pdc ->
+            nodeTagOf(pdc)?.let { nodeOf(it) }?.let { node ->
+                val rot = pdc.getOrDefault(kRot, QuaternionDataType, Quaternion.Identity)
+                return plugin.renders.create(entity, node, rot)
+            } ?: run {
+                plugin.log.line(LogLevel.Warning) { "Found render on $entity with no key $kNode - removing" }
+                entity.remove()
+            }
+        }
+        return null
+    }
+
+    fun spawnRender(node: PaperDataNode, world: World, transform: Transform) {
+        world.spawnEntity(transform.tl.location(world), EntityType.AREA_EFFECT_CLOUD, CreatureSpawnEvent.SpawnReason.CUSTOM) { entity ->
+            setRender(node, transform.rot, entity.persistentDataContainer)
+            entity as CraftAreaEffectCloud
+            entity.handle.apply {
+                // avoid Bukkit's limits - I know what I'm doing
+                tickCount = Int.MIN_VALUE
+                duration = -1
+                waitTime = Int.MIN_VALUE
+            }
+        }
     }
 }

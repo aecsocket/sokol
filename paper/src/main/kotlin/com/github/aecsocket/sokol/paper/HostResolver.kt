@@ -80,20 +80,22 @@ internal class HostResolver(
             getHost: () -> PaperNodeHost
         ): Boolean {
             tag[BUKKIT_PDC]?.let { tagPdc ->
-                if (tagPdc is CompoundTag && tagPdc.tags[plugin.persistence.keyTick]?.let {
+                if (tagPdc is CompoundTag && tagPdc.tags[plugin.persistence.sTick]?.let {
                         it is NumericTag && it.asByte != (0).toByte()
                 } == true) {
                     val host = getHost()
-                    tagPdc[plugin.persistence.keyNode]?.let { tagNodeNms ->
-                        resolved.marked++
+                    tagPdc[plugin.persistence.sNode]?.let { tagNodeNms ->
                         val tagNode = PaperCompoundTag(tagNodeNms as CompoundTag)
-                        val state = paperStateOf(plugin.persistence.tagToNode(tagNode))
-                        callback(state, host)
-                        plugin.persistence.stateToTag(state, tagNode)
-                        return true
+                        return plugin.persistence.nodeOf(tagNode)?.let { node ->
+                            resolved.marked++
+                            val state = paperStateOf(node)
+                            callback(state, host)
+                            plugin.persistence.stateInto(state, tagNode)
+                            true
+                        } ?: false
                     } ?: run {
                         plugin.log.line(LogLevel.Warning) { "Host $host was marked as ticking but is not node - removed tick key" }
-                        tagPdc.remove(plugin.persistence.keyTick)
+                        tagPdc.remove(plugin.persistence.sTick)
                     }
                 }
             }
