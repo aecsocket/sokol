@@ -1,6 +1,7 @@
 package com.github.aecsocket.sokol.paper
 
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
+import com.github.aecsocket.alexandria.core.Input
 import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.LogList
 import com.github.aecsocket.alexandria.core.extension.*
@@ -31,6 +32,8 @@ import com.github.aecsocket.sokol.paper.feature.PaperRender
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
+import net.kyori.adventure.extra.kotlin.join
+import net.kyori.adventure.text.JoinConfiguration
 import org.bukkit.Bukkit
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -44,6 +47,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializerCollection
+import java.util.concurrent.ConcurrentHashMap
 
 private const val COMPONENT = "component"
 private const val BLUEPRINT = "blueprint"
@@ -74,7 +78,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     var lastHosts: Map<HostType, HostsResolved> = emptyMap()
         private set
 
-    private val _playerData = HashMap<Player, PlayerData>()
+    private val _playerData = ConcurrentHashMap<Player, PlayerData>()
     val playerData: Map<Player, PlayerData> = _playerData
 
     private val _features = Registry.create<PaperFeature>()
@@ -110,7 +114,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
         registerEvents(object : Listener {
             @EventHandler
             fun PlayerQuitEvent.on() {
-                _playerData.remove(player)?.destroy()
+                _playerData.remove(player)
             }
 
             @EventHandler
@@ -138,7 +142,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                         }?.posIn ?: ray.point(maxDistance)
 
                         render.render(node, PaperNodeHost.OfEntity(player), Transform(
-                            // todo rot
+                            rot = Euler3(y = -player.location.yaw.toDouble()).radians.quaternion(EulerOrder.ZYX),
                             tl = origin
                         ))
                     }
@@ -200,21 +204,20 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
             }*/
         })
         effectors.init(this)
+        renders.init()
 
         val plugin = this
         onLoad {
             features.register(PaperItemHost(plugin))
             features.register(PaperRender(plugin))
         }
-
-        scheduleRepeating { Bukkit.getOnlinePlayers().forEach { playerData(it) } }
     }
 
     override fun serverLoad(): Boolean {
         if (super.serverLoad()) {
             scheduleRepeating {
                 lastHosts = if (settings.hostResolution.enabled) hostResolver.resolve() else emptyMap()
-                _playerData.forEach { (_, data) -> data.tick() }
+                _playerData.forEach { (player, data) -> tickPlayer(player, data) }
                 renders.tick()
             }
             return true
@@ -224,7 +227,6 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
 
     override fun onDisable() {
         super.onDisable()
-        _playerData.forEach { (_, data) -> data.destroy() }
         PacketEvents.getAPI().terminate()
     }
 
@@ -253,10 +255,9 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 log.line(LogLevel.Error, ex) { "Could not load settings" }
                  return false
             }
-            this.settings.hostResolution.apply {
-                hostResolver.containerItems = containerItems
-                hostResolver.containerBlocks = containerBlocks
-            }
+
+            hostResolver.loadSettings()
+            renders.loadSettings()
 
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _components, dataFolder.resolve(COMPONENT), PaperComponent::class.java)
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _blueprints, dataFolder.resolve(BLUEPRINT), PaperBlueprint::class.java)
@@ -271,20 +272,21 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
 
     private fun onInputReceived(event: PacketInputListener.Event) {
         val player = event.player
+
         _playerData[player]?.let { data ->
-            /*data.isSelection?.let { selection ->
-                val input = event.input
-                if (input is Input.Mouse && input.button == Input.MouseButton.RIGHT) {
-                    selection.dragging = when (input.state) {
-                        Input.MouseState.DOWN -> true
-                        Input.MouseState.UP -> false
-                        Input.MouseState.UNDEFINED -> !selection.dragging
-                    }
+            val input = event.input
+            // TODO let users configure these controls
+            if (input is Input.Mouse && input.button == Input.MouseButton.RIGHT) {
+                if (renders.interact(data, when (input.state) {
+                    Input.MouseState.DOWN -> true
+                    Input.MouseState.UP -> false
+                    Input.MouseState.UNDEFINED -> null
+                })) {
                     // dragging inspect components takes priority over node actions
                     event.cancel()
                     return
                 }
-            } todo */
+            }
         }
 
         persistence.nodeTagOf(player.persistentDataContainer)?.let { tag ->
@@ -330,5 +332,21 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 }
             }
         } }
+    }
+
+    private fun tickPlayer(player: Player, data: PlayerData) {
+        val locale = player.locale()
+
+        if (data.showHosts) {
+            val possible = lastHosts.values.sumOf { it.possible }
+            val marked = lastHosts.values.sumOf { it.marked }
+            player.sendActionBar(i18n.safe(locale, "show_hosts") {
+                raw("marked") { marked }
+                raw("possible") { possible }
+                raw("percent") { marked.toDouble() / possible }
+                raw("mspt") { Bukkit.getAverageTickTime() }
+                raw("tps") { Bukkit.getTPS()[0] }
+            }.join(JoinConfiguration.noSeparators()))
+        }
     }
 }

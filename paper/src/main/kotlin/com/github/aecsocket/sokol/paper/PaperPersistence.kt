@@ -21,7 +21,6 @@ import net.kyori.adventure.key.Key
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
-import org.bukkit.Location
 import org.bukkit.World
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
@@ -219,7 +218,7 @@ class PaperPersistence internal constructor(
         })
     }
 
-    fun getRender(entity: Entity): NodeRenders.State? {
+    fun getRender(entity: Entity): NodeRender? {
         entity.persistentDataContainer.get(kRender, PersistentDataType.TAG_CONTAINER)?.let { pdc ->
             nodeTagOf(pdc)?.let { nodeOf(it) }?.let { node ->
                 val rot = pdc.getOrDefault(kRot, QuaternionDataType, Quaternion.Identity)

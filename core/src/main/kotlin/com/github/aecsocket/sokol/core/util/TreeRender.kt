@@ -1,7 +1,6 @@
 package com.github.aecsocket.sokol.core.util
 
 import com.github.aecsocket.alexandria.core.physics.Body
-import com.github.aecsocket.alexandria.core.physics.DynamicBody
 import com.github.aecsocket.alexandria.core.physics.Transform
 import com.github.aecsocket.sokol.core.DataNode
 import com.github.aecsocket.sokol.core.ItemDescriptor

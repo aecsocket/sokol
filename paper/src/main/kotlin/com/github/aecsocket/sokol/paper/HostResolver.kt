@@ -24,6 +24,7 @@ import org.bukkit.entity.LivingEntity
 import org.bukkit.entity.Player
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataHolder
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.*
 
 enum class HostType {
@@ -39,12 +40,22 @@ interface HostsResolved {
     val marked: Int
 }
 
-internal class HostResolver(
+class HostResolver(
     private val plugin: SokolPlugin,
     val callback: (PaperTreeState, PaperNodeHost) -> Unit,
-    var containerItems: Boolean = true,
-    var containerBlocks: Boolean = true
+    var settings: Settings = Settings(),
 ) {
+    @ConfigSerializable
+    data class Settings(
+        val enabled: Boolean = true,
+        val containerItems: Boolean = true,
+        val containerBlocks: Boolean = true,
+    )
+
+    internal fun loadSettings() {
+        settings = plugin.settings.hostResolution
+    }
+
     private data class HostsResolvedImpl(
         override var possible: Int = 0,
         override var marked: Int = 0
@@ -58,6 +69,8 @@ internal class HostResolver(
         }
 
         fun resolve() {
+            if (!settings.enabled) return
+
             Bukkit.getServer().worlds.forEach { world ->
                 forWorld(world)
             }
@@ -157,7 +170,7 @@ internal class HostResolver(
             val host by lazy { PaperNodeHost.OfBlock(
                 world.getBlockAt(pos.x, pos.y, pos.z).getState(false)
             ) }
-            if (containerBlocks && block is BaseContainerBlockEntity) {
+            if (settings.containerBlocks && block is BaseContainerBlockEntity) {
                 block.contents.forEachIndexed { _, stack ->
                     forStack(stack, StackHolder.byBlock(host))
                 }
@@ -191,7 +204,7 @@ internal class HostResolver(
                     { dirty = true }
                 ) }
 
-                if (containerItems) {
+                if (settings.containerItems) {
                     operator fun Tag.get(key: String) = if (this is CompoundTag) this.tags[key] else null
 
                     tag.tags["BlockEntityTag"]?.let { tagBlock ->

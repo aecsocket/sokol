@@ -1,7 +1,6 @@
 package com.github.aecsocket.sokol.paper
 
 import cloud.commandframework.arguments.standard.BooleanArgument
-import cloud.commandframework.arguments.standard.DoubleArgument
 import cloud.commandframework.arguments.standard.EnumArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.arguments.standard.StringArgument
@@ -24,10 +23,10 @@ import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.command.CommandSender
 import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
-import org.bukkit.entity.AreaEffectCloud
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
 import org.bukkit.event.entity.CreatureSpawnEvent
+import org.spigotmc.AsyncCatcher.enabled
 import java.util.*
 
 internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
@@ -84,26 +83,26 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .permission(perm("info", "blueprint"))
             .handler { handle(it, ::infoBlueprint) })
 
-        val inspect = root
-            .literal("inspect", desc("Options for the inspect view."), "is")
-        manager.command(inspect
-            .literal("show-shapes", desc("Toggles showing shape and point definitions on an inspect view."))
-            .argument(BooleanArgument.optional("enabled"), desc("If the feature should be enabled or not."))
-            .permission(perm("inspect", "show-shapes"))
+        val render = root
+            .literal("render", desc("Options for rendered items,"))
+        manager.command(render
+            .literal("show-shapes", desc("Toggles showing shape and point definitions on the selected render."))
+            .argument(EnumArgument.optional(NodeRender.ShowShape::class.java, "state"), desc("For what objects to show shapes of."))
+            .permission(perm("render", "show-shapes"))
             .senderType(Player::class.java)
-            .handler { handle(it, ::inspectShowShapes) })
-        manager.command(inspect
-            .literal("rotate", desc("Clears the currently set inspect view rotation."))
+            .handler { handle(it, ::renderShowShapes) })
+        /*manager.command(render
+            .literal("rotate", desc("Clears the currently set  view rotation."))
             .permission(perm("inspect", "rotate"))
             .senderType(Player::class.java)
-            .handler { handle(it, ::inspectRotate) })
-        manager.command(inspect
+            .handler { handle(it, ::renderRotate) })
+        manager.command(render
             .literal("rotate", desc("Rotates all inspect views by the specified angle."))
             .argumentEuler3("rotation", desc("Angle to rotate to, in Euler degrees."))
             .argument(EnumArgument.optional(EulerOrder::class.java, "order"), desc("Order for the Euler angles."))
             .permission(perm("inspect", "rotate"))
             .senderType(Player::class.java)
-            .handler { handle(it, ::inspectRotateSet) })
+            .handler { handle(it, ::renderRotateSet) }) todo */
 
         manager.command(root
             .literal("give", desc("Gives a specified item-representable node tree to a player."))
@@ -304,20 +303,20 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
         } }
     }
 
-    fun inspectShowShapes(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+    fun renderShowShapes(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
         val data = plugin.playerData(sender as Player)
-        //val enabled = ctx.get("enabled") { !data.isShowShapes }
+        val state = ctx.get("state") { NodeRender.ShowShape.NONE }
 
-        // todo data.isShowShapes = enabled
-        //plugin.send(sender) { safe(locale, "command.inspect.show_shapes.${if (enabled) "enabled" else "disabled"}") }
+        data.rdShowShapes = state
+        plugin.send(sender) { safe(locale, "command.render.show_shapes.${state.key}") }
     }
 
-    fun inspectRotate(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+    fun renderRotate(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
         val data = plugin.playerData(sender as Player)
         // todo data.isRotation = null
     }
 
-    fun inspectRotateSet(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+    fun renderRotateSet(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
         val data = plugin.playerData(sender as Player)
         val rotation = ctx.get<Euler3>("rotation")
         val order = ctx.get("order") { EulerOrder.XYZ }

@@ -3,6 +3,7 @@ package com.github.aecsocket.sokol.core.feature
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.physics.SimpleBody
 import com.github.aecsocket.alexandria.core.physics.Transform
+import com.github.aecsocket.alexandria.core.physics.Vector3
 import com.github.aecsocket.sokol.core.*
 import com.github.aecsocket.sokol.core.event.NodeEvent
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
@@ -29,7 +30,10 @@ object RenderFeature : Keyed {
         val bodies: Collection<SimpleBody>,
         val meshes: Collection<RenderMesh>,
         val slots: Map<String, Transform>,
-        val asChild: Transform,
+        val attachedTransform: Transform,
+        val snapTransform: Transform,
+        val attachAxis: Vector3,
+        val attachDistance: Double,
     ) : Feature.Profile<D> {
         abstract override val type: Type<*>
     }

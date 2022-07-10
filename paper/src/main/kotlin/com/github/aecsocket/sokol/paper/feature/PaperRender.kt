@@ -2,6 +2,7 @@ package com.github.aecsocket.sokol.paper.feature
 
 import com.github.aecsocket.alexandria.core.physics.SimpleBody
 import com.github.aecsocket.alexandria.core.physics.Transform
+import com.github.aecsocket.alexandria.core.physics.Vector3
 import com.github.aecsocket.sokol.core.feature.NodeRenderException
 import com.github.aecsocket.sokol.core.feature.RenderFeature
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
@@ -13,7 +14,10 @@ import org.spongepowered.configurate.kotlin.extensions.get
 private const val BODIES = "bodies"
 private const val MESHES = "meshes"
 private const val SLOTS = "slots"
-private const val AS_CHILD = "as_child"
+private const val ATTACHED_TRANSFORM = "attached_transform"
+private const val SNAP_TRANSFORM = "snap_transform"
+private const val ATTACH_AXIS = "attach_axis"
+private const val ATTACH_DISTANCE = "attach_distance"
 
 class PaperRender(
     private val plugin: SokolPlugin
@@ -22,16 +26,22 @@ class PaperRender(
         node.node(BODIES).get { HashSet() },
         node.node(MESHES).get { HashSet() },
         node.node(SLOTS).get { HashMap() },
-        node.node(AS_CHILD).get { Transform.Identity },
+        node.node(ATTACHED_TRANSFORM).get { Transform.Identity },
+        node.node(SNAP_TRANSFORM).get { Transform.Identity },
+        node.node(ATTACH_AXIS).get { Vector3.Zero },
+        node.node(ATTACH_DISTANCE).get { 0.0 }
     )
 
     inner class Profile(
         bodies: Collection<SimpleBody>,
         meshes: Collection<RenderMesh>,
         slots: Map<String, Transform>,
-        asChild: Transform,
+        attachedTransform: Transform,
+        snapTransform: Transform,
+        attachAxis: Vector3,
+        attachDistance: Double,
     ) : RenderFeature.Profile<PaperFeature.Data>(
-        bodies, meshes, slots, asChild
+        bodies, meshes, slots, attachedTransform, snapTransform, attachAxis, attachDistance,
     ), PaperFeature.Profile {
         override val type: PaperRender get() = this@PaperRender
 

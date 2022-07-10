@@ -22,14 +22,14 @@ internal class SokolPacketListener(
                     plugin.persistence.getRender(it)
                 })?.let { render ->
                     event.isCancelled = true
-                    render.trackedBy(player)
-                    plugin.playerData(player).trackingRenders[render.backing.entityId] = render
+                    plugin.renders.startTracking(player, render)
                 }
             }
             PacketType.Play.Server.DESTROY_ENTITIES -> {
                 val packet = WrapperPlayServerDestroyEntities(event)
-                val tracking = plugin.playerData(player).trackingRenders
-                packet.entityIds.forEach { tracking.remove(it) }
+                packet.entityIds.forEach { id ->
+                    plugin.renders[id]?.let { plugin.renders.stopTracking(player, it) }
+                }
             }
         }
     }
