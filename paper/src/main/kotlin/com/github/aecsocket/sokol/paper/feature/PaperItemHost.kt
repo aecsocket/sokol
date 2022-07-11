@@ -4,11 +4,11 @@ import com.github.aecsocket.sokol.core.feature.ItemHostFeature
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.paper.PaperFeature
 import com.github.aecsocket.sokol.paper.PaperFeatureContext
-import com.github.aecsocket.sokol.paper.SokolPlugin
+import com.github.aecsocket.sokol.paper.Sokol
 import org.spongepowered.configurate.ConfigurationNode
 
 class PaperItemHost(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : ItemHostFeature.Type<PaperFeature.Profile>(), PaperFeature {
     override fun createProfile(node: ConfigurationNode) = Profile()
 

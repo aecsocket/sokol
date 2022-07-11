@@ -23,6 +23,13 @@ interface DataNode : Node, TagSerializable {
     > : DataNode, Node.Scoped<N> {
         override val component: C
         override val features: Map<String, F>
+
+        fun copy(
+            component: C = this.component,
+            features: Map<String, F> = this.features,
+            parent: NodeKey<N>? = this.parent,
+            children: Map<String, N> = this.children,
+        ): N
     }
 }
 

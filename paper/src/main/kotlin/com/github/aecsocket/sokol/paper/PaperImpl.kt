@@ -84,7 +84,12 @@ class PaperDataNode(
         }
     }
 
-    override fun copy(): PaperDataNode = PaperDataNode(
+    override fun copy(
+        component: PaperComponent,
+        features: Map<String, PaperFeature.Data>,
+        parent: PaperNodeKey?,
+        children: Map<String, PaperDataNode>
+    ) = PaperDataNode(
         component,
         features.map { (key, value) -> key to value.copy() }.associate { it }.toMutableMap(),
         legacyFeatures,
@@ -92,6 +97,53 @@ class PaperDataNode(
         children.map { (key, value) -> key to value.copy() }.associate { it }.toMutableMap(),
         legacyChildren
     )
+
+    override fun copy(): PaperDataNode = copy(component = component)
+
+    fun backedCopy(platform: Sokol): PaperDataNode? {
+        if (parent != null)
+            throw IllegalStateException(errorMsg("Can only reload from backing platform on a root node"))
+
+        fun PaperDataNode.copy(parent: PaperNodeKey?): PaperDataNode? {
+            return platform.components[component.id]?.let { component ->
+                val res = PaperDataNode(
+                    component,
+                    HashMap(),
+                    legacyFeatures,
+                    parent,
+                    HashMap(),
+                    legacyChildren
+                )
+                features.forEach { (key, data) ->
+                    // serialize data into a tag; get the new profile from our component; deserialize the data
+                    val dataTag = platform.persistence.newTag().apply { data.serialize(this) }
+                    component.features[key]?.let { profile ->
+                        try {
+                            res.features[key] = profile.createData(dataTag)
+                        } catch (ex: Exception) {
+                            // go down to the `run` block and save as legacy
+                            null
+                        }
+                    } ?: run {
+                        // if it can't be deserialized again, it gets saved as a legacy feature
+                        res.legacyFeatures[key] = dataTag
+                    }
+                }
+                children.forEach { (key, child) ->
+                    // if a child can't be copied (its component is no longer real),
+                    // it gets saved as a legacy child instead
+                    child.copy(PaperNodeKey(this, key))?.let { copy ->
+                        res.children[key] = copy
+                    } ?: run {
+                        res.legacyChildren[key] = platform.persistence.newTag().apply { child.serialize(this) }
+                    }
+                }
+                res
+            }
+        }
+
+        return copy(null)
+    }
 }
 
 class PaperTreeState(

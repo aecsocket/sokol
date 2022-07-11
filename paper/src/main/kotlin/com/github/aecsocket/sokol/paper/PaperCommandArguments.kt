@@ -7,7 +7,7 @@ import com.github.aecsocket.sokol.core.ComponentArgument
 import com.github.aecsocket.sokol.core.NodeArgument
 
 class PaperComponentArgument<C : Any>(
-    plugin: SokolPlugin,
+    plugin: Sokol,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
@@ -16,7 +16,7 @@ class PaperComponentArgument<C : Any>(
 ) : ComponentArgument<C, PaperComponent>(plugin, name, description, required, defaultValue, PaperComponent::class.java, suggestionsProvider)
 
 class PaperBlueprintArgument<C : Any>(
-    plugin: SokolPlugin,
+    plugin: Sokol,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
@@ -25,7 +25,7 @@ class PaperBlueprintArgument<C : Any>(
 ) : BlueprintArgument<C, PaperBlueprint>(plugin, name, description, required, defaultValue, PaperBlueprint::class.java, suggestionsProvider)
 
 class PaperNodeArgument<C : Any>(
-    plugin: SokolPlugin,
+    plugin: Sokol,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,

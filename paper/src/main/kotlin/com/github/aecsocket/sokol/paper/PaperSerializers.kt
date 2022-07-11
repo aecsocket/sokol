@@ -18,7 +18,7 @@ private const val MODIFIABLE = "modifiable"
 private const val RULE = "rule"
 
 class PaperComponentSerializer(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : ComponentSerializer<
     PaperComponent, PaperFeature, PaperFeature.Profile, PaperSlot
 >() {
@@ -58,7 +58,7 @@ class PaperComponentSerializer(
 }
 
 class PaperNodeSerializer(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : DataNodeSerializer<
     PaperDataNode, PaperComponent, PaperFeature.Profile, PaperFeature.Data
 >() {
@@ -67,13 +67,13 @@ class PaperNodeSerializer(
     override fun create(
         value: PaperComponent,
         features: MutableMap<String, PaperFeature.Data>,
-        parent: NodeKey<PaperDataNode>?,
+        parent: PaperNodeKey?,
         children: MutableMap<String, PaperDataNode>
     ) = PaperDataNode(value, features = features, parent = parent, children = children)
 }
 
 class PaperBlueprintSerializer(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : BlueprintSerializer<
         PaperBlueprint, PaperDataNode
         >() {

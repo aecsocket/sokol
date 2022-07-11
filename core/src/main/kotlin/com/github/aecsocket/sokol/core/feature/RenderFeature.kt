@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.core.feature
 
+import com.github.aecsocket.alexandria.core.effect.SoundEffect
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.alexandria.core.physics.SimpleBody
 import com.github.aecsocket.alexandria.core.physics.Transform
@@ -12,9 +13,31 @@ import com.github.aecsocket.sokol.core.stat.Stat
 import com.github.aecsocket.sokol.core.util.RenderMesh
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 
 class NodeRenderException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
+
+@ConfigSerializable
+data class RenderData(
+    val partTransform: Transform = Transform.Identity,
+    val attachedTransform: Transform = Transform.Identity,
+    val attach: Attach? = null,
+
+    val soundPlace: List<SoundEffect> = emptyList(),
+    val soundGrab: List<SoundEffect> = emptyList(),
+    val soundAttach: List<SoundEffect> = emptyList(),
+    val soundDetach: List<SoundEffect> = emptyList(),
+    val soundDragStart: List<SoundEffect> = emptyList(),
+    val soundDragStop: List<SoundEffect> = emptyList(),
+) {
+    @ConfigSerializable
+    data class Attach(
+        @Required val axis: Vector3,
+        @Required val distance: Double
+    )
+}
 
 object RenderFeature : Keyed {
     override val id get() = "render"
@@ -30,10 +53,7 @@ object RenderFeature : Keyed {
         val bodies: Collection<SimpleBody>,
         val meshes: Collection<RenderMesh>,
         val slots: Map<String, Transform>,
-        val attachedTransform: Transform,
-        val snapTransform: Transform,
-        val attachAxis: Vector3,
-        val attachDistance: Double,
+        val data: RenderData,
     ) : Feature.Profile<D> {
         abstract override val type: Type<*>
     }

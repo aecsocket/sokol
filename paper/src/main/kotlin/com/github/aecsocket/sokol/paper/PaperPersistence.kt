@@ -1,12 +1,7 @@
 package com.github.aecsocket.sokol.paper
 
-import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.keyed.by
-import com.github.aecsocket.alexandria.core.physics.Quaternion
-import com.github.aecsocket.alexandria.core.physics.Transform
-import com.github.aecsocket.alexandria.paper.datatype.QuaternionDataType
 import com.github.aecsocket.alexandria.paper.extension.key
-import com.github.aecsocket.alexandria.paper.extension.location
 import com.github.aecsocket.alexandria.paper.extension.withMeta
 import com.github.aecsocket.sokol.core.NodePath
 import com.github.aecsocket.sokol.core.SokolPersistence
@@ -21,16 +16,10 @@ import net.kyori.adventure.key.Key
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
-import org.bukkit.World
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
 import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer
-import org.bukkit.entity.Entity
-import org.bukkit.entity.EntityType
-import org.bukkit.event.entity.CreatureSpawnEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataContainer
-import org.bukkit.persistence.PersistentDataType
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.kotlin.extensions.get
 import java.io.BufferedWriter
@@ -46,10 +35,8 @@ const val NODE_VERSION = 1
 class NodeItemCreationException(message: String? = null, cause: Throwable? = null) : RuntimeException(message, cause)
 
 class PaperPersistence internal constructor(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : SokolPersistence<PaperDataNode> {
-    val kRender = plugin.key("render")
-    val kRot = plugin.key("rot")
     val kNode = plugin.key("node")
     val kTick = plugin.key("tick")
 
@@ -207,40 +194,5 @@ class PaperPersistence internal constructor(
         return (pdc as CraftPersistentDataContainer).raw[sTick]?.let {
             it is NumericTag && it.asByte != (0).toByte()
         } == true
-    }
-
-    // Render
-
-    fun setRender(node: PaperDataNode, rot: Quaternion, pdc: PersistentDataContainer) {
-        pdc.set(kRender, PersistentDataType.TAG_CONTAINER, pdc.adapterContext.newPersistentDataContainer().apply {
-            set(kRot, QuaternionDataType, rot)
-            nodeInto(node, forceNodeTagOf(this))
-        })
-    }
-
-    fun getRender(entity: Entity): NodeRender? {
-        entity.persistentDataContainer.get(kRender, PersistentDataType.TAG_CONTAINER)?.let { pdc ->
-            nodeTagOf(pdc)?.let { nodeOf(it) }?.let { node ->
-                val rot = pdc.getOrDefault(kRot, QuaternionDataType, Quaternion.Identity)
-                return plugin.renders.create(entity, node, rot)
-            } ?: run {
-                plugin.log.line(LogLevel.Warning) { "Found render on $entity with no key $kNode - removing" }
-                entity.remove()
-            }
-        }
-        return null
-    }
-
-    fun spawnRender(node: PaperDataNode, world: World, transform: Transform) {
-        world.spawnEntity(transform.tl.location(world), EntityType.AREA_EFFECT_CLOUD, CreatureSpawnEvent.SpawnReason.CUSTOM) { entity ->
-            setRender(node, transform.rot, entity.persistentDataContainer)
-            entity as CraftAreaEffectCloud
-            entity.handle.apply {
-                // avoid Bukkit's limits - I know what I'm doing
-                tickCount = Int.MIN_VALUE
-                duration = -1
-                waitTime = Int.MIN_VALUE
-            }
-        }
     }
 }

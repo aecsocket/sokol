@@ -1,9 +1,10 @@
 package com.github.aecsocket.sokol.paper.feature
 
+import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.physics.SimpleBody
 import com.github.aecsocket.alexandria.core.physics.Transform
-import com.github.aecsocket.alexandria.core.physics.Vector3
 import com.github.aecsocket.sokol.core.feature.NodeRenderException
+import com.github.aecsocket.sokol.core.feature.RenderData
 import com.github.aecsocket.sokol.core.feature.RenderFeature
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.util.RenderMesh
@@ -14,34 +15,24 @@ import org.spongepowered.configurate.kotlin.extensions.get
 private const val BODIES = "bodies"
 private const val MESHES = "meshes"
 private const val SLOTS = "slots"
-private const val ATTACHED_TRANSFORM = "attached_transform"
-private const val SNAP_TRANSFORM = "snap_transform"
-private const val ATTACH_AXIS = "attach_axis"
-private const val ATTACH_DISTANCE = "attach_distance"
 
 class PaperRender(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : RenderFeature.Type<PaperFeature.Profile>(), PaperFeature {
     override fun createProfile(node: ConfigurationNode) = Profile(
         node.node(BODIES).get { HashSet() },
         node.node(MESHES).get { HashSet() },
         node.node(SLOTS).get { HashMap() },
-        node.node(ATTACHED_TRANSFORM).get { Transform.Identity },
-        node.node(SNAP_TRANSFORM).get { Transform.Identity },
-        node.node(ATTACH_AXIS).get { Vector3.Zero },
-        node.node(ATTACH_DISTANCE).get { 0.0 }
+        node.force(),
     )
 
     inner class Profile(
         bodies: Collection<SimpleBody>,
         meshes: Collection<RenderMesh>,
         slots: Map<String, Transform>,
-        attachedTransform: Transform,
-        snapTransform: Transform,
-        attachAxis: Vector3,
-        attachDistance: Double,
+        data: RenderData,
     ) : RenderFeature.Profile<PaperFeature.Data>(
-        bodies, meshes, slots, attachedTransform, snapTransform, attachAxis, attachDistance,
+        bodies, meshes, slots, data,
     ), PaperFeature.Profile {
         override val type: PaperRender get() = this@PaperRender
 
@@ -69,7 +60,7 @@ class PaperRender(
             override fun render(node: PaperDataNode, host: PaperNodeHost, transform: Transform) {
                 if (host !is PaperNodeHost.Static)
                     throw NodeRenderException("Host must be of type ${PaperNodeHost.Static::class.qualifiedName}")
-                plugin.persistence.spawnRender(node, host.world, transform)
+                plugin.renders.create(node, host.world, transform)
             }
         }
     }

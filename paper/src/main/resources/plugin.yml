@@ -1,0 +1,7 @@
+name: "Sokol"
+description: "%description%"
+main: "%group%.paper.Sokol"
+version: "%version%"
+api-version: "1.18"
+authors: [ "aecsocket" ]
+website: "https://aecsocket.github.io/sokol"

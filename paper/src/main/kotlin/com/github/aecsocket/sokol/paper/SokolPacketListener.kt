@@ -9,7 +9,7 @@ import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import org.bukkit.entity.Player
 
 internal class SokolPacketListener(
-    private val plugin: SokolPlugin
+    private val plugin: Sokol
 ) : PacketListenerAbstract() {
     override fun onPacketSend(event: PacketSendEvent) {
         val player = event.player
@@ -18,18 +18,13 @@ internal class SokolPacketListener(
         when (event.packetType) {
             PacketType.Play.Server.SPAWN_ENTITY -> {
                 val packet = WrapperPlayServerSpawnEntity(event)
-                (plugin.renders[packet.entityId] ?: SpigotReflectionUtil.getEntityById(packet.entityId)?.let {
-                    plugin.persistence.getRender(it)
-                })?.let { render ->
+                if (plugin.renders.handleSpawnEntity(player, packet.entityId)) {
                     event.isCancelled = true
-                    plugin.renders.startTracking(player, render)
                 }
             }
             PacketType.Play.Server.DESTROY_ENTITIES -> {
                 val packet = WrapperPlayServerDestroyEntities(event)
-                packet.entityIds.forEach { id ->
-                    plugin.renders[id]?.let { plugin.renders.stopTracking(player, it) }
-                }
+                plugin.renders.handleDestroyEntities(player, packet.entityIds)
             }
         }
     }

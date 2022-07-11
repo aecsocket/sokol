@@ -4,14 +4,19 @@ import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.github.aecsocket.alexandria.core.Input
 import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.LogList
-import com.github.aecsocket.alexandria.core.extension.*
+import com.github.aecsocket.alexandria.core.extension.force
+import com.github.aecsocket.alexandria.core.extension.register
+import com.github.aecsocket.alexandria.core.extension.registerExact
 import com.github.aecsocket.alexandria.core.keyed.MutableRegistry
 import com.github.aecsocket.alexandria.core.keyed.Registry
 import com.github.aecsocket.alexandria.core.keyed.by
 import com.github.aecsocket.alexandria.core.physics.Quaternion
 import com.github.aecsocket.alexandria.core.serializer.QuaternionSerializer
 import com.github.aecsocket.alexandria.paper.effect.PaperEffectors
-import com.github.aecsocket.alexandria.paper.extension.*
+import com.github.aecsocket.alexandria.paper.effect.playGlobal
+import com.github.aecsocket.alexandria.paper.extension.bukkitPlayers
+import com.github.aecsocket.alexandria.paper.extension.registerEvents
+import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.github.aecsocket.alexandria.paper.packet.PacketInputListener
 import com.github.aecsocket.alexandria.paper.physics.PaperRaycast
 import com.github.aecsocket.alexandria.paper.plugin.BasePlugin
@@ -30,9 +35,6 @@ import com.github.aecsocket.sokol.paper.feature.PaperRender
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
-import net.kyori.adventure.extra.kotlin.join
-import net.kyori.adventure.text.JoinConfiguration
-import org.bukkit.Bukkit
 import org.bukkit.World
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -46,12 +48,11 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializerCollection
-import java.util.concurrent.ConcurrentHashMap
 
 private const val COMPONENT = "component"
 private const val BLUEPRINT = "blueprint"
 
-class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
+class Sokol : BasePlugin<Sokol.LoadScope>(),
     SokolPlatform<PaperComponent, PaperBlueprint, PaperFeature, PaperDataNode> {
     interface LoadScope : BasePlugin.LoadScope {
         val features: MutableRegistry<PaperFeature>
@@ -69,7 +70,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     private val hostResolver = HostResolver(this, this::onHostResolve)
     lateinit var settings: SokolSettings
     override val persistence = PaperPersistence(this)
-    val renders = NodeRenders(this)
+    val renders = DefaultNodeRenders(this)
     val effectors = PaperEffectors()
     val statMapSerializer = StatMapSerializer()
     val ruleSerializer = RuleSerializer()
@@ -77,8 +78,8 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     var lastHosts: Map<HostType, HostsResolved> = emptyMap()
         private set
 
-    @get:Synchronized private val _playerData = HashMap<Player, PlayerData>()
-    val playerData: Map<Player, PlayerData> = _playerData
+    @get:Synchronized private val _playerState = HashMap<Player, PlayerState>()
+    val playerState: Map<Player, PlayerState> = _playerState
 
     private val _features = Registry.create<PaperFeature>()
     override val features: Registry<PaperFeature> get() = _features
@@ -89,7 +90,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     private val _components = Registry.create<PaperComponent>()
     override val components: Registry<PaperComponent> get() = _components
 
-    fun playerData(player: Player) = _playerData.computeIfAbsent(player) { PlayerData(this, it) }
+    fun playerState(player: Player) = _playerState.computeIfAbsent(player) { PlayerState(this, it) }
 
     override fun nodeOf(component: PaperComponent) = PaperDataNode(component)
 
@@ -108,15 +109,15 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     override fun onEnable() {
         super.onEnable()
         PacketEvents.getAPI().eventManager.apply {
-            registerListener(SokolPacketListener(this@SokolPlugin))
-            registerListener(PacketInputListener(this@SokolPlugin::onInputReceived), PacketListenerPriority.NORMAL)
+            registerListener(SokolPacketListener(this@Sokol))
+            registerListener(PacketInputListener(this@Sokol::onInputReceived), PacketListenerPriority.NORMAL)
         }
         PacketEvents.getAPI().init()
         SokolCommand(this)
         registerEvents(object : Listener {
             @EventHandler
             fun PlayerQuitEvent.on() {
-                _playerData.remove(player)
+                _playerState.remove(player)
             }
 
             @EventHandler
@@ -138,8 +139,11 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 item?.let { persistence.nodeTagOf(it) }?.let { persistence.nodeOf(it) }?.let { node ->
                     val state = paperStateOf(node)
                     state.nodeStates[node]?.by<PaperRender.Profile.State>(RenderFeature)?.let { render ->
-                        render.render(node, PaperNodeHost.OfEntity(player),
-                            renders.createPartTransform(player, render.profile.snapTransform))
+                        // we explicitly play soundPlace here, and not in create(), because
+                        // some callers of create() might not want to play the sound
+                        val transform = renders.computePartTransform(player, render.profile.data.partTransform)
+                        render.render(node, PaperNodeHost.OfEntity(player), transform)
+                        render.profile.data.soundPlace.playGlobal(effectors, player.world, transform.tl)
                     }
                 }
             }
@@ -158,8 +162,8 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
         if (super.serverLoad()) {
             scheduleRepeating {
                 lastHosts = if (settings.hostResolution.enabled) hostResolver.resolve() else emptyMap()
-                _playerData.forEach { (player, data) -> tickPlayer(player, data) }
-                renders.tick()
+                bukkitPlayers.forEach { playerState(it).tick() }
+                renders.update()
             }
             return true
         }
@@ -197,11 +201,12 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                  return false
             }
 
-            hostResolver.loadSettings()
-            renders.loadSettings()
-
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _components, dataFolder.resolve(COMPONENT), PaperComponent::class.java)
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _blueprints, dataFolder.resolve(BLUEPRINT), PaperBlueprint::class.java)
+
+            hostResolver.load()
+            renders.load()
+
             return true
         }
         return false
@@ -214,18 +219,28 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     private fun onInputReceived(event: PacketInputListener.Event) {
         val player = event.player
 
-        _playerData[player]?.let { data ->
+        _playerState[player]?.let { data ->
             val input = event.input
             // TODO let users configure these controls
-            if (input is Input.Mouse && input.button == Input.MouseButton.RIGHT) {
-                if (renders.interact(data, when (input.state) {
-                    Input.MouseState.DOWN -> true
-                    Input.MouseState.UP -> false
-                    Input.MouseState.UNDEFINED -> null
-                })) {
-                    // dragging inspect components takes priority over node actions
-                    event.cancel()
-                    return
+            if (input is Input.Mouse) {
+                when (input.button) {
+                    Input.MouseButton.RIGHT -> {
+                        if (renders.handleDrag(data.renders, when (input.state) {
+                            Input.MouseState.DOWN -> true
+                            Input.MouseState.UP -> false
+                            Input.MouseState.UNDEFINED -> null
+                        })) {
+                            // render actions take priority over anything else
+                            event.cancel()
+                            return
+                        }
+                    }
+                    Input.MouseButton.LEFT -> {
+                        if (renders.handleGrab(data.renders)) {
+                            event.cancel()
+                            return
+                        }
+                    }
                 }
             }
         }
@@ -273,21 +288,5 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 }
             }
         } }
-    }
-
-    private fun tickPlayer(player: Player, data: PlayerData) {
-        val locale = player.locale()
-
-        if (data.showHosts) {
-            val possible = lastHosts.values.sumOf { it.possible }
-            val marked = lastHosts.values.sumOf { it.marked }
-            player.sendActionBar(i18n.safe(locale, "show_hosts") {
-                raw("marked") { marked }
-                raw("possible") { possible }
-                raw("percent") { marked.toDouble() / possible }
-                raw("mspt") { Bukkit.getAverageTickTime() }
-                raw("tps") { Bukkit.getTPS()[0] }
-            }.join(JoinConfiguration.noSeparators()))
-        }
     }
 }

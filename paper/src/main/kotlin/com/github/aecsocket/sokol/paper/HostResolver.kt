@@ -41,7 +41,7 @@ interface HostsResolved {
 }
 
 class HostResolver(
-    private val plugin: SokolPlugin,
+    private val plugin: Sokol,
     val callback: (PaperTreeState, PaperNodeHost) -> Unit,
     var settings: Settings = Settings(),
 ) {
@@ -52,7 +52,7 @@ class HostResolver(
         val containerBlocks: Boolean = true,
     )
 
-    internal fun loadSettings() {
+    internal fun load() {
         settings = plugin.settings.hostResolution
     }
 

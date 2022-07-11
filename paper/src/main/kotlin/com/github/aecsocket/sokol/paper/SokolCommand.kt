@@ -1,6 +1,5 @@
 package com.github.aecsocket.sokol.paper
 
-import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.EnumArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.arguments.standard.StringArgument
@@ -22,14 +21,10 @@ import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.command.CommandSender
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
-import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
-import org.bukkit.event.entity.CreatureSpawnEvent
-import org.spigotmc.AsyncCatcher.enabled
 import java.util.*
 
-internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
+internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
     plugin, "sokol",
     { manager, rootName -> manager.commandBuilder(rootName, desc("Core plugin command.")) }
 ) {
@@ -87,7 +82,7 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .literal("render", desc("Options for rendered items,"))
         manager.command(render
             .literal("show-shapes", desc("Toggles showing shape and point definitions on the selected render."))
-            .argument(EnumArgument.optional(NodeRender.ShowShape::class.java, "state"), desc("For what objects to show shapes of."))
+            .argument(EnumArgument.optional(DefaultNodeRenders.ShowShapes::class.java, "state"), desc("For what objects to show shapes of."))
             .permission(perm("render", "show-shapes"))
             .senderType(Player::class.java)
             .handler { handle(it, ::renderShowShapes) })
@@ -150,7 +145,7 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
     }
 
     fun hostsToggle(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        plugin.playerData(sender as Player).apply { showHosts = !showHosts }
+        plugin.playerState(sender as Player).apply { showHosts = !showHosts }
     }
 
     fun <T> list(
@@ -288,20 +283,20 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
     }
 
     fun renderShowShapes(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val data = plugin.playerData(sender as Player)
-        val state = ctx.get("state") { NodeRender.ShowShape.NONE }
+        val data = plugin.playerState(sender as Player)
+        val state = ctx.get("state") { DefaultNodeRenders.ShowShapes.NONE }
 
-        data.rdShowShapes = state
+        data.renders.showShapes = state
         plugin.send(sender) { safe(locale, "command.render.show_shapes.${state.key}") }
     }
 
     fun renderRotate(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val data = plugin.playerData(sender as Player)
+        val data = plugin.playerState(sender as Player)
         // todo data.isRotation = null
     }
 
     fun renderRotateSet(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val data = plugin.playerData(sender as Player)
+        val data = plugin.playerState(sender as Player)
         val rotation = ctx.get<Euler3>("rotation")
         val order = ctx.get("order") { EulerOrder.XYZ }
 

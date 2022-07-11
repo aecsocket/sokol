@@ -1,17 +1,13 @@
 plugins {
     kotlin("jvm")
     id("maven-publish")
-    //id("org.jetbrains.dokka")
+    id("org.jetbrains.dokka")
 }
 
 allprojects {
     group = "com.github.aecsocket.sokol"
     version = "2.2.1"
     description = "Platform-agnostic, data-driven item framework"
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions.jvmTarget = JavaVersion.VERSION_17.toString()
 }
 
 repositories {
@@ -35,11 +31,13 @@ subprojects {
         test {
             useJUnitPlatform()
         }
-    }
 
-    java {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(17))
+        processResources {
+            filter { it
+                .replace("%version%", project.version.toString())
+                .replace("%description%", project.description.toString())
+                .replace("%group%", project.group.toString())
+            }
         }
     }
 }
