@@ -118,22 +118,6 @@ internal class SokolCommand(plugin: SokolPlugin) : CloudCommand<SokolPlugin>(
             .argument(IntegerArgument.optional("amount"), desc("Amount of the item to give."))
             .permission(perm("build"))
             .handler { handle(it, ::build) })
-
-        manager.command(root
-            .literal("mkr")
-            .handler { ctx ->
-                val player = ctx.sender as Player
-                player.world.spawnEntity(player.location, EntityType.AREA_EFFECT_CLOUD, CreatureSpawnEvent.SpawnReason.CUSTOM) { entity ->
-                    entity as CraftAreaEffectCloud
-                    entity.handle.apply {
-                        // avoid Bukkit limits, I know what I'm doing
-                        tickCount = Int.MIN_VALUE
-                        duration = -1
-                        waitTime = Int.MIN_VALUE
-                    }
-                }
-            }
-        )
     }
 
     fun <T : Keyed> byRegistry(registry: Registry<T>, id: String, locale: Locale) = registry[id]

@@ -5,7 +5,6 @@ import com.github.aecsocket.alexandria.core.extension.*
 import com.github.aecsocket.alexandria.core.keyed.by
 import com.github.aecsocket.alexandria.core.physics.*
 import com.github.aecsocket.alexandria.paper.extension.*
-import com.github.aecsocket.alexandria.paper.physics.PaperRaycast
 import com.github.aecsocket.sokol.core.errorMsg
 import com.github.aecsocket.sokol.core.feature.ItemHostFeature
 import com.github.aecsocket.sokol.core.feature.RenderFeature
@@ -31,9 +30,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerTeams.TeamMode
 import io.github.retrooper.packetevents.util.SpigotConversionUtil
 import net.kyori.adventure.text.Component.empty
-import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.format.NamedTextColor
-import org.bukkit.Particle
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -47,7 +44,6 @@ import kotlin.collections.HashMap
 import kotlin.math.PI
 import kotlin.math.abs
 
-private const val EPSILON = 0.000001
 private const val REL_MOVE_THRESH = 8.0
 
 // 16 chars [a-z0-9_]
@@ -69,25 +65,26 @@ data class SpawnedMesh(
             EntityData(0, EntityDataTypes.BYTE,
                 (0x20 or if (value) 0x40 else 0).toByte()), // invisible + glowing?
         )))
-
-        // TODO testing
-        player.sendPacket(WrapperPlayServerTeams(TEAM_INVALID, TeamMode.ADD_ENTITIES, Optional.empty(),
-            uuid.toString()))
     }
 
-    fun sendSelectionState(player: Player, state: Part.SelectionState) {
-        fun send(team: String, add: Boolean) {
+    fun sendSelectionState(player: Player, to: NodePart.SelectionState, from: NodePart.SelectionState?) {
+        if (to == from) return
+
+        fun send(state: NodePart.SelectionState, add: Boolean) {
             player.sendPacket(WrapperPlayServerTeams(
-                team,
+                when (state) {
+                    NodePart.SelectionState.DEFAULT -> TEAM_DEFAULT
+                    NodePart.SelectionState.MARKED -> TEAM_MARKED
+                    NodePart.SelectionState.INVALID -> TEAM_INVALID
+                },
                 if (add) TeamMode.ADD_ENTITIES else TeamMode.REMOVE_ENTITIES,
                 Optional.empty(),
                 uuid.toString(),
             ))
         }
 
-        send(TEAM_DEFAULT, state == Part.SelectionState.DEFAULT)
-        send(TEAM_MARKED, state == Part.SelectionState.MARKED)
-        send(TEAM_INVALID, state == Part.SelectionState.INVALID)
+        from?.let { send(it, false) }
+        send(to, true)
     }
 }
 
@@ -103,12 +100,12 @@ private fun spawnedMeshOf(mesh: RenderMesh, node: PaperDataNode): SpawnedMesh {
     }.asStack())
 }
 
-data class Slot(
+data class NodeSlot(
     val transform: Transform,
-    var part: Part? = null,
+    var part: NodePart? = null,
 )
 
-data class Part(
+data class NodePart(
     val node: PaperDataNode,
     val bodies: Collection<Body>,
     val meshes: Collection<SpawnedMesh>,
@@ -116,7 +113,7 @@ data class Part(
     val snapTf: Transform,
     val attachAxis: Vector3?,
     val attachDistance: Double,
-    val slots: Map<String, Slot>,
+    val slots: Map<String, NodeSlot>,
     var dragTf: Transform = Transform.Identity,
 ) {
     enum class SelectionState {
@@ -126,10 +123,10 @@ data class Part(
     }
 }
 
-private fun partOf(node: PaperDataNode): Part {
+private fun partOf(node: PaperDataNode): NodePart {
     val render = node.component.features.by<PaperRender.Profile>(RenderFeature)
         ?: throw IllegalStateException(node.errorMsg("No feature '${RenderFeature.id}'"))
-    return Part(
+    return NodePart(
         node,
         render.bodies,
         render.meshes.map { spawnedMeshOf(it, node) },
@@ -138,7 +135,7 @@ private fun partOf(node: PaperDataNode): Part {
         if (render.attachAxis.sqrLength > 0.0) render.attachAxis.normalized else null,
         render.attachDistance,
         node.component.slots.map { (key, _) ->
-            key to Slot(
+            key to NodeSlot(
                 render.slots[key]
                     ?: throw IllegalStateException(node.errorMsg("No slot transform for slot '$key'")),
                 node.node(key)?.let { partOf(it) }
@@ -151,7 +148,7 @@ class NodeRender(
     private val manager: NodeRenders,
     val backing: Entity,
     var rotation: Quaternion,
-    val root: Part,
+    val root: NodePart,
 ) {
     val id = backing.entityId
 
@@ -161,8 +158,9 @@ class NodeRender(
 
     data class Selected(
         val render: NodeRender,
-        val part: Part,
+        val part: NodePart,
         var dragging: Boolean = false,
+        var lastState: NodePart.SelectionState? = null,
     )
 
     enum class ShowShape(val key: String) {
@@ -176,12 +174,15 @@ class NodeRender(
         get() = backing.transform.copy(rot = rotation)
         set(value) {
             backing.transform = value
-            // todo write to PDC
             rotation = value.rot
         }
 
-    private fun walk(action: (Part, Transform, Transform) -> Unit) {
-        fun apply(part: Part, baseTf: Transform) {
+    fun write() {
+        manager.plugin.persistence.setRender(root.node, rotation, backing.persistentDataContainer)
+    }
+
+    private fun walk(action: (NodePart, Transform, Transform) -> Unit) {
+        fun apply(part: NodePart, baseTf: Transform) {
             val tf = baseTf + part.dragTf
             action(part, tf, baseTf)
             part.slots.forEach { (_, slot) -> slot.part?.let { apply(it, tf + slot.transform + it.attachedTf) } }
@@ -241,7 +242,10 @@ class NodeRender(
         walk { part, tf, _ ->
             part.meshes.forEach { mesh ->
                 val meshTf = mesh.transform(tf)
-                players.forEach { mesh.sendSpawn(it, meshTf) }
+                players.forEach {
+                    mesh.sendSpawn(it, meshTf)
+                    mesh.sendTransform(it, meshTf)
+                }
             }
         }
     }
@@ -287,50 +291,12 @@ class NodeRender(
                 data.rdSelected?.let { selected ->
                     if (selected.render != this || selected.part != part || !selected.dragging) return@let
 
-                    val settings = manager.settings
-                    val reach = manager.settings.reachDistance
-                    val snap = manager.settings.snapDistance
-
                     if (isRoot) {
                         // move the entire render around
-                        // todo centralize raycast instances
-                        val ray = player.eyeLocation.ray()
-                        transform = PaperRaycast(player.world).castBlocks(ray, snap) {
-                            it.fluid == null
-                        }?.let { col ->
-                            fun rot(): Quaternion {
-                                // emulating quaternionLooking, but if the vectors are collinear we do our own rotation
-                                val dir = -col.normal
-                                val up = Vector3.Y
-
-                                val v1 = up.cross(dir).normalized
-                                return if (v1 == Vector3.Zero) {
-                                    // we're snapping against the floor or ceiling - `dir` and `up` are collinear
-                                    Euler3(y = -player.location.yaw.radians.toDouble())
-                                        .quaternion(EulerOrder.ZYX) * settings.verticalRotation
-                                } else {
-                                    val v2 = dir.cross(v1).normalized
-                                    quaternionOfAxes(v1, v2, dir) * settings.wallRotation
-                                }
-                            }
-
-                            Transform(
-                                rot = rot(),
-                                tl = col.posIn
-                            ) + part.snapTf
-                        } ?: run {
-                            Transform(
-                                rot = player.looking * settings.wallRotation,
-                                tl = ray.point(reach)
-                            )
-                        }
+                        transform = manager.createPartTransform(player, part.snapTf)
                     } else {
                         // move the single part
                         part.attachAxis?.let { axis ->
-                            //part.dragTf = Transform(
-                            //    tl = axis * part.attachDistance
-                            //)
-
                             fun iLinePlane(p0: Vector3, p1: Vector3, pCo: Vector3, pNo: Vector3): Vector3? {
                                 // https://stackoverflow.com/questions/5666222/3d-line-plane-intersection
                                 val u = p1 - p0
@@ -348,16 +314,17 @@ class NodeRender(
 
                             //  · to determine how far along part.attachAxis we transform our part,
                             //    we find the intersection of a ray and a line:
-                            //    · p0, p1 are world-space points along the world-space attach axis - our line
-                            //    · pCo and pNo define a plane along which the player's view line lies
-                            //      · pCo is a point on this plane
-                            //      · pNo is the normal of this plane, pointing "up" from the player's look dir
+                            //    · p0 is the player's eye
+                            //    · p1 is the player's eye + player dir (basically another point along their dir line)
+                            //    · pCo and pNo define a plane along the part
+                            //      · pCo is the part's transform
+                            //      · pNo is the normal that makes the plane "point" towards the player
+                            //  · get the intersection of these, and you can get the transform along the drag line
                             val loc = player.eyeLocation
-                            val pCo = loc.vector()
-                            // scuffed but idc
-                            val pNo = loc.polar().x { it - PI / 2 }.cartesian()
+                            val pCo = baseTf.apply()
+                            val pNo = (pCo - loc.vector()).normalized
 
-                            iLinePlane(baseTf.apply(), baseTf.apply(axis), pCo, pNo)?.let { intersect ->
+                            iLinePlane(loc.vector(), loc.vector() + loc.direction(), pCo, pNo)?.let { intersect ->
                                 // the distance our intersect is along this axis (- means it's backwards)
                                 val dstMoved = baseTf.invert(intersect).dot(axis)
                                 part.dragTf = Transform(
@@ -370,17 +337,22 @@ class NodeRender(
             }
         }
 
+        // `from` = render origin
+        // `to[X|Y|Z]` = origin + that axis in local space, to world space (think of the arrows when moving an object in Unity)
         val tf = transform
         val from = tf.apply()
-        val to = from + (tf.rot * Vector3(x = 1.0))
+        val toX = from + (tf.rot * Vector3.Right)
+        val toY = from + (tf.rot * Vector3.Up)
+        val toZ = from + (tf.rot * Vector3.Forward)
+        val step = manager.settings.shapeStep
         players.forEach { data ->
             if (when (data.rdShowShapes) {
                 ShowShape.NONE -> false
                 else -> true
             }) {
-                manager.settings.pointParticle?.let {
-                    data.effector.showLine(it, from, to, manager.settings.shapeStep)
-                }
+                manager.settings.xParticle?.let { data.effector.showLine(it, from, toX, step) }
+                manager.settings.yParticle?.let { data.effector.showLine(it, from, toY, step) }
+                manager.settings.zParticle?.let { data.effector.showLine(it, from, toZ, step) }
             }
         }
     }
@@ -388,13 +360,13 @@ class NodeRender(
 
 internal data class PartBody(
     val render: NodeRender,
-    val part: Part,
+    val part: NodePart,
     override val shape: Shape,
     override val transform: Transform,
 ) : Body
 
 class NodeRenders internal constructor(
-    private val plugin: SokolPlugin,
+    internal val plugin: SokolPlugin,
     var settings: Settings = Settings(),
 ) {
     @ConfigSerializable
@@ -402,14 +374,15 @@ class NodeRenders internal constructor(
         val glowDefault: NamedTextColor = NamedTextColor.WHITE,
         val glowMarked: NamedTextColor = NamedTextColor.AQUA,
         val glowInvalid: NamedTextColor = NamedTextColor.RED,
-        val reachDistance: Double = 3.0,
-        val snapDistance: Double = 4.0,
-        val wallRotation: Quaternion = Quaternion.Identity,
-        val verticalRotation: Quaternion = Quaternion.Identity,
+        val holdDistance: Double = 3.0,
+        val reachDistance: Double = 4.0,
+        val rotation: Quaternion = Quaternion.Identity,
 
-        val pointParticle: ParticleEffect? = null,
         val shapeParticle: ParticleEffect? = null,
         val shapeStep: Double = 0.2,
+        val xParticle: ParticleEffect? = null,
+        val yParticle: ParticleEffect? = null,
+        val zParticle: ParticleEffect? = null,
     )
 
     private val _entries = HashMap<Int, NodeRender>()
@@ -482,13 +455,13 @@ class NodeRenders internal constructor(
             old.part.dragTf = Transform.Identity
             old.part.meshes.forEach {
                 it.sendGlowing(player, false)
-                it.sendSelectionState(player, Part.SelectionState.DEFAULT)
+                it.sendSelectionState(player, NodePart.SelectionState.DEFAULT, old.lastState)
             }
         }
         value?.let { new ->
             new.part.meshes.forEach {
                 it.sendGlowing(player, true)
-                it.sendSelectionState(player, Part.SelectionState.DEFAULT)
+                it.sendSelectionState(player, NodePart.SelectionState.DEFAULT, new.lastState)
             }
         }
         rdSelected = value
@@ -499,12 +472,50 @@ class NodeRenders internal constructor(
             dragging = state ?: !dragging
             part.meshes.forEach {
                 it.sendSelectionState(data.player,
-                    if (dragging) Part.SelectionState.MARKED else Part.SelectionState.DEFAULT)
+                    if (dragging) NodePart.SelectionState.MARKED else NodePart.SelectionState.DEFAULT,
+                    lastState,
+                )
             }
             part.dragTf = Transform.Identity
+            if (!dragging) {
+                // write into PDC once done dragging
+                render.write()
+            }
             return true
         } }
         return false
+    }
+
+    fun createPartTransform(player: Player, snapTf: Transform): Transform {
+        val ray = player.eyeLocation.ray()
+        val rotation = settings.rotation
+        val reach = settings.reachDistance
+
+        return plugin.raycast(player.world).castBlocks(ray, reach) {
+            it.fluid == null
+        }?.let { col ->
+            val rot = if (abs(col.normal.y) < EPSILON) quaternionLooking(col.normal, Vector3.Up)
+            else {
+                val yaw = player.location.yaw.radians.toDouble()
+                // `up` and `normal` are collinear - player's looking at a vertical
+                quaternionFromTo(Vector3.Forward, col.normal) *
+                    // TODO this is a stupid hack
+                    Euler3(z = if (col.normal.y > 0.0) -yaw + PI else yaw + PI)
+                        .quaternion(EulerOrder.XYZ)
+            }
+
+            Transform(
+                rot = rot * rotation,
+                tl = col.posIn
+            ) + snapTf
+        } ?: run {
+            // · Z/forward/blue is pointing "inwards" to the player
+            // · X/right/red points to the "right" of where the player's looking
+            Transform(
+                rot = quaternionLooking(-player.location.direction(), Vector3.Up) * rotation,
+                tl = ray.point(settings.holdDistance)
+            )
+        }
     }
 
     internal fun tick() {

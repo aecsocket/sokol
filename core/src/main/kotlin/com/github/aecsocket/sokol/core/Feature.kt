@@ -38,6 +38,7 @@ interface Feature<
 
     interface Data<S : State<S, *, *>> : TagSerializable, Keyed {
         val type: Feature<*>
+        val profile: Profile<*>
         override val id get() = type.id
 
         fun createState(): S
@@ -51,6 +52,7 @@ interface Feature<
         C : FeatureContext<*, *, *>
     > : TagSerializable, Keyed {
         val type: Feature<*>
+        val profile: Profile<*>
         override val id get() = type.id
 
         fun asData(): D

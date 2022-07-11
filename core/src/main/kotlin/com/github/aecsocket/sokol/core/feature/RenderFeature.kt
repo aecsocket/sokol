@@ -40,6 +40,7 @@ object RenderFeature : Keyed {
 
     abstract class Data<S : Feature.State<S, *, *>> : Feature.Data<S> {
         abstract override val type: Feature<*>
+        abstract override val profile: Profile<*>
 
         override fun serialize(tag: CompoundBinaryTag.Mutable) {}
 
@@ -54,6 +55,7 @@ object RenderFeature : Keyed {
         N
     > : Feature.State<S, D, C> where N : DataNode, N : Node.Mutable<N> {
         abstract override val type: Feature<*>
+        abstract override val profile: Profile<*>
 
         override fun onEvent(event: NodeEvent, ctx: C) {
             // TODO on spawn into world (eg dropped by a player)

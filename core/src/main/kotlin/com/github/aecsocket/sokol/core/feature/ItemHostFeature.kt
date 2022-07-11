@@ -36,6 +36,7 @@ object ItemHostFeature : Keyed {
 
     abstract class Data<S : Feature.State<S, *, *>> : Feature.Data<S> {
         abstract override val type: Feature<*>
+        abstract override val profile: Profile<*>
 
         override fun serialize(tag: CompoundBinaryTag.Mutable) {}
 
@@ -44,6 +45,7 @@ object ItemHostFeature : Keyed {
 
     abstract class State<S : Feature.State<S, D, C>, D : Feature.Data<S>, C : FeatureContext<*, *, *>> : Feature.State<S, D, C> {
         abstract override val type: Feature<*>
+        abstract override val profile: Profile<*>
 
         override fun onEvent(event: NodeEvent, ctx: C) {}
 

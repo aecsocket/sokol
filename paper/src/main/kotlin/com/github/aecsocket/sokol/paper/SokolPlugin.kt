@@ -9,8 +9,6 @@ import com.github.aecsocket.alexandria.core.keyed.MutableRegistry
 import com.github.aecsocket.alexandria.core.keyed.Registry
 import com.github.aecsocket.alexandria.core.keyed.by
 import com.github.aecsocket.alexandria.core.physics.Quaternion
-import com.github.aecsocket.alexandria.core.physics.Ray
-import com.github.aecsocket.alexandria.core.physics.Transform
 import com.github.aecsocket.alexandria.core.serializer.QuaternionSerializer
 import com.github.aecsocket.alexandria.paper.effect.PaperEffectors
 import com.github.aecsocket.alexandria.paper.extension.*
@@ -35,6 +33,7 @@ import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.JoinConfiguration
 import org.bukkit.Bukkit
+import org.bukkit.World
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -78,7 +77,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     var lastHosts: Map<HostType, HostsResolved> = emptyMap()
         private set
 
-    private val _playerData = ConcurrentHashMap<Player, PlayerData>()
+    @get:Synchronized private val _playerData = HashMap<Player, PlayerData>()
     val playerData: Map<Player, PlayerData> = _playerData
 
     private val _features = Registry.create<PaperFeature>()
@@ -93,6 +92,9 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
     fun playerData(player: Player) = _playerData.computeIfAbsent(player) { PlayerData(this, it) }
 
     override fun nodeOf(component: PaperComponent) = PaperDataNode(component)
+
+    // centralized raycast instances
+    fun raycast(world: World) = PaperRaycast(world)
 
     override fun onLoad() {
         super.onLoad()
@@ -127,6 +129,7 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 entities.forEach { renders.remove(it.entityId) }
             }
 
+            // todo move
             @EventHandler
             fun PlayerInteractEvent.on() {
                 val player = player
@@ -135,73 +138,11 @@ class SokolPlugin : BasePlugin<SokolPlugin.LoadScope>(),
                 item?.let { persistence.nodeTagOf(it) }?.let { persistence.nodeOf(it) }?.let { node ->
                     val state = paperStateOf(node)
                     state.nodeStates[node]?.by<PaperRender.Profile.State>(RenderFeature)?.let { render ->
-                        val ray = Ray(player.eyeLocation.vector(), player.location.direction.alexandria())
-                        val maxDistance = 8.0
-                        val origin = PaperRaycast(player.world).castBlocks(ray, maxDistance) {
-                            it.fluid == null
-                        }?.posIn ?: ray.point(maxDistance)
-
-                        render.render(node, PaperNodeHost.OfEntity(player), Transform(
-                            rot = Euler3(y = -player.location.yaw.toDouble()).radians.quaternion(EulerOrder.ZYX),
-                            tl = origin
-                        ))
+                        render.render(node, PaperNodeHost.OfEntity(player),
+                            renders.createPartTransform(player, render.profile.snapTransform))
                     }
                 }
             }
-
-            /*
-            // todo move out
-            @EventHandler
-            fun InventoryClickEvent.on() {
-                val player = whoClicked
-                if (player !is Player) return
-                if (!isRightClick || !isShiftClick) return
-                currentItem?.let { persistence.nodeTagOf(it) }?.let { tag ->
-                    val node = persistence.nodeOf(tag)
-
-                    val rot = Euler3(
-                        y = (-player.location.yaw.toDouble().radians) - PI / 2,
-                        z = -PI / 2
-                    ).quaternion(EulerOrder.XYZ)
-
-                    PaperRaycast(player.world).castBlocks(Ray(player.eyeLocation.vector(), player.location.direction.alexandria()), 8.0) {
-                        it.fluid == null
-                    }?.let { col ->
-                        val data = playerData(player)
-                        val normal = col.normal
-                        val (pitch, yaw) = normal.polar()
-
-                        when {
-                            normal.y > 0.0 -> {
-                                // on the floor
-                                Euler3(0.0, -player.location.yaw.toDouble() - 90.0, -90.0).radians.quaternion(EulerOrder.XYZ)
-                            }
-                            normal.y < 0.0 -> null // ceiling, can't place
-                            else -> {
-                                // on a wall
-                                Euler3(
-                                    pitch,
-                                    yaw + (if (abs(normal.x) > 0.0) -PI/2 else PI/2),
-                                    0.0
-                                ).quaternion(EulerOrder.XYZ)
-                                    //playerData(player).tfRot
-                                // playerData(player).tfRot //Euler3(pitch, yaw, 0.0).quaternion(EulerOrder.XYZ)
-                            }
-                        }?.let { rotation ->
-                            /* todo data.addInspectView(
-                                node, Transform(
-                                    rot = rotation,
-                                    tl = col.posIn + normal * 0.04
-                                )
-                            )*/
-                        }
-                    } ?: run {
-                        player.sendMessage("(no collision)")
-                    }
-                    player.closeInventory()
-                    isCancelled = true
-                }
-            }*/
         })
         effectors.init(this)
         renders.init()

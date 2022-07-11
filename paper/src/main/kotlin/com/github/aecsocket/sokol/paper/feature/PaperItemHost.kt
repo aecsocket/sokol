@@ -23,6 +23,7 @@ class PaperItemHost(
 
         inner class Data : ItemHostFeature.Data<PaperFeature.State>(), PaperFeature.Data {
             override val type: PaperItemHost get() = this@PaperItemHost
+            override val profile: Profile get() = this@Profile
 
             override fun createState() = State()
 
@@ -31,6 +32,7 @@ class PaperItemHost(
 
         inner class State : ItemHostFeature.State<PaperFeature.State, PaperFeature.Data, PaperFeatureContext>(), PaperFeature.State {
             override val type: PaperItemHost get() = this@PaperItemHost
+            override val profile: Profile get() = this@Profile
 
             override fun asData() = Data()
         }

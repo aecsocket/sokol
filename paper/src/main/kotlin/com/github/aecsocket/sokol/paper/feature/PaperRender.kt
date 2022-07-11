@@ -53,6 +53,7 @@ class PaperRender(
 
         inner class Data : RenderFeature.Data<PaperFeature.State>(), PaperFeature.Data {
             override val type: PaperRender get() = this@PaperRender
+            override val profile: Profile get() = this@Profile
 
             override fun createState() = State()
 
@@ -61,6 +62,7 @@ class PaperRender(
 
         inner class State : RenderFeature.State<PaperFeature.State, PaperFeature.Data, PaperFeatureContext, PaperNodeHost, PaperDataNode>(), PaperFeature.State {
             override val type: PaperRender get() = this@PaperRender
+            override val profile: Profile get() = this@Profile
 
             override fun asData() = Data()
 
