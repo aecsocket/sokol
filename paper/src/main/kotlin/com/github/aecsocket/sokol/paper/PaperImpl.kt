@@ -43,9 +43,9 @@ class PaperSlot(
     key: String,
     tags: Set<String>,
     required: Boolean,
+    rule: Rule,
     val modifiable: Boolean,
-    val compatible: Rule
-) : SimpleSlot(key, tags, required)
+) : SimpleSlot(key, tags, required, rule)
 
 class PaperBlueprint(
     id: String,

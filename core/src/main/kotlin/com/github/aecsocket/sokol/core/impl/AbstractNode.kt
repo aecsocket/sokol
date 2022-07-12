@@ -34,9 +34,7 @@ abstract class AbstractNode<N : AbstractNode<N>>(
         children.clear()
     }
 
-    override fun set(key: String, value: N) {
-        value.attach(self, key)
-        children[key]?.detach()
+    override fun node(key: String, value: N) {
         children[key] = value
     }
 

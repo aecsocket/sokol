@@ -6,6 +6,7 @@ import com.github.aecsocket.alexandria.core.physics.Transform
 import com.github.aecsocket.sokol.core.feature.NodeRenderException
 import com.github.aecsocket.sokol.core.feature.RenderData
 import com.github.aecsocket.sokol.core.feature.RenderFeature
+import com.github.aecsocket.sokol.core.feature.RenderSlot
 import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.util.RenderMesh
 import com.github.aecsocket.sokol.paper.*
@@ -29,7 +30,7 @@ class PaperRender(
     inner class Profile(
         bodies: Collection<SimpleBody>,
         meshes: Collection<RenderMesh>,
-        slots: Map<String, Transform>,
+        slots: Map<String, RenderSlot>,
         data: RenderData,
     ) : RenderFeature.Profile<PaperFeature.Data>(
         bodies, meshes, slots, data,

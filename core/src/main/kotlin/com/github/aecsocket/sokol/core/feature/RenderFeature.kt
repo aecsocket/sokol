@@ -21,6 +21,7 @@ class NodeRenderException(message: String? = null, cause: Throwable? = null)
 
 @ConfigSerializable
 data class RenderData(
+    val surfaceOffset: Double = 0.0,
     val partTransform: Transform = Transform.Identity,
     val attachedTransform: Transform = Transform.Identity,
     val attach: Attach? = null,
@@ -35,9 +36,16 @@ data class RenderData(
     @ConfigSerializable
     data class Attach(
         @Required val axis: Vector3,
-        @Required val distance: Double
+        @Required val maxDistance: Double,
+        @Required val detachDistance: Double,
     )
 }
+
+@ConfigSerializable
+data class RenderSlot(
+    @Required val transform: Transform,
+    val bodies: List<SimpleBody> = emptyList(),
+)
 
 object RenderFeature : Keyed {
     override val id get() = "render"
@@ -52,7 +60,7 @@ object RenderFeature : Keyed {
     abstract class Profile<D : Feature.Data<*>>(
         val bodies: Collection<SimpleBody>,
         val meshes: Collection<RenderMesh>,
-        val slots: Map<String, Transform>,
+        val slots: Map<String, RenderSlot>,
         val data: RenderData,
     ) : Feature.Profile<D> {
         abstract override val type: Type<*>

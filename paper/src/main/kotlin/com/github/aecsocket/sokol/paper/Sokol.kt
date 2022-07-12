@@ -141,7 +141,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
                     state.nodeStates[node]?.by<PaperRender.Profile.State>(RenderFeature)?.let { render ->
                         // we explicitly play soundPlace here, and not in create(), because
                         // some callers of create() might not want to play the sound
-                        val transform = renders.computePartTransform(player, render.profile.data.partTransform)
+                        val transform = renders.computePartTransform(playerState(player).renders, render.profile.data.surfaceOffset)
                         render.render(node, PaperNodeHost.OfEntity(player), transform)
                         render.profile.data.soundPlace.playGlobal(effectors, player.world, transform.tl)
                     }
@@ -229,16 +229,18 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
                             Input.MouseState.DOWN -> true
                             Input.MouseState.UP -> false
                             Input.MouseState.UNDEFINED -> null
-                        })) {
+                        }, player.isSneaking)) {
                             // render actions take priority over anything else
                             event.cancel()
                             return
                         }
                     }
                     Input.MouseButton.LEFT -> {
-                        if (renders.handleGrab(data.renders)) {
-                            event.cancel()
-                            return
+                        if (player.isSneaking) { // todo
+                            if (renders.handleGrab(data.renders)) {
+                                event.cancel()
+                                return
+                            }
                         }
                     }
                 }

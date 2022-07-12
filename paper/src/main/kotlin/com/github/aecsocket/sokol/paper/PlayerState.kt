@@ -9,7 +9,7 @@ import org.bukkit.entity.Player
 
 class PlayerState(private val plugin: Sokol, val player: Player) {
     val effector = plugin.effectors.player(player)
-    val renders = DefaultNodeRenders.PlayerState(player)
+    val renders = DefaultNodeRenders.PlayerState(player, effector)
     var showHosts = false
 
     fun tick() {

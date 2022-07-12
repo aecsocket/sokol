@@ -1,9 +1,11 @@
 package com.github.aecsocket.sokol.core.impl
 
 import com.github.aecsocket.glossa.core.I18N
+import com.github.aecsocket.sokol.core.DataNode
 import com.github.aecsocket.sokol.core.Feature
 import com.github.aecsocket.sokol.core.NodeComponent
 import com.github.aecsocket.sokol.core.Slot
+import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import com.github.aecsocket.sokol.core.stat.StatMap
 import net.kyori.adventure.text.Component
@@ -26,8 +28,11 @@ abstract class AbstractComponent<
 open class SimpleSlot(
     override val key: String,
     override val tags: Set<String>,
-    override val required: Boolean
+    override val required: Boolean,
+    val rule: Rule,
 ) : Slot {
     override fun localize(i18n: I18N<Component>) =
         i18n.safe("slot.$key")
+
+    override fun compatible(node: DataNode) = rule.applies(node)
 }

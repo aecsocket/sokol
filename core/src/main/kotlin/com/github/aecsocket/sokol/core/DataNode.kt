@@ -2,6 +2,8 @@ package com.github.aecsocket.sokol.core
 
 import com.github.aecsocket.sokol.core.nbt.TagSerializable
 
+fun <N : DataNode> NodeKey<N>.slot() = node.component.slots[key]
+
 interface DataNode : Node, TagSerializable {
     override val parent: NodeKey<DataNode>?
     override val children: Map<String, DataNode>

@@ -28,8 +28,8 @@ class PaperComponentSerializer(
         key,
         node.node(TAGS).get<MutableSet<String>> { HashSet() },
         node.node(REQUIRED).getBoolean(false),
+        node.node(RULE).get<Rule> { Rule.True },
         node.node(MODIFIABLE).getBoolean(false),
-        node.node(RULE).get<Rule> { Rule.True }
     )
 
     override fun deserialize(type: Type, node: ConfigurationNode): PaperComponent {

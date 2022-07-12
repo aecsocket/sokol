@@ -1,6 +1,7 @@
 package com.github.aecsocket.sokol.paper
 
 import com.github.aecsocket.alexandria.core.LogLevel
+import com.github.aecsocket.alexandria.core.effect.Effector
 import com.github.aecsocket.alexandria.core.effect.ParticleEffect
 import com.github.aecsocket.alexandria.core.effect.SoundEffect
 import com.github.aecsocket.alexandria.core.extension.*
@@ -12,6 +13,7 @@ import com.github.aecsocket.alexandria.paper.extension.*
 import com.github.aecsocket.sokol.core.errorMsg
 import com.github.aecsocket.sokol.core.feature.RenderData
 import com.github.aecsocket.sokol.core.feature.RenderFeature
+import com.github.aecsocket.sokol.core.feature.RenderSlot
 import com.github.aecsocket.sokol.core.util.RenderMesh
 import com.github.aecsocket.sokol.paper.extension.asStack
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData
@@ -41,13 +43,13 @@ import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.*
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.properties.Delegates
 
 private const val REL_MOVE_THRESH = 8.0
 
 // 16 chars [a-z0-9_]
 private const val TEAM_DEFAULT = "sokol_rd_def"
 private const val TEAM_MARKED = "sokol_rd_mkd"
+private const val TEAM_VALID = "sokol_rd_vld"
 private const val TEAM_INVALID = "sokol_rd_inv"
 
 // NodeRenders can be considered a "world" of `NodeRender` objects.
@@ -68,7 +70,20 @@ interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : Nod
 
     data class Selection<P : NodePart>(
         val part: P,
-        var dragging: Boolean = false,
+        var dragging: DragState = DragState.NONE,
+        var rotationPlaneNormal: Vector3? = null,
+        var snapTo: SnapTarget<P>? = null,
+    )
+
+    enum class DragState(val active: Boolean) {
+        NONE        (false),
+        MOVING      (true),
+        ROTATING    (true),
+    }
+
+    data class SnapTarget<P : NodePart>(
+        val slot: PartSlot<P>,
+        val compatible: Boolean,
     )
 
     val entries: Collection<R>
@@ -81,7 +96,7 @@ interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : Nod
 
     fun deselect(state: S)
 
-    fun dragging(state: S, dragging: Boolean)
+    fun dragging(state: S, dragging: DragState)
 }
 
 interface NodeRender<P : NodePart> {
@@ -89,14 +104,16 @@ interface NodeRender<P : NodePart> {
     var transform: Transform
 }
 
-data class NodeSlot<P : NodePart>(
-    val transform: Transform,
-    val part: P? = null
+data class PartSlot<P : NodePart>(
+    val parent: P,
+    val key: String,
+    val data: RenderSlot,
+    var part: P? = null
 )
 
 interface NodePart {
     val bodies: Collection<Body>
-    val slots: Map<String, NodeSlot<*>>
+    val slots: Map<String, PartSlot<*>>
 }
 
 class DefaultNodeRenders internal constructor(
@@ -111,12 +128,14 @@ class DefaultNodeRenders internal constructor(
     data class Settings(
         val glowDefault: NamedTextColor = NamedTextColor.WHITE,
         val glowMarked: NamedTextColor = NamedTextColor.AQUA,
+        val glowValid: NamedTextColor = NamedTextColor.GREEN,
         val glowInvalid: NamedTextColor = NamedTextColor.RED,
         val rotation: Quaternion = Quaternion.Identity,
         val reach: Double = 3.0,
         val hold: Double = 2.0,
         val particleStep: Double = 0.2,
-        val particleShape: ParticleEffect? = null,
+        val particleBody: ParticleEffect? = null,
+        val particleSlot: ParticleEffect? = null,
         val particleAxes: AxisParticles? = null,
     ) {
         @ConfigSerializable
@@ -131,6 +150,13 @@ class DefaultNodeRenders internal constructor(
     private val kRenderNode = plugin.key("render_node")
     private val renders = HashMap<Int, Render>()
     override val entries get() = renders.values
+    private val hideIds = HashSet<Int>()
+
+    private fun Effector.showShape(
+        effect: ParticleEffect,
+        shape: Shape,
+        transform: Transform,
+    ) = showShape(effect, shape, transform, settings.particleStep)
 
     private fun sendTeams(player: Player, mode: WrapperPlayServerTeams.TeamMode) {
         fun send(name: String, color: NamedTextColor) {
@@ -148,6 +174,7 @@ class DefaultNodeRenders internal constructor(
 
         send(TEAM_DEFAULT, settings.glowDefault)
         send(TEAM_MARKED, settings.glowMarked)
+        send(TEAM_VALID, settings.glowValid)
         send(TEAM_INVALID, settings.glowInvalid)
     }
 
@@ -181,39 +208,50 @@ class DefaultNodeRenders internal constructor(
 
     data class PlayerState(
         override val player: Player,
+        val effector: Effector,
         override var selected: NodeRenders.Selection<Part>? = null,
         var showShapes: ShowShapes = ShowShapes.NONE,
         var lockSelection: Boolean = false,
+        var lastNormal: Vector3? = null,
     ) : NodeRenders.PlayerState<Part>
 
-    enum class ShowShapes(val key: String) {
-        NONE    ("none"),
-        PART    ("part"),
-        RENDER  ("render"),
-        ALL     ("all"),
+    enum class ShowShapes(val active: Boolean, val key: String) {
+        NONE    (false, "none"),
+        PART    (true, "part"),
+        RENDER  (true, "render"),
+        ALL     (true, "all"),
     }
 
-    fun computePartTransform(player: Player, transform: Transform): Transform {
+    fun computePartTransform(state: PlayerState, surfaceOffset: Double, lastTransform: Transform? = null): Transform {
+        val player = state.player
         val ray = player.eyeLocation.ray()
         val rotation = settings.rotation
 
         return plugin.raycast(player.world).castBlocks(ray, settings.reach) {
             it.fluid == null
         }?.let { col ->
-            val rot = if (abs(col.normal.y) < EPSILON) quaternionLooking(col.normal, Vector3.Up)
-            else {
+            val normal = col.normal
+            // determine the rotation:
+            // · if the normal is not vertical (on a wall):
+            //   · if it's the same as our player's last normal, keep the old rotation
+            //   · if it's a different normal (different block face?), compute a new rot
+            // · else it's vertical, pointing away from the player
+            val rot = if (abs(normal.y) < EPSILON) {
+                if (lastTransform != null && (state.lastNormal == null || normal == state.lastNormal)) lastTransform.rot
+                else quaternionLooking(normal, Vector3.Up) * rotation
+            } else {
                 val yaw = player.location.yaw.radians.toDouble()
                 // `up` and `normal` are collinear - player's looking at a vertical
-                quaternionFromTo(Vector3.Forward, col.normal) *
+                quaternionFromTo(Vector3.Forward, normal) *
                     // TODO this is a stupid hack
-                    Euler3(z = if (col.normal.y > 0.0) -yaw + PI else yaw + PI)
-                        .quaternion(EulerOrder.XYZ)
+                    Euler3(z = if (normal.y > 0.0) -yaw + PI else yaw + PI).quaternion(EulerOrder.XYZ) *
+                    rotation
             }
-
+            state.lastNormal = normal
             Transform(
-                rot = rot * rotation,
-                tl = col.posIn
-            ) + transform
+                rot = rot,
+                tl = col.posIn + normal * surfaceOffset
+            )
         } ?: run {
             // · Z/forward/blue is pointing "inwards" to the player
             // · X/right/red points to the "right" of where the player's looking
@@ -230,76 +268,171 @@ class DefaultNodeRenders internal constructor(
         val part: Part,
     ) : Body
 
-    internal fun update() {
-        val bodies = ArrayList<PartBody>()
+    internal data class SlotBody(
+        override val shape: Shape,
+        override val transform: Transform,
+        val slot: PartSlot<Part>,
+    ) : Body
 
-        renders.forEach { (_, render) -> render.update(bodies) }
+    internal fun update() {
+        hideIds.clear()
+        val partBodies = HashMap<World, MutableSet<PartBody>>()
+        val slotBodies = HashMap<World, MutableSet<SlotBody>>()
+
+        renders.forEach { (_, render) ->
+            val world = render.entity.world
+            render.update(
+                partBodies.computeIfAbsent(world) { HashSet() },
+                slotBodies.computeIfAbsent(world) { HashSet() }
+            )
+        }
 
         plugin.playerState.forEach { (player, pState) ->
             val state = pState.renders
-            if (!state.lockSelection) {
-                val selected = state.selected
-                if (selected == null || !selected.dragging) {
-                    // TODO world raycast before this, check if blocks are in the way
-                    raycastOf(bodies).cast(player.eyeLocation.ray(), settings.reach)?.let { col ->
-                        select(state, col.hit.part)
-                    } ?: run {
-                        deselect(state)
+            val world = player.world
+            val wPartBodies = partBodies.getOrDefault(world, HashSet())
+            val wSlotBodies = slotBodies.getOrDefault(world, HashSet())
+
+            val ray = player.eyeLocation.ray()
+            val distance = settings.reach
+
+            state.selected?.let { selected ->
+                if (selected.dragging.active) {
+                    if (selected.dragging == NodeRenders.DragState.MOVING) {
+                        selected.snapTo = raycastOf(wSlotBodies
+                            .filter {
+                                it.slot.parent.render != selected.part.render // if slot is not on the currently selected render
+                                && !it.slot.parent.node.has(it.slot.key) // if slot is empty
+                            }
+                        ).cast(ray, distance)?.hit?.let {
+                            val slot = it.slot
+                            NodeRenders.SnapTarget(
+                                slot,
+                                slot.parent.node.component.slots[slot.key]?.compatible(selected.part.render.root.node) == true)
+                        }
                     }
+                    Unit// don't skip to the `run`
+                } else null // skip to the `run`
+            } ?: run {
+                state.selected?.snapTo = null
+                if (!state.lockSelection) {
+                    listOf(
+                        plugin.raycast(player.world).castBlocks(ray, distance) {
+                            it.fluid == null
+                        },
+                        raycastOf(wPartBodies).cast(ray, distance)
+                    ).closest()?.let { col ->
+                        val hit = col.hit
+                        if (hit is PartBody) {
+                            select(state, hit.part)
+                        } else null
+                    } ?: deselect(state)
                 }
             }
 
             state.selected?.let { selected ->
-                if (selected.dragging) {
-                    val part = selected.part
-                    if (part.isRoot) {
-                        // move the entire render around
-                        part.render.transform = computePartTransform(player, part.data.partTransform)
-                    } else {
-                        // move the single part
-                        part.data.attach?.let { (axis, distance) ->
-                            fun iLinePlane(p0: Vector3, p1: Vector3, pCo: Vector3, pNo: Vector3): Vector3? {
-                                // https://stackoverflow.com/questions/5666222/3d-line-plane-intersection
-                                val u = p1 - p0
-                                val dot = pNo.dot(u)
+                val part = selected.part
+                val render = part.render
 
-                                if (abs(dot) > EPSILON) {
-                                    val w = p0 - pCo
-                                    val fac = -pNo.dot(w) / dot
-                                    return p0 + (u * fac)
+                fun iLinePlane(p0: Vector3, p1: Vector3, pCo: Vector3, pNo: Vector3): Vector3? {
+                    // https://stackoverflow.com/questions/5666222/3d-line-plane-intersection
+                    val u = p1 - p0
+                    val dot = pNo.dot(u)
+
+                    if (abs(dot) > EPSILON) {
+                        val w = p0 - pCo
+                        val fac = -pNo.dot(w) / dot
+                        return p0 + (u * fac)
+                    }
+
+                    // line parallel to plane
+                    return null
+                }
+
+                when (selected.dragging) {
+                    NodeRenders.DragState.MOVING -> {
+                        if (part.isRoot) {
+                            fun computePartTransform() = computePartTransform(state, part.data.surfaceOffset, render.transform)
+
+                            // move the entire render around
+                            // or snap it to the currently selected slot
+                            selected.snapTo?.let { snapTo ->
+                                if (snapTo.compatible) {
+                                    part.glowState(player, PartGlowState.VALID)
+                                    render.transform = snapTo.slot.parent.transform + snapTo.slot.data.transform + part.data.attachedTransform
+                                } else {
+                                    part.glowState(player, PartGlowState.INVALID)
+                                    render.transform = computePartTransform()
                                 }
+                            } ?: run {
+                                part.glowState(player, PartGlowState.MARKED)
+                                render.transform = computePartTransform()
+                            }
+                        } else {
+                            // move the single part
+                            part.data.attach?.let { (axis, maxDistance, detachDistance) ->
+                                // to determine how far along part.attachAxis we transform our part,
+                                // we find the intersection of a ray and a line:
+                                // · p0 is the player's eye
+                                // · p1 is the player's eye + player dir (basically another point along their dir line)
+                                // · pCo and pNo define a plane along the part
+                                //   · pCo is the part's transform
+                                //   · pNo is the normal that makes the plane "point" towards the player
+                                // get the intersection of these, and you can get the transform along the drag line
+                                val loc = player.eyeLocation
+                                val origin = loc.vector()
+                                val pCo = part.baseTransform.tl
+                                val pNo = (pCo - origin).normalized
 
-                                // line parallel to plane
-                                return null
+                                iLinePlane(loc.vector(), loc.vector() + loc.direction(), pCo, pNo)?.let { intersect ->
+                                    // the distance our intersect is along this axis (- means it's backwards)
+                                    val dstMoved = part.baseTransform.invert(intersect).dot(axis)
+                                    if (dstMoved >= detachDistance) {
+                                        part.detach()
+                                        part.play(part.data.soundDetach)
+                                    } else {
+                                        part.dragTransform = Transform(
+                                            tl = axis * clamp(dstMoved, 0.0, maxDistance)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    NodeRenders.DragState.ROTATING -> {
+                        selected.rotationPlaneNormal?.let { pNo ->
+                            val loc = player.eyeLocation
+                            val origin = loc.vector()
+                            val pCo = render.transform.tl
+
+                            if (state.showShapes.active) {
+                                settings.particleBody?.let {
+                                    state.effector.showLine(it, pCo, pCo + pNo * 2.0, settings.particleStep)
+                                }
                             }
 
-                            //  · to determine how far along part.attachAxis we transform our part,
-                            //    we find the intersection of a ray and a line:
-                            //    · p0 is the player's eye
-                            //    · p1 is the player's eye + player dir (basically another point along their dir line)
-                            //    · pCo and pNo define a plane along the part
-                            //      · pCo is the part's transform
-                            //      · pNo is the normal that makes the plane "point" towards the player
-                            //  · get the intersection of these, and you can get the transform along the drag line
-                            val loc = player.eyeLocation
-                            val pCo = part.baseTransform.tl
-                            val pNo = (pCo - loc.vector()).normalized
-
-                            iLinePlane(loc.vector(), loc.vector() + loc.direction(), pCo, pNo)?.let { intersect ->
-                                // the distance our intersect is along this axis (- means it's backwards)
-                                val dstMoved = part.baseTransform.invert(intersect).dot(axis)
-                                part.dragTransform = Transform(
-                                    tl = axis * clamp(dstMoved, 0.0, distance)
+                            iLinePlane(origin, origin + loc.direction(), pCo, pNo)?.let { intersect ->
+                                // `intersect` is where we want our transform to point towards
+                                // TODO fix this on verticals
+                                render.transform = render.transform.copy(
+                                    rot = quaternionLooking((intersect - pCo).normalized, Vector3.Up)
                                 )
                             }
                         }
                     }
+                    NodeRenders.DragState.NONE -> {}
                 }
             }
         }
     }
 
     internal fun handleSpawnEntity(player: Player, id: Int): Boolean {
+        if (hideIds.contains(id)) {
+            // cancel event but don't do anything
+            // the ID gets removed on the next tick
+            return true
+        }
+
         return renders[id]?.let {
             it.spawn(player)
             true
@@ -324,13 +457,30 @@ class DefaultNodeRenders internal constructor(
 
     internal fun handleDestroyEntities(player: Player, ids: IntArray) {
         ids.forEach { id ->
-            renders[id]?.remove(setOf(player))
+            renders[id]?.despawn(setOf(player))
         }
     }
 
-    internal fun handleDrag(state: PlayerState, value: Boolean?): Boolean {
+    internal fun handleDrag(state: PlayerState, dragging: Boolean?, rotating: Boolean): Boolean {
         state.selected?.let { selected ->
-            dragging(state, value ?: !selected.dragging)
+            val active = dragging ?: !selected.dragging.active
+
+            if (!active) {
+                val snapTo = selected.snapTo
+                if (snapTo?.compatible == true) {
+                    val part = selected.part
+                    part.play(part.data.soundAttach)
+                    plugin.scheduleDelayed {
+                        part.attachTo(snapTo.slot)
+                    }
+                }
+                dragging(state, NodeRenders.DragState.NONE)
+            } else {
+                dragging(state,
+                    if (rotating) NodeRenders.DragState.ROTATING
+                    else NodeRenders.DragState.MOVING)
+            }
+
             return true
         }
         return false
@@ -341,35 +491,43 @@ class DefaultNodeRenders internal constructor(
             val part = selected.part
             if (part.isRoot) {
                 part.play(part.data.soundGrab)
+                state.selected = null
                 // TODO add to inv, and stuff
-                remove(part.render)
+                plugin.scheduleDelayed {
+                    remove(part.render)
+                }
             }
             return true
         }
         return false
     }
 
-    fun create(entity: Entity, node: PaperDataNode, rotation: Quaternion): Render {
-        fun PaperDataNode.part(isRoot: Boolean): Part {
-            val render = node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
-                ?: throw IllegalArgumentException(node.errorMsg("No feature '${RenderFeature.id}' to create render of"))
-            return Part(this,
-                isRoot,
-                component.slots.map { (key) ->
-                    key to NodeSlot(
-                        render.slots[key]
-                            ?: throw IllegalArgumentException(errorMsg("Feature '${RenderFeature.id}' does not have slot transform for '$key'")),
-                        node(key)?.part(false)
-                    )
-                }.associate { it }
-            ).also {
-                it.setupNode(node)
+    fun partOf(node: PaperDataNode, parent: PartKey? = null): Part {
+        val render = node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
+            ?: throw IllegalArgumentException(node.errorMsg("No feature '${RenderFeature.id}' to create render of"))
+        return Part(node,
+            parent,
+            HashMap(),
+        ).also { part ->
+            node.component.slots.forEach { (key) ->
+                part.slots[key] = PartSlot(
+                    part,
+                    key,
+                    render.slots[key]
+                        ?: throw IllegalArgumentException(node.errorMsg("Feature '${RenderFeature.id}' does not have slot transform for '$key'")),
+                    node.node(key)?.let { child ->
+                        partOf(child, PartKey(part, key))
+                    }
+                )
             }
+            part.setupNode(node)
         }
+    }
 
-        return Render(node.part(true), entity, rotation).also {
+    fun create(entity: Entity, part: Part, rotation: Quaternion): Render {
+        return Render(part, entity, rotation).also {
             // initialize transforms
-            it.update(ArrayList())
+            it.update(null, null)
             // initialize persistence
             it.save()
             fun Part.apply() {
@@ -381,7 +539,7 @@ class DefaultNodeRenders internal constructor(
         }
     }
 
-    override fun create(node: PaperDataNode, world: World, transform: Transform): Render {
+    fun create(part: Part, world: World, transform: Transform, hideSpawn: Boolean = false): Render {
         var render: Render? = null
         world.spawnEntity(
             transform.tl.location(world),
@@ -394,9 +552,16 @@ class DefaultNodeRenders internal constructor(
                 duration = -1
                 waitTime = Int.MIN_VALUE
             }
-            render = create(entity, node, transform.rot)
+            render = create(entity, part, transform.rot)
+            if (hideSpawn) {
+                hideIds.add(entity.entityId)
+            }
         }
         return render ?: throw IllegalStateException("Render entity spawned but not returned (delayed entity spawn?)")
+    }
+
+    override fun create(node: PaperDataNode, world: World, transform: Transform): Render {
+        return create(partOf(node), world, transform)
     }
 
     fun loadRender(entity: Entity): Render? {
@@ -404,45 +569,60 @@ class DefaultNodeRenders internal constructor(
             val node = plugin.persistence.nodeOf(tag)
                 ?: throw IllegalArgumentException("Entity has tag $kRenderNode but it was not a valid node")
             val rotation = entity.persistentDataContainer.getOrDefault(kRotation, QuaternionDataType, Quaternion.Identity)
-            create(entity, node, rotation)
+            create(entity, partOf(node), rotation)
         }
     }
 
-    fun remove(id: Int) {
-        renders.remove(id)?.remove()
+    fun remove(id: Int, despawn: Boolean = true) {
+        renders.remove(id)?.remove(despawn)
+    }
+
+    fun remove(render: Render, despawn: Boolean) {
+        // remove from our map first, so the EntityUnload events don't re-despawn the render
+        renders.remove(render.id)
+        render.remove(despawn)
     }
 
     override fun remove(render: Render) {
-        renders.remove(render.id)
-        render.remove()
+        remove(render, true)
     }
 
     override fun select(state: PlayerState, part: Part) {
+        state.selected?.let { if (part === it.part) return }
         deselect(state)
         state.selected = NodeRenders.Selection(part)
-        part.select(state.player)
+        part.showSelect(state.player)
     }
 
     override fun deselect(state: PlayerState) {
         state.selected?.let {
-            dragging(state, false)
-            it.part.deselect(state.player)
+            dragging(state, NodeRenders.DragState.NONE)
+            it.part.showDeselect(state.player)
             it.part.undoGlowState(state.player)
             state.selected = null
         }
     }
 
-    override fun dragging(state: PlayerState, dragging: Boolean) {
+    override fun dragging(state: PlayerState, dragging: NodeRenders.DragState) {
         state.selected?.let { selected ->
             val part = selected.part
-            if (selected.dragging == dragging) return
+            val old = selected.dragging
+            if (old == dragging) return
+
             selected.dragging = dragging
+            state.lastNormal = null
             part.glowState(state.player,
-                if (dragging) PartGlowState.MARKED else PartGlowState.DEFAULT)
+                if (dragging.active) PartGlowState.MARKED else PartGlowState.DEFAULT)
 
-            part.play(if (dragging) part.data.soundDragStart else part.data.soundDragStop)
+            part.play(
+                if (!old.active && dragging.active) part.data.soundDragStart
+                else part.data.soundDragStop)
 
-            if (!dragging) {
+            if (dragging == NodeRenders.DragState.ROTATING) {
+                selected.rotationPlaneNormal = (part.render.transform.rot * settings.rotation.inverse) * Vector3.Forward
+            }
+
+            if (!dragging.active) {
                 part.dragTransform = Transform.Identity
                 part.render.saveRotation()
             }
@@ -466,29 +646,31 @@ class DefaultNodeRenders internal constructor(
                 entity.transform = value
             }
 
-        internal var lastTracked: Set<Player> = emptySet()
+        internal var lastTracked: Collection<PlayerState> = emptySet()
 
-        internal fun update(bodies: MutableList<PartBody>) {
-            lastTracked = entity.trackedPlayers
+        internal fun update(
+            partBodies: MutableCollection<PartBody>? = null,
+            slotBodies: MutableCollection<SlotBody>? = null
+        ) {
+            lastTracked = entity.trackedPlayers.map { plugin.playerState(it).renders }
             fun Part.apply(tf: Transform) {
                 baseTransform = tf + data.partTransform
-                transform = tf + dragTransform
+                transform = baseTransform + dragTransform
+
+                fun renderTo(state: PlayerState) = when (state.showShapes) {
+                    ShowShapes.NONE -> false
+                    ShowShapes.PART -> state.selected?.part == this
+                    ShowShapes.RENDER -> state.selected?.part?.render == this@Render
+                    ShowShapes.ALL -> true
+                }
 
                 this.bodies.forEach { body ->
                     val bodyTf = transform + body.transform
-                    bodies.add(PartBody(body.shape, bodyTf, this))
-                    lastTracked.forEach { player ->
-                        val pState = plugin.playerState(player)
-                        val state = pState.renders
-                        if (when (state.showShapes) {
-                                ShowShapes.NONE -> false
-                                ShowShapes.PART -> state.selected?.part == this
-                                ShowShapes.RENDER -> state.selected?.part?.render == this@Render
-                                ShowShapes.ALL -> true
-                            }
-                        ) {
-                            settings.particleShape?.let {
-                                pState.effector.showShape(it, body.shape, bodyTf, settings.particleStep)
+                    partBodies?.add(PartBody(body.shape, bodyTf, this))
+                    lastTracked.forEach { state ->
+                        if (renderTo(state)) {
+                            settings.particleBody?.let {
+                                state.effector.showShape(it, body.shape, bodyTf)
                             }
                         }
                     }
@@ -496,11 +678,23 @@ class DefaultNodeRenders internal constructor(
 
                 meshes.forEach { mesh ->
                     val meshTf = mesh.computeTransform(transform)
-                    mesh.sendTransform(lastTracked, meshTf)
+                    mesh.sendTransform(lastTracked.map { it.player }, meshTf)
                 }
                 slots.forEach { (_, slot) ->
+                    val slotTf = transform + slot.data.transform
+                    slot.data.bodies.forEach { body ->
+                        val bodyTf = slotTf + body.transform
+                        slotBodies?.add(SlotBody(body.shape, bodyTf, slot))
+                        lastTracked.forEach { state ->
+                            if (renderTo(state)) {
+                                settings.particleSlot?.let {
+                                    state.effector.showShape(it, body.shape, bodyTf)
+                                }
+                            }
+                        }
+                    }
                     slot.part?.let {
-                        it.apply(transform + slot.transform + it.data.attachedTransform)
+                        it.apply(transform + slot.data.transform + it.data.attachedTransform)
                     }
                 }
             }
@@ -512,18 +706,16 @@ class DefaultNodeRenders internal constructor(
             val toZ = axesFrom + (transform.rot * Vector3.Forward)
             val step = settings.particleStep
 
-            lastTracked.forEach { player ->
-                val pState = plugin.playerState(player)
-                val state = pState.renders
+            lastTracked.forEach { state ->
                 if (when (state.showShapes) {
                     ShowShapes.NONE -> false
                     ShowShapes.PART, ShowShapes.RENDER -> state.selected?.part?.render == this
                     ShowShapes.ALL -> true
                 }) {
                     settings.particleAxes?.let {
-                        pState.effector.showLine(it.x, axesFrom, toX, step)
-                        pState.effector.showLine(it.y, axesFrom, toY, step)
-                        pState.effector.showLine(it.z, axesFrom, toZ, step)
+                        state.effector.showLine(it.x, axesFrom, toX, step)
+                        state.effector.showLine(it.y, axesFrom, toY, step)
+                        state.effector.showLine(it.z, axesFrom, toZ, step)
                     }
                 }
             }
@@ -556,7 +748,7 @@ class DefaultNodeRenders internal constructor(
             root.apply()
         }
 
-        fun remove(players: Iterable<Player>) {
+        fun despawn(players: Iterable<Player>) {
             val ids = ArrayList<Int>()
 
             fun Part.apply() {
@@ -571,25 +763,40 @@ class DefaultNodeRenders internal constructor(
             }
         }
 
-        fun remove() {
+        fun despawn() {
             // if the entity is already removed, `trackedPlayers` will give an empty set
-            remove(lastTracked)
+            despawn(lastTracked.map { it.player })
+        }
+
+        fun remove(despawn: Boolean = true) {
+            entity.remove()
+            if (despawn) {
+                despawn()
+            }
         }
     }
 
     enum class PartGlowState {
         DEFAULT,
         MARKED,
+        VALID,
         INVALID,
     }
 
+    data class PartKey(
+        val part: Part,
+        val key: String,
+    )
+
     inner class Part(
         node: PaperDataNode,
-        val isRoot: Boolean,
-        override var slots: Map<String, NodeSlot<Part>>,
+        var parent: PartKey?,
+        override var slots: MutableMap<String, PartSlot<Part>>,
     ) : NodePart {
         var node: PaperDataNode = node
             private set
+
+        val isRoot get() = parent == null
 
         internal fun setupNode(node: PaperDataNode, players: Iterable<Player>? = null) {
             val render = node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
@@ -628,9 +835,12 @@ class DefaultNodeRenders internal constructor(
             data = render.data
 
             slots = node.component.slots.map { (key) ->
-                key to NodeSlot(
-                    render.slots[key]
-                        ?: throw IllegalArgumentException(node.errorMsg("Feature '${RenderFeature.id}' does not have slot transform for '$key'")),
+                val slotData = render.slots[key]
+                    ?: throw IllegalArgumentException(node.errorMsg("Feature '${RenderFeature.id}' does not have slot data for '$key'"))
+                key to PartSlot(
+                    this,
+                    key,
+                    slotData,
                     slots[key]?.part?.let { existing ->
                         // if the node we just set to, has a child for this key,
                         // we assign the existing part this new node
@@ -641,7 +851,7 @@ class DefaultNodeRenders internal constructor(
                         }
                     }
                 )
-            }.associate { it }
+            }.associate { it }.toMutableMap()
             this.node = node
         }
 
@@ -663,11 +873,11 @@ class DefaultNodeRenders internal constructor(
             sounds.playGlobal(plugin.effectors, render.entity.world, transform.tl)
         }
 
-        fun select(player: Player) {
+        fun showSelect(player: Player) {
             meshes.forEach { it.sendGlow(player, true) }
         }
 
-        fun deselect(player: Player) {
+        fun showDeselect(player: Player) {
             meshes.forEach { it.sendGlow(player, false) }
         }
 
@@ -679,9 +889,44 @@ class DefaultNodeRenders internal constructor(
         }
 
         fun glowState(player: Player, state: PartGlowState) {
+            lastGlowState?.let { if (state == it) return }
             undoGlowState(player)
             meshes.forEach { it.sendGlowState(player, state, true) }
             lastGlowState = state
+        }
+
+        fun detach() {
+            // detach
+            parent?.let {
+                it.part.node.remove(it.key)
+                it.part.slots[it.key]?.part = null
+            } ?: throw IllegalStateException("Attempting to detach root part")
+            render.saveNode()
+            node.detach()
+
+            // re-attach to a new render
+            parent = null
+            render = create(this, render.entity.world, transform, true)
+            dragTransform = Transform.Identity
+        }
+
+        fun attachTo(slot: PartSlot<Part>) {
+            if (parent != null)
+                throw IllegalStateException("Attempting to attach to slot as non-root part")
+
+            // don't despawn the virtual entities - they'll be managed by our new parent anyway
+            remove(render, false)
+
+            // attach to our new render
+            val parent = slot.parent
+            this.parent = PartKey(parent, slot.key)
+            this.render = parent.render
+            parent.node.node(slot.key, node)
+            parent.slots[slot.key]?.let {
+                it.part = this
+            } ?: throw IllegalStateException("Attempting to attach to non-existent slot '${slot.key}' of '${parent.node.component.id}'")
+            parent.render.saveNode()
+
         }
     }
 
@@ -767,6 +1012,7 @@ class DefaultNodeRenders internal constructor(
             player.sendPacket(WrapperPlayServerTeams(when (state) {
                 PartGlowState.DEFAULT -> TEAM_DEFAULT
                 PartGlowState.MARKED -> TEAM_MARKED
+                PartGlowState.VALID -> TEAM_VALID
                 PartGlowState.INVALID -> TEAM_INVALID
             }, if (add) WrapperPlayServerTeams.TeamMode.ADD_ENTITIES else WrapperPlayServerTeams.TeamMode.REMOVE_ENTITIES,
             Optional.empty(), uuid.toString()))

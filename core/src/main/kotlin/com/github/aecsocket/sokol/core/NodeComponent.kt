@@ -3,7 +3,6 @@ package com.github.aecsocket.sokol.core
 import com.github.aecsocket.alexandria.core.keyed.Keyed
 import com.github.aecsocket.glossa.core.Localizable
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
-import com.github.aecsocket.sokol.core.stat.StatMap
 import net.kyori.adventure.text.Component
 
 interface NodeComponent : Keyed, Localizable<Component> {
@@ -26,4 +25,6 @@ interface Slot : Localizable<Component> {
     val key: String
     val tags: Set<String>
     val required: Boolean
+
+    fun compatible(node: DataNode): Boolean
 }

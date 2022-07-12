@@ -99,7 +99,7 @@ interface Node {
 
         fun remove(key: String)
         fun removeChildren()
-        operator fun set(key: String, value: N)
+        fun node(key: String, value: N)
     }
 }
 
