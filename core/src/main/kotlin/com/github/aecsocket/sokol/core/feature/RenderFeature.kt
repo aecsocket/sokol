@@ -2,6 +2,7 @@ package com.github.aecsocket.sokol.core.feature
 
 import com.github.aecsocket.alexandria.core.effect.SoundEffect
 import com.github.aecsocket.alexandria.core.keyed.Keyed
+import com.github.aecsocket.alexandria.core.keyed.by
 import com.github.aecsocket.alexandria.core.physics.SimpleBody
 import com.github.aecsocket.alexandria.core.physics.Transform
 import com.github.aecsocket.alexandria.core.physics.Vector3
@@ -84,13 +85,6 @@ object RenderFeature : Keyed {
     > : Feature.State<S, D, C> where N : DataNode, N : Node.Mutable<N> {
         abstract override val type: Feature<*>
         abstract override val profile: Profile<*>
-
-        override fun onEvent(event: NodeEvent, ctx: C) {
-            // TODO on spawn into world (eg dropped by a player)
-            // NOTE: this must spawn as a render ONLY IF it's appropriate
-            // e.g. a player drops a single item, not 2+
-            // and NOT if a chest breaks full of these items, or similar
-        }
 
         override fun serialize(tag: CompoundBinaryTag.Mutable) {}
 

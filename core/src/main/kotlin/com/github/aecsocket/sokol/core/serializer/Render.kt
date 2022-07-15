@@ -13,8 +13,7 @@ private const val STATIC = "static"
 private const val DYNAMIC = "dynamic"
 
 object RenderMeshSerializer : TypeSerializer<RenderMesh> {
-    override fun serialize(type: Type, obj: RenderMesh?, node: ConfigurationNode) =
-        throw UnsupportedOperationException()
+    override fun serialize(type: Type, obj: RenderMesh?, node: ConfigurationNode) {}
 
     override fun deserialize(type: Type, node: ConfigurationNode): RenderMesh {
         node.forceMap(type)

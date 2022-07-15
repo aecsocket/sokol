@@ -24,8 +24,7 @@ abstract class ComponentSerializer<
 
     protected abstract fun slot(key: String, node: ConfigurationNode): S
 
-    override fun serialize(type: Type, obj: T?, node: ConfigurationNode) =
-        throw UnsupportedOperationException()
+    override fun serialize(type: Type, obj: T?, node: ConfigurationNode) {}
 
     protected fun id(type: Type, node: ConfigurationNode) = try {
         Keyed.validate(node.key().toString())
@@ -80,8 +79,7 @@ abstract class BlueprintSerializer<
         > : TypeSerializer<T> {
     protected abstract val nodeType: Class<N>
 
-    override fun serialize(type: Type, obj: T?, node: ConfigurationNode) =
-        throw UnsupportedOperationException()
+    override fun serialize(type: Type, obj: T?, node: ConfigurationNode) {}
 
     protected fun id(type: Type, node: ConfigurationNode) = try {
         Keyed.validate(node.key().toString())

@@ -1,30 +1,32 @@
 package com.github.aecsocket.sokol.paper
 
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
-import com.github.aecsocket.alexandria.core.Input
+import com.github.aecsocket.alexandria.core.DoubleMod
+import com.github.aecsocket.alexandria.core.IntMod
 import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.LogList
+import com.github.aecsocket.alexandria.core.effect.ParticleEffect
+import com.github.aecsocket.alexandria.core.effect.SoundEffect
 import com.github.aecsocket.alexandria.core.extension.force
 import com.github.aecsocket.alexandria.core.extension.register
 import com.github.aecsocket.alexandria.core.extension.registerExact
 import com.github.aecsocket.alexandria.core.keyed.MutableRegistry
 import com.github.aecsocket.alexandria.core.keyed.Registry
-import com.github.aecsocket.alexandria.core.keyed.by
-import com.github.aecsocket.alexandria.core.physics.Quaternion
-import com.github.aecsocket.alexandria.core.serializer.QuaternionSerializer
+import com.github.aecsocket.alexandria.core.physics.*
+import com.github.aecsocket.alexandria.core.serializer.*
 import com.github.aecsocket.alexandria.paper.effect.PaperEffectors
-import com.github.aecsocket.alexandria.paper.effect.playGlobal
 import com.github.aecsocket.alexandria.paper.extension.bukkitPlayers
 import com.github.aecsocket.alexandria.paper.extension.registerEvents
 import com.github.aecsocket.alexandria.paper.extension.scheduleRepeating
-import com.github.aecsocket.alexandria.paper.packet.PacketInputListener
+import com.github.aecsocket.alexandria.paper.input.InputMapper
+import com.github.aecsocket.alexandria.paper.input.PacketInputListener
 import com.github.aecsocket.alexandria.paper.physics.PaperRaycast
 import com.github.aecsocket.alexandria.paper.plugin.BasePlugin
 import com.github.aecsocket.alexandria.paper.plugin.ConfigOptionsAction
+import com.github.aecsocket.alexandria.paper.serializer.*
+import com.github.aecsocket.glossa.configurate.I18NSerializers
 import com.github.aecsocket.sokol.core.NodePath
 import com.github.aecsocket.sokol.core.SokolPlatform
-import com.github.aecsocket.sokol.core.event.NodeEvent
-import com.github.aecsocket.sokol.core.feature.RenderFeature
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.serializer.*
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
@@ -35,19 +37,23 @@ import com.github.aecsocket.sokol.paper.feature.PaperRender
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
+import org.bukkit.Color
+import org.bukkit.GameMode
+import org.bukkit.Particle
 import org.bukkit.World
+import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.bukkit.event.block.Action
-import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.event.player.PlayerQuitEvent
 import org.bukkit.event.world.EntitiesUnloadEvent
-import org.bukkit.inventory.EquipmentSlot
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializerCollection
+import java.util.*
+import kotlin.collections.HashMap
 
 private const val COMPONENT = "component"
 private const val BLUEPRINT = "blueprint"
@@ -110,11 +116,16 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
         super.onEnable()
         PacketEvents.getAPI().eventManager.apply {
             registerListener(SokolPacketListener(this@Sokol))
-            registerListener(PacketInputListener(this@Sokol::onInputReceived), PacketListenerPriority.NORMAL)
+            registerListener(PacketInputListener { onInputReceived(it) }, PacketListenerPriority.NORMAL)
         }
         PacketEvents.getAPI().init()
         SokolCommand(this)
         registerEvents(object : Listener {
+            @EventHandler
+            fun PlayerJoinEvent.on() {
+                playerState(player)
+            }
+
             @EventHandler
             fun PlayerQuitEvent.on() {
                 _playerState.remove(player)
@@ -128,24 +139,6 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
             @EventHandler
             fun EntitiesUnloadEvent.on() {
                 entities.forEach { renders.remove(it.entityId) }
-            }
-
-            // todo move
-            @EventHandler
-            fun PlayerInteractEvent.on() {
-                val player = player
-                if (hand != EquipmentSlot.HAND) return
-                if (!(action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK)) return
-                item?.let { persistence.nodeTagOf(it) }?.let { persistence.nodeOf(it) }?.let { node ->
-                    val state = paperStateOf(node)
-                    state.nodeStates[node]?.by<PaperRender.Profile.State>(RenderFeature)?.let { render ->
-                        // we explicitly play soundPlace here, and not in create(), because
-                        // some callers of create() might not want to play the sound
-                        val transform = renders.computePartTransform(playerState(player).renders, render.profile.data.surfaceOffset)
-                        render.render(node, PaperNodeHost.OfEntity(player), transform)
-                        render.profile.data.soundPlace.playGlobal(effectors, player.world, transform.tl)
-                    }
-                }
             }
         })
         effectors.init(this)
@@ -205,7 +198,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _blueprints, dataFolder.resolve(BLUEPRINT), PaperBlueprint::class.java)
 
             hostResolver.load()
-            renders.load()
+            renders.load(settings)
 
             return true
         }
@@ -213,39 +206,13 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
     }
 
     private fun onHostResolve(state: PaperTreeState, host: PaperNodeHost) {
-        state.callEvent(host, NodeEvent.OnTick())
+        state.callEvent(host, PaperNodeEvent.OnTick)
     }
 
     private fun onInputReceived(event: PacketInputListener.Event) {
         val player = event.player
-
-        _playerState[player]?.let { data ->
-            val input = event.input
-            // TODO let users configure these controls
-            if (input is Input.Mouse) {
-                when (input.button) {
-                    Input.MouseButton.RIGHT -> {
-                        if (renders.handleDrag(data.renders, when (input.state) {
-                            Input.MouseState.DOWN -> true
-                            Input.MouseState.UP -> false
-                            Input.MouseState.UNDEFINED -> null
-                        }, player.isSneaking)) {
-                            // render actions take priority over anything else
-                            event.cancel()
-                            return
-                        }
-                    }
-                    Input.MouseButton.LEFT -> {
-                        if (player.isSneaking) { // todo
-                            if (renders.handleGrab(data.renders)) {
-                                event.cancel()
-                                return
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        if (player.gameMode == GameMode.SPECTATOR || !player.isValid) return
+        renders.handleInput(event)
 
         persistence.nodeTagOf(player.persistentDataContainer)?.let { tag ->
             persistence.nodeOf(tag)?.let { node ->
@@ -269,7 +236,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
                         { meta },
                         { dirty = true }
                     ).apply {
-                        state.callEvent(this, NodeEvent.OnInput(event.input))
+                        state.callEvent(this, PaperNodeEvent.OnInput(event.input, player))
                     }
 
                     if (dirty) {

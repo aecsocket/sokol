@@ -7,8 +7,8 @@ pluginManagement {
     }
 
     plugins {
-        kotlin("jvm") version "1.6.21"
-        id("org.jetbrains.dokka") version "1.6.21"
+        kotlin("jvm") version "1.7.10"
+        id("org.jetbrains.dokka") version "1.7.10"
 
         id("io.papermc.paperweight.userdev") version "1.3.6"
         id("com.github.johnrengelman.shadow") version "7.1.2"
@@ -20,7 +20,7 @@ rootProject.name = "sokol"
 
 listOf(
     "core",
-    "paper"
+    "paper",
 ).forEach {
     val name = "${rootProject.name}-$it"
     include(name)

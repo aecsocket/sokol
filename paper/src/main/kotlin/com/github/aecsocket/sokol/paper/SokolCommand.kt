@@ -86,18 +86,6 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
             .permission(perm("render", "show-shapes"))
             .senderType(Player::class.java)
             .handler { handle(it, ::renderShowShapes) })
-        /*manager.command(render
-            .literal("rotate", desc("Clears the currently set  view rotation."))
-            .permission(perm("inspect", "rotate"))
-            .senderType(Player::class.java)
-            .handler { handle(it, ::renderRotate) })
-        manager.command(render
-            .literal("rotate", desc("Rotates all inspect views by the specified angle."))
-            .argumentEuler3("rotation", desc("Angle to rotate to, in Euler degrees."))
-            .argument(EnumArgument.optional(EulerOrder::class.java, "order"), desc("Order for the Euler angles."))
-            .permission(perm("inspect", "rotate"))
-            .senderType(Player::class.java)
-            .handler { handle(it, ::renderRotateSet) }) todo */
 
         manager.command(root
             .literal("give", desc("Gives a specified item-representable node tree to a player."))
@@ -290,20 +278,6 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
         plugin.send(sender) { safe(locale, "command.render.show_shapes.${state.key}") }
     }
 
-    fun renderRotate(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val data = plugin.playerState(sender as Player)
-        // todo data.isRotation = null
-    }
-
-    fun renderRotateSet(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val data = plugin.playerState(sender as Player)
-        val rotation = ctx.get<Euler3>("rotation")
-        val order = ctx.get("order") { EulerOrder.XYZ }
-
-        val quaternion = rotation.radians.quaternion(order)
-        // todo data.isRotation = quaternion
-    }
-
     fun give(
         ctx: CommandContext<CommandSender>,
         sender: CommandSender,
@@ -316,6 +290,7 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
         val state = paperStateOf(node)
         val stack = try {
             plugin.persistence.stateToStack(state)
+                ?: error { safe(locale, "error.no_item_host") }
         } catch (ex: NodeItemCreationException) {
             error(ex) { safe(locale, "error.creating_item") }
         }

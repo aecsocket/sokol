@@ -5,7 +5,7 @@ plugins {
     id("xyz.jpenilla.run-paper")
 }
 
-val minecraftVersion = libs.versions.minecraft.get()
+val minecraft = libs.versions.minecraft.get()
 
 repositories {
     mavenLocal()
@@ -16,18 +16,45 @@ repositories {
 
 dependencies {
     api(projects.sokolCore)
-    paperDevBundle("$minecraftVersion-R0.1-SNAPSHOT")
-    implementation(libs.alexandriaPaper) { artifact { classifier = "reobf" } }
+    paperDevBundle("$minecraft-R0.1-SNAPSHOT")
+
+    implementation(libs.glossaCore) { isTransitive = false }
+    implementation(libs.glossaAdventure) { isTransitive = false }
+    implementation(libs.glossaConfigurate) { isTransitive = false }
+
+    implementation(libs.alexandriaCore)
+    implementation(libs.alexandriaPaper)
+
+    // shaded
+
     implementation(libs.bstatsPaper)
     implementation(libs.packetEventsApi)
     implementation(libs.packetEventsSpigot)
-    implementation(libs.adventureExtraKotlin)
+
+    // library loader
+
+    compileOnly(libs.kotlinStdlib)
+    compileOnly(libs.kotlinReflect)
+    compileOnly(libs.configurateCore)
+    compileOnly(libs.cloudPaper)
+    compileOnly(libs.configurateExtraKotlin)
+    compileOnly(libs.adventureExtraKotlin)
 
     testImplementation(kotlin("test"))
 }
 
 tasks {
     shadowJar {
+        mergeServiceFiles()
+        exclude("kotlin/")
+        listOf(
+            "com.github.retrooper.packetevents",
+            "io.github.retrooper.packetevents",
+            "org.bstats",
+            "com.google.gson",
+            "org.jetbrains",
+            "org.intellij"
+        ).forEach { relocate(it, "${project.group}.lib.$it") }
     }
 
     assemble {
@@ -35,6 +62,6 @@ tasks {
     }
 
     runServer {
-        minecraftVersion(libs.versions.minecraft.get())
+        minecraftVersion(minecraft)
     }
 }

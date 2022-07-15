@@ -8,6 +8,7 @@ import com.github.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.github.aecsocket.sokol.core.rule.Rule
 import com.github.aecsocket.sokol.core.stat.ApplicableStats
 import com.github.aecsocket.sokol.core.stat.CompiledStatMap
+import org.checkerframework.checker.units.qual.N
 import org.spongepowered.configurate.ConfigurationNode
 
 typealias PaperNodeKey = NodeKey<PaperDataNode>
@@ -160,12 +161,9 @@ class PaperTreeState(
     override fun <E : NodeEvent> callEvent(host: PaperNodeHost, event: E): E {
         nodeStates.forEach { (node, states) ->
             val ctx = object : PaperFeatureContext {
-                override val state: PaperTreeState
-                    get() = this@PaperTreeState
-                override val host: PaperNodeHost
-                    get() = host
-                override val node: DataNode
-                    get() = node
+                override val state: PaperTreeState get() = this@PaperTreeState
+                override val host: PaperNodeHost get() = host
+                override val node: PaperDataNode get() = node
 
                 override fun writeNode(action: PaperDataNode.() -> Unit) {
                     TODO("Not yet implemented")

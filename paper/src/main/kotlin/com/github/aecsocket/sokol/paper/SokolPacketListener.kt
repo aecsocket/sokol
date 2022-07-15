@@ -5,7 +5,6 @@ import com.github.retrooper.packetevents.event.PacketSendEvent
 import com.github.retrooper.packetevents.protocol.packettype.PacketType
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
-import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import org.bukkit.entity.Player
 
 internal class SokolPacketListener(

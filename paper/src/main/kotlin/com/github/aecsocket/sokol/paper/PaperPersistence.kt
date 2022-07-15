@@ -165,10 +165,9 @@ class PaperPersistence internal constructor(
 
     // Stacks
 
-    fun stateToStack(state: PaperTreeState): ItemStack {
+    fun stateToStack(state: PaperTreeState): ItemStack? {
         val node = state.root
-        val itemHost = state.nodeStates[node]?.by<ItemHostFeature.State<*, *, *>>(ItemHostFeature)
-            ?: throw NodeItemCreationException("No feature '${ItemHostFeature.id}' to create item from")
+        val itemHost = state.nodeStates[node]?.by<ItemHostFeature.State<*, *, *>>(ItemHostFeature) ?: return null
 
         return try {
             itemHost.itemDescriptor(state).asStack().withMeta {
@@ -179,7 +178,7 @@ class PaperPersistence internal constructor(
         }
     }
 
-    fun nodeToStack(node: PaperDataNode): ItemStack {
+    fun nodeToStack(node: PaperDataNode): ItemStack? {
         val state = paperStateOf(node)
         return stateToStack(state)
     }

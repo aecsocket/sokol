@@ -72,7 +72,7 @@ interface FeatureContext<
 > where N : DataNode, N : Node.Mutable<N> {
     val state: S
     val host: H
-    val node: DataNode
+    val node: N
 
     fun writeNode(action: N.() -> Unit)
 }

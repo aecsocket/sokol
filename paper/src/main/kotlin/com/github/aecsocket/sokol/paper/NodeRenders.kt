@@ -1,5 +1,6 @@
 package com.github.aecsocket.sokol.paper
 
+import com.github.aecsocket.alexandria.core.Input
 import com.github.aecsocket.alexandria.core.LogLevel
 import com.github.aecsocket.alexandria.core.effect.Effector
 import com.github.aecsocket.alexandria.core.effect.ParticleEffect
@@ -10,6 +11,7 @@ import com.github.aecsocket.alexandria.core.physics.*
 import com.github.aecsocket.alexandria.paper.datatype.QuaternionDataType
 import com.github.aecsocket.alexandria.paper.effect.playGlobal
 import com.github.aecsocket.alexandria.paper.extension.*
+import com.github.aecsocket.alexandria.paper.input.*
 import com.github.aecsocket.sokol.core.errorMsg
 import com.github.aecsocket.sokol.core.feature.RenderData
 import com.github.aecsocket.sokol.core.feature.RenderFeature
@@ -38,6 +40,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.entity.CreatureSpawnEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.inventory.ItemStack
+import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.*
@@ -51,6 +54,13 @@ private const val TEAM_DEFAULT = "sokol_rd_def"
 private const val TEAM_MARKED = "sokol_rd_mkd"
 private const val TEAM_VALID = "sokol_rd_vld"
 private const val TEAM_INVALID = "sokol_rd_inv"
+
+private const val ROTATE_TOGGLE = "rotate_toggle"
+private const val MOVE_TOGGLE = "move_toggle"
+private const val ROTATE_START = "rotate_start"
+private const val MOVE_START = "move_start"
+private const val DRAG_STOP = "drag_stop"
+private const val GRAB = "grab"
 
 // NodeRenders can be considered a "world" of `NodeRender` objects.
 // Within one of these "worlds" the NodeRenders can interact with each other, e.g.
@@ -118,7 +128,7 @@ interface NodePart {
 
 class DefaultNodeRenders internal constructor(
     private val plugin: Sokol,
-    var settings: Settings = Settings()
+    var settings: Settings = Settings(),
 ) : NodeRenders<
     DefaultNodeRenders.PlayerState,
     DefaultNodeRenders.Render,
@@ -133,6 +143,19 @@ class DefaultNodeRenders internal constructor(
         val rotation: Quaternion = Quaternion.Identity,
         val reach: Double = 3.0,
         val hold: Double = 2.0,
+        val inputs: InputMapper = InputMapper(mapOf(
+            INPUT_MOUSE to listOf(
+                InputPredicate(setOf(Input.MouseButton.RIGHT.key, Input.MouseState.UNDEFINED.key), MOVE_TOGGLE),
+                InputPredicate(setOf(Input.MouseButton.RIGHT.key, Input.MouseState.UNDEFINED.key, PLAYER_SNEAKING), ROTATE_TOGGLE),
+                InputPredicate(setOf(Input.MouseButton.RIGHT.key, Input.MouseState.DOWN.key), MOVE_START),
+                InputPredicate(setOf(Input.MouseButton.RIGHT.key, Input.MouseState.DOWN.key, PLAYER_SNEAKING), ROTATE_START),
+                InputPredicate(setOf(Input.MouseButton.RIGHT.key, Input.MouseState.UP.key), DRAG_STOP),
+
+                InputPredicate(setOf(Input.MouseButton.LEFT.key, Input.MouseState.UNDEFINED.key), GRAB),
+                InputPredicate(setOf(Input.MouseButton.LEFT.key, Input.MouseState.DOWN.key), GRAB),
+            )
+        )),
+
         val particleStep: Double = 0.2,
         val particleBody: ParticleEffect? = null,
         val particleSlot: ParticleEffect? = null,
@@ -187,7 +210,7 @@ class DefaultNodeRenders internal constructor(
         })
     }
 
-    internal fun load() {
+    internal fun load(node: ConfigurationNode) {
         settings = plugin.settings.nodeRenders
         bukkitPlayers.forEach { player ->
             sendTeams(player, WrapperPlayServerTeams.TeamMode.UPDATE)
@@ -461,45 +484,54 @@ class DefaultNodeRenders internal constructor(
         }
     }
 
-    internal fun handleDrag(state: PlayerState, dragging: Boolean?, rotating: Boolean): Boolean {
+    internal fun handleInput(event: PacketInputListener.Event) {
+        val state = plugin.playerState(event.player).renders
         state.selected?.let { selected ->
-            val active = dragging ?: !selected.dragging.active
-
-            if (!active) {
+            val part = selected.part
+            fun release() {
                 val snapTo = selected.snapTo
                 if (snapTo?.compatible == true) {
-                    val part = selected.part
                     part.play(part.data.soundAttach)
                     plugin.scheduleDelayed {
                         part.attachTo(snapTo.slot)
                     }
                 }
                 dragging(state, NodeRenders.DragState.NONE)
-            } else {
-                dragging(state,
-                    if (rotating) NodeRenders.DragState.ROTATING
-                    else NodeRenders.DragState.MOVING)
             }
 
-            return true
-        }
-        return false
-    }
-
-    internal fun handleGrab(state: PlayerState): Boolean {
-        state.selected?.let { selected ->
-            val part = selected.part
-            if (part.isRoot) {
-                part.play(part.data.soundGrab)
-                state.selected = null
-                // TODO add to inv, and stuff
-                plugin.scheduleDelayed {
-                    remove(part.render)
+            settings.inputs.actionOf(event.input, event.player)?.let {
+                when (it) {
+                    MOVE_TOGGLE -> {
+                        if (selected.dragging.active) release()
+                        else dragging(state, NodeRenders.DragState.MOVING)
+                    }
+                    MOVE_START -> dragging(state, NodeRenders.DragState.MOVING)
+                    ROTATE_TOGGLE -> {
+                        if (selected.dragging.active) release()
+                        else dragging(state, NodeRenders.DragState.ROTATING)
+                    }
+                    ROTATE_START -> dragging(state, NodeRenders.DragState.ROTATING)
+                    DRAG_STOP -> release()
+                    GRAB -> {
+                        if (part.isRoot) {
+                            val inv = state.player.inventory
+                            val slot = inv.heldItemSlot
+                            if (inv.getItem(slot).isEmpty()) {
+                                plugin.persistence.nodeToStack(part.node)?.let { stack ->
+                                    part.play(part.data.soundGrab)
+                                    state.selected = null
+                                    plugin.scheduleDelayed {
+                                        remove(part.render)
+                                        state.player.inventory.setItem(slot, stack)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
+                event.cancel()
             }
-            return true
         }
-        return false
     }
 
     fun partOf(node: PaperDataNode, parent: PartKey? = null): Part {
@@ -649,7 +681,7 @@ class DefaultNodeRenders internal constructor(
         internal var lastTracked: Collection<PlayerState> = emptySet()
 
         internal fun update(
-            partBodies: MutableCollection<PartBody>? = null,
+            partBodies: MutableCollection<DefaultNodeRenders.PartBody>? = null,
             slotBodies: MutableCollection<SlotBody>? = null
         ) {
             lastTracked = entity.trackedPlayers.map { plugin.playerState(it).renders }
@@ -809,6 +841,10 @@ class DefaultNodeRenders internal constructor(
             }
 
             bodies = render.bodies
+            val item by lazy {
+                plugin.persistence.nodeToStack(node.copy().apply { removeChildren() })
+                    ?: throw IllegalStateException(node.errorMsg("No item host to create dynamic mesh of"))
+            }
             meshes = render.meshes.map {
                 Mesh(
                     node, it, bukkitNextEntityId, UUID.randomUUID(),
@@ -817,7 +853,7 @@ class DefaultNodeRenders internal constructor(
                         is RenderMesh.Dynamic -> {
                             // we don't want any children to be rendered on this node
                             // e.g. if a root node changes model when it is complete
-                            plugin.persistence.nodeToStack(node.copy().apply { removeChildren() })
+                            item
                         }
                     }
                 ).also { mesh ->

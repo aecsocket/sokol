@@ -94,9 +94,10 @@ fun <
     val stats = statMapOf()
     fun add(nodeStats: List<NodeStat>) {
         nodeStats.forEach { (node, applicable) ->
-            // todo stat rule
             applicable.sortedBy { it.priority }.forEach {
-                stats.merge(it.stats)
+                if (it.rule.applies(node)) {
+                    stats.merge(it.stats)
+                }
             }
         }
     }
