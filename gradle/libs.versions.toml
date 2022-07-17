@@ -4,8 +4,8 @@ minecraft = "1.18.2"
 
 kotlin = "1.7.10"
 icu4j = "68.1"
-glossa = "0.3.6"
-alexandria = "0.4.0"
+glossa = "0.4.0"
+alexandria = "0.5.0-SNAPSHOT"
 adventure = "4.11.0"
 configurate = "4.1.2"
 cloud = "1.6.2"
@@ -17,12 +17,12 @@ packetEvents = "2.0-SNAPSHOT"
 kotlinStdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
 kotlinReflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
 
-glossaCore = { group = "com.github.aecsocket.glossa", name = "glossa-core", version.ref = "glossa" }
-glossaAdventure = { group = "com.github.aecsocket.glossa", name = "glossa-adventure", version.ref = "glossa" }
-glossaConfigurate = { group = "com.github.aecsocket.glossa", name = "glossa-configurate", version.ref = "glossa" }
+glossaCore = { group = "com.gitlab.aecsocket.glossa", name = "glossa-core", version.ref = "glossa" }
+glossaAdventure = { group = "com.gitlab.aecsocket.glossa", name = "glossa-adventure", version.ref = "glossa" }
+glossaConfigurate = { group = "com.gitlab.aecsocket.glossa", name = "glossa-configurate", version.ref = "glossa" }
 
-alexandriaCore = { group = "com.github.aecsocket.alexandria", name = "alexandria-core", version.ref = "alexandria" }
-alexandriaPaper = { group = "com.github.aecsocket.alexandria", name = "alexandria-paper", version.ref = "alexandria" }
+alexandriaCore = { group = "com.gitlab.aecsocket.alexandria", name = "alexandria-core", version.ref = "alexandria" }
+alexandriaPaper = { group = "com.gitlab.aecsocket.alexandria", name = "alexandria-paper", version.ref = "alexandria" }
 
 adventureApi = { group = "net.kyori", name = "adventure-api", version.ref = "adventure" }
 adventureTextLoggerSlf4j = { group = "net.kyori", name = "adventure-text-logger-slf4j", version.ref = "adventure" }

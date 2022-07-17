@@ -5,9 +5,9 @@ plugins {
 }
 
 allprojects {
-    group = "com.github.aecsocket.sokol"
-    version = "2.2.1"
-    description = "Platform-agnostic, data-driven item framework"
+    group = "com.gitlab.aecsocket.sokol"
+    version = "2.3.0-SNAPSHOT"
+    description = "Platform-agnostic entity composition framework"
 }
 
 repositories {
@@ -15,22 +15,22 @@ repositories {
     mavenCentral()
 }
 
+kotlin {
+    jvmToolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
 subprojects {
     apply<JavaLibraryPlugin>()
     apply(plugin = "maven-publish")
     apply(plugin = "org.jetbrains.dokka")
 
-    publishing {
-        publications {
-            create<MavenPublication>("mavenJava") {
-                from(components["java"])
-            }
-        }
-    }
-
     tasks {
-        compileJava {
-            options.encoding = Charsets.UTF_8.name()
+        withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            kotlinOptions {
+                jvmTarget = JavaVersion.VERSION_17.toString()
+            }
         }
 
         test {
@@ -48,6 +48,27 @@ subprojects {
                 .replace("@adventure-version@", libs.versions.adventure.get())
                 .replace("@configurate-version@", libs.versions.configurate.get())
                 .replace("@cloud-version@", libs.versions.cloud.get())
+            }
+        }
+    }
+
+    publishing {
+        repositories {
+            maven {
+                url = uri("${System.getenv("CI_API_V4_URL")}/projects/${System.getenv("CI_PROJECT_ID")}/packages/maven")
+                credentials(HttpHeaderCredentials::class) {
+                    name = "Job-Token"
+                    value = System.getenv("CI_JOB_TOKEN")
+                }
+                authentication {
+                    create<HttpHeaderAuthentication>("header")
+                }
+            }
+        }
+
+        publications {
+            create<MavenPublication>("mavenJava") {
+                from(components["java"])
             }
         }
     }

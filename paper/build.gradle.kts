@@ -11,6 +11,7 @@ repositories {
     mavenLocal()
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
+    maven("https://gitlab.com/api/v4/groups/9631292/-/packages/maven")
     maven("https://jitpack.io")
 }
 

@@ -4,7 +4,7 @@ main: "@group@.paper.Sokol"
 version: "@version@"
 api-version: "1.18"
 authors: [ "aecsocket" ]
-website: "https://aecsocket.github.io/sokol"
+website: "https://phosphorous.gitlab.io/sokol"
 libraries:
   - "org.jetbrains.kotlin:kotlin-stdlib:@kotlin-version@"
   - "org.jetbrains.kotlin:kotlin-reflect:@kotlin-version@"
