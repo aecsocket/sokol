@@ -4,7 +4,7 @@
 <img src="icon.svg" height="64"> Sokol
 </a> </h1>
 
-[![Latest version](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%2Fprojects%2F37885933%2Fpackages%2Fmaven%2Fcom%2Fgitlab%2Faecsocket%2Fsokol%2Fsokol-core%2Fmaven-metadata.xml)](https://gitlab.com/phosphorous/sokol/-/packages/8022977)
+[![Latest version](https://img.shields.io/maven-metadata/v?metadataUrl=https%3A%2F%2Fgitlab.com%2Fapi%2Fv4%2Fprojects%2F37885933%2Fpackages%2Fmaven%2Fcom%2Fgitlab%2Faecsocket%2Fsokol%2Fsokol-core%2Fmaven-metadata.xml)](https://gitlab.com/phosphorous/sokol/-/packages/8023113)
 [![Pipeline status](https://img.shields.io/gitlab/pipeline-status/phosphorous/sokol?branch=main)](https://gitlab.com/phosphorous/sokol/-/pipelines/latest)
 
 </div>
