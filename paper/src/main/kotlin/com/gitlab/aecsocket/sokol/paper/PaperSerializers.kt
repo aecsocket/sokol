@@ -11,10 +11,8 @@ import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.serialize.SerializationException
 import java.lang.reflect.Type
 
-private const val TAGS = "tags"
 private const val SOFT_FEATURES = "soft_features"
 private const val REQUIRED = "required"
-private const val MODIFIABLE = "modifiable"
 private const val RULE = "rule"
 
 class PaperComponentSerializer(
@@ -26,10 +24,8 @@ class PaperComponentSerializer(
 
     override fun slot(key: String, node: ConfigurationNode) = PaperSlot(
         key,
-        node.node(TAGS).get<MutableSet<String>> { HashSet() },
         node.node(REQUIRED).getBoolean(false),
         node.node(RULE).get<Rule> { Rule.True },
-        node.node(MODIFIABLE).getBoolean(false),
     )
 
     override fun deserialize(type: Type, node: ConfigurationNode): PaperComponent {

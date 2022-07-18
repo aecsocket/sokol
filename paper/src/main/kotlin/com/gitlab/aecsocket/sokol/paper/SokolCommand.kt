@@ -1,14 +1,19 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.EnumArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.arguments.standard.StringArgument
 import cloud.commandframework.bukkit.arguments.selector.MultiplePlayerSelector
+import cloud.commandframework.bukkit.parsers.location.LocationArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import cloud.commandframework.context.CommandContext
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.alexandria.core.keyed.Registry
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
+import com.gitlab.aecsocket.alexandria.paper.extension.vector
 import com.gitlab.aecsocket.alexandria.paper.plugin.CloudCommand
 import com.gitlab.aecsocket.alexandria.paper.plugin.desc
 import com.gitlab.aecsocket.glossa.core.Localizable
@@ -20,9 +25,12 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
+import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import java.util.*
+
+private val Boolean.tlKey get() = if (this) "enabled" else "disabled"
 
 internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
     plugin, "sokol",
@@ -30,10 +38,10 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
 ) {
     init {
         captions?.apply {
-            registerMessageFactory(com.gitlab.aecsocket.sokol.core.ComponentParser.ARGUMENT_PARSE_FAILURE_COMPONENT, captionLocalizer)
-            registerMessageFactory(com.gitlab.aecsocket.sokol.core.BlueprintParser.ARGUMENT_PARSE_FAILURE_BLUEPRINT, captionLocalizer)
-            registerMessageFactory(com.gitlab.aecsocket.sokol.core.NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY, captionLocalizer)
-            registerMessageFactory(com.gitlab.aecsocket.sokol.core.NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED, captionLocalizer)
+            registerMessageFactory(ComponentParser.ARGUMENT_PARSE_FAILURE_COMPONENT, captionLocalizer)
+            registerMessageFactory(BlueprintParser.ARGUMENT_PARSE_FAILURE_BLUEPRINT, captionLocalizer)
+            registerMessageFactory(NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY, captionLocalizer)
+            registerMessageFactory(NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED, captionLocalizer)
         }
 
         val hosts = root
@@ -86,6 +94,50 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
             .permission(perm("render", "show-shapes"))
             .senderType(Player::class.java)
             .handler { handle(it, ::renderShowShapes) })
+        manager.command(render
+            .literal("bypass-options", desc("Toggles bypassing render options, allowing you to modify a render at will."))
+            .argument(BooleanArgument.optional("state"), desc("Feature state."))
+            .permission(perm("render", "bypass-options"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::renderBypassOptions) })
+        manager.command(render
+            .literal("spawn", desc("Spawns a node render."))
+            .argument(PaperNodeArgument(plugin, "node", desc("Node to spawn the render of.")))
+            .flag(manager.flagBuilder("pos")
+                .withDescription(desc("Position of the render."))
+                .withArgument(LocationArgument.of<CommandSender>("pos"))
+                .build())
+            .flag(manager.flagBuilder("rot")
+                .withDescription(desc("Rotation of the render."))
+                .withArgument(LocationArgument.of<CommandSender>("pos"))
+                .build())
+            .flag(manager.flagBuilder("selectable")
+                .withDescription(desc("If the render can be highlighted."))
+                .withAliases("s")
+                .build())
+            .flag(manager.flagBuilder("movable")
+                .withDescription(desc("If the render can be dragged and moved."))
+                .withAliases("m")
+                .build())
+            .flag(manager.flagBuilder("rotatable")
+                .withDescription(desc("If the render can be rotated."))
+                .withAliases("r")
+                .build())
+            .flag(manager.flagBuilder("grabbable")
+                .withDescription(desc("If the render can be grabbed and removed."))
+                .withAliases("g")
+                .build())
+            .flag(manager.flagBuilder("modifiable")
+                .withDescription(desc("If the render can have parts added and removed."))
+                .withAliases("d")
+                .build())
+            .flag(manager.flagBuilder("unrestricted")
+                .withDescription(desc("If non-modifiable slots can also be added and removed to/from."))
+                .withAliases("u")
+                .build())
+            .permission(perm("render", "spawn"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::renderSpawn) })
 
         manager.command(root
             .literal("give", desc("Gives a specified item-representable node tree to a player."))
@@ -199,10 +251,6 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
                     tl("name") { slot }
                     raw("key") { key }
                     raw("required") { slot.required.toString() }
-                    raw("modifiable") { slot.modifiable.toString() }
-                    list("tags") { slot.tags.forEach {
-                        raw(it)
-                    } }
                 }.map { it.hoverEvent(hover) })
             } }
             raw("qt_features") { component.features.size }
@@ -271,11 +319,39 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
     }
 
     fun renderShowShapes(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
-        val data = plugin.playerState(sender as Player)
+        val pState = plugin.playerState(sender as Player)
         val state = ctx.get("state") { DefaultNodeRenders.ShowShapes.NONE }
 
-        data.renders.showShapes = state
+        pState.renders.showShapes = state
         plugin.send(sender) { safe(locale, "command.render.show_shapes.${state.key}") }
+    }
+
+    fun renderBypassOptions(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        val pState = plugin.playerState(sender as Player)
+        val state = ctx.get("state") { !pState.renders.bypassOptions }
+
+        pState.renders.bypassOptions = state
+        plugin.send(sender) { safe(locale, "command.render.bypass_options.${state.tlKey}") }
+    }
+
+    fun renderSpawn(ctx: CommandContext<CommandSender>, sender: CommandSender, locale: Locale) {
+        sender as Player
+        val node = ctx.get<PaperDataNode>("node")
+        val pos = (ctx.flag<Location>("pos") ?: sender.location).vector()
+        val rot = ctx.flag<Location>("rot")?.vector() ?: Vector3.Zero
+        val options = NodeRenders.Options(
+            selectable = ctx.flagged("selectable"),
+            movable = ctx.flagged("movable"),
+            rotatable = ctx.flagged("rotatable"),
+            grabbable = ctx.flagged("grabbable"),
+            modifiable = ctx.flagged("modifiable"),
+            unrestricted = ctx.flagged("unrestricted"),
+        )
+
+        plugin.renders.create(node, sender.world, Transform(
+            rot = rot.radians.quaternion(EulerOrder.XYZ),
+            tl = pos,
+        ), options)
     }
 
     fun give(

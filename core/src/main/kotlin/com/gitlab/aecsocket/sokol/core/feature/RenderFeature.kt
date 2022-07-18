@@ -44,6 +44,7 @@ data class RenderData(
 data class RenderSlot(
     @Required val transform: Transform,
     val bodies: List<SimpleBody> = emptyList(),
+    val modifiable: Boolean = false,
 )
 
 object RenderFeature : Keyed {

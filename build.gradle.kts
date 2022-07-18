@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm")
     id("maven-publish")
-    //id("org.jetbrains.dokka")
+    id("org.jetbrains.dokka")
 }
 
 allprojects {
@@ -24,7 +24,7 @@ kotlin {
 subprojects {
     apply<JavaLibraryPlugin>()
     apply(plugin = "maven-publish")
-    //apply(plugin = "org.jetbrains.dokka")
+    apply(plugin = "org.jetbrains.dokka")
 
     tasks {
         withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -43,10 +43,6 @@ subprojects {
                 .replace("@version@", project.version.toString())
                 .replace("@description@", project.description.toString())
                 .replace("@group@", project.group.toString())
-                .replace("@kotlin-version@", libs.versions.kotlin.get())
-                .replace("@icu4j-version@", libs.versions.icu4j.get())
-                .replace("@adventure-version@", libs.versions.adventure.get())
-                .replace("@configurate-version@", libs.versions.configurate.get())
             }
         }
     }
@@ -66,7 +62,7 @@ subprojects {
         }
 
         publications {
-            create<MavenPublication>("mavenJava") {
+            create<MavenPublication>("maven") {
                 from(components["java"])
             }
         }

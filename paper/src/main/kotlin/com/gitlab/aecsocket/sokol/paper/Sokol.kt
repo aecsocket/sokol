@@ -97,6 +97,10 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
     // centralized raycast instances
     fun raycast(world: World) = PaperRaycast(world)
 
+    init {
+        instance = this
+    }
+
     override fun onLoad() {
         super.onLoad()
         val mapping = serverMapping

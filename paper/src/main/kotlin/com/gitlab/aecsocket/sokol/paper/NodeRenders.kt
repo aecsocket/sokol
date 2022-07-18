@@ -40,10 +40,11 @@ import org.bukkit.event.Listener
 import org.bukkit.event.entity.CreatureSpawnEvent
 import org.bukkit.event.player.PlayerJoinEvent
 import org.bukkit.inventory.ItemStack
-import org.spongepowered.configurate.ConfigurationNode
+import org.bukkit.persistence.PersistentDataType
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.PI
 import kotlin.math.abs
 
@@ -73,6 +74,35 @@ private const val GRAB = "grab"
 // (Sokol's main PlayerState stores a single NodeRenders.PlayerState for the main NodeRenders -
 //  if a dependent wants to tick its own worlds, they must manage their own PlayerStates.)
 interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : NodePart> {
+    @ConfigSerializable
+    data class Options(
+        val selectable: Boolean = true,
+        val movable: Boolean = true,
+        val rotatable: Boolean = true,
+        val grabbable: Boolean = true,
+        val modifiable: Boolean = true,
+        val unrestricted: Boolean = false,
+    ) {
+        val value get() =
+            (if (selectable) 0b1 else 0) or
+            (if (movable) 0b10 else 0) or
+            (if (rotatable) 0b100 else 0) or
+            (if (grabbable) 0b1000 else 0) or
+            (if (modifiable) 0b10000 else 0) or
+            (if (unrestricted) 0b100000 else 0)
+
+        companion object {
+            fun of(value: Int) = Options(
+                (value and 0b1) != 0,
+                (value and 0b10) != 0,
+                (value and 0b100) != 0,
+                (value and 0b1000) != 0,
+                (value and 0b10000) != 0,
+                (value and 0b100000) != 0,
+            )
+        }
+    }
+
     interface PlayerState<P : NodePart> {
         val player: Player
         val selected: Selection<P>?
@@ -87,6 +117,7 @@ interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : Nod
 
     enum class DragState(val active: Boolean) {
         NONE        (false),
+        INVALID     (true),
         MOVING      (true),
         ROTATING    (true),
     }
@@ -98,7 +129,7 @@ interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : Nod
 
     val entries: Collection<R>
 
-    fun create(node: PaperDataNode, world: World, transform: Transform): R
+    fun create(node: PaperDataNode, world: World, transform: Transform, options: Options? = null): R
 
     fun remove(render: R)
 
@@ -130,12 +161,13 @@ class DefaultNodeRenders internal constructor(
     private val plugin: Sokol,
     var settings: Settings = Settings(),
 ) : NodeRenders<
-        DefaultNodeRenders.PlayerState,
-        DefaultNodeRenders.Render,
-        DefaultNodeRenders.Part
-        > {
+    DefaultNodeRenders.PlayerState,
+    DefaultNodeRenders.Render,
+    DefaultNodeRenders.Part
+> {
     @ConfigSerializable
     data class Settings(
+        val defaultOptions: NodeRenders.Options = NodeRenders.Options(),
         val glowDefault: NamedTextColor = NamedTextColor.WHITE,
         val glowMarked: NamedTextColor = NamedTextColor.AQUA,
         val glowValid: NamedTextColor = NamedTextColor.GREEN,
@@ -171,7 +203,8 @@ class DefaultNodeRenders internal constructor(
 
     private val kRotation = plugin.key("rotation")
     private val kRenderNode = plugin.key("render_node")
-    private val renders = HashMap<Int, Render>()
+    private val kOptions = plugin.key("options")
+    private val renders = ConcurrentHashMap<Int, Render>()
     override val entries get() = renders.values
     private val hideIds = HashSet<Int>()
 
@@ -234,6 +267,7 @@ class DefaultNodeRenders internal constructor(
         val effector: Effector,
         override var selected: NodeRenders.Selection<Part>? = null,
         var showShapes: ShowShapes = ShowShapes.NONE,
+        var bypassOptions: Boolean = false,
         var lockSelection: Boolean = false,
         var lastNormal: Vector3? = null,
     ) : NodeRenders.PlayerState<Part>
@@ -297,7 +331,12 @@ class DefaultNodeRenders internal constructor(
         val slot: PartSlot<Part>,
     ) : Body
 
-    internal fun update() {
+    private val PartSlot<Part>.modifiable get(): Boolean {
+        val opts = parent.render.options()
+        return opts.unrestricted || data.modifiable
+    }
+
+    fun update() {
         hideIds.clear()
         val partBodies = HashMap<World, MutableSet<PartBody>>()
         val slotBodies = HashMap<World, MutableSet<SlotBody>>()
@@ -318,20 +357,28 @@ class DefaultNodeRenders internal constructor(
 
             val ray = player.eyeLocation.ray()
             val distance = settings.reach
+            val bypass = state.bypassOptions
 
             state.selected?.let { selected ->
                 if (selected.dragging.active) {
                     if (selected.dragging == NodeRenders.DragState.MOVING) {
                         selected.snapTo = raycastOf(wSlotBodies
                             .filter {
-                                it.slot.parent.render != selected.part.render // if slot is not on the currently selected render
-                                && !it.slot.parent.node.has(it.slot.key) // if slot is empty
+                                // don't allow non-modifiable renders to be attached to
+                                (bypass || it.slot.parent.render.options().modifiable) &&
+                                // if slot is not on the currently selected render
+                                it.slot.parent.render != selected.part.render &&
+                                // if slot is empty
+                                !it.slot.parent.node.has(it.slot.key)
                             }
                         ).cast(ray, distance)?.hit?.let {
                             val slot = it.slot
                             NodeRenders.SnapTarget(
                                 slot,
-                                slot.parent.node.component.slots[slot.key]?.compatible(selected.part.render.root.node) == true
+                                // compatible AND *slot* is modifiable (not render)
+                                slot.parent.node.component.slots[slot.key]
+                                    ?.compatible(selected.part.render.root.node) == true &&
+                                (bypass || slot.modifiable)
                             )
                         }
                     }
@@ -344,7 +391,10 @@ class DefaultNodeRenders internal constructor(
                         plugin.raycast(player.world).castBlocks(ray, distance) {
                             it.fluid == null
                         },
-                        raycastOf(wPartBodies).cast(ray, distance)
+                        raycastOf(wPartBodies.filter {
+                            // don't allow non-selectable renders to be selected
+                            bypass || it.part.render.options().selectable
+                        }).cast(ray, distance)
                     ).closest()?.let { col ->
                         val hit = col.hit
                         if (hit is PartBody) {
@@ -444,6 +494,7 @@ class DefaultNodeRenders internal constructor(
                             }
                         }
                     }
+                    NodeRenders.DragState.INVALID -> {}
                     NodeRenders.DragState.NONE -> {}
                 }
             }
@@ -489,6 +540,8 @@ class DefaultNodeRenders internal constructor(
         val state = plugin.playerState(event.player).renders
         state.selected?.let { selected ->
             val part = selected.part
+            val bypass = state.bypassOptions
+
             fun release() {
                 val snapTo = selected.snapTo
                 if (snapTo?.compatible == true) {
@@ -500,35 +553,52 @@ class DefaultNodeRenders internal constructor(
                 dragging(state, NodeRenders.DragState.NONE)
             }
 
+            fun move() {
+                if (bypass || part.render.options().movable) {
+                    dragging(state,
+                        // if root OR parent slot is modifiable
+                        if (part.parent == null || bypass || part.parent?.slot?.modifiable == true) NodeRenders.DragState.MOVING
+                        else NodeRenders.DragState.INVALID)
+                }
+            }
+
+            fun rotate() {
+                if (bypass || part.render.options().rotatable) {
+                    dragging(state, NodeRenders.DragState.ROTATING)
+                }
+            }
+
+            fun grab() {
+                if (part.isRoot && (bypass || part.render.options().grabbable)) {
+                    val inv = state.player.inventory
+                    val slot = inv.heldItemSlot
+                    if (inv.getItem(slot).isEmpty()) {
+                        plugin.persistence.nodeToStack(part.node)?.let { stack ->
+                            part.play(part.data.soundGrab)
+                            state.selected = null
+                            plugin.scheduleDelayed {
+                                remove(part.render)
+                                state.player.inventory.setItem(slot, stack)
+                            }
+                        }
+                    }
+                }
+            }
+
             settings.inputs.actionOf(event.input, event.player)?.let {
                 when (it) {
                     MOVE_TOGGLE -> {
                         if (selected.dragging.active) release()
-                        else dragging(state, NodeRenders.DragState.MOVING)
+                        else move()
                     }
-                    MOVE_START -> dragging(state, NodeRenders.DragState.MOVING)
+                    MOVE_START -> move()
                     ROTATE_TOGGLE -> {
                         if (selected.dragging.active) release()
-                        else dragging(state, NodeRenders.DragState.ROTATING)
+                        else rotate()
                     }
-                    ROTATE_START -> dragging(state, NodeRenders.DragState.ROTATING)
+                    ROTATE_START -> rotate()
                     DRAG_STOP -> release()
-                    GRAB -> {
-                        if (part.isRoot) {
-                            val inv = state.player.inventory
-                            val slot = inv.heldItemSlot
-                            if (inv.getItem(slot).isEmpty()) {
-                                plugin.persistence.nodeToStack(part.node)?.let { stack ->
-                                    part.play(part.data.soundGrab)
-                                    state.selected = null
-                                    plugin.scheduleDelayed {
-                                        remove(part.render)
-                                        state.player.inventory.setItem(slot, stack)
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    GRAB -> grab()
                 }
                 event.cancel()
             }
@@ -557,8 +627,8 @@ class DefaultNodeRenders internal constructor(
         }
     }
 
-    fun create(entity: Entity, part: Part, rotation: Quaternion): Render {
-        return Render(part, entity, rotation).also {
+    fun create(entity: Entity, part: Part, rotation: Quaternion, options: NodeRenders.Options? = null): Render {
+        return Render(part, entity, rotation, options).also {
             // initialize transforms
             it.update(null, null)
             // initialize persistence
@@ -572,7 +642,7 @@ class DefaultNodeRenders internal constructor(
         }
     }
 
-    fun create(part: Part, world: World, transform: Transform, hideSpawn: Boolean = false): Render {
+    fun create(part: Part, world: World, transform: Transform, options: NodeRenders.Options? = null, hideSpawn: Boolean = false): Render {
         var render: Render? = null
         world.spawnEntity(
             transform.tl.location(world),
@@ -585,7 +655,7 @@ class DefaultNodeRenders internal constructor(
                 duration = -1
                 waitTime = Int.MIN_VALUE
             }
-            render = create(entity, part, transform.rot)
+            render = create(entity, part, transform.rot, options)
             if (hideSpawn) {
                 hideIds.add(entity.entityId)
             }
@@ -593,8 +663,8 @@ class DefaultNodeRenders internal constructor(
         return render ?: throw IllegalStateException("Render entity spawned but not returned (delayed entity spawn?)")
     }
 
-    override fun create(node: PaperDataNode, world: World, transform: Transform): Render {
-        return create(partOf(node), world, transform)
+    override fun create(node: PaperDataNode, world: World, transform: Transform, options: NodeRenders.Options?): Render {
+        return create(partOf(node), world, transform, options, false)
     }
 
     fun loadRender(entity: Entity): Render? {
@@ -602,7 +672,11 @@ class DefaultNodeRenders internal constructor(
             val node = plugin.persistence.nodeOf(tag)
                 ?: throw IllegalArgumentException("Entity has tag $kRenderNode but it was not a valid node")
             val rotation = entity.persistentDataContainer.getOrDefault(kRotation, QuaternionDataType, Quaternion.Identity)
-            create(entity, partOf(node), rotation)
+            val options = entity.persistentDataContainer.getOrDefault(kOptions, PersistentDataType.INTEGER, -1)
+            create(entity, partOf(node),
+                rotation,
+                if (options < 0) settings.defaultOptions else NodeRenders.Options.of(options)
+            )
         }
     }
 
@@ -645,7 +719,11 @@ class DefaultNodeRenders internal constructor(
             selected.dragging = dragging
             state.lastNormal = null
             part.glowState(state.player,
-                if (dragging.active) PartGlowState.MARKED else PartGlowState.DEFAULT
+                when {
+                    dragging == NodeRenders.DragState.INVALID -> PartGlowState.INVALID
+                    dragging.active -> PartGlowState.MARKED
+                    else -> PartGlowState.DEFAULT
+                }
             )
 
             part.play(
@@ -671,6 +749,7 @@ class DefaultNodeRenders internal constructor(
         override val root: Part,
         val entity: Entity,
         var rotation: Quaternion,
+        val options: NodeRenders.Options?,
     ) : NodeRender<Part> {
         val id = entity.entityId
         override var transform: Transform
@@ -679,6 +758,8 @@ class DefaultNodeRenders internal constructor(
                 rotation = value.rot
                 entity.transform = value
             }
+
+        fun options() = options ?: settings.defaultOptions
 
         internal var lastTracked: Collection<PlayerState> = emptySet()
 
@@ -770,6 +851,7 @@ class DefaultNodeRenders internal constructor(
         fun save() {
             saveRotation()
             saveNode()
+            options?.let { entity.persistentDataContainer.set(kOptions, PersistentDataType.INTEGER, it.value) }
         }
 
         fun spawn(player: Player) {
@@ -820,7 +902,9 @@ class DefaultNodeRenders internal constructor(
     data class PartKey(
         val part: Part,
         val key: String,
-    )
+    ) {
+        val slot get() = part.slots[key]
+    }
 
     inner class Part(
         node: PaperDataNode,
@@ -944,7 +1028,8 @@ class DefaultNodeRenders internal constructor(
 
             // re-attach to a new render
             parent = null
-            render = create(this, render.entity.world, transform, true)
+            // use
+            render = create(this, render.entity.world, transform, render.options, true)
             dragTransform = Transform.Identity
         }
 

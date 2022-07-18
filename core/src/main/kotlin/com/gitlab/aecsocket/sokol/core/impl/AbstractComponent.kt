@@ -26,7 +26,6 @@ abstract class AbstractComponent<
 
 open class SimpleSlot(
     override val key: String,
-    override val tags: Set<String>,
     override val required: Boolean,
     val rule: Rule,
 ) : Slot {

@@ -42,11 +42,9 @@ class PaperComponent(
 
 class PaperSlot(
     key: String,
-    tags: Set<String>,
     required: Boolean,
     rule: Rule,
-    val modifiable: Boolean,
-) : SimpleSlot(key, tags, required, rule)
+) : SimpleSlot(key, required, rule)
 
 class PaperBlueprint(
     id: String,
