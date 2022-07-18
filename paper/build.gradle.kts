@@ -12,6 +12,7 @@ repositories {
     mavenCentral()
     maven("https://repo.papermc.io/repository/maven-public/")
     maven("https://gitlab.com/api/v4/groups/9631292/-/packages/maven")
+    maven("https://oss.sonatype.org/content/repositories/snapshots")
     maven("https://jitpack.io")
 }
 
@@ -19,27 +20,19 @@ dependencies {
     api(projects.sokolCore)
     paperDevBundle("$minecraft-R0.1-SNAPSHOT")
 
-    implementation(libs.glossaCore) { isTransitive = false }
-    implementation(libs.glossaAdventure) { isTransitive = false }
-    implementation(libs.glossaConfigurate) { isTransitive = false }
-
-    implementation(libs.alexandriaCore)
-    implementation(libs.alexandriaPaper)
-
-    // shaded
-
-    implementation(libs.bstatsPaper)
-    implementation(libs.packetEventsApi)
-    implementation(libs.packetEventsSpigot)
-
-    // library loader
-
-    compileOnly(libs.kotlinStdlib)
-    compileOnly(libs.kotlinReflect)
-    compileOnly(libs.configurateCore)
+    // plugins
+    compileOnly(libs.glossaCore)
+    compileOnly(libs.cloudCore)
     compileOnly(libs.cloudPaper)
     compileOnly(libs.configurateExtraKotlin)
     compileOnly(libs.adventureExtraKotlin)
+    compileOnly(libs.packetEventsApi)
+    compileOnly(libs.packetEventsSpigot)
+    compileOnly(libs.alexandriaCore)
+    compileOnly(libs.alexandriaPaper)
+
+    // shaded
+    implementation(libs.bstatsPaper)
 
     testImplementation(kotlin("test"))
 }
@@ -49,12 +42,10 @@ tasks {
         mergeServiceFiles()
         exclude("kotlin/")
         listOf(
-            "com.github.retrooper.packetevents",
-            "io.github.retrooper.packetevents",
             "org.bstats",
-            "com.google.gson",
+
             "org.jetbrains",
-            "org.intellij"
+            "org.intellij",
         ).forEach { relocate(it, "${project.group}.lib.$it") }
     }
 

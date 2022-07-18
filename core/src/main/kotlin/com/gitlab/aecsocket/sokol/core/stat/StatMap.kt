@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.core.stat
 import net.kyori.adventure.key.Key
 
 private fun keyError(key: Key): () -> Nothing = {
-    throw NoSuchElementException("No value for stat with key $key")
+    throw NoSuchElementException("No value for stat with key '$key'")
 }
 
 interface CompiledStatMap {

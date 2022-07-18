@@ -4,9 +4,9 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
+import org.spongepowered.configurate.kotlin.extensions.get
 import java.lang.reflect.Type
 
 private const val TAGS = "tags"
@@ -74,7 +74,7 @@ abstract class ComponentSerializer<
 }
 
 abstract class BlueprintSerializer<
-        T : com.gitlab.aecsocket.sokol.core.Blueprint<N>,
+        T : Blueprint<N>,
         N : DataNode
         > : TypeSerializer<T> {
     protected abstract val nodeType: Class<N>

@@ -28,25 +28,25 @@ open class RegistryArgumentException(
 class ComponentArgumentException(
     input: String,
     context: CommandContext<*>
-) : com.gitlab.aecsocket.sokol.core.RegistryArgumentException(
-    com.gitlab.aecsocket.sokol.core.ComponentParser::class.java,
-    com.gitlab.aecsocket.sokol.core.ComponentParser.Companion.ARGUMENT_PARSE_FAILURE_COMPONENT,
+) : RegistryArgumentException(
+    ComponentParser::class.java,
+    ComponentParser.Companion.ARGUMENT_PARSE_FAILURE_COMPONENT,
     input, context
 )
 
 class BlueprintArgumentException(
     input: String,
     context: CommandContext<*>
-) : com.gitlab.aecsocket.sokol.core.RegistryArgumentException(
-    com.gitlab.aecsocket.sokol.core.BlueprintParser::class.java,
-    com.gitlab.aecsocket.sokol.core.BlueprintParser.Companion.ARGUMENT_PARSE_FAILURE_BLUEPRINT,
+) : RegistryArgumentException(
+    BlueprintParser::class.java,
+    BlueprintParser.ARGUMENT_PARSE_FAILURE_BLUEPRINT,
     input, context
 )
 
 abstract class RegistryItemParser<C : Any, T : Keyed>(
     private val registry: Registry<T>
 ) : ArgumentParser<C, T> {
-    protected abstract fun exceptionOf(input: String, context: CommandContext<*>): com.gitlab.aecsocket.sokol.core.RegistryArgumentException
+    protected abstract fun exceptionOf(input: String, context: CommandContext<*>): RegistryArgumentException
 
     override fun parse(
         commandContext: CommandContext<C>,
@@ -58,7 +58,7 @@ abstract class RegistryItemParser<C : Any, T : Keyed>(
                 ArgumentParseResult.success(it)
             } ?: ArgumentParseResult.failure(exceptionOf(input, commandContext))
         } ?: ArgumentParseResult.failure(NoInputProvidedException(
-            com.gitlab.aecsocket.sokol.core.ComponentParser::class.java,
+            ComponentParser::class.java,
             commandContext
         ))
     }
@@ -67,19 +67,19 @@ abstract class RegistryItemParser<C : Any, T : Keyed>(
         registry.entries.keys.toMutableList()
 }
 
-class ComponentParser<C : Any, T : com.gitlab.aecsocket.sokol.core.NodeComponent>(
-    platform: com.gitlab.aecsocket.sokol.core.SokolPlatform<T, *, *, *>
-) : com.gitlab.aecsocket.sokol.core.RegistryItemParser<C, T>(platform.components) {
+class ComponentParser<C : Any, T : NodeComponent>(
+    platform: SokolPlatform<T, *, *, *>
+) : RegistryItemParser<C, T>(platform.components) {
     override fun exceptionOf(input: String, context: CommandContext<*>) =
-        com.gitlab.aecsocket.sokol.core.ComponentArgumentException(input, context)
+        ComponentArgumentException(input, context)
 
     companion object {
         val ARGUMENT_PARSE_FAILURE_COMPONENT = Caption.of("argument.parse.failure.component")
     }
 }
 
-open class ComponentArgument<C : Any, T : com.gitlab.aecsocket.sokol.core.NodeComponent>(
-    platform: com.gitlab.aecsocket.sokol.core.SokolPlatform<T, *, *, *>,
+open class ComponentArgument<C : Any, T : NodeComponent>(
+    platform: SokolPlatform<T, *, *, *>,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
@@ -87,21 +87,21 @@ open class ComponentArgument<C : Any, T : com.gitlab.aecsocket.sokol.core.NodeCo
     clazz: Class<T>,
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
 ) : CommandArgument<C, T>(required, name,
-    com.gitlab.aecsocket.sokol.core.ComponentParser(platform), defaultValue, clazz, suggestionsProvider, description)
+    ComponentParser(platform), defaultValue, clazz, suggestionsProvider, description)
 
-class BlueprintParser<C : Any, T : com.gitlab.aecsocket.sokol.core.Blueprint<*>>(
-    platform: com.gitlab.aecsocket.sokol.core.SokolPlatform<*, T, *, *>
-) : com.gitlab.aecsocket.sokol.core.RegistryItemParser<C, T>(platform.blueprints) {
+class BlueprintParser<C : Any, T : Blueprint<*>>(
+    platform: SokolPlatform<*, T, *, *>
+) : RegistryItemParser<C, T>(platform.blueprints) {
     override fun exceptionOf(input: String, context: CommandContext<*>) =
-        com.gitlab.aecsocket.sokol.core.BlueprintArgumentException(input, context)
+        BlueprintArgumentException(input, context)
 
     companion object {
         val ARGUMENT_PARSE_FAILURE_BLUEPRINT = Caption.of("argument.parse.failure.blueprint")
     }
 }
 
-open class BlueprintArgument<C : Any, T : com.gitlab.aecsocket.sokol.core.Blueprint<*>>(
-    platform: com.gitlab.aecsocket.sokol.core.SokolPlatform<*, T, *, *>,
+open class BlueprintArgument<C : Any, T : Blueprint<*>>(
+    platform: SokolPlatform<*, T, *, *>,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
@@ -109,7 +109,7 @@ open class BlueprintArgument<C : Any, T : com.gitlab.aecsocket.sokol.core.Bluepr
     clazz: Class<T>,
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
 ) : CommandArgument<C, T>(required, name,
-    com.gitlab.aecsocket.sokol.core.BlueprintParser(platform), defaultValue, clazz, suggestionsProvider, description)
+    BlueprintParser(platform), defaultValue, clazz, suggestionsProvider, description)
 
 
 class NodeArgMalformedException(
@@ -117,8 +117,8 @@ class NodeArgMalformedException(
     input: String,
     error: Throwable,
 ) : ParserException(
-    com.gitlab.aecsocket.sokol.core.NodeParser::class.java, context,
-    com.gitlab.aecsocket.sokol.core.NodeParser.Companion.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED,
+    NodeParser::class.java, context,
+    NodeParser.Companion.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED,
     CaptionVariable.of("input", input),
     CaptionVariable.of("error", error.message ?: "-"),
 )
@@ -127,13 +127,13 @@ class NodeArgRegistryException(
     context: CommandContext<*>,
     input: String,
 ) : ParserException(
-    com.gitlab.aecsocket.sokol.core.NodeParser::class.java, context,
-    com.gitlab.aecsocket.sokol.core.NodeParser.Companion.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY,
+    NodeParser::class.java, context,
+    NodeParser.Companion.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY,
     CaptionVariable.of("input", input),
 )
 
-class NodeParser<C : Any, O : com.gitlab.aecsocket.sokol.core.NodeComponent, T : com.gitlab.aecsocket.sokol.core.DataNode>(
-    private val platform: com.gitlab.aecsocket.sokol.core.SokolPlatform<O, *, *, T>
+class NodeParser<C : Any, O : NodeComponent, T : DataNode>(
+    private val platform: SokolPlatform<O, *, *, T>
 ) : ArgumentParser<C, T> {
     override fun parse(
         commandContext: CommandContext<C>,
@@ -145,7 +145,7 @@ class NodeParser<C : Any, O : com.gitlab.aecsocket.sokol.core.NodeComponent, T :
                 ArgumentParseResult.success(platform.persistence.stringToNode(input))
             } catch (ex: SerializationException) {
                 ArgumentParseResult.failure(
-                    com.gitlab.aecsocket.sokol.core.NodeArgMalformedException(
+                    NodeArgMalformedException(
                         commandContext, input, ex
                     )
                 )
@@ -153,13 +153,13 @@ class NodeParser<C : Any, O : com.gitlab.aecsocket.sokol.core.NodeComponent, T :
                 platform.components[input]?.let {
                     ArgumentParseResult.success(platform.nodeOf(it))
                 } ?: ArgumentParseResult.failure(
-                    com.gitlab.aecsocket.sokol.core.NodeArgRegistryException(
+                    NodeArgRegistryException(
                         commandContext, input
                     )
                 )
             }
         } ?: ArgumentParseResult.failure(NoInputProvidedException(
-            com.gitlab.aecsocket.sokol.core.NodeParser::class.java,
+            NodeParser::class.java,
             commandContext
         ))
     }
@@ -173,8 +173,8 @@ class NodeParser<C : Any, O : com.gitlab.aecsocket.sokol.core.NodeComponent, T :
     }
 }
 
-open class NodeArgument<C : Any, T : com.gitlab.aecsocket.sokol.core.DataNode>(
-    platform: com.gitlab.aecsocket.sokol.core.SokolPlatform<*, *, *, T>,
+open class NodeArgument<C : Any, T : DataNode>(
+    platform: SokolPlatform<*, *, *, T>,
     name: String,
     description: ArgumentDescription,
     required: Boolean = true,
@@ -182,4 +182,4 @@ open class NodeArgument<C : Any, T : com.gitlab.aecsocket.sokol.core.DataNode>(
     clazz: Class<T>,
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
 ) : CommandArgument<C, T>(required, name,
-    com.gitlab.aecsocket.sokol.core.NodeParser(platform), defaultValue, clazz, suggestionsProvider, description)
+    NodeParser(platform), defaultValue, clazz, suggestionsProvider, description)

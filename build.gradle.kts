@@ -1,12 +1,12 @@
 plugins {
     kotlin("jvm")
     id("maven-publish")
-    id("org.jetbrains.dokka")
+    //id("org.jetbrains.dokka")
 }
 
 allprojects {
     group = "com.gitlab.aecsocket.sokol"
-    version = "2.3.0-SNAPSHOT"
+    version = "2.3.1-SNAPSHOT"
     description = "Platform-agnostic entity composition framework"
 }
 
@@ -24,7 +24,7 @@ kotlin {
 subprojects {
     apply<JavaLibraryPlugin>()
     apply(plugin = "maven-publish")
-    apply(plugin = "org.jetbrains.dokka")
+    //apply(plugin = "org.jetbrains.dokka")
 
     tasks {
         withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
@@ -47,7 +47,6 @@ subprojects {
                 .replace("@icu4j-version@", libs.versions.icu4j.get())
                 .replace("@adventure-version@", libs.versions.adventure.get())
                 .replace("@configurate-version@", libs.versions.configurate.get())
-                .replace("@cloud-version@", libs.versions.cloud.get())
             }
         }
     }

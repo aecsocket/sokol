@@ -13,7 +13,7 @@ import java.io.File
 
 interface SokolPlatform<
     C : NodeComponent,
-    B : com.gitlab.aecsocket.sokol.core.Blueprint<*>,
+    B : Blueprint<*>,
     F : Feature<*>,
     N : DataNode
 > {

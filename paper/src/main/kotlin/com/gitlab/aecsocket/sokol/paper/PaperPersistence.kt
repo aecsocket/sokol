@@ -16,8 +16,8 @@ import net.kyori.adventure.key.Key
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.NumericTag
-import org.bukkit.craftbukkit.v1_18_R2.inventory.CraftItemStack
-import org.bukkit.craftbukkit.v1_18_R2.persistence.CraftPersistentDataContainer
+import org.bukkit.craftbukkit.v1_19_R1.inventory.CraftItemStack
+import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataContainer
 import org.spongepowered.configurate.ConfigurateException

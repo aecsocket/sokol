@@ -1,12 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
-import com.gitlab.aecsocket.alexandria.core.DoubleMod
-import com.gitlab.aecsocket.alexandria.core.IntMod
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
-import com.gitlab.aecsocket.alexandria.core.effect.ParticleEffect
-import com.gitlab.aecsocket.alexandria.core.effect.SoundEffect
 import com.gitlab.aecsocket.alexandria.core.extension.force
 import com.gitlab.aecsocket.alexandria.core.extension.register
 import com.gitlab.aecsocket.alexandria.core.extension.registerExact
@@ -18,13 +14,10 @@ import com.gitlab.aecsocket.alexandria.paper.effect.PaperEffectors
 import com.gitlab.aecsocket.alexandria.paper.extension.bukkitPlayers
 import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
 import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
-import com.gitlab.aecsocket.alexandria.paper.input.InputMapper
 import com.gitlab.aecsocket.alexandria.paper.input.PacketInputListener
 import com.gitlab.aecsocket.alexandria.paper.physics.PaperRaycast
 import com.gitlab.aecsocket.alexandria.paper.plugin.BasePlugin
 import com.gitlab.aecsocket.alexandria.paper.plugin.ConfigOptionsAction
-import com.gitlab.aecsocket.alexandria.paper.serializer.*
-import com.gitlab.aecsocket.glossa.configurate.I18NSerializers
 import com.gitlab.aecsocket.sokol.core.NodePath
 import com.gitlab.aecsocket.sokol.core.SokolPlatform
 import com.gitlab.aecsocket.sokol.core.rule.Rule
@@ -37,11 +30,9 @@ import com.gitlab.aecsocket.sokol.paper.feature.PaperRender
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
-import org.bukkit.Color
+import org.bstats.bukkit.Metrics
 import org.bukkit.GameMode
-import org.bukkit.Particle
 import org.bukkit.World
-import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -52,11 +43,14 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializerCollection
-import java.util.*
 import kotlin.collections.HashMap
 
 private const val COMPONENT = "component"
 private const val BLUEPRINT = "blueprint"
+private const val BSTATS_ID = 11870
+
+private lateinit var instance: Sokol
+val SokolAPI get() = instance
 
 class Sokol : BasePlugin<Sokol.LoadScope>(),
     SokolPlatform<PaperComponent, PaperBlueprint, PaperFeature, PaperDataNode> {
@@ -84,7 +78,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
     var lastHosts: Map<HostType, HostsResolved> = emptyMap()
         private set
 
-    @get:Synchronized private val _playerState = HashMap<Player, PlayerState>()
+    private val _playerState = HashMap<Player, PlayerState>()
     val playerState: Map<Player, PlayerState> = _playerState
 
     private val _features = Registry.create<PaperFeature>()
@@ -105,6 +99,9 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
 
     override fun onLoad() {
         super.onLoad()
+        val mapping = serverMapping
+        log.line(LogLevel.Info) { mapping?.let { "Using mappings $it" } ?: "Using unknown server mappings" }
+
         PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
         PacketEvents.getAPI().settings
             .checkForUpdates(false)
@@ -194,11 +191,15 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
                  return false
             }
 
+            if (this.settings.enableBstats) {
+                Metrics(this, BSTATS_ID)
+            }
+
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _components, dataFolder.resolve(COMPONENT), PaperComponent::class.java)
             SokolPlatform.loadRegistry(log, this::loaderBuilder, _blueprints, dataFolder.resolve(BLUEPRINT), PaperBlueprint::class.java)
 
             hostResolver.load()
-            renders.load(settings)
+            renders.load()
 
             return true
         }

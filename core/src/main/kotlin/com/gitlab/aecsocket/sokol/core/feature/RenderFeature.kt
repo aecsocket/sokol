@@ -2,20 +2,18 @@ package com.gitlab.aecsocket.sokol.core.feature
 
 import com.gitlab.aecsocket.alexandria.core.effect.SoundEffect
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.alexandria.core.keyed.by
 import com.gitlab.aecsocket.alexandria.core.physics.SimpleBody
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.core.physics.Vector3
+import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.event.NodeEvent
 import com.gitlab.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.gitlab.aecsocket.sokol.core.rule.Rule
 import com.gitlab.aecsocket.sokol.core.stat.Stat
 import com.gitlab.aecsocket.sokol.core.util.RenderMesh
 import net.kyori.adventure.key.Key
-import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.Required
 
 class NodeRenderException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)

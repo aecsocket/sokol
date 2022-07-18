@@ -31,7 +31,7 @@ import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import net.kyori.adventure.text.Component.empty
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.World
-import org.bukkit.craftbukkit.v1_18_R2.entity.CraftAreaEffectCloud
+import org.bukkit.craftbukkit.v1_19_R1.entity.CraftAreaEffectCloud
 import org.bukkit.entity.Entity
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
@@ -210,7 +210,7 @@ class DefaultNodeRenders internal constructor(
         })
     }
 
-    internal fun load(node: ConfigurationNode) {
+    internal fun load() {
         settings = plugin.settings.nodeRenders
         bukkitPlayers.forEach { player ->
             sendTeams(player, WrapperPlayServerTeams.TeamMode.UPDATE)

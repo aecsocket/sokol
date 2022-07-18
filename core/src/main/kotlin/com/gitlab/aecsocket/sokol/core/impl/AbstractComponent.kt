@@ -7,7 +7,6 @@ import com.gitlab.aecsocket.sokol.core.NodeComponent
 import com.gitlab.aecsocket.sokol.core.Slot
 import com.gitlab.aecsocket.sokol.core.rule.Rule
 import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
-import com.gitlab.aecsocket.sokol.core.stat.StatMap
 import net.kyori.adventure.text.Component
 
 abstract class AbstractComponent<

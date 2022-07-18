@@ -17,10 +17,10 @@ object RenderMeshSerializer : TypeSerializer<RenderMesh> {
 
     override fun deserialize(type: Type, node: ConfigurationNode): RenderMesh {
         node.forceMap(type)
-        return when (val type = node.node(TYPE).force<String>()) {
+        return when (val meshType = node.node(TYPE).force<String>()) {
             STATIC -> node.force<RenderMesh.Static>()
             DYNAMIC -> node.force<RenderMesh.Dynamic>()
-            else -> throw SerializationException("Invalid mesh type '$type'")
+            else -> throw SerializationException("Invalid mesh type '$meshType'")
         }
     }
 }
