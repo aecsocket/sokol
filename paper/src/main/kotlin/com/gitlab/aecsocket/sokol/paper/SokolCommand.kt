@@ -20,6 +20,7 @@ import com.gitlab.aecsocket.glossa.core.Localizable
 import com.gitlab.aecsocket.sokol.core.BlueprintParser
 import com.gitlab.aecsocket.sokol.core.ComponentParser
 import com.gitlab.aecsocket.sokol.core.NodeParser
+import com.gitlab.aecsocket.sokol.core.feature.HostCreationException
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
@@ -364,27 +365,30 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
         val amount = ctx.get("amount") { 1 }
 
         val state = paperStateOf(node)
-        val stack = try {
-            plugin.persistence.stateToStack(state)
-                ?: error { safe(locale, "error.no_item_host") }
-        } catch (ex: NodeItemCreationException) {
-            error(ex) { safe(locale, "error.creating_item") }
+        val items = targets.map { target ->
+            val host = hostOf(target)
+            target to try {
+                plugin.persistence.forceStateToStack(holderBy(host), state)
+            } catch (ex: HostCreationException) {
+                error(ex) { safe(locale, "error.creating_host") }
+            }
         }
 
-        targets.forEach { target ->
-            (0 until amount).forEach { _ -> target.inventory.addItem(stack) }
+        items.forEach { (target, item) ->
+            repeat(amount) { target.inventory.addItem(item) }
         }
 
+        val itemName = node.component.localize(plugin.i18n.withLocale(locale)).join()
         plugin.send(sender) {
             if (targets.size == 1) {
                 safe(locale, "command.give.one") {
-                    sub("item") { stack.displayName() }
+                    sub("item") { itemName }
                     sub("target") { targets.first().displayName() }
                     raw("amount") { amount }
                 }
             } else {
                 safe(locale, "command.give.other") {
-                    sub("item") { stack.displayName() }
+                    sub("item") { itemName }
                     raw("qt_targets") { targets.size }
                     raw("amount") { amount }
                 }

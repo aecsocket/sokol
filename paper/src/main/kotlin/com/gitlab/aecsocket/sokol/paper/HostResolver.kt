@@ -77,7 +77,7 @@ class HostResolver(
 
             (Bukkit.getServer() as CraftServer).server.playerList.players.forEach { player ->
                 val bukkit = player.bukkitEntity
-                forStack(player.containerMenu.carried, StackHolder.byCursor(PaperNodeHost.OfEntity(bukkit), bukkit))
+                forStack(player.containerMenu.carried, holderByCursor(hostOf(bukkit)))
             }
         }
 
@@ -116,7 +116,7 @@ class HostResolver(
         }
 
         private fun forWorld(world: World) {
-            runDataCallback(world, HostType.WORLD) { PaperNodeHost.OfWorld(world) }
+            runDataCallback(world, HostType.WORLD) { hostOf(world) }
 
             val level = (world as CraftWorld).handle
             level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
@@ -129,14 +129,14 @@ class HostResolver(
 
         private fun forChunk(world: World, level: ServerLevel, chunk: LevelChunk) {
             val bukkit = chunk.bukkitChunk
-            runDataCallback(bukkit, HostType.CHUNK) { PaperNodeHost.OfChunk(bukkit) }
+            runDataCallback(bukkit, HostType.CHUNK) { hostOf(bukkit) }
 
             level.getChunkEntities(chunk.locX, chunk.locZ).forEach { forEntity(it) }
             chunk.blockEntities.forEach { (pos, block) -> forBlock(world, pos, block) }
         }
 
         private fun forEntity(entity: Entity) {
-            val host by lazy { PaperNodeHost.OfEntity(entity) }
+            val host by lazy { hostOf(entity) }
             runDataCallback(entity, HostType.ENTITY) { host }
 
             // *could* optimize this by using nms types?
@@ -144,7 +144,7 @@ class HostResolver(
                 is Player -> {
                     entity.inventory.forEachIndexed { idx, stack ->
                         stack?.let {
-                            forBukkitStack(stack, StackHolder.byPlayer(host, entity, idx))
+                            forBukkitStack(stack, holderByPlayer(host, entity, idx))
                         }
                     }
                 }
@@ -153,13 +153,13 @@ class HostResolver(
                         EquipmentSlot.values().forEach { slot ->
                             forBukkitStack(
                                 equipment.getItem(slot),
-                                StackHolder.byEquipment(host, entity, slot)
+                                holderByEquipment(host, slot)
                             )
                         }
                     }
                 }
-                is Item -> forBukkitStack(entity.itemStack, StackHolder.byItemEntity(host, entity))
-                is ItemFrame -> forBukkitStack(entity.item, StackHolder.byItemFrame(host, entity))
+                is Item -> forBukkitStack(entity.itemStack, holderByDropped(host))
+                is ItemFrame -> forBukkitStack(entity.item, holderByFrame(host))
             }
         }
 
@@ -168,20 +168,20 @@ class HostResolver(
             resolved.possible++
 
             val host by lazy {
-                PaperNodeHost.OfBlock(
+                hostOf(
                     world.getBlockAt(pos.x, pos.y, pos.z).getState(false)
                 )
             }
             if (settings.containerBlocks && block is BaseContainerBlockEntity) {
-                block.contents.forEachIndexed { _, stack ->
-                    forStack(stack, StackHolder.byBlock(host))
+                block.contents.forEachIndexed { idx, stack ->
+                    forStack(stack, holderByContainer(host, idx))
                 }
             }
 
             runCallback(block.persistentDataContainer.raw, resolved) { host }
         }
 
-        private fun forBukkitStack(stack: org.bukkit.inventory.ItemStack, holder: StackHolder) {
+        private fun forBukkitStack(stack: org.bukkit.inventory.ItemStack, holder: PaperItemHolder) {
             if (!stack.hasItemMeta()) return
             val craft = if (stack is CraftItemStack) stack else CraftItemStack.asCraftCopy(stack)
             craft.handle?.let {
@@ -189,72 +189,63 @@ class HostResolver(
             }
         }
 
-        private fun forStack(stack: ItemStack, holder: StackHolder) {
+        private fun forStack(stack: ItemStack, holder: PaperItemHolder) {
             if (stack.isEmpty)
                 return
             val resolved = resolved[HostType.STACK]!!
             resolved.possible++
 
             stack.tag?.let { tag ->
-                val bukkit by lazy { stack.bukkitStack }
-                val meta by lazy { bukkit.itemMeta }
-                var dirty = false
-                val host by lazy {
-                    PaperNodeHost.OfWritableStack(
-                        holder,
-                        { bukkit },
-                        { meta },
-                        { dirty = true }
-                    )
-                }
+                val parentStack by lazy { stack.bukkitStack }
+                useHostOf(holder, { parentStack },
+                    action = { parentHost ->
+                        if (settings.containerItems) {
+                            operator fun Tag.get(key: String) = if (this is CompoundTag) this.tags[key] else null
 
-                if (settings.containerItems) {
-                    operator fun Tag.get(key: String) = if (this is CompoundTag) this.tags[key] else null
+                            tag.tags["BlockEntityTag"]?.let { tagBlock ->
+                                // if it's an item that holds other items, like a shulker box
+                                // since shulker boxes can't hold other shulker boxes, this should get all items
+                                tagBlock["Items"]?.let { tagItems ->
+                                    if (tagItems is ListTag) tagItems.forEach { tagItem ->
+                                        resolved.possible++
+                                        if (tagItem is CompoundTag) tagItem.tags["tag"]?.let { tagMeta ->
+                                            if (tagMeta is CompoundTag) {
+                                                val childStack by lazy { ItemStack.of(tagItem).bukkitStack }
 
-                    tag.tags["BlockEntityTag"]?.let { tagBlock ->
-                        // if it's an item that holds other items, like a shulker box
-                        // since shulker boxes can't hold other shulker boxes, this should get all items
-                        tagBlock["Items"]?.let { tagItems ->
-                            if (tagItems is ListTag) tagItems.forEach { tagItem ->
-                                resolved.possible++
-                                if (tagItem is CompoundTag) tagItem.tags["tag"]?.let { tagMeta ->
-                                    if (tagMeta is CompoundTag) {
-                                        val childBukkit by lazy { ItemStack.of(tagItem).bukkitStack }
-                                        val childMeta by lazy { childBukkit.itemMeta }
-                                        var childDirty = false
-                                        val childHost by lazy {
-                                            PaperNodeHost.OfWritableStack(
-                                                StackHolder.byShulkerBox(host, tagItem.getByte("Slot").toInt()),
-                                                { childBukkit },
-                                                { childMeta },
-                                                { childDirty = true }
-                                            )
-                                        }
-                                        if (runCallback(tagMeta.tags, resolved) { childHost }) {
-                                            // we have modified the tagMeta (possibly)
-                                            if (childDirty) {
-                                                // meta has been dirtied; set it back into the stack
-                                                childBukkit.itemMeta = childMeta
+                                                fun saveChild() {
+                                                    // save directly into our parent's BlockEntityTag.Items[idx]
+                                                    (childStack as CraftItemStack).handle.save(tagItem)
+                                                }
+
+                                                useHostOf(
+                                                    holderByContainer(parentHost, tagItem.getByte("Slot").toInt()),
+                                                    { childStack },
+                                                    action = { childHost ->
+                                                        runCallback(tagMeta.tags, resolved) { childHost }
+                                                    },
+                                                    onDirty = { meta ->
+                                                        childStack.itemMeta = meta
+                                                        saveChild()
+                                                    },
+                                                    onClean = { saveChild() }
+                                                )
                                             }
-                                            // save directly into our parent's BlockEntityTag.Items[idx]
-                                            (childBukkit as CraftItemStack).handle.save(tagItem)
                                         }
                                     }
                                 }
                             }
                         }
+
+                        runCallback(tag.tags, resolved) { parentHost }
+                    },
+                    onDirty = { meta ->
+                        // note: this may be dirtied even if the runCallback didn't run:
+                        //  · if this is a shulker box
+                        //  · and it has some items inside which are nodes
+                        //  · and those nodes dirtied this shulker box's meta
+                        parentStack.itemMeta = meta
                     }
-                }
-
-                runCallback(tag.tags, resolved) { host }
-
-                // note: this may be dirtied even if the runCallback didn't run:
-                //  · if this is a shulker box
-                //  · and it has some items inside which are nodes
-                //  · and those nodes dirtied this shulker box's meta
-                if (dirty) {
-                    bukkit.itemMeta = meta
-                }
+                )
             }
         }
     }

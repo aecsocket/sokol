@@ -25,10 +25,11 @@ import com.gitlab.aecsocket.sokol.core.serializer.*
 import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
 import com.gitlab.aecsocket.sokol.core.stat.StatMap
 import com.gitlab.aecsocket.sokol.core.util.RenderMesh
-import com.gitlab.aecsocket.sokol.paper.feature.PaperItemHost
-import com.gitlab.aecsocket.sokol.paper.feature.PaperRender
+import com.gitlab.aecsocket.sokol.paper.feature.ItemHosterImpl
+import com.gitlab.aecsocket.sokol.paper.feature.RenderImpl
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
+import com.gitlab.aecsocket.sokol.paper.feature.LoreTreeImpl
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 import org.bstats.bukkit.Metrics
 import org.bukkit.GameMode
@@ -147,8 +148,9 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
 
         val plugin = this
         onLoad {
-            features.register(PaperItemHost(plugin))
-            features.register(PaperRender(plugin))
+            features.register(ItemHosterImpl(plugin))
+            features.register(RenderImpl(plugin))
+            features.register(LoreTreeImpl(plugin))
         }
     }
 
@@ -183,6 +185,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
             .registerExact(PaperBlueprint::class, PaperBlueprintSerializer(this))
             .registerExact(StatMap::class, statMapSerializer)
             .registerExact(ApplicableStats::class, ApplicableStatsSerializer)
+            .registerExact(FeatureRef::class, RegistryRefSerializer(_features, "feature") { FeatureRef(it) })
             .register(Rule::class, ruleSerializer)
     }
 
@@ -192,7 +195,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
                  this.settings = settings.force()
             } catch (ex: SerializationException) {
                 log.line(LogLevel.Error, ex) { "Could not load settings" }
-                 return false
+                return false
             }
 
             if (this.settings.enableBstats) {
@@ -228,37 +231,32 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
             }
         }
 
-        val host = PaperNodeHost.OfEntity(player)
+        val host = hostOf(player)
         player.inventory.forEachIndexed { idx, stack -> stack?.let {
             persistence.nodeTagOf(stack)?.let { tag ->
                 persistence.nodeOf(tag)?.let { node ->
                     val state = paperStateOf(node)
-                    val meta by lazy { stack.itemMeta }
-                    var dirty = false
-                    PaperNodeHost.OfWritableStack(
-                        StackHolder.byPlayer(host, player, idx),
-                        { stack },
-                        { meta },
-                        { dirty = true }
-                    ).apply {
-                        state.callEvent(this, PaperNodeEvent.OnInput(event.input, player))
-                    }
-
-                    if (dirty) {
-                        // full update; write meta
-                        //  · we write into PDC first, so when meta is set onto stack,
-                        //    meta's PDC is written into stack's tag
-                        //  · we can't just write meta then apply to our local `tag`,
-                        //    because setItemMeta overwrites the stack's CompoundTag
-                        persistence.nodeTagTo(
-                            persistence.newTag().apply { persistence.stateInto(state, this) },
-                            meta.persistentDataContainer,
-                        )
-                        stack.itemMeta = meta
-                    } else {
-                        // write directly to stack tag; avoid itemMeta write
-                        persistence.stateInto(state, tag)
-                    }
+                    useHostOf(holderByPlayer(host, player, idx), { stack },
+                        action = { host ->
+                            state.callEvent(host, PaperNodeEvent.OnInput(event.input, player))
+                        },
+                        onDirty = { meta ->
+                            // full update; write meta
+                            //  · we write into PDC first, so when meta is set onto stack,
+                            //    meta's PDC is written into stack's tag
+                            //  · we can't just write meta then apply to our local `tag`,
+                            //    because setItemMeta overwrites the stack's CompoundTag
+                            persistence.nodeTagTo(
+                                persistence.newTag().apply { persistence.stateInto(state, this) },
+                                meta.persistentDataContainer,
+                            )
+                            stack.itemMeta = meta
+                        },
+                        onClean = {
+                            // write directly to stack tag; avoid itemMeta write
+                            persistence.stateInto(state, tag)
+                        }
+                    )
                 }
             }
         } }

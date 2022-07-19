@@ -1,10 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.feature
 
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.sokol.core.Feature
-import com.gitlab.aecsocket.sokol.core.FeatureContext
-import com.gitlab.aecsocket.sokol.core.ItemDescriptor
-import com.gitlab.aecsocket.sokol.core.TreeState
+import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent
 import com.gitlab.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.gitlab.aecsocket.sokol.core.rule.Rule
@@ -14,8 +11,8 @@ import com.gitlab.aecsocket.sokol.core.stat.statTypes
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 
-object ItemHostFeature : Keyed {
-    override val id get() = "item_host"
+object ItemHosterFeature : Keyed {
+    override val id get() = "item_hoster"
 
     object Stats {
         val Item = ItemDescriptorStat(id, "item")
@@ -24,7 +21,7 @@ object ItemHostFeature : Keyed {
     }
 
     abstract class Type<P : Feature.Profile<*>> : Feature<P> {
-        override val id get() = ItemHostFeature.id
+        override val id get() = ItemHosterFeature.id
 
         override val statTypes: Map<Key, Stat<*>> get() = Stats.All
         override val ruleTypes: Map<Key, Class<Rule>> get() = emptyMap()
@@ -43,7 +40,10 @@ object ItemHostFeature : Keyed {
         override fun serialize(node: ConfigurationNode) {}
     }
 
-    abstract class State<S : Feature.State<S, D, C>, D : Feature.Data<S>, C : FeatureContext<*, *, *>> : Feature.State<S, D, C> {
+    abstract class State<
+        S : Feature.State<S, D, C>, D : Feature.Data<S>, C : FeatureContext<T, *, *>,
+        H : ItemHolder, T : TreeState, R : ItemHost
+    > : Feature.State<S, D, C>, ItemHoster<H, T, R> {
         abstract override val type: Feature<*>
         abstract override val profile: Profile<*>
 
@@ -51,8 +51,10 @@ object ItemHostFeature : Keyed {
 
         override fun serialize(tag: CompoundBinaryTag.Mutable) {}
 
-        fun itemDescriptor(state: TreeState): ItemDescriptor {
-            return state.stats.nodeOr(Stats.Item).compute()
+        protected fun descriptor(state: T): ItemDescriptor {
+            return state.stats.nodeOr(Stats.Item) {
+                throw HostCreationException("No value for stat with key '${Stats.Item.key}'")
+            }.compute()
         }
     }
 }

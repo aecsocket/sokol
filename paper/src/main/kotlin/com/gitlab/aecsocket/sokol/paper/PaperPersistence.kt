@@ -1,17 +1,17 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import com.gitlab.aecsocket.alexandria.core.keyed.RegistryRef
 import com.gitlab.aecsocket.alexandria.core.keyed.by
 import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.NodePath
 import com.gitlab.aecsocket.sokol.core.SokolPersistence
 import com.gitlab.aecsocket.sokol.core.emptyNodePath
-import com.gitlab.aecsocket.sokol.core.feature.ItemHostFeature
+import com.gitlab.aecsocket.sokol.core.feature.HostCreationException
 import com.gitlab.aecsocket.sokol.core.keyOf
 import com.gitlab.aecsocket.sokol.core.nbt.BinaryTag
 import com.gitlab.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.gitlab.aecsocket.sokol.core.nbt.TagSerializationException
-import com.gitlab.aecsocket.sokol.paper.extension.asStack
+import com.gitlab.aecsocket.sokol.paper.feature.PaperItemHoster
 import net.kyori.adventure.key.Key
 import net.minecraft.nbt.ByteTag
 import net.minecraft.nbt.CompoundTag
@@ -32,7 +32,11 @@ internal const val CHILDREN = "children"
 internal const val BUKKIT_PDC = "PublicBukkitValues"
 const val NODE_VERSION = 1
 
-class NodeItemCreationException(message: String? = null, cause: Throwable? = null) : RuntimeException(message, cause)
+class ComponentRef(value: PaperComponent) : RegistryRef<PaperComponent>(value)
+
+class BlueprintRef(value: PaperBlueprint) : RegistryRef<PaperBlueprint>(value)
+
+class FeatureRef(value: PaperFeature) : RegistryRef<PaperFeature>(value)
 
 class PaperPersistence internal constructor(
     private val plugin: Sokol
@@ -165,23 +169,17 @@ class PaperPersistence internal constructor(
 
     // Stacks
 
-    fun stateToStack(state: PaperTreeState): ItemStack? {
+    fun stateToStack(holder: PaperItemHolder, state: PaperTreeState): ItemStack? {
         val node = state.root
-        val itemHost = state.nodeStates[node]?.by<ItemHostFeature.State<*, *, *>>(ItemHostFeature) ?: return null
+        val feature = plugin.settings.hostFeatures.item.value
+        val itemHosted = state.nodeStates[node]?.by<PaperItemHoster>(feature)
+            ?: return null
 
-        return try {
-            itemHost.itemDescriptor(state).asStack().withMeta {
-                nodeInto(node, forceNodeTagOf(persistentDataContainer))
-            }
-        } catch (ex: Exception) {
-            throw NodeItemCreationException(cause = ex)
-        }
+        return itemHosted.itemHosted(holder, state).stack
     }
 
-    fun nodeToStack(node: PaperDataNode): ItemStack? {
-        val state = paperStateOf(node)
-        return stateToStack(state)
-    }
+    fun forceStateToStack(holder: PaperItemHolder, state: PaperTreeState) = stateToStack(holder, state)
+        ?: throw HostCreationException("Node does not have hoster '${plugin.settings.hostFeatures.item.value.id}'")
 
     // Ticks
 

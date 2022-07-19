@@ -5,6 +5,8 @@ import com.gitlab.aecsocket.alexandria.core.Input
 interface NodeEvent {
     interface OnTick : NodeEvent
 
+    interface OnHosted : NodeEvent
+
     interface OnInput : NodeEvent {
         val input: Input
     }

@@ -7,6 +7,8 @@ import org.bukkit.entity.Player
 interface PaperNodeEvent : NodeEvent {
     object OnTick : NodeEvent.OnTick
 
+    object OnHosted : NodeEvent.OnHosted
+
     data class OnInput(
         override val input: Input,
         val player: Player,

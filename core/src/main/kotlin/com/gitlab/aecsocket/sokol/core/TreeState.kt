@@ -5,8 +5,6 @@ import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
 import com.gitlab.aecsocket.sokol.core.stat.CompiledStatMap
 import com.gitlab.aecsocket.sokol.core.stat.statMapOf
 
-interface NodeHost
-
 open class StateBuildException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
 

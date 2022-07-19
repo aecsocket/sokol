@@ -26,6 +26,7 @@ import com.github.retrooper.packetevents.protocol.player.EquipmentSlot
 import com.github.retrooper.packetevents.util.Vector3d
 import com.github.retrooper.packetevents.util.Vector3f
 import com.github.retrooper.packetevents.wrapper.play.server.*
+import com.gitlab.aecsocket.sokol.core.feature.HostCreationException
 import io.github.retrooper.packetevents.util.SpigotConversionUtil
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import net.kyori.adventure.text.Component.empty
@@ -142,6 +143,7 @@ interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : Nod
 
 interface NodeRender<P : NodePart> {
     val root: P
+    val world: World
     var transform: Transform
 }
 
@@ -153,6 +155,7 @@ data class PartSlot<P : NodePart>(
 )
 
 interface NodePart {
+    val node: PaperDataNode
     val bodies: Collection<Body>
     val slots: Map<String, PartSlot<*>>
 }
@@ -254,7 +257,8 @@ class DefaultNodeRenders internal constructor(
             // it gets removed
             // maybe this behaviour should be changed?
             render.root.node.backedCopy(plugin)?.let { copy ->
-                render.root.setupNode(copy, render.entity.trackedPlayers)
+                render.root.setupNode(copy)
+                render.root.setupMeshes(render.entity.trackedPlayers)
             } ?: run {
                 plugin.log.line(LogLevel.Warning) { "Removed invalid render of ${render.root.node.component.id} at ${render.transform.tl}" }
                 remove(render)
@@ -573,7 +577,10 @@ class DefaultNodeRenders internal constructor(
                     val inv = state.player.inventory
                     val slot = inv.heldItemSlot
                     if (inv.getItem(slot).isEmpty()) {
-                        plugin.persistence.nodeToStack(part.node)?.let { stack ->
+                        plugin.persistence.stateToStack(
+                            holderByPlayer(hostOf(state.player), state.player, slot),
+                            paperStateOf(part.node)
+                        ).let { stack ->
                             part.play(part.data.soundGrab)
                             state.selected = null
                             plugin.scheduleDelayed {
@@ -606,7 +613,7 @@ class DefaultNodeRenders internal constructor(
     }
 
     fun partOf(node: PaperDataNode, parent: PartKey? = null): Part {
-        val render = node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
+        val feature = node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
             ?: throw IllegalArgumentException(node.errorMsg("No feature '${RenderFeature.id}' to create render of"))
         return Part(node,
             parent,
@@ -616,7 +623,7 @@ class DefaultNodeRenders internal constructor(
                 part.slots[key] = PartSlot(
                     part,
                     key,
-                    render.slots[key]
+                    feature.slots[key]
                         ?: throw IllegalArgumentException(node.errorMsg("Feature '${RenderFeature.id}' does not have slot transform for '$key'")),
                     node.node(key)?.let { child ->
                         partOf(child, PartKey(part, key))
@@ -627,17 +634,23 @@ class DefaultNodeRenders internal constructor(
         }
     }
 
-    fun create(entity: Entity, part: Part, rotation: Quaternion, options: NodeRenders.Options? = null): Render {
+    fun create(entity: Entity, part: Part, rotation: Quaternion, options: NodeRenders.Options? = null, hideSpawn: Boolean = false): Render {
         return Render(part, entity, rotation, options).also {
             // initialize transforms
             it.update(null, null)
             // initialize persistence
             it.save()
+
             fun Part.apply() {
                 render = it
                 slots.forEach { (_, slot) -> slot.part?.apply() }
             }
             it.root.apply()
+
+            if (!hideSpawn) {
+                it.root.setupMeshes()
+            }
+
             renders[it.id] = it
         }
     }
@@ -655,7 +668,7 @@ class DefaultNodeRenders internal constructor(
                 duration = -1
                 waitTime = Int.MIN_VALUE
             }
-            render = create(entity, part, transform.rot, options)
+            render = create(entity, part, transform.rot, options, hideSpawn)
             if (hideSpawn) {
                 hideIds.add(entity.entityId)
             }
@@ -752,6 +765,7 @@ class DefaultNodeRenders internal constructor(
         val options: NodeRenders.Options?,
     ) : NodeRender<Part> {
         val id = entity.entityId
+        override val world get() = entity.world
         override var transform: Transform
             get() = entity.transform.copy(rot = rotation)
             set(value) {
@@ -911,14 +925,45 @@ class DefaultNodeRenders internal constructor(
         var parent: PartKey?,
         override var slots: MutableMap<String, PartSlot<Part>>,
     ) : NodePart {
-        var node: PaperDataNode = node
+        override var node: PaperDataNode = node
             private set
 
         val isRoot get() = parent == null
 
-        internal fun setupNode(node: PaperDataNode, players: Iterable<Player>? = null) {
-            val render = node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
+        private fun featureOf(node: PaperDataNode) =
+            node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
                 ?: throw IllegalArgumentException(node.errorMsg("No feature '${RenderFeature.id}' to set part parameters from"))
+
+
+        internal fun setupNode(node: PaperDataNode) {
+            val feature = featureOf(node)
+
+            bodies = feature.bodies
+            data = feature.data
+
+            slots = node.component.slots.map { (key) ->
+                val slotData = feature.slots[key]
+                    ?: throw IllegalArgumentException(node.errorMsg("Feature '${RenderFeature.id}' does not have slot data for '$key'"))
+                key to PartSlot(
+                    this,
+                    key,
+                    slotData,
+                    slots[key]?.part?.let { existing ->
+                        // if the node we just set to, has a child for this key,
+                        // we assign the existing part this new node
+                        // else we just remove the part
+                        node.node(key)?.let {
+                            existing.setupNode(it)
+                            existing
+                        }
+                    }
+                )
+            }.associate { it }.toMutableMap()
+            this.node = node
+        }
+
+        internal fun setupMeshes(players: Iterable<Player>? = null) {
+            val feature = featureOf(node)
 
             // remove old meshes if we have players to remove them for
             val ids = meshes.map { it.entityId }.toIntArray()
@@ -926,12 +971,17 @@ class DefaultNodeRenders internal constructor(
                 it.sendPacket(WrapperPlayServerDestroyEntities(*ids))
             }
 
-            bodies = render.bodies
             val item by lazy {
-                plugin.persistence.nodeToStack(node.copy().apply { removeChildren() })
-                    ?: throw IllegalStateException(node.errorMsg("No item host to create dynamic mesh of"))
+                try {
+                    plugin.persistence.stateToStack(
+                        holderBy(hostOf(render)),
+                        paperStateOf(node.copy().apply { removeChildren() })
+                    ) ?: throw HostCreationException("Node does not have item hoster feature")
+                } catch (ex: HostCreationException) {
+                    throw RuntimeException(node.errorMsg("Could not create dynamic mesh"), ex)
+                }
             }
-            meshes = render.meshes.map {
+            meshes = feature.meshes.map {
                 Mesh(
                     node, it, bukkitNextEntityId, UUID.randomUUID(),
                     when (it) {
@@ -954,27 +1004,10 @@ class DefaultNodeRenders internal constructor(
                     }
                 }
             }
-            data = render.data
 
-            slots = node.component.slots.map { (key) ->
-                val slotData = render.slots[key]
-                    ?: throw IllegalArgumentException(node.errorMsg("Feature '${RenderFeature.id}' does not have slot data for '$key'"))
-                key to PartSlot(
-                    this,
-                    key,
-                    slotData,
-                    slots[key]?.part?.let { existing ->
-                        // if the node we just set to, has a child for this key,
-                        // we assign the existing part this new node
-                        // else we just remove the part
-                        node.node(key)?.let {
-                            existing.setupNode(it, players)
-                            existing
-                        }
-                    }
-                )
-            }.associate { it }.toMutableMap()
-            this.node = node
+            slots.forEach { (_, slot) ->
+                slot.part?.setupMeshes(players)
+            }
         }
 
         override lateinit var bodies: Collection<Body>

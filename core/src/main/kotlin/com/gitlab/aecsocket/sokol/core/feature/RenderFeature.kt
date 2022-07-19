@@ -76,11 +76,8 @@ object RenderFeature : Keyed {
     }
 
     abstract class State<
-        S : Feature.State<S, D, C>,
-        D : Feature.Data<S>,
-        C : FeatureContext<*, H, N>,
-        H : NodeHost,
-        N
+        S : Feature.State<S, D, C>, D : Feature.Data<S>, C : FeatureContext<*, H, N>,
+        H : NodeHost, N
     > : Feature.State<S, D, C> where N : DataNode, N : Node.Mutable<N> {
         abstract override val type: Feature<*>
         abstract override val profile: Profile<*>

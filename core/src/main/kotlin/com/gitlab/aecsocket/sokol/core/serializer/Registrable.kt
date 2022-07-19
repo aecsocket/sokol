@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.core.serializer
 
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
+import com.gitlab.aecsocket.alexandria.core.keyed.RegistryRef
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
 import org.spongepowered.configurate.ConfigurationNode

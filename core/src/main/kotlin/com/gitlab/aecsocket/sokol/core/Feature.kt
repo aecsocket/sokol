@@ -13,6 +13,8 @@ import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
 
+data class FeatureKey(val id: String)
+
 interface Feature<
     P : Feature.Profile<*>
 > : Keyed, Localizable<Component> {
@@ -64,6 +66,8 @@ interface Feature<
         fun onEvent(event: NodeEvent, ctx: C)
     }
 }
+
+fun Feature.State<*, *, *>.tlKey(key: String) = "feature.$id.$key"
 
 interface FeatureContext<
     S : TreeState,
