@@ -1,15 +1,18 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import com.gitlab.aecsocket.glossa.core.I18N
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.event.NodeEvent
+import com.gitlab.aecsocket.sokol.core.feature.BaseFeature
 import com.gitlab.aecsocket.sokol.core.impl.*
 import com.gitlab.aecsocket.sokol.core.nbt.BinaryTag
 import com.gitlab.aecsocket.sokol.core.nbt.CompoundBinaryTag
 import com.gitlab.aecsocket.sokol.core.rule.Rule
 import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
 import com.gitlab.aecsocket.sokol.core.stat.CompiledStatMap
-import org.checkerframework.checker.units.qual.N
+import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
+import java.util.*
 
 typealias PaperNodeKey = NodeKey<PaperDataNode>
 
@@ -24,8 +27,13 @@ interface PaperFeature : Feature<PaperFeature.Profile> {
         fun copy(): Data
     }
 
-    interface State : Feature.State<State, Data, PaperFeatureContext> {
+    interface State : BaseFeature<State, Data, PaperFeatureContext> {
         override val type: PaperFeature
+        val plugin: Sokol
+
+        override fun <R> i18n(locale: Locale?, action: I18N<Component>.() -> R): R {
+            return action(plugin.i18n.apply { withLocale(locale ?: this.locale) })
+        }
     }
 }
 
@@ -64,23 +72,28 @@ class PaperDataNode(
     override val self = this
 
     override fun serialize(tag: CompoundBinaryTag.Mutable) {
-        tag.setString(ID, component.id)
-        tag.newCompound(FEATURES).apply {
-            legacyFeatures.forEach(::set)
-            features.forEach { (key, feature) ->
-                newCompound(key).apply {
-                    feature.serialize(this)
+        fun PaperDataNode.serialize0(tag: CompoundBinaryTag.Mutable) {
+            tag.setString(ID, component.id)
+            tag.newCompound(FEATURES).apply {
+                legacyFeatures.forEach(::set)
+                features.forEach { (key, feature) ->
+                    newCompound(key).apply {
+                        feature.serialize(this)
+                    }
+                }
+            }
+            tag.newCompound(CHILDREN).apply {
+                legacyChildren.forEach(::set)
+                children.forEach { (key, child) ->
+                    newCompound(key).apply {
+                        child.serialize0(this)
+                    }
                 }
             }
         }
-        tag.newCompound(CHILDREN).apply {
-            legacyChildren.forEach(::set)
-            children.forEach { (key, child) ->
-                newCompound(key).apply {
-                    child.serialize(this)
-                }
-            }
-        }
+
+        tag.setInt(VERSION, NODE_VERSION)
+        serialize0(tag)
     }
 
     override fun copy(
@@ -149,7 +162,6 @@ class PaperTreeState(
     root: PaperDataNode,
     stats: CompiledStatMap,
     nodeStates: Map<PaperDataNode, Map<String, PaperFeature.State>>,
-    val incomplete: List<NodePath>
 ) : AbstractTreeState<PaperTreeState, PaperDataNode, PaperNodeHost, PaperFeature.Data, PaperFeature.State>(
     root, stats, nodeStates
 ) {
@@ -157,6 +169,7 @@ class PaperTreeState(
         get() = this
 
     override fun <E : NodeEvent> callEvent(host: PaperNodeHost, event: E): E {
+        var updateHost = false
         nodeStates.forEach { (node, states) ->
             val ctx = object : PaperFeatureContext {
                 override val state: PaperTreeState get() = this@PaperTreeState
@@ -166,16 +179,30 @@ class PaperTreeState(
                 override fun writeNode(action: PaperDataNode.() -> Unit) {
                     TODO("Not yet implemented")
                 }
+
+                override fun updateHost() {
+                    // prevent stupid features making us go into an infinite loop
+                    if (event is PaperNodeEvent.OnHostUpdate)
+                        throw IllegalStateException("Cannot update host on host update event")
+                    updateHost = true
+                }
             }
             states.forEach { (_, state) ->
                 state.onEvent(event, ctx)
             }
         }
+
+        if (updateHost) {
+            // we make a new state because it's possible our current feature states, node tree etc.
+            // has been modified from running the feature state event listeners
+            paperStateOf(updatedRoot()).callEvent(host, PaperNodeEvent.OnHostUpdate)
+        }
+
         return event
     }
 }
 
 fun paperStateOf(root: PaperDataNode): PaperTreeState {
-    val (stats, nodeStates, incomplete) = treeStateData(root)
-    return PaperTreeState(root, stats, nodeStates, incomplete)
+    val (stats, nodeStates) = treeStateData(root)
+    return PaperTreeState(root, stats, nodeStates)
 }

@@ -17,7 +17,6 @@ import com.gitlab.aecsocket.sokol.core.feature.RenderData
 import com.gitlab.aecsocket.sokol.core.feature.RenderFeature
 import com.gitlab.aecsocket.sokol.core.feature.RenderSlot
 import com.gitlab.aecsocket.sokol.core.util.RenderMesh
-import com.gitlab.aecsocket.sokol.paper.extension.asStack
 import com.github.retrooper.packetevents.protocol.entity.data.EntityData
 import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes
 import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes
@@ -132,8 +131,6 @@ interface NodeRenders<S : NodeRenders.PlayerState<P>, R : NodeRender<P>, P : Nod
 
     fun create(node: PaperDataNode, world: World, transform: Transform, options: Options? = null): R
 
-    fun remove(render: R)
-
     fun select(state: S, part: P)
 
     fun deselect(state: S)
@@ -145,6 +142,8 @@ interface NodeRender<P : NodePart> {
     val root: P
     val world: World
     var transform: Transform
+
+    fun remove()
 }
 
 data class PartSlot<P : NodePart>(
@@ -155,7 +154,7 @@ data class PartSlot<P : NodePart>(
 )
 
 interface NodePart {
-    val node: PaperDataNode
+    var node: PaperDataNode
     val bodies: Collection<Body>
     val slots: Map<String, PartSlot<*>>
 }
@@ -252,16 +251,12 @@ class DefaultNodeRenders internal constructor(
             sendTeams(player, WrapperPlayServerTeams.TeamMode.UPDATE)
         }
         renders.forEach { (_, render) ->
-            // if the node is no longer valid after being backing copied
-            // (its root component no longer exists)
-            // it gets removed
-            // maybe this behaviour should be changed?
+            // if the node is no longer valid after being backing copied (its root component no longer exists)
+            // we log a warning, but *don't* remove it (priority is to avoid any data loss)
             render.root.node.backedCopy(plugin)?.let { copy ->
-                render.root.setupNode(copy)
-                render.root.setupMeshes(render.entity.trackedPlayers)
+                render.root.node = copy
             } ?: run {
-                plugin.log.line(LogLevel.Warning) { "Removed invalid render of ${render.root.node.component.id} at ${render.transform.tl}" }
-                remove(render)
+                plugin.log.line(LogLevel.Warning) { "Invalid render of ${render.root.node.component.id} at ${render.transform.tl}" }
             }
         }
     }
@@ -522,13 +517,14 @@ class DefaultNodeRenders internal constructor(
                         it.spawn(player)
                         true
                     }
-                } catch (ex: IllegalArgumentException) {
-                    plugin.log.line(LogLevel.Warning, ex) { "Could not create render from entity due to state error - removing" }
-                    entity.remove()
-                    false
                 } catch (ex: Exception) {
-                    plugin.log.line(LogLevel.Warning, ex) { "Could not create render from entity" }
-                    false
+                    // logged under verbose because this could cause *a lot* of spam
+                    // if someone has an error, they should enable verbose and see what the issue is
+                    // we **do not** want to remove any data or any entities, because the data could be missing
+                    // just due to a misconfiguration or something
+                    plugin.log.line(LogLevel.Verbose, ex) { "Could not create render from entity at ${entity.location.vector()}" }
+                    // ...but we still cancel the spawn packets being sent out
+                    true
                 }
             }
         } ?: false
@@ -578,13 +574,13 @@ class DefaultNodeRenders internal constructor(
                     val slot = inv.heldItemSlot
                     if (inv.getItem(slot).isEmpty()) {
                         plugin.persistence.stateToStack(
-                            holderByPlayer(hostOf(state.player), state.player, slot),
+                            holderByPlayer(plugin.hostOf(state.player), state.player, slot),
                             paperStateOf(part.node)
                         ).let { stack ->
                             part.play(part.data.soundGrab)
                             state.selected = null
                             plugin.scheduleDelayed {
-                                remove(part.render)
+                                part.render.remove()
                                 state.player.inventory.setItem(slot, stack)
                             }
                         }
@@ -681,7 +677,7 @@ class DefaultNodeRenders internal constructor(
     }
 
     fun loadRender(entity: Entity): Render? {
-        return plugin.persistence.tagOf(entity.persistentDataContainer, kRenderNode)?.let { tag ->
+        return plugin.persistence.holderOf(entity.persistentDataContainer)[kRenderNode]?.let { tag ->
             val node = plugin.persistence.nodeOf(tag)
                 ?: throw IllegalArgumentException("Entity has tag $kRenderNode but it was not a valid node")
             val rotation = entity.persistentDataContainer.getOrDefault(kRotation, QuaternionDataType, Quaternion.Identity)
@@ -695,16 +691,6 @@ class DefaultNodeRenders internal constructor(
 
     fun remove(id: Int, despawn: Boolean = true) {
         renders.remove(id)?.remove(despawn)
-    }
-
-    fun remove(render: Render, despawn: Boolean) {
-        // remove from our map first, so the EntityUnload events don't re-despawn the render
-        renders.remove(render.id)
-        render.remove(despawn)
-    }
-
-    override fun remove(render: Render) {
-        remove(render, true)
     }
 
     override fun select(state: PlayerState, part: Part) {
@@ -855,11 +841,8 @@ class DefaultNodeRenders internal constructor(
         }
 
         fun saveNode() {
-            plugin.persistence.tagTo(
-                plugin.persistence.newTag().apply { plugin.persistence.nodeInto(root.node, this) },
-                entity.persistentDataContainer,
-                kRenderNode
-            )
+            plugin.persistence.holderOf(entity.persistentDataContainer)[kRenderNode] =
+                plugin.persistence.newTag().apply { root.node.serialize(this) }
         }
 
         fun save() {
@@ -899,10 +882,15 @@ class DefaultNodeRenders internal constructor(
         }
 
         fun remove(despawn: Boolean = true) {
+            renders.remove(id)
             entity.remove()
             if (despawn) {
                 despawn()
             }
+        }
+
+        override fun remove() {
+            remove(true)
         }
     }
 
@@ -926,7 +914,11 @@ class DefaultNodeRenders internal constructor(
         override var slots: MutableMap<String, PartSlot<Part>>,
     ) : NodePart {
         override var node: PaperDataNode = node
-            private set
+            set(value) {
+                field = value
+                setupNode()
+                setupMeshes(render.lastTracked.map { it.player })
+            }
 
         val isRoot get() = parent == null
 
@@ -934,8 +926,7 @@ class DefaultNodeRenders internal constructor(
             node.component.features.by<RenderFeature.Profile<*>>(RenderFeature)
                 ?: throw IllegalArgumentException(node.errorMsg("No feature '${RenderFeature.id}' to set part parameters from"))
 
-
-        internal fun setupNode(node: PaperDataNode) {
+        internal fun setupNode() {
             val feature = featureOf(node)
 
             bodies = feature.bodies
@@ -959,7 +950,6 @@ class DefaultNodeRenders internal constructor(
                     }
                 )
             }.associate { it }.toMutableMap()
-            this.node = node
         }
 
         internal fun setupMeshes(players: Iterable<Player>? = null) {
@@ -974,7 +964,7 @@ class DefaultNodeRenders internal constructor(
             val item by lazy {
                 try {
                     plugin.persistence.stateToStack(
-                        holderBy(hostOf(render)),
+                        holderBy(plugin.hostOf(render)),
                         paperStateOf(node.copy().apply { removeChildren() })
                     ) ?: throw HostCreationException("Node does not have item hoster feature")
                 } catch (ex: HostCreationException) {
@@ -1071,13 +1061,14 @@ class DefaultNodeRenders internal constructor(
                 throw IllegalStateException("Attempting to attach to slot as non-root part")
 
             // don't despawn the virtual entities - they'll be managed by our new parent anyway
-            remove(render, false)
+            render.remove(false)
 
             // attach to our new render
             val parent = slot.parent
             this.parent = PartKey(parent, slot.key)
             this.render = parent.render
             parent.node.node(slot.key, node)
+            node.attach(parent.node, slot.key)
             parent.slots[slot.key]?.let {
                 it.part = this
             } ?: throw IllegalStateException("Attempting to attach to non-existent slot '${slot.key}' of '${parent.node.component.id}'")

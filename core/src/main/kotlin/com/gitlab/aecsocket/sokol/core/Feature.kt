@@ -52,7 +52,7 @@ interface Feature<
         S : State<S, D, C>,
         D : Data<S>,
         C : FeatureContext<*, *, *>
-    > : TagSerializable, Keyed {
+    > : Keyed {
         val type: Feature<*>
         val profile: Profile<*>
         override val id get() = type.id
@@ -71,7 +71,7 @@ fun Feature.State<*, *, *>.tlKey(key: String) = "feature.$id.$key"
 
 interface FeatureContext<
     S : TreeState,
-    H : NodeHost,
+    H : NodeHost<N>,
     N
 > where N : DataNode, N : Node.Mutable<N> {
     val state: S
@@ -79,4 +79,6 @@ interface FeatureContext<
     val node: N
 
     fun writeNode(action: N.() -> Unit)
+
+    fun updateHost()
 }

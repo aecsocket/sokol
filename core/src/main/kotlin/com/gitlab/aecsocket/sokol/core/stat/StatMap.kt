@@ -11,17 +11,21 @@ interface CompiledStatMap {
 
     fun <T : Any> node(key: Key): Stat.Node.First<T>?
 
-    fun <T : Any> nodeOr(
-        key: Key,
-        default: () -> Stat.Node.First<T> = keyError(key)
-    ) = node(key) ?: default()
-
     fun <T : Any> node(stat: Stat<T>): Stat.Node.First<T>? = node(stat.key)
 
-    fun <T : Any> nodeOr(
+    fun <T : Any> value(key: Key): T? = node<T>(key)?.compute()
+
+    fun <T : Any> value(stat: Stat<T>): T? = node(stat)?.compute()
+
+    fun <T : Any> valueOr(
+        key: Key,
+        default: () -> T = keyError(key)
+    ): T = node<T>(key)?.compute() ?: default()
+
+    fun <T : Any> valueOr(
         stat: Stat<T>,
-        default: () -> Stat.Node.First<T> = keyError(stat.key)
-    ) = node(stat) ?: default()
+        default: () -> T = keyError(stat.key)
+    ): T = node(stat)?.compute() ?: default()
 }
 
 private object EmptyCompiledStatMap : CompiledStatMap {

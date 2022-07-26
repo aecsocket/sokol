@@ -30,7 +30,7 @@ class ComponentArgumentException(
     context: CommandContext<*>
 ) : RegistryArgumentException(
     ComponentParser::class.java,
-    ComponentParser.Companion.ARGUMENT_PARSE_FAILURE_COMPONENT,
+    ComponentParser.ARGUMENT_PARSE_FAILURE_COMPONENT,
     input, context
 )
 
@@ -115,12 +115,10 @@ open class BlueprintArgument<C : Any, T : Blueprint<*>>(
 class NodeArgMalformedException(
     context: CommandContext<*>,
     input: String,
-    error: Throwable,
 ) : ParserException(
     NodeParser::class.java, context,
-    NodeParser.Companion.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED,
+    NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_MALFORMED,
     CaptionVariable.of("input", input),
-    CaptionVariable.of("error", error.message ?: "-"),
 )
 
 class NodeArgRegistryException(
@@ -128,7 +126,7 @@ class NodeArgRegistryException(
     input: String,
 ) : ParserException(
     NodeParser::class.java, context,
-    NodeParser.Companion.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY,
+    NodeParser.ARGUMENT_PARSE_FAILURE_DATA_NODE_REGISTRY,
     CaptionVariable.of("input", input),
 )
 
@@ -144,11 +142,7 @@ class NodeParser<C : Any, O : NodeComponent, T : DataNode>(
             try {
                 ArgumentParseResult.success(platform.persistence.stringToNode(input))
             } catch (ex: SerializationException) {
-                ArgumentParseResult.failure(
-                    NodeArgMalformedException(
-                        commandContext, input, ex
-                    )
-                )
+                ArgumentParseResult.failure(ex)
             } catch (ex: ConfigurateException) {
                 platform.components[input]?.let {
                     ArgumentParseResult.success(platform.nodeOf(it))

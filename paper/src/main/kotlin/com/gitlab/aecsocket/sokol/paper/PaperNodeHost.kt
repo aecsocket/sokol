@@ -1,7 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import com.gitlab.aecsocket.alexandria.core.extension.join
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.sokol.core.*
 import net.kyori.adventure.text.Component
@@ -22,7 +24,7 @@ import kotlin.collections.ArrayList
 
 private fun format(component: Component) = PlainTextComponentSerializer.plainText().serialize(component)
 
-interface PaperNodeHost : NodeHost {
+interface PaperNodeHost : NodeHost<PaperDataNode> {
     interface Physical : PaperNodeHost {
         val world: World
     }
@@ -40,7 +42,7 @@ interface PaperChunkHost : PaperNodeHost.Physical {
     override val world get() = chunk.world
 }
 
-interface PaperEntityHost : PaperNodeHost.Physical, EntityHost {
+interface PaperEntityHost : PaperNodeHost.Physical, EntityHost<PaperDataNode> {
     val entity: Entity
 
     override val locale: Locale? get() {
@@ -58,7 +60,7 @@ interface PaperEntityHost : PaperNodeHost.Physical, EntityHost {
         set(value) { entity.looking = value }
 }
 
-interface PaperRenderHost : PaperNodeHost.Physical, NodeHost.Looking {
+interface PaperRenderHost : PaperNodeHost.Physical, NodeHost.Looking<PaperDataNode> {
     val render: NodeRender<*>
 
     override val locale get() = null
@@ -73,7 +75,7 @@ interface PaperRenderHost : PaperNodeHost.Physical, NodeHost.Looking {
         set(value) { render.transform = render.transform.copy(rot = value) }
 }
 
-interface PaperBlockHost : PaperNodeHost.Physical, BlockHost {
+interface PaperBlockHost : PaperNodeHost.Physical, BlockHost<PaperDataNode> {
     val block: BlockState
 
     override val locale get() = null
@@ -83,7 +85,7 @@ interface PaperBlockHost : PaperNodeHost.Physical, BlockHost {
         get() = Transform(tl = block.location.vector())
 }
 
-interface PaperItemHost : PaperNodeHost, ItemHost {
+interface PaperItemHost : PaperNodeHost, ItemHost<PaperDataNode> {
     override val locale get() = null
     override val holder: PaperItemHolder
     val stack: ItemStack
@@ -95,26 +97,47 @@ interface PaperItemHost : PaperNodeHost, ItemHost {
 
     override var name: Component?
         get() = readMeta { it.displayName() }
-        set(value) { writeMeta { it.displayName(value) } }
+        set(value) {
+            writeMeta { meta -> meta.displayName(
+                value?.let { text().decoration(TextDecoration.ITALIC, false).append(it).build() }
+            ) }
+        }
 
     fun <R> readMeta(action: (ItemMeta) -> R): R
 
     fun writeMeta(action: (ItemMeta) -> Unit)
 }
 
-fun useHostOf(
+fun Sokol.useHostOf(
     holder: PaperItemHolder,
     stack: () -> ItemStack,
     action: (PaperItemHost) -> Unit,
     onDirty: (ItemMeta) -> Unit = { stack().itemMeta = it },
     onClean: () -> Unit = {},
 ): PaperItemHost {
+    data class LoreSection(
+        val header: Component?,
+        val lines: Iterable<Component>,
+    )
+
     val meta by lazy { stack().itemMeta }
     var dirty = false
-    val lore = ArrayList<Iterable<Component>>()
+    val lore = ArrayList<LoreSection>()
     val host = object : PaperItemHost {
         override val holder get() = holder
         override val stack get() = stack()
+
+        override var node: PaperDataNode?
+            get() = persistence.holderOf(stack())[persistence.kNode]?.let { persistence.nodeOf(it) }
+            set(value) {
+                writeMeta { meta ->
+                    persistence.holderOf(meta.persistentDataContainer).apply {
+                        value?.let {
+                            set(persistence.kNode, persistence.newTag().apply { it.serialize(this) })
+                        } ?: remove(persistence.kNode)
+                    }
+                }
+            }
 
         override fun <R> readMeta(action: (ItemMeta) -> R): R {
             return action(meta)
@@ -125,9 +148,11 @@ fun useHostOf(
             dirty = true
         }
 
-        override fun addLore(lines: Iterable<Component>) {
-            lore.add(lines)
-            dirty = true
+        override fun addLore(lines: Iterable<Component>, header: Component?) {
+            if (lines.any()) {
+                lore.add(LoreSection(header, lines))
+                dirty = true
+            }
         }
 
         override fun toString() =
@@ -135,8 +160,26 @@ fun useHostOf(
     }
     action(host)
     if (dirty) {
-        // todo add separator between sections
-        meta.lore(lore.flatten().map { text().decoration(TextDecoration.ITALIC, false).append(it).build() })
+        val headerWidth = lore.maxOfOrNull { sec ->
+            sec.header?.let { AlexandriaAPI.widthOf(it) } ?: 0
+        }
+
+        meta.lore(lore
+            .map { sec ->
+                (sec.header?.let {
+                    i18n.safe("item_lore_header") {
+                        sub("header") { it }
+                        raw("padding") {
+                            headerWidth?.let { width ->
+                                AlexandriaAPI.paddingOf(width - AlexandriaAPI.widthOf(it))
+                            } ?: ""
+                        }
+                    }
+                } ?: emptyList()) + sec.lines
+            }
+            .join({ it }, { itemLoreSeparator })
+            .map { text().decoration(TextDecoration.ITALIC, false).append(it).build() }
+        )
         onDirty(meta)
     } else {
         onClean()
@@ -144,36 +187,60 @@ fun useHostOf(
     return host
 }
 
-fun hostOf(world: World) = object : PaperWorldHost {
+// todo this entire damn thing is a todo. i hate myself
+fun Sokol.hostOf(world: World) = object : PaperWorldHost {
     override val world get() = world
+
+    override var node: PaperDataNode?
+        get() = TODO()
+        set(value) {}
 }
 
-fun hostOf(chunk: Chunk) = object : PaperChunkHost {
+fun Sokol.hostOf(chunk: Chunk) = object : PaperChunkHost {
     override val chunk get() = chunk
+
+    override var node: PaperDataNode?
+        get() = TODO("Not yet implemented")
+        set(value) {}
 }
 
-fun hostOf(entity: Entity) = object : PaperEntityHost {
+fun Sokol.hostOf(entity: Entity) = object : PaperEntityHost {
     override val entity get() = entity
+
+    override var node: PaperDataNode?
+        get() = TODO("Not yet implemented")
+        set(value) {}
 
     override fun toString() =
         "EntityHost(${entity.name} @ ${entity.location.vector()})"
 }
 
-fun hostOf(block: BlockState) = object : PaperBlockHost {
+fun Sokol.hostOf(block: BlockState) = object : PaperBlockHost {
     override val block get() = block
+
+    override var node: PaperDataNode?
+        get() = TODO("Not yet implemented")
+        set(value) {}
 
     override fun toString() =
         "BlockHost(${block.type.key} @ ${block.location.vector()})"
 }
 
-fun hostOf(render: NodeRender<*>) = object : PaperRenderHost {
+fun Sokol.hostOf(render: NodeRender<*>) = object : PaperRenderHost {
     override val render get() = render
+
+    override var node: PaperDataNode?
+        get() = render.root.node
+        set(value) {
+            if (value == null) render.remove()
+            else render.root.node = value
+        }
 
     override fun toString() =
         "RenderHost(${render.root.node.component.id} @ ${render.transform.tl})"
 }
 
-interface PaperItemHolder : ItemHolder {
+interface PaperItemHolder : ItemHolder<PaperDataNode> {
     override val host: PaperNodeHost?
 
     interface ByContainer : PaperItemHolder {

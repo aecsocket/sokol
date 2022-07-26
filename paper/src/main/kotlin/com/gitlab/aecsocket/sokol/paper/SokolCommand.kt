@@ -366,7 +366,7 @@ internal class SokolCommand(plugin: Sokol) : CloudCommand<Sokol>(
 
         val state = paperStateOf(node)
         val items = targets.map { target ->
-            val host = hostOf(target)
+            val host = plugin.hostOf(target)
             target to try {
                 plugin.persistence.forceStateToStack(holderBy(host), state)
             } catch (ex: HostCreationException) {

@@ -81,3 +81,20 @@ class IntegerStat(namespace: String, key: String) : NumberStat<Long>(namespace, 
         override fun first() = (1.0 / value).toLong()
     }
 }
+
+class StringStat(namespace: String, key: String) : AbstractStat<String>(namespace, key) {
+    override fun deserialize(node: ConfigurationNode) = opDeserialize(node,
+        "set" to { Set(it[0].force()) },
+        "append" to { Append(it[0].force()) },
+    )
+
+    data class Set(val value: String) : Stat.Value.Discarding<String> {
+        override fun next(last: String) = value
+        override fun first() = value
+    }
+
+    data class Append(val value: String) : Stat.Value.First<String> {
+        override fun next(last: String) = last + value
+        override fun first() = value
+    }
+}

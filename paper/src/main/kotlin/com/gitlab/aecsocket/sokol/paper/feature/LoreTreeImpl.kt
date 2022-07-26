@@ -1,23 +1,39 @@
 package com.gitlab.aecsocket.sokol.paper.feature
 
-import com.gitlab.aecsocket.alexandria.core.ColumnAlign
-import com.gitlab.aecsocket.alexandria.core.extension.repeat
-import com.gitlab.aecsocket.alexandria.paper.tableOfComponents
-import com.gitlab.aecsocket.glossa.core.I18N
+import com.gitlab.aecsocket.alexandria.core.*
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.sokol.core.feature.LoreTreeFeature
 import com.gitlab.aecsocket.sokol.core.nbt.CompoundBinaryTag
+import com.gitlab.aecsocket.sokol.core.util.TableFormat
 import com.gitlab.aecsocket.sokol.paper.*
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.Component.text
 import org.spongepowered.configurate.ConfigurationNode
-import java.util.*
+import org.spongepowered.configurate.kotlin.extensions.get
+import kotlin.collections.ArrayList
+
+private const val AT_TOP = "at_top"
+private const val AT_BOTTOM = "at_bottom"
+private const val TABLE_FORMAT = "table_format"
 
 class LoreTreeImpl(
-    private val plugin: Sokol
+    val plugin: Sokol
 ) : LoreTreeFeature.Type<PaperFeature.Profile>(), PaperFeature {
-    override fun createProfile(node: ConfigurationNode) = Profile()
+    override fun createProfile(node: ConfigurationNode) = Profile(
+        node.node(AT_TOP).get { ArrayList() },
+        node.node(AT_BOTTOM).get { ArrayList() },
+        node.node(TABLE_FORMAT).get { TableFormat(
+            defaultedMapOf(mapOf(0 to TableAlign.END), TableAlign.START),
+            emptyDefaultedMap(TableAlign.START),
+        ) }.buildRenderer(plugin),
+    )
 
-    inner class Profile : LoreTreeFeature.Profile<PaperFeature.Data>(), PaperFeature.Profile {
+    inner class Profile(
+        atTop: List<String>,
+        atBottom: List<String>,
+        tableRenderer: ComponentTableRenderer,
+    ) : LoreTreeFeature.Profile<PaperFeature.Data>(
+        atTop, atBottom, tableRenderer,
+    ), PaperFeature.Profile {
         override val type: LoreTreeImpl get() = this@LoreTreeImpl
 
         override fun createData() = Data()
@@ -40,25 +56,12 @@ class LoreTreeImpl(
         >(), PaperFeature.State {
             override val type: LoreTreeImpl get() = this@LoreTreeImpl
             override val profile: Profile get() = this@Profile
+            override val plugin: Sokol get() = this@LoreTreeImpl.plugin
 
             override fun asData() = Data()
 
-            override fun i18n(locale: Locale?, action: I18N<Component>.() -> List<Component>) =
-                action(plugin.i18n.apply { withLocale(locale ?: this.locale) })
-
-            override fun tableOf(
-                rows: List<Pair<Int, Iterable<Component>>>,
-                padding: Component,
-                separator: Component
-            ): List<Component> {
-                return tableOfComponents(rows.map { it.second }, separator) { when (it) {
-                    0 -> ColumnAlign.RIGHT
-                    else -> ColumnAlign.LEFT
-                } }.mapIndexed { idx, content ->
-                    val (depth) = rows[idx]
-                    text().append(padding.repeat(depth)).append(content).build()
-                }
-            }
+            override fun widthOf(value: Component) =
+                AlexandriaAPI.widthOf(value)
         }
     }
 }

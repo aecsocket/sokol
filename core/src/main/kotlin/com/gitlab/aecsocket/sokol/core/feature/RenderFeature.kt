@@ -77,12 +77,10 @@ object RenderFeature : Keyed {
 
     abstract class State<
         S : Feature.State<S, D, C>, D : Feature.Data<S>, C : FeatureContext<*, H, N>,
-        H : NodeHost, N
+        H : NodeHost<N>, N
     > : Feature.State<S, D, C> where N : DataNode, N : Node.Mutable<N> {
         abstract override val type: Feature<*>
         abstract override val profile: Profile<*>
-
-        override fun serialize(tag: CompoundBinaryTag.Mutable) {}
 
         abstract fun render(node: N, host: H, transform: Transform)
     }

@@ -27,7 +27,7 @@ private const val SLOTS = "slots"
 private const val PLACE = "place"
 
 class RenderImpl(
-    private val plugin: Sokol
+    val plugin: Sokol
 ) : RenderFeature.Type<PaperFeature.Profile>(), PaperFeature {
     override fun createProfile(node: ConfigurationNode) = Profile(
         node.node(INPUTS).get { InputMapper.Empty },
@@ -68,6 +68,7 @@ class RenderImpl(
         >(), PaperFeature.State {
             override val type: RenderImpl get() = this@RenderImpl
             override val profile: Profile get() = this@Profile
+            override val plugin: Sokol get() = this@RenderImpl.plugin
 
             override fun asData() = Data()
 

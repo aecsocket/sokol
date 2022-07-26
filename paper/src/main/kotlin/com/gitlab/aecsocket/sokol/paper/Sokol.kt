@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.force
@@ -25,21 +24,16 @@ import com.gitlab.aecsocket.sokol.core.serializer.*
 import com.gitlab.aecsocket.sokol.core.stat.ApplicableStats
 import com.gitlab.aecsocket.sokol.core.stat.StatMap
 import com.gitlab.aecsocket.sokol.core.util.RenderMesh
-import com.gitlab.aecsocket.sokol.paper.feature.ItemHosterImpl
-import com.gitlab.aecsocket.sokol.paper.feature.RenderImpl
 import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerPriority
-import com.gitlab.aecsocket.sokol.paper.feature.LoreTreeImpl
+import com.gitlab.aecsocket.sokol.core.util.TableFormat
+import com.gitlab.aecsocket.sokol.paper.feature.*
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
+import net.kyori.adventure.text.Component
 import org.bstats.bukkit.Metrics
 import org.bukkit.GameMode
 import org.bukkit.World
 import org.bukkit.entity.Player
-import org.bukkit.event.EventHandler
-import org.bukkit.event.Listener
-import org.bukkit.event.player.PlayerJoinEvent
-import org.bukkit.event.player.PlayerQuitEvent
-import org.bukkit.event.world.EntitiesUnloadEvent
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ObjectMapper
 import org.spongepowered.configurate.serialize.SerializationException
@@ -91,7 +85,11 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
     private val _components = Registry.create<PaperComponent>()
     override val components: Registry<PaperComponent> get() = _components
 
+    internal lateinit var itemLoreSeparator: List<Component>
+
     fun playerState(player: Player) = _playerState.computeIfAbsent(player) { PlayerState(this, it) }
+
+    internal fun removePlayerState(player: Player) = _playerState.remove(player)
 
     override fun nodeOf(component: PaperComponent) = PaperDataNode(component)
 
@@ -122,27 +120,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
         }
         PacketEvents.getAPI().init()
         SokolCommand(this)
-        registerEvents(object : Listener {
-            @EventHandler
-            fun PlayerJoinEvent.on() {
-                playerState(player)
-            }
-
-            @EventHandler
-            fun PlayerQuitEvent.on() {
-                _playerState.remove(player)
-            }
-
-            @EventHandler
-            fun EntityRemoveFromWorldEvent.on() {
-                renders.remove(entity.entityId)
-            }
-
-            @EventHandler
-            fun EntitiesUnloadEvent.on() {
-                entities.forEach { renders.remove(it.entityId) }
-            }
-        })
+        registerEvents(SokolListener(this))
         effectors.init(this)
         renders.init()
 
@@ -150,7 +128,9 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
         onLoad {
             features.register(ItemHosterImpl(plugin))
             features.register(RenderImpl(plugin))
+            features.register(LoreDescriptionImpl(plugin))
             features.register(LoreTreeImpl(plugin))
+            features.register(NodeHolderImpl(plugin))
         }
     }
 
@@ -185,6 +165,7 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
             .registerExact(PaperBlueprint::class, PaperBlueprintSerializer(this))
             .registerExact(StatMap::class, statMapSerializer)
             .registerExact(ApplicableStats::class, ApplicableStatsSerializer)
+            .registerExact(TableFormat::class, TableFormatSerializer)
             .registerExact(FeatureRef::class, RegistryRefSerializer(_features, "feature") { FeatureRef(it) })
             .register(Rule::class, ruleSerializer)
     }
@@ -208,6 +189,8 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
             hostResolver.load()
             renders.load()
 
+            itemLoreSeparator = i18n.safe("item_lore_separator")
+
             return true
         }
         return false
@@ -222,42 +205,19 @@ class Sokol : BasePlugin<Sokol.LoadScope>(),
         if (player.gameMode == GameMode.SPECTATOR || !player.isValid) return
         renders.handleInput(event)
 
-        persistence.nodeTagOf(player.persistentDataContainer)?.let { tag ->
+        persistence.holderOf(player.persistentDataContainer)[persistence.kNode]?.let { tag ->
             persistence.nodeOf(tag)?.let { node ->
                 val state = paperStateOf(node)
                 // todo make player host
                 // call events
-                persistence.stateInto(state, tag)
+                state.updatedRoot().serialize(tag)
             }
         }
 
         val host = hostOf(player)
         player.inventory.forEachIndexed { idx, stack -> stack?.let {
-            persistence.nodeTagOf(stack)?.let { tag ->
-                persistence.nodeOf(tag)?.let { node ->
-                    val state = paperStateOf(node)
-                    useHostOf(holderByPlayer(host, player, idx), { stack },
-                        action = { host ->
-                            state.callEvent(host, PaperNodeEvent.OnInput(event.input, player))
-                        },
-                        onDirty = { meta ->
-                            // full update; write meta
-                            //  · we write into PDC first, so when meta is set onto stack,
-                            //    meta's PDC is written into stack's tag
-                            //  · we can't just write meta then apply to our local `tag`,
-                            //    because setItemMeta overwrites the stack's CompoundTag
-                            persistence.nodeTagTo(
-                                persistence.newTag().apply { persistence.stateInto(state, this) },
-                                meta.persistentDataContainer,
-                            )
-                            stack.itemMeta = meta
-                        },
-                        onClean = {
-                            // write directly to stack tag; avoid itemMeta write
-                            persistence.stateInto(state, tag)
-                        }
-                    )
-                }
+            persistence.useStack(it, holderByPlayer(host, player, idx)) { state, host ->
+                state.callEvent(host, PaperNodeEvent.OnInput(event.input, player))
             }
         } }
     }

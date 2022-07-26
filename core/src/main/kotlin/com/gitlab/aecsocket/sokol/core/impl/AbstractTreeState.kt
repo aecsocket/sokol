@@ -6,7 +6,7 @@ import com.gitlab.aecsocket.sokol.core.stat.CompiledStatMap
 abstract class AbstractTreeState<
     S : AbstractTreeState<S, N, H, D, F>,
     N : AbstractDataNode<N, *, D, S>,
-    H : NodeHost,
+    H : NodeHost<N>,
     D : Feature.Data<F>,
     F : Feature.State<F, D, *>
 >(

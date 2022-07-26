@@ -40,6 +40,13 @@ interface HostsResolved {
     val marked: Int
 }
 
+/*
+current issues:
+· nodes inside other nodes (e.g. `node_holder` featured ones) will not be resolved
+  this would require a bunch of legwork to set up correctly (have the feature type determine the node tags,
+  rather than the feature state, since then you don't need to set up any tree state)
+ */
+
 class HostResolver(
     private val plugin: Sokol,
     val callback: (PaperTreeState, PaperNodeHost) -> Unit,
@@ -77,7 +84,7 @@ class HostResolver(
 
             (Bukkit.getServer() as CraftServer).server.playerList.players.forEach { player ->
                 val bukkit = player.bukkitEntity
-                forStack(player.containerMenu.carried, holderByCursor(hostOf(bukkit)))
+                forStack(player.containerMenu.carried, holderByCursor(plugin.hostOf(bukkit)))
             }
         }
 
@@ -93,22 +100,22 @@ class HostResolver(
             getHost: () -> PaperNodeHost
         ): Boolean {
             tag[BUKKIT_PDC]?.let { tagPdc ->
-                if (tagPdc is CompoundTag && tagPdc.tags[plugin.persistence.sTick]?.let {
-                        it is NumericTag && it.asByte != (0).toByte()
+                if (tagPdc is CompoundTag && tagPdc.tags[plugin.persistence.kTick.asString()]?.let {
+                    it is NumericTag && it.asByte != (0).toByte()
                 } == true) {
                     val host = getHost()
-                    tagPdc[plugin.persistence.sNode]?.let { tagNodeNms ->
+                    tagPdc[plugin.persistence.kNode.asString()]?.let { tagNodeNms ->
                         val tagNode = PaperCompoundTag(tagNodeNms as CompoundTag)
                         return plugin.persistence.nodeOf(tagNode)?.let { node ->
                             resolved.marked++
                             val state = paperStateOf(node)
                             callback(state, host)
-                            plugin.persistence.stateInto(state, tagNode)
+                            state.updatedRoot().serialize(tagNode)
                             true
                         } ?: false
                     } ?: run {
                         plugin.log.line(LogLevel.Warning) { "Host $host was marked as ticking but is not node - removed tick key" }
-                        tagPdc.remove(plugin.persistence.sTick)
+                        tagPdc.remove(plugin.persistence.kTick.asString())
                     }
                 }
             }
@@ -116,7 +123,7 @@ class HostResolver(
         }
 
         private fun forWorld(world: World) {
-            runDataCallback(world, HostType.WORLD) { hostOf(world) }
+            runDataCallback(world, HostType.WORLD) { plugin.hostOf(world) }
 
             val level = (world as CraftWorld).handle
             level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
@@ -129,14 +136,14 @@ class HostResolver(
 
         private fun forChunk(world: World, level: ServerLevel, chunk: LevelChunk) {
             val bukkit = chunk.bukkitChunk
-            runDataCallback(bukkit, HostType.CHUNK) { hostOf(bukkit) }
+            runDataCallback(bukkit, HostType.CHUNK) { plugin.hostOf(bukkit) }
 
             level.getChunkEntities(chunk.locX, chunk.locZ).forEach { forEntity(it) }
             chunk.blockEntities.forEach { (pos, block) -> forBlock(world, pos, block) }
         }
 
         private fun forEntity(entity: Entity) {
-            val host by lazy { hostOf(entity) }
+            val host by lazy { plugin.hostOf(entity) }
             runDataCallback(entity, HostType.ENTITY) { host }
 
             // *could* optimize this by using nms types?
@@ -168,7 +175,7 @@ class HostResolver(
             resolved.possible++
 
             val host by lazy {
-                hostOf(
+                plugin.hostOf(
                     world.getBlockAt(pos.x, pos.y, pos.z).getState(false)
                 )
             }
@@ -197,7 +204,7 @@ class HostResolver(
 
             stack.tag?.let { tag ->
                 val parentStack by lazy { stack.bukkitStack }
-                useHostOf(holder, { parentStack },
+                plugin.useHostOf(holder, { parentStack },
                     action = { parentHost ->
                         if (settings.containerItems) {
                             operator fun Tag.get(key: String) = if (this is CompoundTag) this.tags[key] else null
@@ -217,7 +224,7 @@ class HostResolver(
                                                     (childStack as CraftItemStack).handle.save(tagItem)
                                                 }
 
-                                                useHostOf(
+                                                plugin.useHostOf(
                                                     holderByContainer(parentHost, tagItem.getByte("Slot").toInt()),
                                                     { childStack },
                                                     action = { childHost ->

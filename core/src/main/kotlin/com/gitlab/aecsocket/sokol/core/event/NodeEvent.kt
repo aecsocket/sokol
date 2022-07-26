@@ -7,7 +7,19 @@ interface NodeEvent {
 
     interface OnHosted : NodeEvent
 
+    interface OnHostUpdate : NodeEvent
+
     interface OnInput : NodeEvent {
         val input: Input
     }
+
+    interface OnItemClick : NodeEvent {
+        val leftClick: Boolean
+        val rightClick: Boolean
+        val shiftClick: Boolean
+    }
+
+    interface OnClickAsCurrent : OnItemClick
+
+    interface OnClickAsCursor : OnItemClick
 }

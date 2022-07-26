@@ -17,7 +17,7 @@ interface TreeState {
     interface Scoped<
         S : Scoped<S, N, H>,
         N,
-        H : NodeHost
+        H : NodeHost<N>,
     > : TreeState where N : DataNode, N : Node.Mutable<N> {
         val self: S
         override val root: N

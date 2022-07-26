@@ -71,8 +71,8 @@ class PaperNodeSerializer(
 class PaperBlueprintSerializer(
     private val plugin: Sokol
 ) : BlueprintSerializer<
-        PaperBlueprint, PaperDataNode
-        >() {
+    PaperBlueprint, PaperDataNode
+>() {
     override val nodeType: Class<PaperDataNode>
         get() = PaperDataNode::class.java
 

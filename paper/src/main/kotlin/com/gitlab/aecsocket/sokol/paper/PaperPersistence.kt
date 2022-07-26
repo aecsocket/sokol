@@ -38,14 +38,21 @@ class BlueprintRef(value: PaperBlueprint) : RegistryRef<PaperBlueprint>(value)
 
 class FeatureRef(value: PaperFeature) : RegistryRef<PaperFeature>(value)
 
+interface TagHolder {
+    fun contains(key: Key): Boolean
+
+    operator fun get(key: Key): CompoundBinaryTag.Mutable?
+
+    operator fun set(key: Key, tag: CompoundBinaryTag)
+
+    fun remove(key: Key)
+}
+
 class PaperPersistence internal constructor(
     private val plugin: Sokol
 ) : SokolPersistence<PaperDataNode> {
     val kNode = plugin.key("node")
     val kTick = plugin.key("tick")
-
-    internal val sNode = kNode.asString()
-    internal val sTick = kTick.asString()
 
     // String/node
 
@@ -66,15 +73,49 @@ class PaperPersistence internal constructor(
 
     fun newTag(): CompoundBinaryTag.Mutable = PaperCompoundTag(CompoundTag())
 
-    fun tagTo(tag: CompoundBinaryTag, pdc: PersistentDataContainer, key: String) {
-        (pdc as CraftPersistentDataContainer).raw[key] = (tag as PaperBinaryTag).handle
+    fun holderOf(pdc: PersistentDataContainer) = object : TagHolder {
+        override fun contains(key: Key): Boolean {
+            return (pdc as CraftPersistentDataContainer).raw.contains(key.asString())
+        }
+
+        override fun get(key: Key): CompoundBinaryTag.Mutable? {
+            return (pdc as CraftPersistentDataContainer).raw[key.asString()]?.let {
+                PaperCompoundTag(it as CompoundTag)
+            }
+        }
+
+        override fun set(key: Key, tag: CompoundBinaryTag) {
+            (pdc as CraftPersistentDataContainer).raw[key.asString()] = (tag as PaperCompoundTag).handle
+        }
+
+        override fun remove(key: Key) {
+            (pdc as CraftPersistentDataContainer).raw.remove(key.asString())
+        }
     }
 
-    fun tagTo(tag: CompoundBinaryTag, pdc: PersistentDataContainer, key: Key) =
-        tagTo(tag, pdc, key.asString())
+    fun holderOf(stack: ItemStack) = object : TagHolder {
+        override fun contains(key: Key): Boolean {
+            return (stack as? CraftItemStack)?.handle?.tag?.contains(key.asString()) == true
+        }
 
-    fun nodeTagTo(tag: CompoundBinaryTag, pdc: PersistentDataContainer) =
-        tagTo(tag, pdc, sNode)
+        override fun get(key: Key): CompoundBinaryTag.Mutable? {
+            return (stack as? CraftItemStack)?.handle?.tag?.let { tag ->
+                tag.getCompound(BUKKIT_PDC).tags[key.asString()]?.let {
+                    PaperCompoundTag(it as CompoundTag)
+                }
+            }
+        }
+
+        override fun set(key: Key, tag: CompoundBinaryTag) {
+            stack.editMeta { meta ->
+                holderOf(meta.persistentDataContainer)[key] = tag
+            }
+        }
+
+        override fun remove(key: Key) {
+            (stack as? CraftItemStack)?.handle?.tag?.remove(key.asString())
+        }
+    }
 
     // Tag/node
 
@@ -127,46 +168,6 @@ class PaperPersistence internal constructor(
         return get0(tag, null, emptyNodePath())
     }
 
-    fun nodeInto(node: PaperDataNode, tag: CompoundBinaryTag.Mutable) {
-        node.serialize(tag)
-        tag.setInt(VERSION, NODE_VERSION)
-    }
-
-    fun stateInto(state: PaperTreeState, tag: CompoundBinaryTag.Mutable) {
-        nodeInto(state.updatedRoot(), tag)
-    }
-
-
-
-    fun tagOf(stack: ItemStack, key: String): CompoundBinaryTag.Mutable? {
-        return if (stack is CraftItemStack) {
-            stack.handle?.tag?.let { tag ->
-                tag.getCompound(BUKKIT_PDC).tags[key]?.let { PaperCompoundTag(it as CompoundTag) }
-            }
-        } else null
-    }
-
-    fun tagOf(stack: ItemStack, key: Key) = tagOf(stack, key.asString())
-
-    fun nodeTagOf(stack: ItemStack) = tagOf(stack, sNode)
-
-
-    fun tagOf(pdc: PersistentDataContainer, key: String): CompoundBinaryTag.Mutable? {
-        return (pdc as CraftPersistentDataContainer).raw[key]?.let { PaperCompoundTag(it as CompoundTag) }
-    }
-
-    fun tagOf(pdc: PersistentDataContainer, key: Key) = tagOf(pdc, key.asString())
-
-    fun nodeTagOf(pdc: PersistentDataContainer) = tagOf(pdc, sNode)
-
-    fun forceTagOf(pdc: PersistentDataContainer, key: String): CompoundBinaryTag.Mutable {
-        return PaperCompoundTag((pdc as CraftPersistentDataContainer).raw.computeIfAbsent(key) { CompoundTag() } as CompoundTag)
-    }
-
-    fun forceTagOf(pdc: PersistentDataContainer, key: Key) = forceTagOf(pdc, key.asString())
-
-    fun forceNodeTagOf(pdc: PersistentDataContainer) = forceTagOf(pdc, sNode)
-
     // Stacks
 
     fun stateToStack(holder: PaperItemHolder, state: PaperTreeState): ItemStack? {
@@ -181,15 +182,28 @@ class PaperPersistence internal constructor(
     fun forceStateToStack(holder: PaperItemHolder, state: PaperTreeState) = stateToStack(holder, state)
         ?: throw HostCreationException("Node does not have hoster '${plugin.settings.hostFeatures.item.value.id}'")
 
-    // Ticks
-
-    fun setTicks(value: Boolean, pdc: PersistentDataContainer) {
-        (pdc as CraftPersistentDataContainer).raw[sTick] = ByteTag.valueOf(value)
-    }
-
-    fun ticks(pdc: PersistentDataContainer): Boolean {
-        return (pdc as CraftPersistentDataContainer).raw[sTick]?.let {
-            it is NumericTag && it.asByte != (0).toByte()
-        } == true
+    fun useStack(stack: ItemStack, holder: PaperItemHolder, action: (PaperTreeState, PaperItemHost) -> Unit) {
+        holderOf(stack)[kNode]?.let { tag ->
+            nodeOf(tag)?.let { node ->
+                val state = paperStateOf(node)
+                plugin.useHostOf(holder, { stack },
+                    action = { action(state, it) },
+                    onDirty = { meta ->
+                        // full update; write meta
+                        //  · we write into PDC first, so when meta is set onto stack,
+                        //    meta's PDC is written into stack's tag
+                        //  · we can't just write meta then apply to our local `tag`,
+                        //    because setItemMeta overwrites the stack's CompoundTag
+                        holderOf(meta.persistentDataContainer)[kNode] =
+                            newTag().apply { state.updatedRoot().serialize(this) }
+                        stack.itemMeta = meta
+                    },
+                    onClean = {
+                        // write directly to stack tag; avoid itemMeta write
+                        state.updatedRoot().serialize(tag)
+                    }
+                )
+            }
+        }
     }
 }
