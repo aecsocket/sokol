@@ -5,5 +5,5 @@ version: "@version@"
 api-version: "1.19"
 authors: [ "aecsocket" ]
 website: "https://phosphorous.gitlab.io/sokol"
-depend:
-  - "Alexandria"
+
+depend: [ "KtRuntime", "CraftBullet", "Alexandria" ]

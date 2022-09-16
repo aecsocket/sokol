@@ -9,7 +9,7 @@
 
 </div>
 
-Platform-agnostic entity composition framework, allowing server owners to configure their own items, mobs etc.
+Platform-agnostic entity composition and management framework, allowing server owners to configure their own items, mobs etc.
 and plugin developers to create composable features for these entities.
 
 ### [Quickstart and documentation](https://phosphorous.gitlab.io/sokol)
