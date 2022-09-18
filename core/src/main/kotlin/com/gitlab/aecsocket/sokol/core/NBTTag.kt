@@ -9,13 +9,9 @@ interface NBTTag {
     fun ofShort(value: Short): NumericNBTTag
     fun ofFloat(value: Float): NumericNBTTag
     fun ofDouble(value: Double): NumericNBTTag
-
     fun ofString(value: String): StringNBTTag
-
     fun ofUUID(value: UUID): UUIDNBTTag
-
     fun ofCompound(): CompoundNBTTag.Mutable
-
     fun ofIntArray(values: IntArray): IntArrayNBTTag
     fun ofLongArray(values: LongArray): LongArrayNBTTag
     fun ofByteArray(values: ByteArray): ByteArrayNBTTag
@@ -39,6 +35,10 @@ interface UUIDNBTTag : NBTTag {
     val uuid: UUID
 }
 
+private fun missing(key: String, type: String): () -> Nothing = {
+    throw IllegalStateException("Missing key '$key' of type $type")
+}
+
 interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
     val size: Int
     val keys: Set<String>
@@ -48,23 +48,50 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
 
     operator fun get(key: String): NBTTag?
 
-    fun int(key: String, default: Int) = (get(key) as? NumericNBTTag)?.int ?: default
-    fun long(key: String, default: Long) = (get(key) as? NumericNBTTag)?.long ?: default
-    fun byte(key: String, default: Byte) = (get(key) as? NumericNBTTag)?.byte ?: default
-    fun short(key: String, default: Short) = (get(key) as? NumericNBTTag)?.short ?: default
-    fun float(key: String, default: Float) = (get(key) as? NumericNBTTag)?.float ?: default
-    fun double(key: String, default: Float) = (get(key) as? NumericNBTTag)?.double ?: default
+    fun intOr(key: String): Int? = (get(key) as? NumericNBTTag)?.int
+    fun int(key: String, default: Int): Int = (get(key) as? NumericNBTTag)?.int ?: default
+    fun int(key: String, default: () -> Int = missing(key, "int")): Int = intOr(key) ?: default()
 
-    fun string(key: String, default: String) = (get(key) as? StringNBTTag)?.string ?: default
+    fun longOr(key: String): Long? = (get(key) as? NumericNBTTag)?.long
+    fun long(key: String, default: Long): Long = (get(key) as? NumericNBTTag)?.long ?: default
+    fun long(key: String, default: () -> Long = missing(key, "long")): Long = longOr(key) ?: default()
 
-    fun uuid(key: String) = (get(key) as? UUIDNBTTag)?.uuid
+    fun byteOr(key: String): Byte? = (get(key) as? NumericNBTTag)?.byte
+    fun byte(key: String, default: Byte): Byte = (get(key) as? NumericNBTTag)?.byte ?: default
+    fun byte(key: String, default: () -> Byte = missing(key, "long")): Byte = byteOr(key) ?: default()
 
-    fun compound(key: String) = get(key) as? CompoundNBTTag ?: ofCompound()
+    fun shortOr(key: String): Short? = (get(key) as? NumericNBTTag)?.short
+    fun short(key: String, default: Short): Short = (get(key) as? NumericNBTTag)?.short ?: default
+    fun short(key: String, default: () -> Short = missing(key, "long")): Short = shortOr(key) ?: default()
 
-    fun intArray(key: String) = (get(key) as? IntArrayNBTTag)?.intArray ?: intArrayOf()
-    fun longArray(key: String) = (get(key) as? LongArrayNBTTag)?.longArray ?: longArrayOf()
-    fun byteArray(key: String) = (get(key) as? ByteArrayNBTTag)?.byteArray ?: byteArrayOf()
-    fun list(key: String) = get(key) as? ListNBTTag ?: ofList()
+
+    fun floatOr(key: String): Float? = (get(key) as? NumericNBTTag)?.float
+    fun float(key: String, default: Float): Float = (get(key) as? NumericNBTTag)?.float ?: default
+    fun float(key: String, default: () -> Float = missing(key, "float")): Float = floatOr(key) ?: default()
+
+    fun doubleOr(key: String): Double? = (get(key) as? NumericNBTTag)?.double
+    fun double(key: String, default: Double): Double = (get(key) as? NumericNBTTag)?.double ?: default
+    fun double(key: String, default: () -> Double = missing(key, "double")): Double = doubleOr(key) ?: default()
+
+    fun stringOr(key: String): String? = (get(key) as? StringNBTTag)?.string
+    fun string(key: String, default: String): String = (get(key) as? StringNBTTag)?.string ?: default
+    fun string(key: String, default: () -> String = missing(key, "string")): String = stringOr(key) ?: default()
+
+
+    fun uuidOr(key: String): UUID? = (get(key) as? UUIDNBTTag)?.uuid
+    fun uuid(key: String, default: UUID): UUID = (get(key) as? UUIDNBTTag)?.uuid ?: default
+    fun uuid(key: String, default: () -> UUID = missing(key, "uuid")): UUID = uuidOr(key) ?: default()
+
+    fun compound(key: String) =
+        get(key) as? CompoundNBTTag ?: ofCompound()
+    fun intArray(key: String) =
+        (get(key) as? IntArrayNBTTag)?.intArray ?: intArrayOf()
+    fun longArray(key: String) =
+        (get(key) as? LongArrayNBTTag)?.longArray ?: longArrayOf()
+    fun byteArray(key: String) =
+        (get(key) as? ByteArrayNBTTag)?.byteArray ?: byteArrayOf()
+    fun list(key: String) =
+        get(key) as? ListNBTTag ?: ofList()
 
     interface Mutable : CompoundNBTTag {
         operator fun set(key: String, tag: NBTTag): Mutable

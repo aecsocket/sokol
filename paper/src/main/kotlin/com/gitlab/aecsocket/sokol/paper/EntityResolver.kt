@@ -1,8 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.SokolEntity
-import com.gitlab.aecsocket.sokol.core.SokolHost
 import com.gitlab.aecsocket.sokol.core.TIMING_MAX_MEASUREMENTS
 import com.gitlab.aecsocket.sokol.core.Timings
 import net.minecraft.core.BlockPos
@@ -20,8 +18,11 @@ import net.minecraft.world.level.block.entity.BaseContainerBlockEntity
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.chunk.LevelChunk
 import org.bukkit.Bukkit
+import org.bukkit.World
 import org.bukkit.craftbukkit.v1_19_R1.CraftServer
+import org.bukkit.craftbukkit.v1_19_R1.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
+import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataContainer
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -84,41 +85,60 @@ class EntityResolver(
         }
     }
 
-    // TODO hosts
-    private fun resolveTag(callback: Callback, type: String, tag: CompoundTag?, getHost: () -> SokolHost = {
-        object : SokolHost {}
-    }) {
+    private fun resolveTag(type: String, tag: CompoundTag?, callback: (SokolEntity, CompoundTag) -> Unit) {
         val stats = _lastStats.computeIfAbsent(type) { TypeStats() }
         stats.candidates++
 
         tag?.let {
             stats.updated++
-            val entity = sokol.persistence.readEntity(PaperCompoundTag(tag), getHost())
-            callback(entity)
+            val entity = sokol.persistence.readEntity(PaperCompoundTag(tag))
+            callback(entity, tag)
         }
     }
 
     private fun tagOf(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
 
     private fun resolveLevel(callback: Callback, level: ServerLevel) {
-        resolveTag(callback, OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer))
+        val world = level.world
+        resolveTag(OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity, _ ->
+            entity.add(object : HostedByWorld {
+                override val world get() = world
+            })
+            callback(entity)
+        }
 
         level.entities.all.forEach { resolveEntity(callback, it) }
 
         level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
             @Suppress("UNNECESSARY_SAFE_CALL") // this may be null
-            holder.fullChunkNow?.let { resolveChunk(callback, it) }
+            holder.fullChunkNow?.let { resolveChunk(callback, it, world) }
         }
     }
 
-    private fun resolveChunk(callback: Callback, chunk: LevelChunk) {
-        resolveTag(callback, OBJECT_TYPE_CHUNK, tagOf(chunk.bukkitChunk.persistentDataContainer))
+    // TODO save the data after callback!!! (like in entity)
+    private fun resolveChunk(callback: Callback, chunk: LevelChunk, world: World) {
+        resolveTag(OBJECT_TYPE_CHUNK, tagOf(chunk.bukkitChunk.persistentDataContainer)) { entity, _ ->
+            entity.add(object : HostedByChunk {
+                override val chunk get() = chunk.bukkitChunk
+            })
+            callback(entity)
+        }
 
-        chunk.blockEntities.forEach { (pos, block) -> resolveBlock(callback, block, pos) }
+        chunk.blockEntities.forEach { (pos, block) -> resolveBlock(callback, block, pos, world) }
     }
 
     private fun resolveEntity(callback: Callback, mob: Entity) {
-        resolveTag(callback, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer))
+        resolveTag(OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity, tag ->
+            val backing = lazy { mob.bukkitEntity }
+            entity.add(object : HostedByEntity {
+                override val entity get() = backing.value
+            })
+            callback(entity)
+
+            val wrappedTag = PaperCompoundTag(tag)
+            sokol.persistence.writeEntity(entity, wrappedTag)
+            sokol.persistence.writeTagTo(wrappedTag, sokol.persistence.entityKey, backing.value.persistentDataContainer)
+        }
 
         when (mob) {
             is ItemEntity -> resolveItem(callback, mob.item)
@@ -128,36 +148,76 @@ class EntityResolver(
         }
     }
 
-    private fun resolveBlock(callback: Callback, block: BlockEntity, pos: BlockPos) {
-        resolveTag(callback, OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer))
+    private fun resolveBlock(callback: Callback, block: BlockEntity, pos: BlockPos, world: World) {
+        resolveTag(OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity, _ ->
+            val backing = lazy { world.getBlockAt(pos.x, pos.y, pos.z) }
+            val state = lazy { backing.value.getState(false) }
+            entity.add(object : HostedByBlock {
+                override val block get() = backing.value
+                override val state get() = state.value
+            })
+            callback(entity)
+        }
 
-        if (block is BaseContainerBlockEntity) {
-            block.contents.forEach { resolveItem(callback, it) }
+        when (block) {
+            is BaseContainerBlockEntity -> block.contents.forEach { resolveItem(callback, it) }
+        }
+    }
+
+    private fun CompoundTag.compound(key: String) = tags[key] as? CompoundTag
+
+    private fun CompoundTag.list(key: String) = tags[key] as? ListTag
+
+    private fun resolveItemTagInternal(
+        callback: Callback,
+        tagMeta: CompoundTag,
+        getStack: () -> ItemStack,
+        onDirtied: (org.bukkit.inventory.ItemStack) -> Unit
+    ) {
+        val bukkitStack = lazy { getStack().bukkitStack }
+        val meta = lazy { bukkitStack.value.itemMeta }
+        var dirty = false
+
+        resolveTag(OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity, _ ->
+            entity.add(object : HostedByItem {
+                override val stack get() = bukkitStack.value
+
+                override fun <R> readMeta(action: (ItemMeta) -> R): R {
+                    return action(meta.value)
+                }
+
+                override fun writeMeta(action: (ItemMeta) -> Unit) {
+                    action(meta.value)
+                    dirty = true
+                }
+            })
+            callback(entity)
+        }
+
+        tagMeta.compound("BlockEntityTag")?.list("Items")?.forEach { tagItem ->
+            (tagItem as? CompoundTag)?.let {
+                resolveItemTag(callback, tagItem) { dirtied ->
+                    (dirtied as CraftItemStack).handle.save(tagItem)
+                }
+            }
+        }
+
+        if (dirty) {
+            bukkitStack.value.itemMeta = meta.value
+            onDirtied(bukkitStack.value)
+        }
+    }
+
+    private fun resolveItemTag(callback: Callback, tag: CompoundTag, onDirtied: (org.bukkit.inventory.ItemStack) -> Unit) {
+        tag.compound("tag")?.let { tagMeta ->
+            val stack = lazy { ItemStack.of(tag) }
+            resolveItemTagInternal(callback, tagMeta, { stack.value }, onDirtied)
         }
     }
 
     private fun resolveItem(callback: Callback, item: ItemStack) {
-        if (item.item === Items.AIR) return
-
-        // TODO this needs to not use itemMeta unless absolutely necessary
-        resolveTag(callback, OBJECT_TYPE_ITEM, tagOf(item.bukkitStack.itemMeta.persistentDataContainer))
-
-        fun CompoundTag.compound(key: String) = tags[key] as? CompoundTag
-
-        fun CompoundTag.list(key: String) = tags[key] as? ListTag
-
-        item.tag?.compound("BlockEntityTag")?.list("Items")?.forEach { tagItem ->
-            // shulker box items
-            if (tagItem is CompoundTag) {
-                // TODO resolve item by tag
-                // TODO oh my god optimize this to check tag first
-                // and only make the stack later
-                resolveItem(callback, ItemStack.of(tagItem))
-
-                /*
-                tagItem.compound("tag")?.let { tagItemMeta ->
-                }*/
-            }
-        }
+        val tag = item.tag
+        if (item.item === Items.AIR || tag == null) return
+        resolveItemTagInternal(callback, tag, { item }, {})
     }
 }

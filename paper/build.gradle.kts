@@ -36,6 +36,7 @@ dependencies {
 
     compileOnly(libs.packetEventsSpigot)
 
+    compileOnly(libs.craftbulletCore)
     compileOnly(libs.craftbulletPaper)
 
     // shaded

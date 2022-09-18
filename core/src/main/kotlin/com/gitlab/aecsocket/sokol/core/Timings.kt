@@ -30,5 +30,5 @@ class Timings(
         return result
     }
 
-    fun take(n: Int) = Timings(maxMeasurements, timings.take(n))
+    fun takeLast(n: Int) = Timings(maxMeasurements, timings.takeLast(n))
 }

@@ -18,6 +18,7 @@ dependencies {
     compileOnly(libs.adventureExtraKotlin)
     compileOnly(libs.alexandriaCore)
     compileOnly(libs.packetEventsApi)
+    compileOnly(libs.craftbulletCore)
 
 
     testImplementation(platform("org.junit:junit-bom:5.9.0"))
