@@ -1,7 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.sokol.core.ComponentKey
+import com.gitlab.aecsocket.sokol.core.ComponentType
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import org.bukkit.Chunk
 import org.bukkit.World
@@ -12,48 +11,39 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
 interface HostedByWorld : SokolComponent {
-    override val key get() = HostedByWorld.key
-    
+    override val type get() = HostedByWorld
+
     val world: World
-    
-    companion object : ComponentKey<HostedByWorld> {
-        override val key = SokolAPI.key("hosted_by_world")
-    }
+
+    companion object : ComponentType<HostedByWorld>
 }
 
 interface HostedByChunk : SokolComponent {
-    override val key get() = HostedByChunk.key
+    override val type get() = HostedByChunk
 
     val chunk: Chunk
-
-    companion object : ComponentKey<HostedByChunk> {
-        override val key = SokolAPI.key("hosted_by_chunk")
-    }
+    companion object : ComponentType<HostedByChunk>
 }
 
 interface HostedByEntity : SokolComponent {
-    override val key get() = HostedByEntity.key
+    override val type get() = HostedByEntity
 
     val entity: Entity
 
-    companion object : ComponentKey<HostedByEntity> {
-        override val key = SokolAPI.key("hosted_by_entity")
-    }
+    companion object : ComponentType<HostedByEntity>
 }
 
 interface HostedByBlock : SokolComponent {
-    override val key get() = HostedByBlock.key
+    override val type get() = HostedByBlock
 
-    val state: BlockState
     val block: Block
+    val state: BlockState
 
-    companion object : ComponentKey<HostedByBlock> {
-        override val key = SokolAPI.key("hosted_by_block")
-    }
+    companion object : ComponentType<HostedByBlock>
 }
 
 interface HostedByItem : SokolComponent {
-    override val key get() = HostedByItem.key
+    override val type get() = HostedByItem
 
     val stack: ItemStack
 
@@ -61,9 +51,15 @@ interface HostedByItem : SokolComponent {
 
     fun writeMeta(action: (ItemMeta) -> Unit)
 
-    companion object : ComponentKey<HostedByItem> {
-        override val key = SokolAPI.key("hosted_by_item")
-    }
+    companion object : ComponentType<HostedByItem>
+}
+
+fun hostedByWorld(world: World) = object : HostedByWorld {
+    override val world get() = world
+}
+
+fun hostedByChunk(chunk: Chunk) = object : HostedByChunk {
+    override val chunk get() = chunk
 }
 
 fun hostedByEntity(entity: Entity) = object : HostedByEntity {

@@ -1,68 +1,41 @@
 package com.gitlab.aecsocket.sokol.paper.feature
 
-import com.gitlab.aecsocket.alexandria.paper.extension.bukkitPlayers
-import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.alexandria.paper.extension.position
-import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
-import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
-import com.gitlab.aecsocket.craftbullet.paper.location
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.ByEntityEvent
 import com.gitlab.aecsocket.sokol.paper.HostedByEntity
-import com.gitlab.aecsocket.sokol.paper.Sokol
-import com.gitlab.aecsocket.sokol.paper.SokolAPI
-import com.jme3.bullet.collision.shapes.BoxCollisionShape
-import com.jme3.bullet.objects.PhysicsRigidBody
-import com.jme3.math.Vector3f
-import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
 import java.util.UUID
 
 private const val COLLIDER = "collider"
 private const val BODY_ID = "body_id"
 
-class ColliderComponent : SokolComponentType {
-    override val key get() = ColliderComponent.key
+data class Collider(
+    val bodyId: UUID
+) : SokolComponent {
+    override val type get() = Collider
 
-    override fun deserialize(node: ConfigurationNode) = Component(
-        node.node(BODY_ID).get<UUID>()
-    )
-
-    override fun deserialize(tag: CompoundNBTTag) = Component(
-        tag.uuidOr(BODY_ID)
-    )
-
-    inner class Component(
-        var bodyId: UUID? = null
-    ) : SokolComponent.Persistent {
-        override val key get() = ColliderComponent.key
-
-        override fun serialize(node: ConfigurationNode) {
-            bodyId?.let { node.node(BODY_ID).set(it) }
-        }
-
-        override fun serialize(tag: CompoundNBTTag.Mutable) {
-            bodyId?.let { tag.set(BODY_ID) { ofUUID(it) } }
-        }
-    }
-
-    companion object : ComponentKey<Component> {
-        override val key = SokolAPI.key(COLLIDER)
-    }
+    companion object : ComponentType<Collider>
 }
 
-private val filter = entityFilterOf(setOf(
-    HostedByEntity.key,
-    ColliderComponent.key
-))
-
-class ColliderSystem(
-    private val sokol: Sokol
-) : SokolSystem {
+class ColliderSystem(engine: SokolEngine) : SokolSystem {
     private val bullet = CraftBulletAPI
 
-    override fun handle(entities: EntityAccessor, event: SokolEvent) {
+    private val entFilter = engine.entityFilter(
+        setOf(HostedByEntity)
+    )
+    private val mMob = engine.componentMapper(HostedByEntity)
+    private val mCollider = engine.componentMapper(Collider)
+
+    override fun handle(space: SokolEngine.Space, event: SokolEvent) = when (event) {
+        is ByEntityEvent.Added -> {
+            space.entitiesBy(entFilter).forEach { entityId ->
+                val mob = mMob.map(space, entityId)
+                val collider = mCollider.map(space, entityId)
+            }
+        }
+        else -> {}
+    }
+    /*
         when (event) {
             is ByEntityEvent.Added -> {
                 entities.by(filter).forEach { entity ->
@@ -123,5 +96,5 @@ class ColliderSystem(
                 }
             }
         }
-    }
+    }*/
 }

@@ -1,10 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.sokol.core.HostByEntityEvent
-import com.gitlab.aecsocket.sokol.core.HostByItemEvent
-import com.gitlab.aecsocket.sokol.core.SokolComponent
-import com.gitlab.aecsocket.sokol.core.force
+import com.gitlab.aecsocket.sokol.core.*
 import org.bukkit.Location
 import org.bukkit.craftbukkit.v1_19_R1.entity.CraftAreaEffectCloud
 import org.bukkit.entity.Entity
@@ -12,18 +9,26 @@ import org.bukkit.entity.EntityType
 import org.bukkit.event.entity.CreatureSpawnEvent
 import org.bukkit.inventory.ItemStack
 
-abstract class AbstractBlueprint(
-    protected val sokol: Sokol,
-    override val id: String,
-    val components: List<SokolComponent>,
-) : Keyed {
-    fun createEntity() = sokol.engine.createEntity(components)
-}
+/*
+class ItemBlueprint(private val sokol: Sokol, val backing: SokolBlueprint) {
+    init {
+        if (!backing.containsType(HostableByEntity))
+    }
 
-class ItemBlueprint(
-    sokol: Sokol, id: String, components: List<SokolComponent>,
-) : AbstractBlueprint(sokol, id, components) {
-    fun createItem(): ItemStack {
+    fun createItem(space: SokolEngine.Space): ItemStack {
+        val space = sokol.engine.createSpace(1)
+        val entity = backing.create(space)
+
+
+
+        space.addComponent(entity, hostedByItem())
+
+
+        space.addComponent(entity, hostedByItem())
+
+        val entity = space.createEntity(backing.archetype)
+
+
         val entity = createEntity()
         val hostable = entity.force(HostableByItem)
 
@@ -39,15 +44,15 @@ class ItemBlueprint(
         stack.itemMeta = meta
         return stack
     }
-}
+}*/
 
-class EntityBlueprint(
-    sokol: Sokol, id: String, components: List<SokolComponent>,
-) : AbstractBlueprint(sokol, id, components) {
+open class EntityBlueprint(private val sokol: Sokol, val backing: SokolBlueprint) {
+    init {
+        if (!backing.containsType(HostableByEntity))
+            throw IllegalArgumentException("Backing blueprint must have component of type ${HostableByEntity::class}")
+    }
+
     fun spawnEntity(location: Location): Entity {
-        val entity = createEntity()
-        entity.force(HostableByEntity)
-
         return location.world.spawnEntity(
             location, EntityType.AREA_EFFECT_CLOUD, CreatureSpawnEvent.SpawnReason.CUSTOM
         ) { mob ->
@@ -57,11 +62,20 @@ class EntityBlueprint(
                 waitTime = Int.MIN_VALUE
             }
 
-            sokol.engine.call(setOf(entity), HostByEntityEvent)
+            val space = sokol.engine.createSpace(1)
+            val entity = backing.create(space)
+            space.addComponent(entity, hostedByEntity(mob))
+            space.call(HostByEntityEvent)
 
             val tag = sokol.persistence.newTag()
-            sokol.persistence.writeEntity(entity, tag)
+            sokol.persistence.writeEntity(space, entity, tag)
             sokol.persistence.writeTagTo(tag, sokol.persistence.entityKey, mob.persistentDataContainer)
         }
     }
 }
+
+class KeyedEntityBlueprint(
+    sokol: Sokol,
+    override val id: String,
+    backing: SokolBlueprint
+) : EntityBlueprint(sokol, backing), Keyed

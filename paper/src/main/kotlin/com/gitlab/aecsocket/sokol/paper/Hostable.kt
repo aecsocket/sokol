@@ -1,22 +1,15 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.alexandria.core.LogList
-import com.gitlab.aecsocket.alexandria.core.extension.force
-import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.NodeKey
-import org.spongepowered.configurate.objectmapping.meta.Setting
-import org.spongepowered.configurate.serialize.SerializationException
 
 private const val ID = "id"
 private const val HOSTABLE_BY_ITEM = "hostable_by_item"
 private const val HOSTABLE_BY_ENTITY = "hostable_by_entity"
 
-class HostableByItem : SokolComponentType {
+/*
+class HostableByItem : PersistentComponent {
     @ConfigSerializable
     data class Config(
         @NodeKey override val id: String,
@@ -69,24 +62,25 @@ class HostableByItem : SokolComponentType {
     companion object : ComponentKey<Component> {
         override val key = SokolAPI.key(HOSTABLE_BY_ITEM)
     }
-}
+}*/
 
-class HostableByEntity : SokolComponentType {
-    override val key get() = HostableByEntity.key
+class HostableByEntity : PersistentComponent {
+    override val type get() = HostableByEntity
+    override val key get() = Key
 
-    override fun deserialize(tag: CompoundNBTTag) = Component
+    override fun serialize(tag: CompoundNBTTag.Mutable) {}
 
-    override fun deserialize(node: ConfigurationNode) = Component
+    override fun serialize(node: ConfigurationNode) {}
 
-    object Component : SokolComponent.Persistent {
-        override val key get() = HostableByEntity.key
+    object Type : PersistentComponentType {
+        override val key get() = Key
 
-        override fun serialize(tag: CompoundNBTTag.Mutable) {}
+        override fun deserialize(tag: CompoundNBTTag) = HostableByEntity()
 
-        override fun serialize(node: ConfigurationNode) {}
+        override fun deserialize(node: ConfigurationNode) = HostableByEntity()
     }
 
-    companion object : ComponentKey<Component> {
-        override val key = SokolAPI.key(HOSTABLE_BY_ENTITY)
+    companion object : ComponentType<HostableByEntity> {
+        val Key = SokolAPI.key(HOSTABLE_BY_ENTITY)
     }
 }

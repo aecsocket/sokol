@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.feature
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
+import com.gitlab.aecsocket.alexandria.paper.sendPacket
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.ByEntityEvent
 import com.gitlab.aecsocket.sokol.paper.HostedByEntity
@@ -11,6 +12,7 @@ import org.spongepowered.configurate.ConfigurationNode
 
 private const val MESH = "mesh"
 
+/*
 class MeshComponent : SokolComponentType {
     override val key get() = MeshComponent.key
 
@@ -44,17 +46,35 @@ class MeshSystem(
         when (event) {
             is ByEntityEvent.Shown -> {
                 val player = event.backing.player as Player
-                event.backing.isCancelled = true
 
-                // TODO actual logic
+                entities.by(filter).forEach { entity ->
+                    event.backing.isCancelled = true
 
+                    // todo actual stuff
+
+                }
             }
             is ByEntityEvent.Hidden -> {
                 val player = event.backing.player as Player
-                event.backing.isCancelled = true
 
+                entities.by(filter).forEach { entity ->
+                    event.cancelThisEntity = true
 
+                    // todo hide mesh stands
+                }
+            }
+            is UpdateEvent -> {
+                entities.by(filter).forEach { entity ->
+                    val mob = entity.force(HostedByEntity).entity
+                    val collider = entity.force(ColliderComponent)
+                    val mesh = entity.force(MeshComponent)
+
+                    mob.trackedPlayers.forEach { player ->
+                        player.sendPacket()
+                    }
+                }
             }
         }
     }
 }
+*/

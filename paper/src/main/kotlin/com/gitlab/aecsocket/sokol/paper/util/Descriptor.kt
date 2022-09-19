@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.paper
+package com.gitlab.aecsocket.sokol.paper.util
 
 import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.ItemDescriptor

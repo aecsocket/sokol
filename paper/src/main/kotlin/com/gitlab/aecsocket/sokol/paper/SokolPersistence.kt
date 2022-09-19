@@ -2,8 +2,9 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
+import com.gitlab.aecsocket.sokol.core.SokolBlueprint
 import com.gitlab.aecsocket.sokol.core.SokolComponent
-import com.gitlab.aecsocket.sokol.core.SokolEntity
+import com.gitlab.aecsocket.sokol.core.SokolEngine
 import net.kyori.adventure.key.InvalidKeyException
 import net.kyori.adventure.key.Key
 import net.minecraft.nbt.CompoundTag
@@ -31,7 +32,7 @@ class SokolPersistence internal constructor(
         (pdc as CraftPersistentDataContainer).raw[key.toString()] = (tag as PaperCompoundTag).backing
     }
 
-    fun readEntity(tag: CompoundNBTTag): SokolEntity {
+    fun readBlueprint(tag: CompoundNBTTag): SokolBlueprint {
         val components = tag.map { (rawKey, child) ->
             child as? CompoundNBTTag
                 ?: throw IllegalArgumentException("Component for key '$rawKey' is not compound tag")
@@ -41,20 +42,28 @@ class SokolPersistence internal constructor(
             } catch (ex: InvalidKeyException) {
                 throw IllegalArgumentException("Invalid component key '$rawKey'", ex)
             }
+
             val type = sokol.componentType(key)
                 ?: throw IllegalArgumentException("Invalid component key '$key'")
 
             type.deserialize(child)
         }
-        return sokol.engine.createEntity(components)
+        return SokolBlueprint(components)
     }
 
-    fun writeEntity(entity: SokolEntity, tag: CompoundNBTTag.Mutable) {
-        tag.clear()
-        entity.components.forEach { (key, component) ->
-            if (component is SokolComponent.Persistent) {
-                tag.set(key.toString()) { ofCompound().apply { component.serialize(this) } }
-            }
+    private fun SokolComponent.writeInto(tag: CompoundNBTTag.Mutable) {
+        if (this is PersistentComponent) {
+            tag.set(key.toString()) { ofCompound().apply { serialize(this) } }
         }
+    }
+
+    fun writeBlueprint(blueprint: SokolBlueprint, tag: CompoundNBTTag.Mutable) {
+        tag.clear()
+        blueprint.components.forEach { it.writeInto(tag) }
+    }
+
+    fun writeEntity(space: SokolEngine.Space, entity: Int, tag: CompoundNBTTag.Mutable) {
+        tag.clear()
+        space.getComponents(entity).forEach { it.writeInto(tag) }
     }
 }

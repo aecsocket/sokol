@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.core
+package com.gitlab.aecsocket.sokol.core.util
 
 class Timings(
     val maxMeasurements: Int,

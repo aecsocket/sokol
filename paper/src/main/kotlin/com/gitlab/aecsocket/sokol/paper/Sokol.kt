@@ -1,13 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
-import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
-import com.github.retrooper.packetevents.PacketEvents
-import com.github.retrooper.packetevents.event.PacketListenerAbstract
-import com.github.retrooper.packetevents.event.PacketSendEvent
-import com.github.retrooper.packetevents.protocol.packettype.PacketType
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
@@ -17,14 +9,10 @@ import com.gitlab.aecsocket.alexandria.paper.BasePlugin
 import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
 import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.feature.ColliderComponent
+import com.gitlab.aecsocket.sokol.core.util.Timings
+import com.gitlab.aecsocket.sokol.paper.feature.Collider
 import com.gitlab.aecsocket.sokol.paper.feature.ColliderSystem
-import com.gitlab.aecsocket.sokol.paper.feature.MeshSystem
-import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import net.kyori.adventure.key.Key
-import org.bukkit.entity.Entity
-import org.bukkit.entity.Player
-import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.ConfigurationNode
@@ -34,9 +22,10 @@ import org.spongepowered.configurate.serialize.SerializationException
 import java.nio.file.FileVisitResult
 import kotlin.io.path.isRegularFile
 
-private const val BLUEPRINT = "blueprint"
+private const val CONFIG = "config"
 private const val ITEMS = "items"
 private const val ENTITIES = "entities"
+internal const val TIMING_MAX_MEASUREMENTS = 60 * TPS
 
 private lateinit var instance: Sokol
 val SokolAPI get() = instance
@@ -47,26 +36,42 @@ class Sokol : BasePlugin() {
         val enabled: Boolean = false
     )
 
-    lateinit var settings: Settings private set
+    private data class Registration(
+        val onInit: InitContext.() -> Unit,
+    )
 
-    private val _componentTypes = HashMap<String, SokolComponentType>()
-    val componentTypes: Map<String, SokolComponentType> get() = _componentTypes
+    interface InitContext {
+        val engine: SokolEngine.Builder
 
-    private val _itemBlueprints = Registry.create<ItemBlueprint>()
-    val itemBlueprints: Registry<ItemBlueprint> get() = _itemBlueprints
-
-    private val _entityBlueprints = Registry.create<EntityBlueprint>()
-    val entityBlueprints: Registry<EntityBlueprint> get() = _entityBlueprints
-
-    val engine = SokolEngine()
-    val persistence = SokolPersistence(this)
-    val entityResolver = EntityResolver(this)
+        fun registerComponentType(type: PersistentComponentType)
+    }
 
     init {
         instance = this
     }
 
-    val hostableByItem = HostableByItem()
+    lateinit var settings: Settings private set
+    lateinit var engine: SokolEngine private set
+
+    private val _componentTypes = HashMap<String, PersistentComponentType>()
+    val componentTypes: Map<String, PersistentComponentType> get() = _componentTypes
+
+    /*
+    private val _itemBlueprints = Registry.create<ItemBlueprint>()
+    val itemBlueprints: Registry<ItemBlueprint> get() = _itemBlueprints*/
+
+    private val _entityBlueprints = Registry.create<KeyedEntityBlueprint>()
+    val entityBlueprints: Registry<KeyedEntityBlueprint> get() = _entityBlueprints
+
+    val persistence = SokolPersistence(this)
+    val entityResolver = EntityResolver(this)
+
+    val resolverTimings = Timings(TIMING_MAX_MEASUREMENTS)
+    val engineTimings = Timings(TIMING_MAX_MEASUREMENTS)
+
+    //private val hostableByItem = HostableByItem()
+
+    private val registrations = ArrayList<Registration>()
 
     override fun onEnable() {
         super.onEnable()
@@ -74,30 +79,28 @@ class Sokol : BasePlugin() {
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
-                    .register(SokolComponent.Persistent::class, ComponentSerializer(this@Sokol))
-                    .registerExact(ItemBlueprint::class, ItemBlueprintSerializer(this@Sokol))
-                    .registerExact(EntityBlueprint::class, EntityBlueprintSerializer(this@Sokol))
+                    .register(PersistentComponent::class, ComponentSerializer(this@Sokol))
+                    //.registerExact(ItemBlueprint::class, ItemBlueprintSerializer(this@Sokol))
+                    .registerExact(SokolBlueprint::class, BlueprintSerializer(this@Sokol))
+                    .registerExact(KeyedEntityBlueprint::class, EntityBlueprintSerializer(this@Sokol))
             },
             onLoad = {
                 addDefaultI18N()
             }
         )
 
-        engine.addSystem(ColliderSystem(this))
-        engine.addSystem(MeshSystem(this))
-
-        registerComponentType(hostableByItem)
-        registerComponentType(HostableByEntity())
-        registerComponentType(ColliderComponent())
-
-        scheduleRepeating {
-            val entities = HashSet<SokolEntity>()
-            entityResolver.resolve { entities.add(it) }
-            engine.update(entities)
+        registerConsumer {
+            engine
+                .systemFactory { ColliderSystem(it) }
+                .componentType(Collider)
+                .componentType(HostableByEntity)
+                .componentType(HostedByEntity)
+                .componentType(HostableByEntity)
+            registerComponentType(HostableByEntity.Type)
         }
 
         registerEvents(object : Listener {
-            @EventHandler
+            /*@EventHandler
             fun EntityAddToWorldEvent.on() {
                 val mob = entity
                 updateEntity(mob) { entity ->
@@ -111,10 +114,10 @@ class Sokol : BasePlugin() {
                 updateEntity(mob) { entity ->
                     engine.call(setOf(entity), ByEntityEvent.Removed(this))
                 }
-            }
+            }*/
         })
 
-        PacketEvents.getAPI().eventManager.registerListener(object : PacketListenerAbstract() {
+        /*PacketEvents.getAPI().eventManager.registerListener(object : PacketListenerAbstract() {
             override fun onPacketSend(event: PacketSendEvent) {
                 if (event.player !is Player) return
                 when (event.packetType) {
@@ -128,17 +131,48 @@ class Sokol : BasePlugin() {
                     }
                     PacketType.Play.Server.DESTROY_ENTITIES -> {
                         val packet = WrapperPlayServerDestroyEntities(event)
-                        packet.entityIds.forEach { id ->
+                        val entityIds = packet.entityIds.toMutableList()
+
+                        val iter = entityIds.iterator()
+                        while (iter.hasNext()) {
+                            val id = iter.next()
                             SpigotReflectionUtil.getEntityById(id)?.let { mob ->
                                 updateEntity(mob) { entity ->
-                                    engine.call(setOf(entity), ByEntityEvent.Hidden(event))
+                                    if (engine.call(setOf(entity), ByEntityEvent.Hidden(event)).cancelThisEntity) {
+                                        iter.remove()
+                                    }
                                 }
                             }
                         }
+
+                        packet.entityIds = entityIds.toIntArray()
                     }
                 }
             }
-        })
+        })*/
+    }
+
+    override fun init() {
+        val engineBuilder = SokolEngine.Builder()
+        val initCtx = object : InitContext {
+            override val engine get() = engineBuilder
+
+            override fun registerComponentType(type: PersistentComponentType) {
+                _componentTypes[type.key.asString()] = type
+            }
+        }
+        registrations.forEach { it.onInit(initCtx) }
+        engine = engineBuilder.build()
+
+        log.line(LogLevel.Info) { "Set up ${engineBuilder.componentTypes.size} transient component types, ${_componentTypes.size} persistent component types, ${engine.systems.size} systems" }
+
+        scheduleRepeating {
+            val space = engine.createSpace()
+            resolverTimings.time { entityResolver.resolve(space) }
+            engineTimings.time { space.call(UpdateEvent) }
+        }
+
+        super.init()
     }
 
     override fun loadInternal(log: LogList, settings: ConfigurationNode): Boolean {
@@ -157,50 +191,58 @@ class Sokol : BasePlugin() {
                 return false
             }
 
-            _itemBlueprints.clear()
-            hostableByItem.clearConfigs()
-            walkFile(dataFolder.resolve(BLUEPRINT).toPath(),
-                onVisit = { path, _  ->
-                    if (path.isRegularFile()) {
-                        try {
-                            val node = AlexandriaAPI.configLoader().path(path).build().load()
-                            hostableByItem.load(log, node)
+            //_itemBlueprints.clear()
+            //hostableByItem.clearConfigs()
+            _entityBlueprints.clear()
+            val configDir = dataFolder.resolve(CONFIG)
+            if (configDir.exists()) {
+                walkFile(configDir.toPath(),
+                    onVisit = { path, _ ->
+                        if (path.isRegularFile()) {
+                            try {
+                                val node = AlexandriaAPI.configLoader().path(path).build().load()
+                                //hostableByItem.load(log, node)
 
-                            node.node(ITEMS).childrenMap().forEach { (_, child) ->
+                                /*node.node(ITEMS).childrenMap().forEach { (_, child) ->
                                 _itemBlueprints.register(child.force())
+                            }*/
+                                node.node(ENTITIES).childrenMap().forEach { (_, child) ->
+                                    _entityBlueprints.register(child.force())
+                                }
+                            } catch (ex: ConfigurateException) {
+                                log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
                             }
-                            node.node(ENTITIES).childrenMap().forEach { (_, child) ->
-                                _entityBlueprints.register(child.force())
-                            }
-                        } catch (ex: ConfigurateException) {
-                            log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
                         }
+                        FileVisitResult.CONTINUE
+                    },
+                    onFail = { path, ex ->
+                        log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
+                        FileVisitResult.CONTINUE
                     }
-                    FileVisitResult.CONTINUE
-                },
-                onFail = { path, ex ->
-                    log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
-                    FileVisitResult.CONTINUE
-                }
-            )
+                )
+            }
+            log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity BPs" }
 
             return true
         }
         return false
     }
 
-    fun componentType(key: Key) = _componentTypes[key.asString()]
-
-    fun registerComponentType(type: SokolComponentType) {
-        _componentTypes[type.key.asString()] = type
+    fun registerConsumer(
+        onInit: InitContext.() -> Unit = {}
+    ) {
+        registrations.add(Registration(onInit))
     }
 
-    fun updateEntity(mob: Entity, callback: (SokolEntity) -> Unit) {
+    fun componentType(key: Key) = _componentTypes[key.asString()]
+
+    /*
+    fun updateEntity(mob: Entity, callback: (Int) -> Unit) {
         persistence.getTag(mob.persistentDataContainer, persistence.entityKey)?.let { tag ->
-            val entity = persistence.readEntity(tag)
+            val entity = persistence.readBlueprint(tag)
             entity.add(hostedByEntity(mob))
             callback(entity)
             persistence.writeEntity(entity, persistence.forceTag(mob.persistentDataContainer, persistence.entityKey))
         }
-    }
+    }*/
 }

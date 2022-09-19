@@ -1,8 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.sokol.core.SokolEntity
-import com.gitlab.aecsocket.sokol.core.TIMING_MAX_MEASUREMENTS
-import com.gitlab.aecsocket.sokol.core.Timings
+import com.gitlab.aecsocket.sokol.core.SokolEngine
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
@@ -34,8 +32,6 @@ const val OBJECT_TYPE_ENTITY = "entity"
 const val OBJECT_TYPE_BLOCK = "block"
 const val OBJECT_TYPE_ITEM = "item"
 
-typealias Callback = (SokolEntity) -> Unit
-
 class EntityResolver(
     private val sokol: Sokol,
 ) {
@@ -50,15 +46,13 @@ class EntityResolver(
     )
 
     fun interface Resolver {
-        fun resolve(callback: Callback)
+        fun resolve(space: SokolEngine.Space)
     }
 
     lateinit var settings: Settings
 
     private val _lastStats = HashMap<String, TypeStats>()
     val lastStats: Map<String, TypeStats> get() = _lastStats
-
-    val timings = Timings(TIMING_MAX_MEASUREMENTS)
     
     val resolvers: MutableList<Resolver> = ArrayList()
 
@@ -72,95 +66,81 @@ class EntityResolver(
         resolvers.add(resolver)
     }
 
-    fun resolve(callback: Callback) {
+    fun resolve(space: SokolEngine.Space) {
         _lastStats.clear()
-
-        timings.time {
-            val server = (Bukkit.getServer() as CraftServer).server
-            server.allLevels.forEach { resolveLevel(callback, it) }
-            server.playerList.players.forEach { player ->
-                resolveItem(callback, player.inventoryMenu.carried)
-            }
-            resolvers.forEach { it.resolve(callback) }
+        val server = (Bukkit.getServer() as CraftServer).server
+        server.allLevels.forEach { resolveLevel(space, it) }
+        server.playerList.players.forEach { player ->
+            resolveItem(space, player.inventoryMenu.carried)
         }
+        resolvers.forEach { it.resolve(space) }
     }
 
-    private fun resolveTag(type: String, tag: CompoundTag?, callback: (SokolEntity, CompoundTag) -> Unit) {
+    private fun resolveTag(space: SokolEngine.Space, type: String, tag: CompoundTag?, callback: (Int, CompoundTag) -> Unit) {
         val stats = _lastStats.computeIfAbsent(type) { TypeStats() }
         stats.candidates++
 
         tag?.let {
             stats.updated++
-            val entity = sokol.persistence.readEntity(PaperCompoundTag(tag))
+            val blueprint = sokol.persistence.readBlueprint(PaperCompoundTag(tag))
+            val entity = space.createEntity(blueprint.archetype(space.engine))
             callback(entity, tag)
         }
     }
 
     private fun tagOf(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
 
-    private fun resolveLevel(callback: Callback, level: ServerLevel) {
+    private fun resolveLevel(space: SokolEngine.Space, level: ServerLevel) {
         val world = level.world
-        resolveTag(OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity, _ ->
-            entity.add(object : HostedByWorld {
-                override val world get() = world
-            })
-            callback(entity)
+        resolveTag(space, OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity, _ ->
+            space.addComponent(entity, hostedByWorld(world))
         }
 
-        level.entities.all.forEach { resolveEntity(callback, it) }
+        level.entities.all.forEach { resolveEntity(space, it) }
 
         level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
             @Suppress("UNNECESSARY_SAFE_CALL") // this may be null
-            holder.fullChunkNow?.let { resolveChunk(callback, it, world) }
+            holder.fullChunkNow?.let { resolveChunk(space, it, world) }
         }
     }
 
-    // TODO save the data after callback!!! (like in entity)
-    private fun resolveChunk(callback: Callback, chunk: LevelChunk, world: World) {
-        resolveTag(OBJECT_TYPE_CHUNK, tagOf(chunk.bukkitChunk.persistentDataContainer)) { entity, _ ->
-            entity.add(object : HostedByChunk {
-                override val chunk get() = chunk.bukkitChunk
-            })
-            callback(entity)
+    // TODO save the data after callback!!!
+    private fun resolveChunk(space: SokolEngine.Space, chunk: LevelChunk, world: World) {
+        resolveTag(space, OBJECT_TYPE_CHUNK, tagOf(chunk.bukkitChunk.persistentDataContainer)) { entity, _ ->
+            space.addComponent(entity, hostedByChunk(chunk.bukkitChunk))
         }
 
-        chunk.blockEntities.forEach { (pos, block) -> resolveBlock(callback, block, pos, world) }
+        chunk.blockEntities.forEach { (pos, block) -> resolveBlock(space, block, pos, world) }
     }
 
-    private fun resolveEntity(callback: Callback, mob: Entity) {
-        resolveTag(OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity, tag ->
+    private fun resolveEntity(space: SokolEngine.Space, mob: Entity) {
+        resolveTag(space, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity, tag ->
             val backing = lazy { mob.bukkitEntity }
-            entity.add(object : HostedByEntity {
+            space.addComponent(entity, object : HostedByEntity {
                 override val entity get() = backing.value
             })
-            callback(entity)
-
-            val wrappedTag = PaperCompoundTag(tag)
-            sokol.persistence.writeEntity(entity, wrappedTag)
-            sokol.persistence.writeTagTo(wrappedTag, sokol.persistence.entityKey, backing.value.persistentDataContainer)
         }
 
         when (mob) {
-            is ItemEntity -> resolveItem(callback, mob.item)
-            is ItemFrame -> resolveItem(callback, mob.item)
-            is Player -> mob.inventory.contents.forEach { resolveItem(callback, it) }
-            is LivingEntity -> mob.armorSlots.forEach { resolveItem(callback, it) }
+            is ItemEntity -> resolveItem(space, mob.item)
+            is ItemFrame -> resolveItem(space, mob.item)
+            is Player -> mob.inventory.contents.forEach { resolveItem(space, it) }
+            is LivingEntity -> mob.armorSlots.forEach { resolveItem(space, it) }
         }
     }
 
-    private fun resolveBlock(callback: Callback, block: BlockEntity, pos: BlockPos, world: World) {
-        resolveTag(OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity, _ ->
+    private fun resolveBlock(space: SokolEngine.Space, block: BlockEntity, pos: BlockPos, world: World) {
+        resolveTag(space, OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity, _ ->
             val backing = lazy { world.getBlockAt(pos.x, pos.y, pos.z) }
             val state = lazy { backing.value.getState(false) }
-            entity.add(object : HostedByBlock {
+            space.addComponent(entity, object : HostedByBlock {
                 override val block get() = backing.value
                 override val state get() = state.value
             })
-            callback(entity)
         }
 
         when (block) {
-            is BaseContainerBlockEntity -> block.contents.forEach { resolveItem(callback, it) }
+            is BaseContainerBlockEntity -> block.contents.forEach { resolveItem(space, it) }
         }
     }
 
@@ -169,7 +149,7 @@ class EntityResolver(
     private fun CompoundTag.list(key: String) = tags[key] as? ListTag
 
     private fun resolveItemTagInternal(
-        callback: Callback,
+        space: SokolEngine.Space,
         tagMeta: CompoundTag,
         getStack: () -> ItemStack,
         onDirtied: (org.bukkit.inventory.ItemStack) -> Unit
@@ -178,8 +158,8 @@ class EntityResolver(
         val meta = lazy { bukkitStack.value.itemMeta }
         var dirty = false
 
-        resolveTag(OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity, _ ->
-            entity.add(object : HostedByItem {
+        resolveTag(space, OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity, _ ->
+            space.addComponent(entity, object : HostedByItem {
                 override val stack get() = bukkitStack.value
 
                 override fun <R> readMeta(action: (ItemMeta) -> R): R {
@@ -191,12 +171,11 @@ class EntityResolver(
                     dirty = true
                 }
             })
-            callback(entity)
         }
 
         tagMeta.compound("BlockEntityTag")?.list("Items")?.forEach { tagItem ->
             (tagItem as? CompoundTag)?.let {
-                resolveItemTag(callback, tagItem) { dirtied ->
+                resolveItemTag(space, tagItem) { dirtied ->
                     (dirtied as CraftItemStack).handle.save(tagItem)
                 }
             }
@@ -208,16 +187,16 @@ class EntityResolver(
         }
     }
 
-    private fun resolveItemTag(callback: Callback, tag: CompoundTag, onDirtied: (org.bukkit.inventory.ItemStack) -> Unit) {
+    private fun resolveItemTag(space: SokolEngine.Space, tag: CompoundTag, onDirtied: (org.bukkit.inventory.ItemStack) -> Unit) {
         tag.compound("tag")?.let { tagMeta ->
             val stack = lazy { ItemStack.of(tag) }
-            resolveItemTagInternal(callback, tagMeta, { stack.value }, onDirtied)
+            resolveItemTagInternal(space, tagMeta, { stack.value }, onDirtied)
         }
     }
 
-    private fun resolveItem(callback: Callback, item: ItemStack) {
+    private fun resolveItem(space: SokolEngine.Space, item: ItemStack) {
         val tag = item.tag
         if (item.item === Items.AIR || tag == null) return
-        resolveItemTagInternal(callback, tag, { item }, {})
+        resolveItemTagInternal(space, tag, { item }, {})
     }
 }
