@@ -17,6 +17,8 @@ import com.gitlab.aecsocket.alexandria.core.extension.degrees
 import com.gitlab.aecsocket.alexandria.core.extension.euler
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.paper.Alexandria
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.alexandria.paper.sendPacket
 import com.gitlab.aecsocket.sokol.core.*
@@ -33,56 +35,22 @@ import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.*
+import kotlin.collections.HashMap
 
-private const val PARTS = "parts"
-private const val ENTITY_ID = "entity_id"
-private const val TRANSFORM = "transform"
-
-data class Mesh(
-    var data: MeshData? = null
-) : PersistentComponent {
-    @ConfigSerializable
-    data class MeshData(
-        @Required val parts: List<MeshPart>,
-    )
-
-    @ConfigSerializable
-    data class MeshPart(
-        @Required val entityId: Int,
-        @Required val transform: Transform,
-    )
-
+class Mesh : PersistentComponent {
     override val type get() = Mesh
     override val key get() = Key
 
-    override fun write(tag: CompoundNBTTag.Mutable) {
-        data?.let { mesh -> tag.set(PARTS) { ofList().apply {
-            mesh.parts.forEach { part -> add { ofCompound()
-                .set(ENTITY_ID) { ofInt(part.entityId) }
-                .set(TRANSFORM) { ofTransform(part.transform) }
-            } }
-        } } }
-    }
+    override fun write(tag: CompoundNBTTag.Mutable) {}
 
-    override fun write(node: ConfigurationNode) {
-        data?.let { node.set(it) }
-    }
+    override fun write(node: ConfigurationNode) {}
 
     class Type : PersistentComponentType {
         override val key get() = Key
 
-        override fun read(tag: CompoundNBTTag) = Mesh(
-            if (tag.contains(PARTS)) MeshData(
-                tag.get(PARTS) { asList().map { it.asCompound().let { part -> MeshPart(
-                    part.get(ENTITY_ID) { asInt() },
-                    part.get(TRANSFORM) { asTransform() },
-                ) } } }
-            ) else null
-        )
+        override fun read(tag: CompoundNBTTag) = Mesh()
 
-        override fun read(node: ConfigurationNode) = Mesh(
-            if (node.hasChild(PARTS)) node.get<MeshData>() else null
-        )
+        override fun read(node: ConfigurationNode) = Mesh()
     }
 
     companion object : ComponentType<Mesh> {
@@ -92,89 +60,40 @@ data class Mesh(
 
 class MeshSystem(engine: SokolEngine) : SokolSystem {
     private val entFilter = engine.entityFilter(
-        setOf(NBTTagAccessor, HostedByEntity, Collider, Mesh)
+        setOf(HostedByEntity, Mesh)
     )
-    private val mTagAccessor = engine.componentMapper(NBTTagAccessor)
     private val mMob = engine.componentMapper(HostedByEntity)
-    private val mCollider = engine.componentMapper(Collider)
     private val mMesh = engine.componentMapper(Mesh)
+    private val mCollider = engine.componentMapper(Collider)
 
-    private fun transform(mob: Entity, collider: Collider, part: Mesh.MeshPart): Transform {
-        return Transform(
+    private fun createMesh(mob: Entity, mesh: Mesh, collider: Collider?) {
+        val instance = AlexandriaAPI.meshes.create(mob, Transform(
             mob.location.position(),
-            collider.body?.rotation ?: Quaternion.Identity
-        ) + part.transform
-    }
-
-    private fun position(transform: Transform) = transform.translation.y { it - 1.45 }.run {
-        Vector3d(x, y, z)
-    }
-
-    private fun headRotation(transform: Transform) = transform.rotation.euler(EulerOrder.ZYX).degrees.x { -it }.run {
-        Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
+            collider?.body?.rotation ?: Quaternion.Identity,
+        ))
+        instance.addPart(instance.Part(bukkitNextEntityId, Transform.Identity, ItemStack(Material.IRON_NUGGET).withMeta { meta ->
+            meta.setCustomModelData(1)
+        }), false)
     }
 
     override fun handle(space: SokolEngine.Space, event: SokolEvent) = when (event) {
+        is HostedByEntity -> {
+            space.entitiesBy(entFilter).forEach { entity ->
+                val mob = mMob.map(space, entity).entity
+                val mesh = mMesh.map(space, entity)
+                val collider = mCollider.mapOr(space, entity)
+
+                createMesh(mob, mesh, collider)
+            }
+        }
         is ByEntityEvent.Added -> {
             space.entitiesBy(entFilter).forEach { entity ->
-                val tagAccessor = mTagAccessor.map(space, entity)
-                val mesh = mMesh.map(space, entity)
-
-                if (mesh.data == null) {
-                    val entityId = bukkitNextEntityId
-                    mesh.data = Mesh.MeshData(
-                        listOf(Mesh.MeshPart(entityId, Transform.Identity))
-                    )
-                    tagAccessor.write(mesh)
-                }
-            }
-        }
-        is ByEntityEvent.Shown -> {
-            val player = event.backing.player as Player
-
-            space.entitiesBy(entFilter).forEach { entity ->
-                event.backing.isCancelled = true
                 val mob = mMob.map(space, entity).entity
-                val collider = mCollider.map(space, entity)
                 val mesh = mMesh.map(space, entity)
+                val collider = mCollider.mapOr(space, entity)
 
-                mesh.data?.let { meshData ->
-                    meshData.parts.forEach { part ->
-                        val transform = transform(mob, collider, part)
-                        val position = position(transform)
-                        val headRotation = headRotation(transform)
-
-                        val entityId = part.entityId
-                        player.sendPacket(WrapperPlayServerSpawnEntity(entityId,
-                            Optional.of(UUID.randomUUID()), EntityTypes.ARMOR_STAND,
-                            position, 0f, 0f, 0f, 0, Optional.empty(),
-                        ))
-
-                        player.sendPacket(WrapperPlayServerEntityMetadata(entityId, listOf(
-                            EntityData(0, EntityDataTypes.BYTE, (0x20).toByte()),
-                            EntityData(15, EntityDataTypes.BYTE, (0x10).toByte()),
-                            EntityData(16, EntityDataTypes.ROTATION, headRotation),
-                        )))
-
-                        player.sendPacket(WrapperPlayServerEntityEquipment(entityId, listOf(
-                            Equipment(EquipmentSlot.HELMET, SpigotConversionUtil.fromBukkitItemStack(ItemStack(Material.IRON_NUGGET).withMeta { meta -> meta.setCustomModelData(1) }))
-                        )))
-                    }
-                }
-            }
-        }
-        is ByEntityEvent.Hidden -> {
-            val player = event.backing.player as Player
-
-            space.entitiesBy(entFilter).forEach { entity ->
-                event.thisEntityCancelled = true
-                val mesh = mMesh.map(space, entity)
-
-                println("removed entity ${mesh.data?.parts?.get(0)?.entityId}")
-
-                mesh.data?.let { meshData ->
-                    val entityIds = meshData.parts.map { it.entityId }
-                    player.sendPacket(WrapperPlayServerDestroyEntities(*entityIds.toIntArray()))
+                if (!AlexandriaAPI.meshes.contains(mob)) {
+                    createMesh(mob, mesh, collider)
                 }
             }
         }
@@ -184,25 +103,11 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
                 val collider = mCollider.map(space, entity)
                 val mesh = mMesh.map(space, entity)
 
-                mesh.data?.let { meshData ->
-                    val packets = meshData.parts.flatMap { part ->
-                        val transform = transform(mob, collider, part)
-                        val position = position(transform)
-                        val headRotation = headRotation(transform)
-
-                        val entityId = part.entityId
-                        listOf(
-                            WrapperPlayServerEntityTeleport(entityId,
-                                position, 0f, 0f, false),
-                            WrapperPlayServerEntityMetadata(entityId, listOf(
-                                EntityData(16, EntityDataTypes.ROTATION, headRotation)
-                            ))
-                        )
-                    }
-
-                    mob.trackedPlayers.forEach { player ->
-                        packets.forEach { player.sendPacket(it) }
-                    }
+                AlexandriaAPI.meshes[mob]?.let { meshInstance ->
+                    meshInstance.meshTransform = Transform(
+                        mob.location.position(),
+                        collider.body?.rotation ?: Quaternion.Identity
+                    )
                 }
             }
         }

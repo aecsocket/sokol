@@ -25,7 +25,9 @@ value class Archetype internal constructor(val components: Bits) {
     }
 }
 
-fun interface ComponentMapper<C : SokolComponent> {
+interface ComponentMapper<C : SokolComponent> {
+    fun mapOr(space: SokolEngine.Space, entity: Int): C?
+
     fun map(space: SokolEngine.Space, entity: Int): C
 }
 
@@ -61,9 +63,17 @@ class SokolEngine internal constructor(
 
     fun <C : SokolComponent> componentMapper(type: ComponentType<C>): ComponentMapper<C> {
         val typeId = componentType(type)
-        return ComponentMapper { space, entity ->
-            @Suppress("UNCHECKED_CAST")
-            space.getComponent(entity, typeId) as C
+        return object : ComponentMapper<C> {
+            override fun mapOr(space: Space, entity: Int): C? {
+                @Suppress("UNCHECKED_CAST")
+                return space.getComponent(entity, typeId) as? C
+            }
+
+            override fun map(space: Space, entity: Int): C {
+                @Suppress("UNCHECKED_CAST")
+                return space.getComponent(entity, typeId) as? C
+                    ?: throw IllegalStateException("Entity $entity does not have component $type ($typeId)")
+            }
         }
     }
 
@@ -135,6 +145,10 @@ class SokolEngine internal constructor(
                 if (value) components.add(this.components[index][entity])
             }
             return SokolBlueprint(components)
+        }
+
+        fun getComponentOr(entity: Int, typeId: Int): SokolComponent? {
+            return components[typeId].getOr(entity)
         }
 
         fun getComponent(entity: Int, typeId: Int): SokolComponent {

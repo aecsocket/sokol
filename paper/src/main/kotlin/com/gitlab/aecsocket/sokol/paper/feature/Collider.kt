@@ -105,8 +105,6 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
 
                 collider.body = Collider.BodyData(id, Quaternion.Identity)
                 tagAccessor.write(collider)
-
-                println("added collider $id")
             }
         }
         is ByEntityEvent.Removed -> {
@@ -120,8 +118,6 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                     bullet.executePhysics {
                         physSpace.removeTracked(bodyId)
                     }
-
-                    println("removed collider $bodyId")
                 }
 
                 collider.body = null

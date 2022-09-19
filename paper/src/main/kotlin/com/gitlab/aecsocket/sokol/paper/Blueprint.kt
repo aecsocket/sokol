@@ -74,8 +74,6 @@ open class EntityBlueprint(private val sokol: Sokol, val backing: SokolBlueprint
             val tag = sokol.persistence.newTag()
             sokol.persistence.writeEntity(space, entity, tag)
             sokol.persistence.writeTagTo(tag, sokol.persistence.entityKey, mob.persistentDataContainer)
-
-            println("WRITTEN TAG: $tag")
         } }
     }
 }

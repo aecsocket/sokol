@@ -18,10 +18,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
 import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.util.Timings
-import com.gitlab.aecsocket.sokol.paper.feature.Collider
-import com.gitlab.aecsocket.sokol.paper.feature.ColliderSystem
-import com.gitlab.aecsocket.sokol.paper.feature.Mesh
-import com.gitlab.aecsocket.sokol.paper.feature.MeshSystem
+import com.gitlab.aecsocket.sokol.paper.feature.*
 import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import net.kyori.adventure.key.Key
 import org.bukkit.entity.Entity
@@ -126,11 +123,9 @@ class Sokol : BasePlugin() {
             @EventHandler
             fun EntityAddToWorldEvent.on() {
                 val mob = entity
-                println(" sync proc ${mob.entityId}")
                 updateEntity(mob) { space, _ ->
                     space.call(ByEntityEvent.Added(this))
                 }
-                println(" done sync proc ${mob.entityId}")
             }
 
             @EventHandler
@@ -149,11 +144,9 @@ class Sokol : BasePlugin() {
                     PacketType.Play.Server.SPAWN_ENTITY -> {
                         val packet = WrapperPlayServerSpawnEntity(event)
                         SpigotReflectionUtil.getEntityById(packet.entityId)?.let { mob ->
-                            println(" ASYNC PROC ${mob.entityId} = ${mob.persistentDataContainer}")
                             updateEntity(mob) { space, _ ->
                                 space.call(ByEntityEvent.Shown(event))
                             }
-                            println(" DONE ASYNC PROC")
                         }
                     }
                     PacketType.Play.Server.DESTROY_ENTITIES -> {

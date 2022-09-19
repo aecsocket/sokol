@@ -6,6 +6,8 @@ import kotlin.math.max
 
 interface Bag<E> : Collection<E> {
     operator fun get(index: Int): E
+
+    fun getOr(index: Int): E?
 }
 
 interface MutableBag<E> : Bag<E>, MutableCollection<E> {
@@ -40,6 +42,8 @@ private class BagImpl<E>(
     }
 
     override fun get(index: Int) = data[index]!!
+
+    override fun getOr(index: Int) = data[index]
 
     private fun grow(newCapacity: Int) {
         data = data.copyOf(newCapacity)
