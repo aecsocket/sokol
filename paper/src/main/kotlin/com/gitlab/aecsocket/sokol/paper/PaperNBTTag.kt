@@ -3,7 +3,24 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.extension.mapping
 import com.gitlab.aecsocket.sokol.core.*
 import net.minecraft.nbt.*
+import java.nio.ByteBuffer
 import java.util.*
+
+private fun bytesOf(values: FloatArray) = ByteBuffer.allocate(4 * values.size).apply {
+    values.forEach { putFloat(it) }
+}.array()
+
+private fun bytesOf(values: DoubleArray) = ByteBuffer.allocate(8 * values.size).apply {
+    values.forEach { putDouble(it) }
+}.array()
+
+private fun floatsOf(values: ByteArray) = ByteBuffer.wrap(values).run {
+    (0 until values.size / 4).map { float }.toFloatArray()
+}
+
+private fun doublesOf(values: ByteArray) = ByteBuffer.wrap(values).run {
+    (0 until values.size / 8).map { double }.toDoubleArray()
+}
 
 sealed class PaperNBTTag(
     open val backing: Tag
@@ -24,12 +41,14 @@ sealed class PaperNBTTag(
     override fun ofIntArray(values: IntArray) = PaperIntArrayTag(IntArrayTag(values))
     override fun ofLongArray(values: LongArray) = PaperLongArrayTag(LongArrayTag(values))
     override fun ofByteArray(values: ByteArray) = PaperByteArrayTag(ByteArrayTag(values))
+    override fun ofFloatArray(values: FloatArray) = PaperByteArrayTag(ByteArrayTag(bytesOf(values)))
+    override fun ofDoubleArray(values: DoubleArray) = PaperByteArrayTag(ByteArrayTag(bytesOf(values)))
     override fun ofList() = PaperListTag(ListTag())
 }
 
 private val NBTTag.backing get() = (this as PaperNBTTag).backing
 
-class PaperNumericTag(override val backing: NumericTag) : PaperNBTTag(backing), NumericNBTTag {
+data class PaperNumericTag(override val backing: NumericTag) : PaperNBTTag(backing), NumericNBTTag {
     override val int get() = backing.asInt
     override val long get() = backing.asLong
     override val byte get() = backing.asByte
@@ -38,11 +57,11 @@ class PaperNumericTag(override val backing: NumericTag) : PaperNBTTag(backing), 
     override val double get() = backing.asDouble
 }
 
-class PaperStringTag(override val backing: StringTag) : PaperNBTTag(backing), StringNBTTag {
+data class PaperStringTag(override val backing: StringTag) : PaperNBTTag(backing), StringNBTTag {
     override val string: String get() = backing.asString
 }
 
-class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(backing), CompoundNBTTag.Mutable {
+data class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(backing), CompoundNBTTag.Mutable {
     override val size get() = backing.size()
     override val keys: Set<String> get() = backing.allKeys
     override val map get() = backing.tags
@@ -76,44 +95,70 @@ class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(backing)
     override fun iterator() = backing.tags.iterator().mapping { (key, tag) -> key to paperTagOf(tag) }
 }
 
-class PaperIntArrayTag(override val backing: IntArrayTag) : PaperNBTTag(backing), IntArrayNBTTag, UUIDNBTTag {
+data class PaperIntArrayTag(override val backing: IntArrayTag) : PaperNBTTag(backing), IntArrayNBTTag, UUIDNBTTag {
     override val uuid: UUID get() = NbtUtils.loadUUID(backing)
     override val intArray: IntArray get() = backing.asIntArray
 
     override val size get() = backing.size
 
-    override fun get(index: Int) = backing[index].asInt
+    override fun getInt(index: Int) = backing[index].asInt
 
-    override fun iterator() = backing.iterator().mapping { it.asInt }
+    override fun setInt(index: Int, value: Int): PaperIntArrayTag {
+        backing[index] = IntTag.valueOf(value)
+        return this
+    }
+
+    override fun asIntIterable() = Iterable { backing.iterator().mapping { it.asInt } }
 }
 
-class PaperLongArrayTag(override val backing: LongArrayTag) : PaperNBTTag(backing), LongArrayNBTTag {
+data class PaperLongArrayTag(override val backing: LongArrayTag) : PaperNBTTag(backing), LongArrayNBTTag {
     override val longArray: LongArray get() = backing.asLongArray
 
     override val size get() = backing.size
 
-    override fun get(index: Int) = backing[index].asLong
+    override fun getLong(index: Int) = backing[index].asLong
 
-    override fun iterator() = backing.iterator().mapping { it.asLong }
+    override fun setLong(index: Int, value: Long): PaperLongArrayTag {
+        backing[index] = LongTag.valueOf(value)
+        return this
+    }
+
+    override fun asLongIterable() = Iterable { backing.iterator().mapping { it.asLong } }
 }
 
-class PaperByteArrayTag(override val backing: ByteArrayTag) : PaperNBTTag(backing), ByteArrayNBTTag {
+data class PaperByteArrayTag(override val backing: ByteArrayTag) : PaperNBTTag(backing), ByteArrayNBTTag, FloatArrayNBTTag, DoubleArrayNBTTag {
     override val byteArray: ByteArray get() = backing.asByteArray
+    override val floatArray get() = floatsOf(backing.asByteArray)
+    override val doubleArray get() = doublesOf(backing.asByteArray)
 
     override val size get() = backing.size
 
-    override fun get(index: Int) = backing[index].asByte
+    override fun getByte(index: Int) = backing[index].asByte
 
-    override fun iterator() = backing.iterator().mapping { it.asByte }
+    override fun setByte(index: Int, value: Byte): ByteArrayNBTTag {
+        backing[index] = ByteTag.valueOf(value)
+        return this
+    }
+
+    override fun asByteIterable() = Iterable { backing.iterator().mapping { it.asByte } }
+
+    override fun asFloatIterable() = floatArray.asIterable()
+
+    override fun asDoubleIterable() = doubleArray.asIterable()
 }
 
-class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), ListNBTTag.Mutable {
+data class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), ListNBTTag.Mutable {
     override val size get() = backing.size
 
     override fun get(index: Int) = paperTagOf(backing[index])
 
     override fun set(index: Int, value: NBTTag): PaperListTag {
         backing[index] = value.backing
+        return this
+    }
+
+    override fun set(index: Int, tagCreator: NBTTag.() -> NBTTag): PaperListTag {
+        backing[index] = tagCreator(this).backing
         return this
     }
 

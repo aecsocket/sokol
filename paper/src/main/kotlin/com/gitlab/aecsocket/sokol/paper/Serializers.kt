@@ -4,7 +4,6 @@ import com.gitlab.aecsocket.alexandria.core.extension.forceMap
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.SokolBlueprint
-import com.gitlab.aecsocket.sokol.core.SokolComponent
 import net.kyori.adventure.key.InvalidKeyException
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
@@ -18,7 +17,7 @@ class ComponentSerializer(
     override fun serialize(type: Type, obj: PersistentComponent?, node: ConfigurationNode) {
         if (obj == null) node.set(null)
         else {
-            obj.serialize(node)
+            obj.write(node)
         }
     }
 
@@ -27,7 +26,7 @@ class ComponentSerializer(
         } catch (ex: InvalidKeyException) { throw SerializationException(node, type, "Invalid key", ex) }
         val componentType = sokol.componentType(key)
             ?: throw SerializationException(node, type, "Invalid component type '$key', valid: ${sokol.componentTypes.keys}")
-        return componentType.deserialize(node)
+        return componentType.read(node)
     }
 }
 

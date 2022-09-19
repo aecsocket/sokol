@@ -35,7 +35,7 @@ class Bits(capacity: Int = 0) : Iterable<Boolean> {
     fun set(index: Int) {
         val word = index shr 6
         ensureCapacity(word)
-        words[word] = words[word] or 1L shl index
+        words[word] = words[word] or (1L shl index)
     }
 
     fun clear(index: Int) {
@@ -87,6 +87,9 @@ class Bits(capacity: Int = 0) : Iterable<Boolean> {
         }
         return false
     }
+
+    // todo make better
+    override fun toString() = words.contentToString()
 
     inner class BitsIterator : Iterator<Boolean> {
         private var cursor = 0

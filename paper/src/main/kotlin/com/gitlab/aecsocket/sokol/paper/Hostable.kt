@@ -68,16 +68,16 @@ class HostableByEntity : PersistentComponent {
     override val type get() = HostableByEntity
     override val key get() = Key
 
-    override fun serialize(tag: CompoundNBTTag.Mutable) {}
+    override fun write(tag: CompoundNBTTag.Mutable) {}
 
-    override fun serialize(node: ConfigurationNode) {}
+    override fun write(node: ConfigurationNode) {}
 
-    object Type : PersistentComponentType {
+    class Type : PersistentComponentType {
         override val key get() = Key
 
-        override fun deserialize(tag: CompoundNBTTag) = HostableByEntity()
+        override fun read(tag: CompoundNBTTag) = HostableByEntity()
 
-        override fun deserialize(node: ConfigurationNode) = HostableByEntity()
+        override fun read(node: ConfigurationNode) = HostableByEntity()
     }
 
     companion object : ComponentType<HostableByEntity> {

@@ -12,5 +12,5 @@ interface ByEntityEvent : SokolEvent {
 
     data class Shown(val backing: PacketSendEvent): ByEntityEvent
 
-    data class Hidden(val backing: PacketSendEvent, var cancelThisEntity: Boolean = false): ByEntityEvent
+    data class Hidden(val backing: PacketSendEvent, var thisEntityCancelled: Boolean = false): ByEntityEvent
 }

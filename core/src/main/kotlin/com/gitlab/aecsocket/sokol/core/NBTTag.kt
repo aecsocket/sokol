@@ -2,6 +2,18 @@ package com.gitlab.aecsocket.sokol.core
 
 import java.util.UUID
 
+private fun missingKey(key: String, type: String): () -> Nothing = {
+    throw IllegalStateException("Missing key '$key' of type $type")
+}
+
+private fun missingIndex(index: Int, type: String): () -> Nothing = {
+    throw IllegalStateException("Missing elemet at index $index of type $type")
+}
+
+private fun wrongType(expected: String): Nothing {
+    throw IllegalStateException("Expected tag of type $expected")
+}
+
 interface NBTTag {
     fun ofInt(value: Int): NumericNBTTag
     fun ofLong(value: Long): NumericNBTTag
@@ -15,7 +27,25 @@ interface NBTTag {
     fun ofIntArray(values: IntArray): IntArrayNBTTag
     fun ofLongArray(values: LongArray): LongArrayNBTTag
     fun ofByteArray(values: ByteArray): ByteArrayNBTTag
+    fun ofFloatArray(values: FloatArray): FloatArrayNBTTag
+    fun ofDoubleArray(values: DoubleArray): DoubleArrayNBTTag
     fun ofList(): ListNBTTag.Mutable
+
+    fun asInt() = (this as? NumericNBTTag)?.int ?: wrongType("int")
+    fun asLong() = (this as? NumericNBTTag)?.long ?: wrongType("long")
+    fun asByte() = (this as? NumericNBTTag)?.byte ?: wrongType("byte")
+    fun asShort() = (this as? NumericNBTTag)?.short ?: wrongType("short")
+    fun asFloat() = (this as? NumericNBTTag)?.float ?: wrongType("short")
+    fun asDouble() = (this as? NumericNBTTag)?.double ?: wrongType("double")
+    fun asString() = (this as? StringNBTTag)?.string ?: wrongType("string")
+    fun asUUID() = (this as? UUIDNBTTag)?.uuid ?: wrongType("uuid")
+    fun asCompound() = this as? CompoundNBTTag ?: wrongType("compound")
+    fun asIntArray() = (this as? IntArrayNBTTag)?.intArray ?: wrongType("int_array")
+    fun asLongArray() = (this as? LongArrayNBTTag)?.longArray ?: wrongType("long_array")
+    fun asByteArray() = (this as? ByteArrayNBTTag)?.byteArray ?: wrongType("byte_array")
+    fun asFloatArray() = (this as? FloatArrayNBTTag)?.floatArray ?: wrongType("float_array")
+    fun asDoubleArray() = (this as? DoubleArrayNBTTag)?.doubleArray ?: wrongType("double_array")
+    fun asList() = this as? ListNBTTag ?: wrongType("list")
 }
 
 interface NumericNBTTag : NBTTag {
@@ -35,10 +65,6 @@ interface UUIDNBTTag : NBTTag {
     val uuid: UUID
 }
 
-private fun missing(key: String, type: String): () -> Nothing = {
-    throw IllegalStateException("Missing key '$key' of type $type")
-}
-
 interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
     val size: Int
     val keys: Set<String>
@@ -48,50 +74,14 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
 
     operator fun get(key: String): NBTTag?
 
-    fun intOr(key: String): Int? = (get(key) as? NumericNBTTag)?.int
-    fun int(key: String, default: Int): Int = (get(key) as? NumericNBTTag)?.int ?: default
-    fun int(key: String, default: () -> Int = missing(key, "int")): Int = intOr(key) ?: default()
-
-    fun longOr(key: String): Long? = (get(key) as? NumericNBTTag)?.long
-    fun long(key: String, default: Long): Long = (get(key) as? NumericNBTTag)?.long ?: default
-    fun long(key: String, default: () -> Long = missing(key, "long")): Long = longOr(key) ?: default()
-
-    fun byteOr(key: String): Byte? = (get(key) as? NumericNBTTag)?.byte
-    fun byte(key: String, default: Byte): Byte = (get(key) as? NumericNBTTag)?.byte ?: default
-    fun byte(key: String, default: () -> Byte = missing(key, "long")): Byte = byteOr(key) ?: default()
-
-    fun shortOr(key: String): Short? = (get(key) as? NumericNBTTag)?.short
-    fun short(key: String, default: Short): Short = (get(key) as? NumericNBTTag)?.short ?: default
-    fun short(key: String, default: () -> Short = missing(key, "long")): Short = shortOr(key) ?: default()
-
-
-    fun floatOr(key: String): Float? = (get(key) as? NumericNBTTag)?.float
-    fun float(key: String, default: Float): Float = (get(key) as? NumericNBTTag)?.float ?: default
-    fun float(key: String, default: () -> Float = missing(key, "float")): Float = floatOr(key) ?: default()
-
-    fun doubleOr(key: String): Double? = (get(key) as? NumericNBTTag)?.double
-    fun double(key: String, default: Double): Double = (get(key) as? NumericNBTTag)?.double ?: default
-    fun double(key: String, default: () -> Double = missing(key, "double")): Double = doubleOr(key) ?: default()
-
-    fun stringOr(key: String): String? = (get(key) as? StringNBTTag)?.string
-    fun string(key: String, default: String): String = (get(key) as? StringNBTTag)?.string ?: default
-    fun string(key: String, default: () -> String = missing(key, "string")): String = stringOr(key) ?: default()
-
-
-    fun uuidOr(key: String): UUID? = (get(key) as? UUIDNBTTag)?.uuid
-    fun uuid(key: String, default: UUID): UUID = (get(key) as? UUIDNBTTag)?.uuid ?: default
-    fun uuid(key: String, default: () -> UUID = missing(key, "uuid")): UUID = uuidOr(key) ?: default()
-
-    fun compound(key: String) =
-        get(key) as? CompoundNBTTag ?: ofCompound()
-    fun intArray(key: String) =
-        (get(key) as? IntArrayNBTTag)?.intArray ?: intArrayOf()
-    fun longArray(key: String) =
-        (get(key) as? LongArrayNBTTag)?.longArray ?: longArrayOf()
-    fun byteArray(key: String) =
-        (get(key) as? ByteArrayNBTTag)?.byteArray ?: byteArrayOf()
-    fun list(key: String) =
-        get(key) as? ListNBTTag ?: ofList()
+    fun <R> get(key: String, mapper: NBTTag.() -> R): R {
+        val tag = get(key) ?: throw IllegalStateException("Requires key '$key'")
+        return try {
+            mapper(tag)
+        } catch (ex: IllegalStateException) {
+            throw IllegalStateException("Invalid key '$key': ${ex.message}")
+        }
+    }
 
     interface Mutable : CompoundNBTTag {
         operator fun set(key: String, tag: NBTTag): Mutable
@@ -104,40 +94,78 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
     }
 }
 
-interface CollectionNBTTag<E> : NBTTag, Iterable<E> {
+interface CollectionNBTTag : NBTTag {
     val size: Int
-
-    operator fun get(index: Int): E
-
-    interface Mutable<E : NBTTag> : CollectionNBTTag<E> {
-        operator fun set(index: Int, value: E): Mutable<E>
-
-        fun add(index: Int, tag: E): Mutable<E>
-
-        fun add(tag: E): Mutable<E>
-
-
-        fun removeAt(index: Int): Mutable<E>
-    }
 }
 
-interface IntArrayNBTTag : CollectionNBTTag<Int> {
+interface IntArrayNBTTag : CollectionNBTTag {
     val intArray: IntArray
+
+    fun getInt(index: Int): Int
+
+    fun setInt(index: Int, value: Int): IntArrayNBTTag
+
+    fun asIntIterable(): Iterable<Int>
 }
 
-interface LongArrayNBTTag : CollectionNBTTag<Long> {
+interface LongArrayNBTTag : CollectionNBTTag {
     val longArray: LongArray
+
+    fun getLong(index: Int): Long
+
+    fun setLong(index: Int, value: Long): LongArrayNBTTag
+
+    fun asLongIterable(): Iterable<Long>
 }
 
-interface ByteArrayNBTTag : CollectionNBTTag<Byte> {
+interface ByteArrayNBTTag : CollectionNBTTag {
     val byteArray: ByteArray
+
+    fun getByte(index: Int): Byte
+
+    fun setByte(index: Int, value: Byte): ByteArrayNBTTag
+
+    fun asByteIterable(): Iterable<Byte>
 }
 
-interface ListNBTTag : CollectionNBTTag<NBTTag> {
-    interface Mutable : ListNBTTag, CollectionNBTTag.Mutable<NBTTag> {
+interface FloatArrayNBTTag : CollectionNBTTag {
+    val floatArray: FloatArray
+
+    fun asFloatIterable(): Iterable<Float>
+}
+
+interface DoubleArrayNBTTag : CollectionNBTTag {
+    val doubleArray: DoubleArray
+
+    fun asDoubleIterable(): Iterable<Double>
+}
+
+interface ListNBTTag : CollectionNBTTag, Iterable<NBTTag> {
+    operator fun get(index: Int): NBTTag
+
+    fun <R> get(index: Int, mapper: NBTTag.() -> R): R {
+        if (index >= size)
+            throw IllegalStateException("Requires element at $index, list only has $size")
+        return try {
+            mapper(get(index))
+        } catch (ex: IllegalStateException) {
+            throw IllegalStateException("Invalid element at $index: ${ex.message}")
+        }
+    }
+
+    interface Mutable : ListNBTTag, CollectionNBTTag {
+        operator fun set(index: Int, value: NBTTag): Mutable
+
+        fun set(index: Int, tagCreator: NBTTag.() -> NBTTag): Mutable
+
+        fun add(index: Int, tag: NBTTag): Mutable
+
         fun add(index: Int, tagCreator: NBTTag.() -> NBTTag): Mutable
 
+        fun add(tag: NBTTag): Mutable
 
         fun add(tagCreator: NBTTag.() -> NBTTag): Mutable
+
+        fun removeAt(index: Int): Mutable
     }
 }

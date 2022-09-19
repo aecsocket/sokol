@@ -1,6 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.sokol.core.ComponentType
+import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import org.bukkit.Chunk
 import org.bukkit.World
@@ -9,6 +10,18 @@ import org.bukkit.block.BlockState
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
+
+data class NBTTagAccessor(
+    internal val rootTag: CompoundNBTTag.Mutable
+) : SokolComponent {
+    override val type get() = NBTTagAccessor
+
+    companion object : ComponentType<NBTTagAccessor>
+}
+
+fun NBTTagAccessor.tagFor(component: PersistentComponent) = rootTag.forComponent(component)
+
+fun NBTTagAccessor.write(component: PersistentComponent) = component.write(tagFor(component))
 
 interface HostedByWorld : SokolComponent {
     override val type get() = HostedByWorld

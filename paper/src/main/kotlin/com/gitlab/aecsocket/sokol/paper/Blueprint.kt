@@ -1,9 +1,11 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
+import com.gitlab.aecsocket.craftbullet.paper.hasCollision
 import com.gitlab.aecsocket.sokol.core.*
 import org.bukkit.Location
 import org.bukkit.craftbukkit.v1_19_R1.entity.CraftAreaEffectCloud
+import org.bukkit.entity.ArmorStand
 import org.bukkit.entity.Entity
 import org.bukkit.entity.EntityType
 import org.bukkit.event.entity.CreatureSpawnEvent
@@ -54,13 +56,15 @@ open class EntityBlueprint(private val sokol: Sokol, val backing: SokolBlueprint
 
     fun spawnEntity(location: Location): Entity {
         return location.world.spawnEntity(
-            location, EntityType.AREA_EFFECT_CLOUD, CreatureSpawnEvent.SpawnReason.CUSTOM
-        ) { mob ->
-            (mob as CraftAreaEffectCloud).handle.apply {
-                tickCount = Int.MIN_VALUE
-                duration = -1
-                waitTime = Int.MIN_VALUE
-            }
+            location, EntityType.ARMOR_STAND, CreatureSpawnEvent.SpawnReason.CUSTOM
+        ) { mob -> (mob as ArmorStand).apply {
+            isVisible = false
+            hasCollision = false
+            isMarker = true
+            isSilent = true
+            setAI(false)
+            setGravity(false)
+            setCanTick(false)
 
             val space = sokol.engine.createSpace(1)
             val entity = backing.create(space)
@@ -70,7 +74,9 @@ open class EntityBlueprint(private val sokol: Sokol, val backing: SokolBlueprint
             val tag = sokol.persistence.newTag()
             sokol.persistence.writeEntity(space, entity, tag)
             sokol.persistence.writeTagTo(tag, sokol.persistence.entityKey, mob.persistentDataContainer)
-        }
+
+            println("WRITTEN TAG: $tag")
+        } }
     }
 }
 

@@ -45,8 +45,10 @@ internal class SokolCommand(
             .literal("summon", desc("Creates and summons an entity blueprint."))
             .argument(StringArgument.of("id"), desc("TODO: id of bp"))
             .argument(LocationArgument.of("location"), desc("Where to spawn the entity."))
+            .argument(IntegerArgument.newBuilder<CommandSender?>("amount")
+                .withMin(1)
+                .asOptional(), desc("The amount of entities to spawn."))
             .permission(perm("summon"))
-            .senderType(Player::class.java)
             .handler { handle(it, ::summon) })
     }
 
@@ -112,8 +114,10 @@ internal class SokolCommand(
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val blueprint = plugin.entityBlueprints[ctx.get("id")] ?: throw Exception() // todo
         val location = ctx.get<Location>("location")
-        sender as Player
+        val amount = ctx.value("amount") { 1 }
 
-        blueprint.spawnEntity(location)
+        repeat(amount) {
+            blueprint.spawnEntity(location)
+        }
     }
 }

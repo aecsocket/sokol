@@ -1,5 +1,13 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
+import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
+import com.github.retrooper.packetevents.PacketEvents
+import com.github.retrooper.packetevents.event.PacketListenerAbstract
+import com.github.retrooper.packetevents.event.PacketSendEvent
+import com.github.retrooper.packetevents.protocol.packettype.PacketType
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
@@ -12,9 +20,14 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.util.Timings
 import com.gitlab.aecsocket.sokol.paper.feature.Collider
 import com.gitlab.aecsocket.sokol.paper.feature.ColliderSystem
+import com.gitlab.aecsocket.sokol.paper.feature.Mesh
+import com.gitlab.aecsocket.sokol.paper.feature.MeshSystem
+import io.github.retrooper.packetevents.util.SpigotReflectionUtil
 import net.kyori.adventure.key.Key
+import org.bukkit.entity.Entity
+import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
-import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
@@ -92,41 +105,55 @@ class Sokol : BasePlugin() {
         registerConsumer {
             engine
                 .systemFactory { ColliderSystem(it) }
-                .componentType(Collider)
-                .componentType(HostableByEntity)
+                .systemFactory { MeshSystem(it) }
+
+                .componentType(NBTTagAccessor)
+                .componentType(HostedByWorld)
+                .componentType(HostedByChunk)
                 .componentType(HostedByEntity)
+                .componentType(HostedByBlock)
+                .componentType(HostedByItem)
+
                 .componentType(HostableByEntity)
-            registerComponentType(HostableByEntity.Type)
+                .componentType(Collider)
+                .componentType(Mesh)
+            registerComponentType(HostableByEntity.Type())
+            registerComponentType(Collider.Type())
+            registerComponentType(Mesh.Type())
         }
 
         registerEvents(object : Listener {
-            /*@EventHandler
+            @EventHandler
             fun EntityAddToWorldEvent.on() {
                 val mob = entity
-                updateEntity(mob) { entity ->
-                    engine.call(setOf(entity), ByEntityEvent.Added(this))
+                println(" sync proc ${mob.entityId}")
+                updateEntity(mob) { space, _ ->
+                    space.call(ByEntityEvent.Added(this))
                 }
+                println(" done sync proc ${mob.entityId}")
             }
 
             @EventHandler
             fun EntityRemoveFromWorldEvent.on() {
                 val mob = entity
-                updateEntity(mob) { entity ->
-                    engine.call(setOf(entity), ByEntityEvent.Removed(this))
+                updateEntity(mob) { space, _ ->
+                    space.call(ByEntityEvent.Removed(this))
                 }
-            }*/
+            }
         })
 
-        /*PacketEvents.getAPI().eventManager.registerListener(object : PacketListenerAbstract() {
+        PacketEvents.getAPI().eventManager.registerListener(object : PacketListenerAbstract() {
             override fun onPacketSend(event: PacketSendEvent) {
                 if (event.player !is Player) return
                 when (event.packetType) {
                     PacketType.Play.Server.SPAWN_ENTITY -> {
                         val packet = WrapperPlayServerSpawnEntity(event)
                         SpigotReflectionUtil.getEntityById(packet.entityId)?.let { mob ->
-                            updateEntity(mob) { entity ->
-                                engine.call(setOf(entity), ByEntityEvent.Shown(event))
+                            println(" ASYNC PROC ${mob.entityId} = ${mob.persistentDataContainer}")
+                            updateEntity(mob) { space, _ ->
+                                space.call(ByEntityEvent.Shown(event))
                             }
+                            println(" DONE ASYNC PROC")
                         }
                     }
                     PacketType.Play.Server.DESTROY_ENTITIES -> {
@@ -137,8 +164,8 @@ class Sokol : BasePlugin() {
                         while (iter.hasNext()) {
                             val id = iter.next()
                             SpigotReflectionUtil.getEntityById(id)?.let { mob ->
-                                updateEntity(mob) { entity ->
-                                    if (engine.call(setOf(entity), ByEntityEvent.Hidden(event)).cancelThisEntity) {
+                                updateEntity(mob) { space, _ ->
+                                    if (space.call(ByEntityEvent.Hidden(event)).thisEntityCancelled) {
                                         iter.remove()
                                     }
                                 }
@@ -149,7 +176,7 @@ class Sokol : BasePlugin() {
                     }
                 }
             }
-        })*/
+        })
     }
 
     override fun init() {
@@ -209,7 +236,7 @@ class Sokol : BasePlugin() {
                                 node.node(ENTITIES).childrenMap().forEach { (_, child) ->
                                     _entityBlueprints.register(child.force())
                                 }
-                            } catch (ex: ConfigurateException) {
+                            } catch (ex: Exception) {
                                 log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
                             }
                         }
@@ -236,13 +263,13 @@ class Sokol : BasePlugin() {
 
     fun componentType(key: Key) = _componentTypes[key.asString()]
 
-    /*
-    fun updateEntity(mob: Entity, callback: (Int) -> Unit) {
+    fun updateEntity(mob: Entity, callback: (SokolEngine.Space, Int) -> Unit) {
         persistence.getTag(mob.persistentDataContainer, persistence.entityKey)?.let { tag ->
-            val entity = persistence.readBlueprint(tag)
-            entity.add(hostedByEntity(mob))
-            callback(entity)
-            persistence.writeEntity(entity, persistence.forceTag(mob.persistentDataContainer, persistence.entityKey))
+            val space = engine.createSpace(1)
+            val entity = persistence.readBlueprint(tag).create(space)
+            space.addComponent(entity, NBTTagAccessor(tag))
+            space.addComponent(entity, hostedByEntity(mob))
+            callback(space, entity)
         }
-    }*/
+    }
 }

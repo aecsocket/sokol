@@ -1,9 +1,6 @@
 package com.gitlab.aecsocket.sokol.core
 
-import com.gitlab.aecsocket.sokol.core.util.Bits
-import com.gitlab.aecsocket.sokol.core.util.IntDeque
-import com.gitlab.aecsocket.sokol.core.util.MutableBag
-import com.gitlab.aecsocket.sokol.core.util.emptyBag
+import com.gitlab.aecsocket.sokol.core.util.*
 
 interface SokolComponent {
     val type: ComponentType<*>
@@ -78,16 +75,18 @@ class SokolEngine internal constructor(
 
     inner class Space internal constructor(capacity: Int) {
         val engine get() = this@SokolEngine
-        private val entities = emptyBag<Bits>(capacity)
-        internal val components = Array<MutableBag<SokolComponent>>(componentTypes.size) { emptyBag(capacity) }
+        val entities = emptyBag<Bits>(capacity)
+        private val components = Array<MutableBag<SokolComponent>>(componentTypes.size) { emptyBag(capacity) }
         private val freeEntities = IntDeque()
 
         private fun EntityFilter.applies(entity: Int): Boolean {
             val types = entities[entity]
-            return all.containsAll(types)
+            return types.containsAll(all)
                 && (one.isEmpty() || one.intersects(types))
                 && !none.intersects(types)
         }
+
+        val entitiesCount: Int get() = entities.size
 
         fun entitiesBy(filter: EntityFilter): Set<Int> {
             val res = HashSet<Int>()

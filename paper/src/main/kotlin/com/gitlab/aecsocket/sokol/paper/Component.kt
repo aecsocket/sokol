@@ -8,15 +8,15 @@ import org.spongepowered.configurate.ConfigurationNode
 interface PersistentComponent : SokolComponent {
     val key: Key
 
-    fun serialize(tag: CompoundNBTTag.Mutable)
+    fun write(tag: CompoundNBTTag.Mutable)
 
-    fun serialize(node: ConfigurationNode)
+    fun write(node: ConfigurationNode)
 }
 
 interface PersistentComponentType {
     val key: Key
 
-    fun deserialize(tag: CompoundNBTTag): PersistentComponent
+    fun read(tag: CompoundNBTTag): PersistentComponent
 
-    fun deserialize(node: ConfigurationNode): PersistentComponent
+    fun read(node: ConfigurationNode): PersistentComponent
 }

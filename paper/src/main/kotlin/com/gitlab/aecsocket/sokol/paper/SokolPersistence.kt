@@ -46,14 +46,14 @@ class SokolPersistence internal constructor(
             val type = sokol.componentType(key)
                 ?: throw IllegalArgumentException("Invalid component key '$key'")
 
-            type.deserialize(child)
+            type.read(child)
         }
         return SokolBlueprint(components)
     }
 
     private fun SokolComponent.writeInto(tag: CompoundNBTTag.Mutable) {
         if (this is PersistentComponent) {
-            tag.set(key.toString()) { ofCompound().apply { serialize(this) } }
+            tag.set(key.toString()) { ofCompound().apply { write(this) } }
         }
     }
 
@@ -66,4 +66,9 @@ class SokolPersistence internal constructor(
         tag.clear()
         space.getComponents(entity).forEach { it.writeInto(tag) }
     }
+}
+
+fun CompoundNBTTag.Mutable.forComponent(component: PersistentComponent): CompoundNBTTag.Mutable {
+    val key = component.key.asString()
+    return (get(key) as? CompoundNBTTag.Mutable) ?: PaperCompoundTag(CompoundTag()).also { set(key, it) }
 }

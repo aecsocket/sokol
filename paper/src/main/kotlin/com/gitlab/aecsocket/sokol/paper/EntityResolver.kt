@@ -82,8 +82,9 @@ class EntityResolver(
 
         tag?.let {
             stats.updated++
-            val blueprint = sokol.persistence.readBlueprint(PaperCompoundTag(tag))
-            val entity = space.createEntity(blueprint.archetype(space.engine))
+            val wrappedTag = PaperCompoundTag(tag)
+            val entity = sokol.persistence.readBlueprint(wrappedTag).create(space)
+            space.addComponent(entity, NBTTagAccessor(wrappedTag))
             callback(entity, tag)
         }
     }
@@ -104,7 +105,6 @@ class EntityResolver(
         }
     }
 
-    // TODO save the data after callback!!!
     private fun resolveChunk(space: SokolEngine.Space, chunk: LevelChunk, world: World) {
         resolveTag(space, OBJECT_TYPE_CHUNK, tagOf(chunk.bukkitChunk.persistentDataContainer)) { entity, _ ->
             space.addComponent(entity, hostedByChunk(chunk.bukkitChunk))
@@ -114,7 +114,7 @@ class EntityResolver(
     }
 
     private fun resolveEntity(space: SokolEngine.Space, mob: Entity) {
-        resolveTag(space, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity, tag ->
+        resolveTag(space, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity, _ ->
             val backing = lazy { mob.bukkitEntity }
             space.addComponent(entity, object : HostedByEntity {
                 override val entity get() = backing.value

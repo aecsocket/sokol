@@ -1,80 +1,211 @@
 package com.gitlab.aecsocket.sokol.paper.feature
 
-import com.gitlab.aecsocket.alexandria.paper.extension.key
+import com.github.retrooper.packetevents.protocol.entity.data.EntityData
+import com.github.retrooper.packetevents.protocol.entity.data.EntityDataTypes
+import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes
+import com.github.retrooper.packetevents.protocol.player.Equipment
+import com.github.retrooper.packetevents.protocol.player.EquipmentSlot
+import com.github.retrooper.packetevents.util.Vector3d
+import com.github.retrooper.packetevents.util.Vector3f
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityEquipment
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityMetadata
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
+import com.gitlab.aecsocket.alexandria.core.extension.EulerOrder
+import com.gitlab.aecsocket.alexandria.core.extension.degrees
+import com.gitlab.aecsocket.alexandria.core.extension.euler
+import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.alexandria.paper.sendPacket
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.ByEntityEvent
-import com.gitlab.aecsocket.sokol.paper.HostedByEntity
-import com.gitlab.aecsocket.sokol.paper.Sokol
-import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.core.extension.asTransform
+import com.gitlab.aecsocket.sokol.core.extension.ofTransform
+import com.gitlab.aecsocket.sokol.paper.*
+import io.github.retrooper.packetevents.util.SpigotConversionUtil
+import org.bukkit.Material
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.kotlin.extensions.get
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
+import java.util.*
 
-private const val MESH = "mesh"
+private const val PARTS = "parts"
+private const val ENTITY_ID = "entity_id"
+private const val TRANSFORM = "transform"
 
-/*
-class MeshComponent : SokolComponentType {
-    override val key get() = MeshComponent.key
+data class Mesh(
+    var data: MeshData? = null
+) : PersistentComponent {
+    @ConfigSerializable
+    data class MeshData(
+        @Required val parts: List<MeshPart>,
+    )
 
-    override fun deserialize(node: ConfigurationNode) = Component()
+    @ConfigSerializable
+    data class MeshPart(
+        @Required val entityId: Int,
+        @Required val transform: Transform,
+    )
 
-    override fun deserialize(tag: CompoundNBTTag) = Component()
+    override val type get() = Mesh
+    override val key get() = Key
 
-    inner class Component : SokolComponent.Persistent {
-        override val key get() = ColliderComponent.key
-
-        override fun serialize(node: ConfigurationNode) {}
-
-        override fun serialize(tag: CompoundNBTTag.Mutable) {}
+    override fun write(tag: CompoundNBTTag.Mutable) {
+        data?.let { mesh -> tag.set(PARTS) { ofList().apply {
+            mesh.parts.forEach { part -> add { ofCompound()
+                .set(ENTITY_ID) { ofInt(part.entityId) }
+                .set(TRANSFORM) { ofTransform(part.transform) }
+            } }
+        } } }
     }
 
-    companion object : ComponentKey<Component> {
-        override val key = SokolAPI.key(MESH)
+    override fun write(node: ConfigurationNode) {
+        data?.let { node.set(it) }
+    }
+
+    class Type : PersistentComponentType {
+        override val key get() = Key
+
+        override fun read(tag: CompoundNBTTag) = Mesh(
+            if (tag.contains(PARTS)) MeshData(
+                tag.get(PARTS) { asList().map { it.asCompound().let { part -> MeshPart(
+                    part.get(ENTITY_ID) { asInt() },
+                    part.get(TRANSFORM) { asTransform() },
+                ) } } }
+            ) else null
+        )
+
+        override fun read(node: ConfigurationNode) = Mesh(
+            if (node.hasChild(PARTS)) node.get<MeshData>() else null
+        )
+    }
+
+    companion object : ComponentType<Mesh> {
+        val Key = SokolAPI.key("mesh")
     }
 }
 
-private val filter = entityFilterOf(setOf(
-    HostedByEntity.key,
-    ColliderComponent.key,
-    MeshComponent.key,
-))
+class MeshSystem(engine: SokolEngine) : SokolSystem {
+    private val entFilter = engine.entityFilter(
+        setOf(NBTTagAccessor, HostedByEntity, Collider, Mesh)
+    )
+    private val mTagAccessor = engine.componentMapper(NBTTagAccessor)
+    private val mMob = engine.componentMapper(HostedByEntity)
+    private val mCollider = engine.componentMapper(Collider)
+    private val mMesh = engine.componentMapper(Mesh)
 
-class MeshSystem(
-    private val sokol: Sokol
-) : SokolSystem {
-    override fun handle(entities: EntityAccessor, event: SokolEvent) {
-        when (event) {
-            is ByEntityEvent.Shown -> {
-                val player = event.backing.player as Player
+    private fun transform(mob: Entity, collider: Collider, part: Mesh.MeshPart): Transform {
+        return Transform(
+            mob.location.position(),
+            collider.body?.rotation ?: Quaternion.Identity
+        ) + part.transform
+    }
 
-                entities.by(filter).forEach { entity ->
-                    event.backing.isCancelled = true
+    private fun position(transform: Transform) = transform.translation.y { it - 1.45 }.run {
+        Vector3d(x, y, z)
+    }
 
-                    // todo actual stuff
+    private fun headRotation(transform: Transform) = transform.rotation.euler(EulerOrder.ZYX).degrees.x { -it }.run {
+        Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
+    }
 
+    override fun handle(space: SokolEngine.Space, event: SokolEvent) = when (event) {
+        is ByEntityEvent.Added -> {
+            space.entitiesBy(entFilter).forEach { entity ->
+                val tagAccessor = mTagAccessor.map(space, entity)
+                val mesh = mMesh.map(space, entity)
+
+                if (mesh.data == null) {
+                    val entityId = bukkitNextEntityId
+                    mesh.data = Mesh.MeshData(
+                        listOf(Mesh.MeshPart(entityId, Transform.Identity))
+                    )
+                    tagAccessor.write(mesh)
                 }
             }
-            is ByEntityEvent.Hidden -> {
-                val player = event.backing.player as Player
+        }
+        is ByEntityEvent.Shown -> {
+            val player = event.backing.player as Player
 
-                entities.by(filter).forEach { entity ->
-                    event.cancelThisEntity = true
+            space.entitiesBy(entFilter).forEach { entity ->
+                event.backing.isCancelled = true
+                val mob = mMob.map(space, entity).entity
+                val collider = mCollider.map(space, entity)
+                val mesh = mMesh.map(space, entity)
 
-                    // todo hide mesh stands
-                }
-            }
-            is UpdateEvent -> {
-                entities.by(filter).forEach { entity ->
-                    val mob = entity.force(HostedByEntity).entity
-                    val collider = entity.force(ColliderComponent)
-                    val mesh = entity.force(MeshComponent)
+                mesh.data?.let { meshData ->
+                    meshData.parts.forEach { part ->
+                        val transform = transform(mob, collider, part)
+                        val position = position(transform)
+                        val headRotation = headRotation(transform)
 
-                    mob.trackedPlayers.forEach { player ->
-                        player.sendPacket()
+                        val entityId = part.entityId
+                        player.sendPacket(WrapperPlayServerSpawnEntity(entityId,
+                            Optional.of(UUID.randomUUID()), EntityTypes.ARMOR_STAND,
+                            position, 0f, 0f, 0f, 0, Optional.empty(),
+                        ))
+
+                        player.sendPacket(WrapperPlayServerEntityMetadata(entityId, listOf(
+                            EntityData(0, EntityDataTypes.BYTE, (0x20).toByte()),
+                            EntityData(15, EntityDataTypes.BYTE, (0x10).toByte()),
+                            EntityData(16, EntityDataTypes.ROTATION, headRotation),
+                        )))
+
+                        player.sendPacket(WrapperPlayServerEntityEquipment(entityId, listOf(
+                            Equipment(EquipmentSlot.HELMET, SpigotConversionUtil.fromBukkitItemStack(ItemStack(Material.IRON_NUGGET).withMeta { meta -> meta.setCustomModelData(1) }))
+                        )))
                     }
                 }
             }
         }
+        is ByEntityEvent.Hidden -> {
+            val player = event.backing.player as Player
+
+            space.entitiesBy(entFilter).forEach { entity ->
+                event.thisEntityCancelled = true
+                val mesh = mMesh.map(space, entity)
+
+                println("removed entity ${mesh.data?.parts?.get(0)?.entityId}")
+
+                mesh.data?.let { meshData ->
+                    val entityIds = meshData.parts.map { it.entityId }
+                    player.sendPacket(WrapperPlayServerDestroyEntities(*entityIds.toIntArray()))
+                }
+            }
+        }
+        is UpdateEvent -> {
+            space.entitiesBy(entFilter).forEach { entity ->
+                val mob = mMob.map(space, entity).entity
+                val collider = mCollider.map(space, entity)
+                val mesh = mMesh.map(space, entity)
+
+                mesh.data?.let { meshData ->
+                    val packets = meshData.parts.flatMap { part ->
+                        val transform = transform(mob, collider, part)
+                        val position = position(transform)
+                        val headRotation = headRotation(transform)
+
+                        val entityId = part.entityId
+                        listOf(
+                            WrapperPlayServerEntityTeleport(entityId,
+                                position, 0f, 0f, false),
+                            WrapperPlayServerEntityMetadata(entityId, listOf(
+                                EntityData(16, EntityDataTypes.ROTATION, headRotation)
+                            ))
+                        )
+                    }
+
+                    mob.trackedPlayers.forEach { player ->
+                        packets.forEach { player.sendPacket(it) }
+                    }
+                }
+            }
+        }
+        else -> {}
     }
 }
-*/
