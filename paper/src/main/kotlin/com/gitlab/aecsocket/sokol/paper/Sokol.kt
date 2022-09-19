@@ -149,24 +149,6 @@ class Sokol : BasePlugin() {
                             }
                         }
                     }
-                    PacketType.Play.Server.DESTROY_ENTITIES -> {
-                        val packet = WrapperPlayServerDestroyEntities(event)
-                        val entityIds = packet.entityIds.toMutableList()
-
-                        val iter = entityIds.iterator()
-                        while (iter.hasNext()) {
-                            val id = iter.next()
-                            SpigotReflectionUtil.getEntityById(id)?.let { mob ->
-                                updateEntity(mob) { space, _ ->
-                                    if (space.call(ByEntityEvent.Hidden(event)).thisEntityCancelled) {
-                                        iter.remove()
-                                    }
-                                }
-                            }
-                        }
-
-                        packet.entityIds = entityIds.toIntArray()
-                    }
                 }
             }
         })

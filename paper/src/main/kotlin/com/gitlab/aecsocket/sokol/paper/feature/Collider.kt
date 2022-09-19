@@ -89,6 +89,8 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
 
                 val id = UUID.randomUUID()
                 val physSpace = bullet.spaceOf(mob.world)
+
+                val rotation = collider.body?.rotation ?: Quaternion.Identity
                 bullet.executePhysics {
                     physSpace.addCollisionObject(object : PhysicsRigidBody(shape, mass), TrackedPhysicsObject {
                         override val id get() = id
@@ -100,10 +102,11 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                         }
                     }.also {
                         it.physPosition = mob.location.position().bullet()
+                        it.physRotation = rotation.bullet()
                     })
                 }
 
-                collider.body = Collider.BodyData(id, Quaternion.Identity)
+                collider.body = Collider.BodyData(id, rotation)
                 tagAccessor.write(collider)
             }
         }

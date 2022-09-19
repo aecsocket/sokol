@@ -28,6 +28,8 @@ internal class SokolCommand(
     override val plugin: Sokol
 ) : BaseCommand(plugin) {
     init {
+        captions?.registerMessageFactory(EntityBlueprintArgument.ARGUMENT_PARSE_FAILURE_ENTITY_BLUEPRINT, captionLocalizer)
+
         manager.command(root
             .literal("stats", desc("Show stats for the object resolver."))
             .permission(perm("stats"))
@@ -43,7 +45,7 @@ internal class SokolCommand(
             .handler { handle(it, ::give) })
         manager.command(root
             .literal("summon", desc("Creates and summons an entity blueprint."))
-            .argument(StringArgument.of("id"), desc("TODO: id of bp"))
+            .argument(EntityBlueprintArgument(plugin, "blueprint", desc("The blueprint to use.")))
             .argument(LocationArgument.of("location"), desc("Where to spawn the entity."))
             .argument(IntegerArgument.newBuilder<CommandSender?>("amount")
                 .withMin(1)
@@ -112,12 +114,17 @@ internal class SokolCommand(
     }
 
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val blueprint = plugin.entityBlueprints[ctx.get("id")] ?: throw Exception() // todo
+        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
         val location = ctx.get<Location>("location")
         val amount = ctx.value("amount") { 1 }
 
         repeat(amount) {
             blueprint.spawnEntity(location)
         }
+
+        plugin.sendMessage(sender, i18n.csafe("summon") {
+            subst("id", text(blueprint.id))
+            icu("amount", amount)
+        })
     }
 }

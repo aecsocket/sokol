@@ -7,7 +7,7 @@ glossa = "0.5.2"
 adventure = "4.11.0"
 configurate = "4.1.2"
 cloud = "1.8.0-SNAPSHOT"
-alexandria = "0.5.3"
+alexandria = "0.5.4"
 bstats = "2.2.1"
 craftbullet = "0.1.2"
 
