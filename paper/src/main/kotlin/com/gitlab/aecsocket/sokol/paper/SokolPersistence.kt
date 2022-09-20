@@ -34,9 +34,6 @@ class SokolPersistence internal constructor(
 
     fun readBlueprint(tag: CompoundNBTTag): SokolBlueprint {
         val components = tag.map { (rawKey, child) ->
-            child as? CompoundNBTTag
-                ?: throw IllegalArgumentException("Component for key '$rawKey' is not compound tag")
-
             val key = try {
                 Key.key(rawKey)
             } catch (ex: InvalidKeyException) {
@@ -46,14 +43,18 @@ class SokolPersistence internal constructor(
             val type = sokol.componentType(key)
                 ?: throw IllegalArgumentException("Invalid component key '$key'")
 
-            type.read(child)
+            try {
+                type.read(child)
+            } catch (ex: IllegalStateException) {
+                throw IllegalArgumentException("Could not read component for '$key'", ex)
+            }
         }
         return SokolBlueprint(components)
     }
 
     private fun SokolComponent.writeInto(tag: CompoundNBTTag.Mutable) {
         if (this is PersistentComponent) {
-            tag.set(key.toString()) { ofCompound().apply { write(this) } }
+            tag.set(key.toString()) { write()(this) }
         }
     }
 

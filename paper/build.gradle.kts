@@ -20,6 +20,8 @@ dependencies {
     api(projects.sokolCore)
     paperDevBundle("$minecraft-R0.1-SNAPSHOT")
 
+    compileOnly(libs.kotlinReflect)
+
     compileOnly(libs.adventureExtraKotlin)
 
     compileOnly(libs.configurateCore)

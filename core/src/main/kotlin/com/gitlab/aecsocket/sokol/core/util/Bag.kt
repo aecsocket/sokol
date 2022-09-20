@@ -43,7 +43,7 @@ private class BagImpl<E>(
 
     override fun get(index: Int) = data[index]!!
 
-    override fun getOr(index: Int) = data[index]
+    override fun getOr(index: Int) = if (index >= data.size) null else data[index]
 
     private fun grow(newCapacity: Int) {
         data = data.copyOf(newCapacity)

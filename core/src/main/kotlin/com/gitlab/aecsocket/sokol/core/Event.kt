@@ -1,11 +1,9 @@
 package com.gitlab.aecsocket.sokol.core
 
-interface SokolEvent
+interface SokolEvent {
+    object Add : SokolEvent
 
-object UpdateEvent : SokolEvent
+    object Update : SokolEvent
 
-interface HostEvent : SokolEvent
-
-object HostByItemEvent : HostEvent
-
-object HostByEntityEvent : HostEvent
+    object Remove : SokolEvent
+}

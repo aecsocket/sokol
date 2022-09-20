@@ -16,7 +16,6 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import org.bukkit.Location
 import org.bukkit.command.CommandSender
-import org.bukkit.entity.Player
 
 private val STATS_INTERVALS = listOf(
     5 * TPS,

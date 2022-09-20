@@ -82,6 +82,11 @@ data class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(bac
         return this
     }
 
+    override fun setOrClear(key: String, tagCreator: NBTTag.() -> NBTTag?): PaperCompoundTag {
+        tagCreator(this)?.let { set(key, it) } ?: remove(key)
+        return this
+    }
+
     override fun remove(key: String): PaperCompoundTag {
         backing.tags.remove(key)
         return this

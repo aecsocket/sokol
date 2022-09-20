@@ -6,14 +6,16 @@ import com.github.retrooper.packetevents.PacketEvents
 import com.github.retrooper.packetevents.event.PacketListenerAbstract
 import com.github.retrooper.packetevents.event.PacketSendEvent
 import com.github.retrooper.packetevents.protocol.packettype.PacketType
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.keyed.Registry
+import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.BasePlugin
+import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
 import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.gitlab.aecsocket.sokol.core.*
@@ -48,6 +50,7 @@ class Sokol : BasePlugin() {
 
     private data class Registration(
         val onInit: InitContext.() -> Unit,
+        val onPostInit: PostInitContext.() -> Unit,
     )
 
     interface InitContext {
@@ -55,6 +58,8 @@ class Sokol : BasePlugin() {
 
         fun registerComponentType(type: PersistentComponentType)
     }
+
+    interface PostInitContext
 
     init {
         instance = this
@@ -91,7 +96,7 @@ class Sokol : BasePlugin() {
                 serializers
                     .register(PersistentComponent::class, ComponentSerializer(this@Sokol))
                     //.registerExact(ItemBlueprint::class, ItemBlueprintSerializer(this@Sokol))
-                    .registerExact(SokolBlueprint::class, BlueprintSerializer(this@Sokol))
+                    .registerExact(SokolBlueprint::class, BlueprintSerializer())
                     .registerExact(KeyedEntityBlueprint::class, EntityBlueprintSerializer(this@Sokol))
             },
             onLoad = {
@@ -99,40 +104,22 @@ class Sokol : BasePlugin() {
             }
         )
 
-        registerConsumer {
-            engine
-                .systemFactory { ColliderSystem(it) }
-                .systemFactory { MeshSystem(it) }
-
-                .componentType(NBTTagAccessor)
-                .componentType(HostedByWorld)
-                .componentType(HostedByChunk)
-                .componentType(HostedByEntity)
-                .componentType(HostedByBlock)
-                .componentType(HostedByItem)
-
-                .componentType(HostableByEntity)
-                .componentType(Collider)
-                .componentType(Mesh)
-            registerComponentType(HostableByEntity.Type())
-            registerComponentType(Collider.Type())
-            registerComponentType(Mesh.Type())
-        }
+        registerDefaultConsumer()
 
         registerEvents(object : Listener {
             @EventHandler
-            fun EntityAddToWorldEvent.on() {
-                val mob = entity
+            fun on(event: EntityAddToWorldEvent) {
+                val mob = event.entity
                 updateEntity(mob) { space, _ ->
-                    space.call(ByEntityEvent.Added(this))
+                    space.call(SokolEvent.Add)
                 }
             }
 
             @EventHandler
-            fun EntityRemoveFromWorldEvent.on() {
-                val mob = entity
+            fun on(event: EntityRemoveFromWorldEvent) {
+                val mob = event.entity
                 updateEntity(mob) { space, _ ->
-                    space.call(ByEntityEvent.Removed(this))
+                    space.call(SokolEvent.Remove)
                 }
             }
         })
@@ -145,7 +132,7 @@ class Sokol : BasePlugin() {
                         val packet = WrapperPlayServerSpawnEntity(event)
                         SpigotReflectionUtil.getEntityById(packet.entityId)?.let { mob ->
                             updateEntity(mob) { space, _ ->
-                                space.call(ByEntityEvent.Shown(event))
+                                space.call(EntityEvent.Show(event))
                             }
                         }
                     }
@@ -154,27 +141,38 @@ class Sokol : BasePlugin() {
         })
     }
 
-    override fun init() {
-        val engineBuilder = SokolEngine.Builder()
-        val initCtx = object : InitContext {
-            override val engine get() = engineBuilder
+    override fun initInternal(): Boolean {
+        if (super.initInternal()) {
+            val engineBuilder = SokolEngine.Builder()
+            val initCtx = object : InitContext {
+                override val engine get() = engineBuilder
 
-            override fun registerComponentType(type: PersistentComponentType) {
-                _componentTypes[type.key.asString()] = type
+                override fun registerComponentType(type: PersistentComponentType) {
+                    _componentTypes[type.key.asString()] = type
+                }
             }
+            try {
+                registrations.forEach { it.onInit(initCtx) }
+                engine = engineBuilder.build()
+            } catch (ex: Exception) {
+                log.line(LogLevel.Error, ex) { "Could not set up engine" }
+                return false
+            }
+
+            log.line(LogLevel.Info) { "Set up ${engineBuilder.componentTypes.size} transient component types, ${_componentTypes.size} persistent component types, ${engine.systems.size} systems" }
+
+            val postInitCtx = object : PostInitContext {}
+            registrations.forEach { it.onPostInit(postInitCtx) }
+
+            scheduleRepeating {
+                val space = engine.createSpace()
+                resolverTimings.time { entityResolver.resolve(space) }
+                engineTimings.time { space.call(SokolEvent.Update) }
+            }
+
+            return true
         }
-        registrations.forEach { it.onInit(initCtx) }
-        engine = engineBuilder.build()
-
-        log.line(LogLevel.Info) { "Set up ${engineBuilder.componentTypes.size} transient component types, ${_componentTypes.size} persistent component types, ${engine.systems.size} systems" }
-
-        scheduleRepeating {
-            val space = engine.createSpace()
-            resolverTimings.time { entityResolver.resolve(space) }
-            engineTimings.time { space.call(UpdateEvent) }
-        }
-
-        super.init()
+        return false
     }
 
     override fun loadInternal(log: LogList, settings: ConfigurationNode): Boolean {
@@ -231,9 +229,10 @@ class Sokol : BasePlugin() {
     }
 
     fun registerConsumer(
-        onInit: InitContext.() -> Unit = {}
+        onInit: InitContext.() -> Unit = {},
+        onPostInit: PostInitContext.() -> Unit = {},
     ) {
-        registrations.add(Registration(onInit))
+        registrations.add(Registration(onInit, onPostInit))
     }
 
     fun componentType(key: Key) = _componentTypes[key.asString()]
@@ -242,9 +241,56 @@ class Sokol : BasePlugin() {
         persistence.getTag(mob.persistentDataContainer, persistence.entityKey)?.let { tag ->
             val space = engine.createSpace(1)
             val entity = persistence.readBlueprint(tag).create(space)
-            space.addComponent(entity, NBTTagAccessor(tag))
-            space.addComponent(entity, hostedByEntity(mob))
+            entityResolver.populate(space, entity, mob)
             callback(space, entity)
         }
+    }
+
+    private fun registerDefaultConsumer() {
+        registerConsumer(
+            onInit = {
+                engine
+                    .systemFactory { it.define(ColliderSystem(it)) }
+                    .systemFactory { it.define(MeshSystem(it)) }
+
+                    .componentType<HostedByWorld>()
+                    .componentType<HostedByChunk>()
+                    .componentType<HostedByEntity>()
+                    .componentType<HostedByBlock>()
+                    .componentType<HostedByItem>()
+                    .componentType<Location>()
+                    .componentType<IsValidSupplier>()
+
+                    .componentType<HostableByEntity>()
+                    .componentType<Rotation>()
+                    .componentType<Collider>()
+                    .componentType<Mesh>()
+                registerComponentType(HostableByEntity.Type)
+                registerComponentType(Rotation.Type)
+                registerComponentType(Collider.Type)
+                registerComponentType(Mesh.Type)
+            },
+            onPostInit = {
+                val mRotation = engine.componentMapper<Rotation>()
+
+                entityResolver.entityPopulator { space, entity, mob ->
+                    space.addComponent(entity, object : HostedByEntity {
+                        override val entity get() = mob
+                    })
+                    space.addComponent(entity, object : IsValidSupplier {
+                        override val valid: () -> Boolean get() = { mob.isValid }
+                    })
+
+                    val rotation = mRotation.mapOr(space, entity)?.rotation ?: Quaternion.Identity
+                    var transform = Transform(mob.location.position(), rotation)
+                    space.addComponent(entity, object : Location {
+                        override val world get() = mob.world
+                        override var transform: Transform
+                            get() = transform
+                            set(value) { transform = value }
+                    })
+                }
+            }
+        )
     }
 }

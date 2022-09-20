@@ -1,90 +1,98 @@
 package com.gitlab.aecsocket.sokol.paper.feature
 
-import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.core.extension.asTransform
+import com.gitlab.aecsocket.sokol.core.extension.ofTransform
 import com.gitlab.aecsocket.sokol.paper.*
 import org.bukkit.Material
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.kotlin.extensions.get
 
-class Mesh : PersistentComponent {
-    override val type get() = Mesh
-    override val key get() = Key
+private const val LOCAL_TRANSFORM = "local_transform"
 
-    override fun write(tag: CompoundNBTTag.Mutable) {}
-
-    override fun write(node: ConfigurationNode) {}
-
-    class Type : PersistentComponentType {
-        override val key get() = Key
-
-        override fun read(tag: CompoundNBTTag) = Mesh()
-
-        override fun read(node: ConfigurationNode) = Mesh()
+data class Mesh(
+    val localTransform: Transform,
+) : PersistentComponent {
+    companion object {
+        val Key = SokolAPI.key("mesh")
     }
 
-    companion object : ComponentType<Mesh> {
-        val Key = SokolAPI.key("mesh")
+    override val componentType get() = Mesh::class.java
+    override val key get() = Key
+
+    override fun write(): NBTWriter = { ofCompound()
+        .set(LOCAL_TRANSFORM) { ofTransform(localTransform) }
+    }
+
+    override fun write(node: ConfigurationNode) {
+        node.node(LOCAL_TRANSFORM).set(localTransform)
+    }
+
+    object Type : PersistentComponentType {
+        override val key get() = Key
+
+        override fun read(tag: NBTTag) = tag.asCompound().run { Mesh(
+            getOr(LOCAL_TRANSFORM) { asTransform() } ?: Transform.Identity
+        ) }
+
+        override fun read(node: ConfigurationNode) = Mesh(
+            node.node(LOCAL_TRANSFORM).get { Transform.Identity }
+        )
     }
 }
 
+@All(Location::class, HostedByEntity::class, Mesh::class)
 class MeshSystem(engine: SokolEngine) : SokolSystem {
-    private val entFilter = engine.entityFilter(
-        setOf(HostedByEntity, Mesh)
-    )
-    private val mMob = engine.componentMapper(HostedByEntity)
-    private val mMesh = engine.componentMapper(Mesh)
-    private val mCollider = engine.componentMapper(Collider)
+    private val mLocation = engine.componentMapper<Location>()
+    private val mEntity = engine.componentMapper<HostedByEntity>()
+    private val mMesh = engine.componentMapper<Mesh>()
 
-    private fun createMesh(mob: Entity, mesh: Mesh, collider: Collider?) {
-        val instance = AlexandriaAPI.meshes.create(mob, Transform(
-            mob.location.position(),
-            collider?.body?.rotation ?: Quaternion.Identity,
-        ))
+    private fun createMesh(transform: Transform, mob: Entity, mesh: Mesh) {
+        val instance = AlexandriaAPI.meshes.create(mob, transform + mesh.localTransform)
         instance.addPart(instance.Part(bukkitNextEntityId, Transform.Identity, ItemStack(Material.IRON_NUGGET).withMeta { meta ->
             meta.setCustomModelData(1)
         }), false)
     }
 
-    override fun handle(space: SokolEngine.Space, event: SokolEvent) = when (event) {
-        is HostByEntityEvent -> {
-            space.entitiesBy(entFilter).forEach { entity ->
-                val mob = mMob.map(space, entity).entity
-                val mesh = mMesh.map(space, entity)
-                val collider = mCollider.mapOr(space, entity)
+    @Subscribe
+    fun on(event: EntityEvent.Host, space: SokolEngine.Space, entity: Int) {
+        // define the mesh in Alexandria during host
+        // because if we do this on entity add to world we *will* run into issues
+        // with race condition between entity add and packet send
+        val location = mLocation.map(space, entity)
+        val mob = mEntity.map(space, entity).entity
+        val mesh = mMesh.map(space, entity)
 
-                createMesh(mob, mesh, collider)
-            }
-        }
-        is ByEntityEvent.Added -> {
-            space.entitiesBy(entFilter).forEach { entity ->
-                val mob = mMob.map(space, entity).entity
-                val mesh = mMesh.map(space, entity)
-                val collider = mCollider.mapOr(space, entity)
+        createMesh(location.transform, mob, mesh)
+    }
 
-                if (!AlexandriaAPI.meshes.contains(mob)) {
-                    createMesh(mob, mesh, collider)
-                }
-            }
-        }
-        is UpdateEvent -> {
-            space.entitiesBy(entFilter).forEach { entity ->
-                val mob = mMob.map(space, entity).entity
-                val collider = mCollider.map(space, entity)
-                val mesh = mMesh.map(space, entity)
+    @Subscribe
+    fun on(event: SokolEvent.Add, space: SokolEngine.Space, entity: Int) {
+        // if we haven't defined the hosting entity as a mesh yet...
+        // (if this entity was already in the world, and we just loaded it e.g. from chunk load...)
+        // we can add it with the same logic as above
+        val location = mLocation.map(space, entity)
+        val mob = mEntity.map(space, entity).entity
+        val mesh = mMesh.map(space, entity)
 
-                AlexandriaAPI.meshes[mob]?.let { meshInstance ->
-                    meshInstance.meshTransform = Transform(
-                        mob.location.position(),
-                        collider.body?.rotation ?: Quaternion.Identity
-                    )
-                }
-            }
+        if (!AlexandriaAPI.meshes.contains(mob)) {
+            createMesh(location.transform, mob, mesh)
         }
-        else -> {}
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Update, space: SokolEngine.Space, entity: Int) {
+        val location = mLocation.map(space, entity)
+        val mob = mEntity.map(space, entity).entity
+        val mesh = mMesh.map(space, entity)
+
+        AlexandriaAPI.meshes[mob]?.let { meshInstance ->
+            meshInstance.meshTransform = location.transform + mesh.localTransform
+        }
     }
 }

@@ -83,10 +83,22 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
         }
     }
 
+    fun <R> getOr(key: String, mapper: NBTTag.() -> R?): R? {
+        return get(key)?.let { tag ->
+            try {
+                mapper(tag)
+            } catch (ex: IllegalStateException) {
+                null
+            }
+        }
+    }
+
     interface Mutable : CompoundNBTTag {
         operator fun set(key: String, tag: NBTTag): Mutable
 
         fun set(key: String, tagCreator: NBTTag.() -> NBTTag): Mutable
+
+        fun setOrClear(key: String, tagCreator: NBTTag.() -> NBTTag?): Mutable
 
         fun remove(key: String): Mutable
 

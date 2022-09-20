@@ -1,7 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.sokol.core.ComponentType
-import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import org.bukkit.Chunk
 import org.bukkit.World
@@ -11,60 +9,39 @@ import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
-data class NBTTagAccessor(
-    internal val rootTag: CompoundNBTTag.Mutable
-) : SokolComponent {
-    override val type get() = NBTTagAccessor
-
-    companion object : ComponentType<NBTTagAccessor>
-}
-
-fun NBTTagAccessor.tagFor(component: PersistentComponent) = rootTag.forComponent(component)
-
-fun NBTTagAccessor.write(component: PersistentComponent) = component.write(tagFor(component))
-
 interface HostedByWorld : SokolComponent {
-    override val type get() = HostedByWorld
+    override val componentType get() = HostedByWorld::class.java
 
     val world: World
-
-    companion object : ComponentType<HostedByWorld>
 }
 
 interface HostedByChunk : SokolComponent {
-    override val type get() = HostedByChunk
+    override val componentType get() = HostedByChunk::class.java
 
     val chunk: Chunk
-    companion object : ComponentType<HostedByChunk>
 }
 
 interface HostedByEntity : SokolComponent {
-    override val type get() = HostedByEntity
+    override val componentType get() = HostedByEntity::class.java
 
     val entity: Entity
-
-    companion object : ComponentType<HostedByEntity>
 }
 
 interface HostedByBlock : SokolComponent {
-    override val type get() = HostedByBlock
+    override val componentType get() = HostedByBlock::class.java
 
     val block: Block
     val state: BlockState
-
-    companion object : ComponentType<HostedByBlock>
 }
 
 interface HostedByItem : SokolComponent {
-    override val type get() = HostedByItem
+    override val componentType get() = HostedByItem::class.java
 
     val stack: ItemStack
 
     fun <R> readMeta(action: (ItemMeta) -> R): R
 
     fun writeMeta(action: (ItemMeta) -> Unit)
-
-    companion object : ComponentType<HostedByItem>
 }
 
 fun hostedByWorld(world: World) = object : HostedByWorld {

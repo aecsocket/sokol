@@ -15,6 +15,8 @@ packetEvents = "2.0-SNAPSHOT"
 
 [libraries]
 
+kotlinReflect = { group = "org.jetbrains.kotlin", name = "kotlin-reflect", version.ref = "kotlin" }
+
 glossaCore = { group = "com.gitlab.aecsocket.glossa", name = "glossa-core", version.ref = "glossa" }
 glossaAdventure = { group = "com.gitlab.aecsocket.glossa", name = "glossa-adventure", version.ref = "glossa" }
 glossaConfigurate = { group = "com.gitlab.aecsocket.glossa", name = "glossa-configurate", version.ref = "glossa" }

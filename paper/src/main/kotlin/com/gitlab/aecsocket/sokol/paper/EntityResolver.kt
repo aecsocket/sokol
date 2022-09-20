@@ -45,38 +45,41 @@ class EntityResolver(
         var updated: Int = 0,
     )
 
-    fun interface Resolver {
-        fun resolve(space: SokolEngine.Space)
+    fun interface Populator<T> {
+        fun populate(space: SokolEngine.Space, entity: Int, backing: T)
     }
 
     lateinit var settings: Settings
 
     private val _lastStats = HashMap<String, TypeStats>()
     val lastStats: Map<String, TypeStats> get() = _lastStats
-    
-    val resolvers: MutableList<Resolver> = ArrayList()
 
+    private val entityPopulators = ArrayList<Populator<org.bukkit.entity.Entity>>()
     private val entityKey = sokol.persistence.entityKey.toString()
 
     internal fun load(settings: ConfigurationNode) {
         this.settings = settings.get { Settings() }
     }
-    
-    fun resolver(resolver: Resolver) {
-        resolvers.add(resolver)
+
+    fun entityPopulator(populator: Populator<org.bukkit.entity.Entity>) {
+        entityPopulators.add(populator)
+    }
+
+    fun populate(space: SokolEngine.Space, entity: Int, mob: org.bukkit.entity.Entity) {
+        entityPopulators.forEach { it.populate(space, entity, mob) }
     }
 
     fun resolve(space: SokolEngine.Space) {
         _lastStats.clear()
         val server = (Bukkit.getServer() as CraftServer).server
+
         server.allLevels.forEach { resolveLevel(space, it) }
         server.playerList.players.forEach { player ->
             resolveItem(space, player.inventoryMenu.carried)
         }
-        resolvers.forEach { it.resolve(space) }
     }
 
-    private fun resolveTag(space: SokolEngine.Space, type: String, tag: CompoundTag?, callback: (Int, CompoundTag) -> Unit) {
+    private fun resolveTag(space: SokolEngine.Space, type: String, tag: CompoundTag?, callback: (Int) -> Unit) {
         val stats = _lastStats.computeIfAbsent(type) { TypeStats() }
         stats.candidates++
 
@@ -84,41 +87,39 @@ class EntityResolver(
             stats.updated++
             val wrappedTag = PaperCompoundTag(tag)
             val entity = sokol.persistence.readBlueprint(wrappedTag).create(space)
-            space.addComponent(entity, NBTTagAccessor(wrappedTag))
-            callback(entity, tag)
+            callback(entity)
         }
     }
 
     private fun tagOf(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
 
     private fun resolveLevel(space: SokolEngine.Space, level: ServerLevel) {
-        val world = level.world
-        resolveTag(space, OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity, _ ->
-            space.addComponent(entity, hostedByWorld(world))
+        val bukkit = level.world
+        resolveTag(space, OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity ->
+            space.addComponent(entity, hostedByWorld(bukkit))
         }
 
         level.entities.all.forEach { resolveEntity(space, it) }
 
         level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
             @Suppress("UNNECESSARY_SAFE_CALL") // this may be null
-            holder.fullChunkNow?.let { resolveChunk(space, it, world) }
+            holder.fullChunkNow?.let { resolveChunk(space, it, bukkit) }
         }
     }
 
     private fun resolveChunk(space: SokolEngine.Space, chunk: LevelChunk, world: World) {
-        resolveTag(space, OBJECT_TYPE_CHUNK, tagOf(chunk.bukkitChunk.persistentDataContainer)) { entity, _ ->
-            space.addComponent(entity, hostedByChunk(chunk.bukkitChunk))
+        val bukkit = chunk.bukkitChunk
+        resolveTag(space, OBJECT_TYPE_CHUNK, tagOf(bukkit.persistentDataContainer)) { entity ->
+            space.addComponent(entity, hostedByChunk(bukkit))
         }
 
         chunk.blockEntities.forEach { (pos, block) -> resolveBlock(space, block, pos, world) }
     }
 
     private fun resolveEntity(space: SokolEngine.Space, mob: Entity) {
-        resolveTag(space, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity, _ ->
-            val backing = lazy { mob.bukkitEntity }
-            space.addComponent(entity, object : HostedByEntity {
-                override val entity get() = backing.value
-            })
+        val bukkit = lazy { mob.bukkitEntity }
+        resolveTag(space, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity ->
+            populate(space, entity, bukkit.value)
         }
 
         when (mob) {
@@ -130,7 +131,7 @@ class EntityResolver(
     }
 
     private fun resolveBlock(space: SokolEngine.Space, block: BlockEntity, pos: BlockPos, world: World) {
-        resolveTag(space, OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity, _ ->
+        resolveTag(space, OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity ->
             val backing = lazy { world.getBlockAt(pos.x, pos.y, pos.z) }
             val state = lazy { backing.value.getState(false) }
             space.addComponent(entity, object : HostedByBlock {
@@ -158,7 +159,7 @@ class EntityResolver(
         val meta = lazy { bukkitStack.value.itemMeta }
         var dirty = false
 
-        resolveTag(space, OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity, _ ->
+        resolveTag(space, OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity ->
             space.addComponent(entity, object : HostedByItem {
                 override val stack get() = bukkitStack.value
 

@@ -1,152 +1,124 @@
 package com.gitlab.aecsocket.sokol.paper.feature
 
-import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
+import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.core.physRotation
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
-import com.gitlab.aecsocket.craftbullet.paper.location
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.extension.asQuaternion
-import com.gitlab.aecsocket.sokol.core.extension.ofQuaternion
 import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsRigidBody
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
 
-private const val ID = "id"
-private const val ROTATION = "rotation"
+private const val BODY_ID = "body_id"
 
 data class Collider(
-    var body: BodyData? = null,
+    var bodyId: UUID? = null
 ) : PersistentComponent {
-    @ConfigSerializable
-    data class BodyData(
-        @Required val id: UUID,
-        @Required var rotation: Quaternion,
-    )
+    companion object {
+        val Key = SokolAPI.key("collider")
+    }
 
-    override val type get() = Collider
+    override val componentType get() = Collider::class.java
     override val key get() = Key
 
-    override fun write(tag: CompoundNBTTag.Mutable) {
-        body?.let { tag
-            .set(ID) { ofUUID(it.id) }
-            .set(ROTATION) { ofQuaternion(it.rotation) }
-        } ?: tag.clear()
+    override fun write(): NBTWriter = { ofCompound()
+        .setOrClear(BODY_ID) { bodyId?.let { ofUUID(it) } }
     }
 
     override fun write(node: ConfigurationNode) {
-        body?.let { node.set(it) }
+        node.node(BODY_ID).set(bodyId)
     }
 
-    class Type : PersistentComponentType {
+    object Type : PersistentComponentType {
         override val key get() = Key
 
-        override fun read(tag: CompoundNBTTag) = Collider(
-            if (tag.contains(ID)) BodyData(
-                tag.get(ID) { asUUID() },
-                tag.get(ROTATION) { asQuaternion() },
-            ) else null
-        )
+        override fun read(tag: NBTTag) = tag.asCompound().run { Collider(
+            getOr(BODY_ID) { asUUID() }
+        ) }
 
         override fun read(node: ConfigurationNode) = Collider(
-            if (node.hasChild(ID)) node.get<BodyData>() else null
+            node.node(BODY_ID).getIfExists()
         )
-    }
-
-    companion object : ComponentType<Collider> {
-        val Key = SokolAPI.key("collider")
     }
 }
 
+@All(Location::class, Collider::class, IsValidSupplier::class)
 class ColliderSystem(engine: SokolEngine) : SokolSystem {
-    private val bullet = CraftBulletAPI
+    private val mLocation = engine.componentMapper<Location>()
+    private val mCollider = engine.componentMapper<Collider>()
+    private val mIsValidSupplier = engine.componentMapper<IsValidSupplier>()
 
-    private val entFilter = engine.entityFilter(
-        setOf(NBTTagAccessor, HostedByEntity, Collider)
-    )
-    private val mTagAccessor = engine.componentMapper(NBTTagAccessor)
-    private val mMob = engine.componentMapper(HostedByEntity)
-    private val mCollider = engine.componentMapper(Collider)
+    @Subscribe
+    fun on(event: SokolEvent.Add, space: SokolEngine.Space, entity: Int) {
+        val location = mLocation.map(space, entity)
+        val collider = mCollider.map(space, entity)
+        val isValid = mIsValidSupplier.map(space, entity).valid
 
-    override fun handle(space: SokolEngine.Space, event: SokolEvent) = when (event) {
-        is ByEntityEvent.Added -> {
-            space.entitiesBy(entFilter).forEach { entity ->
-                val tagAccessor = mTagAccessor.map(space, entity)
-                val mob = mMob.map(space, entity).entity
-                val collider = mCollider.map(space, entity)
+        val shape = BoxCollisionShape(0.5f)
+        val mass = 5f
 
-                // TODO wtf do we do here???
-                val shape = BoxCollisionShape(0.5f)
-                val mass = 5f
+        val id = UUID.randomUUID()
+        val physSpace = CraftBulletAPI.spaceOf(location.world)
 
-                val id = UUID.randomUUID()
-                val physSpace = bullet.spaceOf(mob.world)
+        val transform = location.transform
+        CraftBulletAPI.executePhysics {
+            physSpace.addCollisionObject(object : PhysicsRigidBody(shape, mass), TrackedPhysicsObject {
+                override val id get() = id
+                override val body get() = this
 
-                val rotation = collider.body?.rotation ?: Quaternion.Identity
-                bullet.executePhysics {
-                    physSpace.addCollisionObject(object : PhysicsRigidBody(shape, mass), TrackedPhysicsObject {
-                        override val id get() = id
-                        override val body get() = this
-
-                        override fun update(ctx: TrackedPhysicsObject.Context) {
-                            if (!mob.isValid)
-                                ctx.remove()
-                        }
-                    }.also {
-                        it.physPosition = mob.location.position().bullet()
-                        it.physRotation = rotation.bullet()
-                    })
+                override fun update(ctx: TrackedPhysicsObject.Context) {
+                    if (!isValid())
+                        ctx.remove()
                 }
+            }.also {
+                it.physPosition = transform.translation.bullet()
+                it.physRotation = transform.rotation.bullet()
+            })
+        }
 
-                collider.body = Collider.BodyData(id, rotation)
-                tagAccessor.write(collider)
+        // TODO persist this somehow
+        collider.bodyId = id
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Update, space: SokolEngine.Space, entity: Int) {
+        val location = mLocation.map(space, entity)
+        val collider = mCollider.map(space, entity)
+
+        collider.bodyId?.let { bodyId ->
+            val physSpace = CraftBulletAPI.spaceOf(location.world)
+            physSpace.trackedBy(bodyId)?.let { physBody ->
+                // TODO persist / teleport entity
+                // TODO run this in phys thread? idk
+                location.transform = Transform(
+                    physBody.body.physPosition.alexandria(),
+                    physBody.body.physRotation.alexandria(),
+                )
+            } ?: run {
+                // TODO persist
+                collider.bodyId = null
             }
         }
-        is ByEntityEvent.Removed -> {
-            space.entitiesBy(entFilter).forEach { entity ->
-                val tagAccessor = mTagAccessor.map(space, entity)
-                val mob = mMob.map(space, entity).entity
-                val collider = mCollider.map(space, entity)
+    }
 
-                collider.body?.id?.let { bodyId ->
-                    val physSpace = bullet.spaceOf(mob.world)
-                    bullet.executePhysics {
-                        physSpace.removeTracked(bodyId)
-                    }
-                }
+    @Subscribe
+    fun on(event: SokolEvent.Remove, space: SokolEngine.Space, entity: Int) {
+        val location = mLocation.map(space, entity)
+        val collider = mCollider.map(space, entity)
 
-                collider.body = null
-                tagAccessor.write(collider)
+        collider.bodyId?.let { bodyId ->
+            val physSpace = CraftBulletAPI.spaceOf(location.world)
+            CraftBulletAPI.executePhysics {
+                physSpace.removeTracked(bodyId)
             }
-        }
-        is UpdateEvent -> {
-            space.entitiesBy(entFilter).forEach { entity ->
-                val tagAccessor = mTagAccessor.map(space, entity)
-                val mob = mMob.map(space, entity).entity
-                val collider = mCollider.map(space, entity)
 
-                collider.body?.let { body ->
-                    bullet.spaceOf(mob.world).trackedBy(body.id)?.let { physBody ->
-                        body.rotation = physBody.body.physRotation.alexandria()
-                        bullet.executePhysics {
-                            mob.teleportAsync(physBody.body.physPosition.location(mob.world))
-                        }
-                    } ?: run {
-                        collider.body = null
-                    }
-                }
-
-                tagAccessor.write(collider)
-            }
+            // TODO persist
+            collider.bodyId = null
         }
-        else -> {}
     }
 }

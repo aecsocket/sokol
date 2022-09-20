@@ -48,9 +48,7 @@ class ItemBlueprintSerializer(
     }
 }*/
 
-class BlueprintSerializer(
-    private val sokol: Sokol
-) : TypeSerializer<SokolBlueprint> {
+class BlueprintSerializer: TypeSerializer<SokolBlueprint> {
     override fun serialize(type: Type, obj: SokolBlueprint?, node: ConfigurationNode) {
         if (obj == null) node.set(null)
         else {
