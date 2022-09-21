@@ -21,10 +21,10 @@ interface HostedByChunk : SokolComponent {
     val chunk: Chunk
 }
 
-interface HostedByEntity : SokolComponent {
-    override val componentType get() = HostedByEntity::class.java
+interface HostedByMob : SokolComponent {
+    override val componentType get() = HostedByMob::class.java
 
-    val entity: Entity
+    val mob: Entity
 }
 
 interface HostedByBlock : SokolComponent {
@@ -52,8 +52,8 @@ fun hostedByChunk(chunk: Chunk) = object : HostedByChunk {
     override val chunk get() = chunk
 }
 
-fun hostedByEntity(entity: Entity) = object : HostedByEntity {
-    override val entity get() = entity
+fun hostedByEntity(entity: Entity) = object : HostedByMob {
+    override val mob get() = entity
 }
 
 fun hostedByItem(stack: ItemStack, meta: ItemMeta) = object : HostedByItem {

@@ -3,15 +3,12 @@ package com.gitlab.aecsocket.sokol.paper.feature
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asQuaternion
-import com.gitlab.aecsocket.sokol.core.extension.ofQuaternion
-import com.gitlab.aecsocket.sokol.paper.NBTWriter
+import com.gitlab.aecsocket.sokol.core.extension.makeQuaternion
 import com.gitlab.aecsocket.sokol.paper.PersistentComponent
 import com.gitlab.aecsocket.sokol.paper.PersistentComponentType
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
-import net.kyori.adventure.key.Key
 import org.bukkit.World
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -35,7 +32,7 @@ data class Rotation(
     override val componentType get() = Rotation::class.java
     override val key get() = Key
 
-    override fun write(): NBTWriter = { ofQuaternion(rotation) }
+    override fun write(ctx: NBTTagContext) = ctx.makeQuaternion(rotation)
 
     override fun write(node: ConfigurationNode) {
         node.node(ROTATION).set(rotation)

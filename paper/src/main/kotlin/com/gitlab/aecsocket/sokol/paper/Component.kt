@@ -1,16 +1,15 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.sokol.core.NBTTag
+import com.gitlab.aecsocket.sokol.core.NBTTagContext
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 
-typealias NBTWriter = NBTTag.() -> NBTTag
-
 interface PersistentComponent : SokolComponent {
     val key: Key
 
-    fun write(): NBTWriter
+    fun write(ctx: NBTTagContext): NBTTag
 
     fun write(node: ConfigurationNode)
 }

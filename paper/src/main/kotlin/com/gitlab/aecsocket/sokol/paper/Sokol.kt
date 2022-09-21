@@ -81,7 +81,6 @@ class Sokol : BasePlugin() {
     val persistence = SokolPersistence(this)
     val entityResolver = EntityResolver(this)
 
-    val resolverTimings = Timings(TIMING_MAX_MEASUREMENTS)
     val engineTimings = Timings(TIMING_MAX_MEASUREMENTS)
 
     //private val hostableByItem = HostableByItem()
@@ -110,16 +109,16 @@ class Sokol : BasePlugin() {
             @EventHandler
             fun on(event: EntityAddToWorldEvent) {
                 val mob = event.entity
-                updateEntity(mob) { space, _ ->
-                    space.call(SokolEvent.Add)
+                updateMob(mob) { entity ->
+                    entity.call(SokolEvent.Add)
                 }
             }
 
             @EventHandler
             fun on(event: EntityRemoveFromWorldEvent) {
                 val mob = event.entity
-                updateEntity(mob) { space, _ ->
-                    space.call(SokolEvent.Remove)
+                updateMob(mob) { entity ->
+                    entity.call(SokolEvent.Remove)
                 }
             }
         })
@@ -131,8 +130,8 @@ class Sokol : BasePlugin() {
                     PacketType.Play.Server.SPAWN_ENTITY -> {
                         val packet = WrapperPlayServerSpawnEntity(event)
                         SpigotReflectionUtil.getEntityById(packet.entityId)?.let { mob ->
-                            updateEntity(mob) { space, _ ->
-                                space.call(EntityEvent.Show(event))
+                            updateMob(mob) { entity ->
+                                entity.call(EntityEvent.Show(event))
                             }
                         }
                     }
@@ -165,9 +164,9 @@ class Sokol : BasePlugin() {
             registrations.forEach { it.onPostInit(postInitCtx) }
 
             scheduleRepeating {
-                val space = engine.createSpace()
-                resolverTimings.time { entityResolver.resolve(space) }
-                engineTimings.time { space.call(SokolEvent.Update) }
+                engineTimings.time {
+                    entityResolver.resolve { it.call(SokolEvent.Update) }
+                }
             }
 
             return true
@@ -221,7 +220,7 @@ class Sokol : BasePlugin() {
                     }
                 )
             }
-            log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity BPs" }
+            log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity blueprints" }
 
             return true
         }
@@ -237,12 +236,17 @@ class Sokol : BasePlugin() {
 
     fun componentType(key: Key) = _componentTypes[key.asString()]
 
-    fun updateEntity(mob: Entity, callback: (SokolEngine.Space, Int) -> Unit) {
+    fun updateMob(mob: Entity, callback: (SokolEntityAccess) -> Unit) {
         persistence.getTag(mob.persistentDataContainer, persistence.entityKey)?.let { tag ->
-            val space = engine.createSpace(1)
-            val entity = persistence.readBlueprint(tag).create(space)
-            entityResolver.populate(space, entity, mob)
-            callback(space, entity)
+            val blueprint = persistence.readBlueprint(tag)
+            if (!blueprint.isEmpty()) {
+                val entity = blueprint.create(engine)
+                entityResolver.populate(entity, mob)
+                callback(entity)
+                // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
+                // how to implement this? idfk
+                persistence.writeEntity(entity, tag)
+            }
         }
     }
 
@@ -255,7 +259,7 @@ class Sokol : BasePlugin() {
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
-                    .componentType<HostedByEntity>()
+                    .componentType<HostedByMob>()
                     .componentType<HostedByBlock>()
                     .componentType<HostedByItem>()
                     .componentType<Location>()
@@ -273,17 +277,17 @@ class Sokol : BasePlugin() {
             onPostInit = {
                 val mRotation = engine.componentMapper<Rotation>()
 
-                entityResolver.entityPopulator { space, entity, mob ->
-                    space.addComponent(entity, object : HostedByEntity {
-                        override val entity get() = mob
+                entityResolver.mobPopulator { entity, mob ->
+                    entity.addComponent(object : HostedByMob {
+                        override val mob get() = mob
                     })
-                    space.addComponent(entity, object : IsValidSupplier {
+                    entity.addComponent(object : IsValidSupplier {
                         override val valid: () -> Boolean get() = { mob.isValid }
                     })
 
-                    val rotation = mRotation.mapOr(space, entity)?.rotation ?: Quaternion.Identity
+                    val rotation = mRotation.mapOr(entity)?.rotation ?: Quaternion.Identity
                     var transform = Transform(mob.location.position(), rotation)
-                    space.addComponent(entity, object : Location {
+                    entity.addComponent(object : Location {
                         override val world get() = mob.world
                         override var transform: Transform
                             get() = transform

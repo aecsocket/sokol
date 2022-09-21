@@ -13,7 +13,7 @@ class HostableByEntity : PersistentComponent {
     override val componentType get() = HostableByEntity::class.java
     override val key get() = Key
 
-    override fun write(): NBTWriter = { asCompound() }
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
 
     override fun write(node: ConfigurationNode) {}
 

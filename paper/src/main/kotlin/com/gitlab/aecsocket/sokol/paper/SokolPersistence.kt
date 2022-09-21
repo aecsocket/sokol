@@ -1,10 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
-import com.gitlab.aecsocket.sokol.core.SokolBlueprint
-import com.gitlab.aecsocket.sokol.core.SokolComponent
-import com.gitlab.aecsocket.sokol.core.SokolEngine
+import com.gitlab.aecsocket.sokol.core.*
 import net.kyori.adventure.key.InvalidKeyException
 import net.kyori.adventure.key.Key
 import net.minecraft.nbt.CompoundTag
@@ -54,7 +51,7 @@ class SokolPersistence internal constructor(
 
     private fun SokolComponent.writeInto(tag: CompoundNBTTag.Mutable) {
         if (this is PersistentComponent) {
-            tag.set(key.toString()) { write()(this) }
+            tag.set(key.toString(), ::write)
         }
     }
 
@@ -63,9 +60,9 @@ class SokolPersistence internal constructor(
         blueprint.components.forEach { it.writeInto(tag) }
     }
 
-    fun writeEntity(space: SokolEngine.Space, entity: Int, tag: CompoundNBTTag.Mutable) {
+    fun writeEntity(entity: SokolEntityAccess, tag: CompoundNBTTag.Mutable) {
         tag.clear()
-        space.getComponents(entity).forEach { it.writeInto(tag) }
+        entity.allComponents().forEach { it.writeInto(tag) }
     }
 }
 

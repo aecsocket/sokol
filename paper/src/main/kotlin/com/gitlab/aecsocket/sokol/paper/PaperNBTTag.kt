@@ -25,25 +25,25 @@ private fun doublesOf(values: ByteArray) = ByteBuffer.wrap(values).run {
 sealed class PaperNBTTag(
     open val backing: Tag
 ) : NBTTag {
-    override fun ofInt(value: Int) = PaperNumericTag(IntTag.valueOf(value))
-    override fun ofLong(value: Long) = PaperNumericTag(LongTag.valueOf(value))
-    override fun ofByte(value: Byte) = PaperNumericTag(ByteTag.valueOf(value))
-    override fun ofShort(value: Short) = PaperNumericTag(ShortTag.valueOf(value))
-    override fun ofFloat(value: Float) = PaperNumericTag(FloatTag.valueOf(value))
-    override fun ofDouble(value: Double) = PaperNumericTag(DoubleTag.valueOf(value))
+    override fun makeInt(value: Int) = PaperNumericTag(IntTag.valueOf(value))
+    override fun makeLong(value: Long) = PaperNumericTag(LongTag.valueOf(value))
+    override fun makeByte(value: Byte) = PaperNumericTag(ByteTag.valueOf(value))
+    override fun makeShort(value: Short) = PaperNumericTag(ShortTag.valueOf(value))
+    override fun makeFloat(value: Float) = PaperNumericTag(FloatTag.valueOf(value))
+    override fun makeDouble(value: Double) = PaperNumericTag(DoubleTag.valueOf(value))
 
-    override fun ofString(value: String) = PaperStringTag(StringTag.valueOf(value))
+    override fun makeString(value: String) = PaperStringTag(StringTag.valueOf(value))
 
-    override fun ofUUID(value: UUID) = PaperIntArrayTag(NbtUtils.createUUID(value))
+    override fun makeUUID(value: UUID) = PaperIntArrayTag(NbtUtils.createUUID(value))
 
-    override fun ofCompound() = PaperCompoundTag(CompoundTag())
+    override fun makeCompound() = PaperCompoundTag(CompoundTag())
 
-    override fun ofIntArray(values: IntArray) = PaperIntArrayTag(IntArrayTag(values))
-    override fun ofLongArray(values: LongArray) = PaperLongArrayTag(LongArrayTag(values))
-    override fun ofByteArray(values: ByteArray) = PaperByteArrayTag(ByteArrayTag(values))
-    override fun ofFloatArray(values: FloatArray) = PaperByteArrayTag(ByteArrayTag(bytesOf(values)))
-    override fun ofDoubleArray(values: DoubleArray) = PaperByteArrayTag(ByteArrayTag(bytesOf(values)))
-    override fun ofList() = PaperListTag(ListTag())
+    override fun makeIntArray(values: IntArray) = PaperIntArrayTag(IntArrayTag(values))
+    override fun makeLongArray(values: LongArray) = PaperLongArrayTag(LongArrayTag(values))
+    override fun makeByteArray(values: ByteArray) = PaperByteArrayTag(ByteArrayTag(values))
+    override fun makeFloatArray(values: FloatArray) = PaperByteArrayTag(ByteArrayTag(bytesOf(values)))
+    override fun makeDoubleArray(values: DoubleArray) = PaperByteArrayTag(ByteArrayTag(bytesOf(values)))
+    override fun makeList() = PaperListTag(ListTag())
 }
 
 private val NBTTag.backing get() = (this as PaperNBTTag).backing

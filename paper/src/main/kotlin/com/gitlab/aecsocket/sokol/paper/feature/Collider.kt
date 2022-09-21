@@ -26,9 +26,8 @@ data class Collider(
     override val componentType get() = Collider::class.java
     override val key get() = Key
 
-    override fun write(): NBTWriter = { ofCompound()
-        .setOrClear(BODY_ID) { bodyId?.let { ofUUID(it) } }
-    }
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+        .setOrClear(BODY_ID) { bodyId?.let { makeUUID(it) } }
 
     override fun write(node: ConfigurationNode) {
         node.node(BODY_ID).set(bodyId)
@@ -54,10 +53,10 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
     private val mIsValidSupplier = engine.componentMapper<IsValidSupplier>()
 
     @Subscribe
-    fun on(event: SokolEvent.Add, space: SokolEngine.Space, entity: Int) {
-        val location = mLocation.map(space, entity)
-        val collider = mCollider.map(space, entity)
-        val isValid = mIsValidSupplier.map(space, entity).valid
+    fun on(event: SokolEvent.Add, entity: SokolEntityAccess) {
+        val location = mLocation.map(entity)
+        val collider = mCollider.map(entity)
+        val isValid = mIsValidSupplier.map(entity).valid
 
         val shape = BoxCollisionShape(0.5f)
         val mass = 5f
@@ -86,9 +85,9 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Update, space: SokolEngine.Space, entity: Int) {
-        val location = mLocation.map(space, entity)
-        val collider = mCollider.map(space, entity)
+    fun on(event: SokolEvent.Update, entity: SokolEntityAccess) {
+        val location = mLocation.map(entity)
+        val collider = mCollider.map(entity)
 
         collider.bodyId?.let { bodyId ->
             val physSpace = CraftBulletAPI.spaceOf(location.world)
@@ -107,9 +106,9 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Remove, space: SokolEngine.Space, entity: Int) {
-        val location = mLocation.map(space, entity)
-        val collider = mCollider.map(space, entity)
+    fun on(event: SokolEvent.Remove, entity: SokolEntityAccess) {
+        val location = mLocation.map(entity)
+        val collider = mCollider.map(entity)
 
         collider.bodyId?.let { bodyId ->
             val physSpace = CraftBulletAPI.spaceOf(location.world)

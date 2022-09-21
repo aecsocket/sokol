@@ -5,7 +5,7 @@ import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asTransform
-import com.gitlab.aecsocket.sokol.core.extension.ofTransform
+import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
 import org.bukkit.Material
 import org.bukkit.entity.Entity
@@ -25,9 +25,8 @@ data class Mesh(
     override val componentType get() = Mesh::class.java
     override val key get() = Key
 
-    override fun write(): NBTWriter = { ofCompound()
-        .set(LOCAL_TRANSFORM) { ofTransform(localTransform) }
-    }
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+        .set(LOCAL_TRANSFORM) { makeTransform(localTransform) }
 
     override fun write(node: ConfigurationNode) {
         node.node(LOCAL_TRANSFORM).set(localTransform)
@@ -46,10 +45,10 @@ data class Mesh(
     }
 }
 
-@All(Location::class, HostedByEntity::class, Mesh::class)
+@All(Location::class, HostedByMob::class, Mesh::class)
 class MeshSystem(engine: SokolEngine) : SokolSystem {
     private val mLocation = engine.componentMapper<Location>()
-    private val mEntity = engine.componentMapper<HostedByEntity>()
+    private val mEntity = engine.componentMapper<HostedByMob>()
     private val mMesh = engine.componentMapper<Mesh>()
 
     private fun createMesh(transform: Transform, mob: Entity, mesh: Mesh) {
@@ -60,25 +59,25 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: EntityEvent.Host, space: SokolEngine.Space, entity: Int) {
+    fun on(event: EntityEvent.Host, entity: SokolEntityAccess) {
         // define the mesh in Alexandria during host
         // because if we do this on entity add to world we *will* run into issues
         // with race condition between entity add and packet send
-        val location = mLocation.map(space, entity)
-        val mob = mEntity.map(space, entity).entity
-        val mesh = mMesh.map(space, entity)
+        val location = mLocation.map(entity)
+        val mob = mEntity.map(entity).mob
+        val mesh = mMesh.map(entity)
 
         createMesh(location.transform, mob, mesh)
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Add, space: SokolEngine.Space, entity: Int) {
+    fun on(event: SokolEvent.Add, entity: SokolEntityAccess) {
         // if we haven't defined the hosting entity as a mesh yet...
         // (if this entity was already in the world, and we just loaded it e.g. from chunk load...)
         // we can add it with the same logic as above
-        val location = mLocation.map(space, entity)
-        val mob = mEntity.map(space, entity).entity
-        val mesh = mMesh.map(space, entity)
+        val location = mLocation.map(entity)
+        val mob = mEntity.map(entity).mob
+        val mesh = mMesh.map(entity)
 
         if (!AlexandriaAPI.meshes.contains(mob)) {
             createMesh(location.transform, mob, mesh)
@@ -86,10 +85,10 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Update, space: SokolEngine.Space, entity: Int) {
-        val location = mLocation.map(space, entity)
-        val mob = mEntity.map(space, entity).entity
-        val mesh = mMesh.map(space, entity)
+    fun on(event: SokolEvent.Update, entity: SokolEntityAccess) {
+        val location = mLocation.map(entity)
+        val mob = mEntity.map(entity).mob
+        val mesh = mMesh.map(entity)
 
         AlexandriaAPI.meshes[mob]?.let { meshInstance ->
             meshInstance.meshTransform = location.transform + mesh.localTransform

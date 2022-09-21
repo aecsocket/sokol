@@ -72,8 +72,6 @@ internal class SokolCommand(
             }
         }
 
-        sendTimings(plugin.resolverTimings, "stats.resolver_timings")
-
         sendTimings(plugin.engineTimings, "stats.engine_timings")
 
         plugin.sendMessage(sender, i18n.csafe("stats.object_types"))

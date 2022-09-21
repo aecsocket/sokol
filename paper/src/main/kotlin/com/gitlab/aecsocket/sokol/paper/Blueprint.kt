@@ -27,14 +27,12 @@ open class EntityBlueprint(private val sokol: Sokol, val backing: SokolBlueprint
             setGravity(false)
             setCanTick(false)
 
-            val space = sokol.engine.createSpace(1)
-            val entity = backing.create(space)
-            space.addComponent(entity, hostedByEntity(mob))
-            // todo add all the extra comps
-            space.call(EntityEvent.Host)
+            val entity = backing.create(sokol.engine)
+            sokol.entityResolver.populate(entity, mob)
+            entity.call(EntityEvent.Host)
 
             val tag = sokol.persistence.newTag()
-            sokol.persistence.writeEntity(space, entity, tag)
+            sokol.persistence.writeEntity(entity, tag)
             sokol.persistence.writeTagTo(tag, sokol.persistence.entityKey, mob.persistentDataContainer)
         } }
     }

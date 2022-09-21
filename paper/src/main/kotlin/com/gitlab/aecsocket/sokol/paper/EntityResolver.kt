@@ -1,6 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.sokol.core.SokolEngine
+import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
@@ -32,8 +32,11 @@ const val OBJECT_TYPE_ENTITY = "entity"
 const val OBJECT_TYPE_BLOCK = "block"
 const val OBJECT_TYPE_ITEM = "item"
 
-class EntityResolver(
-    private val sokol: Sokol,
+private typealias Mob = org.bukkit.entity.Entity
+private typealias BukkitStack = org.bukkit.inventory.ItemStack
+
+class EntityResolver internal constructor(
+    private val sokol: Sokol
 ) {
     @ConfigSerializable
     data class Settings(
@@ -46,7 +49,7 @@ class EntityResolver(
     )
 
     fun interface Populator<T> {
-        fun populate(space: SokolEngine.Space, entity: Int, backing: T)
+        fun populate(entity: SokolEntityAccess, backing: T)
     }
 
     lateinit var settings: Settings
@@ -54,150 +57,164 @@ class EntityResolver(
     private val _lastStats = HashMap<String, TypeStats>()
     val lastStats: Map<String, TypeStats> get() = _lastStats
 
-    private val entityPopulators = ArrayList<Populator<org.bukkit.entity.Entity>>()
+    private val mobPopulators = ArrayList<Populator<Mob>>()
     private val entityKey = sokol.persistence.entityKey.toString()
 
     internal fun load(settings: ConfigurationNode) {
         this.settings = settings.get { Settings() }
     }
 
-    fun entityPopulator(populator: Populator<org.bukkit.entity.Entity>) {
-        entityPopulators.add(populator)
+    fun mobPopulator(populator: Populator<Mob>) {
+        mobPopulators.add(populator)
     }
 
-    fun populate(space: SokolEngine.Space, entity: Int, mob: org.bukkit.entity.Entity) {
-        entityPopulators.forEach { it.populate(space, entity, mob) }
+    fun populate(entity: SokolEntityAccess, mob: Mob) {
+        mobPopulators.forEach { it.populate(entity, mob) }
     }
 
-    fun resolve(space: SokolEngine.Space) {
+    fun resolve(callback: (SokolEntityAccess) -> Unit) {
         _lastStats.clear()
-        val server = (Bukkit.getServer() as CraftServer).server
-
-        server.allLevels.forEach { resolveLevel(space, it) }
-        server.playerList.players.forEach { player ->
-            resolveItem(space, player.inventoryMenu.carried)
-        }
+        ResolveOperation(callback, _lastStats).resolve()
     }
 
-    private fun resolveTag(space: SokolEngine.Space, type: String, tag: CompoundTag?, callback: (Int) -> Unit) {
-        val stats = _lastStats.computeIfAbsent(type) { TypeStats() }
-        stats.candidates++
-
-        tag?.let {
-            stats.updated++
-            val wrappedTag = PaperCompoundTag(tag)
-            val entity = sokol.persistence.readBlueprint(wrappedTag).create(space)
-            callback(entity)
-        }
-    }
-
-    private fun tagOf(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
-
-    private fun resolveLevel(space: SokolEngine.Space, level: ServerLevel) {
-        val bukkit = level.world
-        resolveTag(space, OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity ->
-            space.addComponent(entity, hostedByWorld(bukkit))
-        }
-
-        level.entities.all.forEach { resolveEntity(space, it) }
-
-        level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
-            @Suppress("UNNECESSARY_SAFE_CALL") // this may be null
-            holder.fullChunkNow?.let { resolveChunk(space, it, bukkit) }
-        }
-    }
-
-    private fun resolveChunk(space: SokolEngine.Space, chunk: LevelChunk, world: World) {
-        val bukkit = chunk.bukkitChunk
-        resolveTag(space, OBJECT_TYPE_CHUNK, tagOf(bukkit.persistentDataContainer)) { entity ->
-            space.addComponent(entity, hostedByChunk(bukkit))
-        }
-
-        chunk.blockEntities.forEach { (pos, block) -> resolveBlock(space, block, pos, world) }
-    }
-
-    private fun resolveEntity(space: SokolEngine.Space, mob: Entity) {
-        val bukkit = lazy { mob.bukkitEntity }
-        resolveTag(space, OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity ->
-            populate(space, entity, bukkit.value)
-        }
-
-        when (mob) {
-            is ItemEntity -> resolveItem(space, mob.item)
-            is ItemFrame -> resolveItem(space, mob.item)
-            is Player -> mob.inventory.contents.forEach { resolveItem(space, it) }
-            is LivingEntity -> mob.armorSlots.forEach { resolveItem(space, it) }
-        }
-    }
-
-    private fun resolveBlock(space: SokolEngine.Space, block: BlockEntity, pos: BlockPos, world: World) {
-        resolveTag(space, OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity ->
-            val backing = lazy { world.getBlockAt(pos.x, pos.y, pos.z) }
-            val state = lazy { backing.value.getState(false) }
-            space.addComponent(entity, object : HostedByBlock {
-                override val block get() = backing.value
-                override val state get() = state.value
-            })
-        }
-
-        when (block) {
-            is BaseContainerBlockEntity -> block.contents.forEach { resolveItem(space, it) }
-        }
-    }
-
-    private fun CompoundTag.compound(key: String) = tags[key] as? CompoundTag
-
-    private fun CompoundTag.list(key: String) = tags[key] as? ListTag
-
-    private fun resolveItemTagInternal(
-        space: SokolEngine.Space,
-        tagMeta: CompoundTag,
-        getStack: () -> ItemStack,
-        onDirtied: (org.bukkit.inventory.ItemStack) -> Unit
+    private inner class ResolveOperation(
+        val callback: (SokolEntityAccess) -> Unit,
+        val stats: MutableMap<String, TypeStats>,
     ) {
-        val bukkitStack = lazy { getStack().bukkitStack }
-        val meta = lazy { bukkitStack.value.itemMeta }
-        var dirty = false
-
-        resolveTag(space, OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity ->
-            space.addComponent(entity, object : HostedByItem {
-                override val stack get() = bukkitStack.value
-
-                override fun <R> readMeta(action: (ItemMeta) -> R): R {
-                    return action(meta.value)
-                }
-
-                override fun writeMeta(action: (ItemMeta) -> Unit) {
-                    action(meta.value)
-                    dirty = true
-                }
-            })
+        fun resolve() {
+            val server = (Bukkit.getServer() as CraftServer).server
+            server.allLevels.forEach { resolveLevel(it) }
+            server.playerList.players.forEach { player ->
+                resolveItem(player.inventoryMenu.carried)
+            }
         }
 
-        tagMeta.compound("BlockEntityTag")?.list("Items")?.forEach { tagItem ->
-            (tagItem as? CompoundTag)?.let {
-                resolveItemTag(space, tagItem) { dirtied ->
-                    (dirtied as CraftItemStack).handle.save(tagItem)
+        private fun resolveTag(type: String, tag: CompoundTag?, populator: (SokolEntityAccess) -> Unit) {
+            val typeStats = stats.computeIfAbsent(type) { TypeStats() }
+            typeStats.candidates++
+
+            tag?.let {
+                typeStats.updated++
+                val wrappedTag = PaperCompoundTag(tag)
+                val blueprint = sokol.persistence.readBlueprint(wrappedTag)
+                if (!blueprint.isEmpty()) {
+                    val entity = blueprint.create(sokol.engine)
+                    populator(entity)
+                    callback(entity)
+                    // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
+                    // how to implement this? idfk
+                    sokol.persistence.writeEntity(entity, wrappedTag)
                 }
             }
         }
 
-        if (dirty) {
-            bukkitStack.value.itemMeta = meta.value
-            onDirtied(bukkitStack.value)
-        }
-    }
+        private fun tagOf(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
 
-    private fun resolveItemTag(space: SokolEngine.Space, tag: CompoundTag, onDirtied: (org.bukkit.inventory.ItemStack) -> Unit) {
-        tag.compound("tag")?.let { tagMeta ->
-            val stack = lazy { ItemStack.of(tag) }
-            resolveItemTagInternal(space, tagMeta, { stack.value }, onDirtied)
-        }
-    }
+        private fun resolveLevel(level: ServerLevel) {
+            val bukkit = level.world
+            resolveTag(OBJECT_TYPE_WORLD, tagOf(level.world.persistentDataContainer)) { entity ->
+                entity.addComponent(hostedByWorld(bukkit))
+            }
 
-    private fun resolveItem(space: SokolEngine.Space, item: ItemStack) {
-        val tag = item.tag
-        if (item.item === Items.AIR || tag == null) return
-        resolveItemTagInternal(space, tag, { item }, {})
+            level.entities.all.forEach { resolveMob(it) }
+
+            level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
+                @Suppress("UNNECESSARY_SAFE_CALL") // this may be null
+                holder.fullChunkNow?.let { resolveChunk(it, bukkit) }
+            }
+        }
+
+        private fun resolveChunk(chunk: LevelChunk, world: World) {
+            val bukkit = chunk.bukkitChunk
+            resolveTag(OBJECT_TYPE_CHUNK, tagOf(bukkit.persistentDataContainer)) { entity ->
+                entity.addComponent(hostedByChunk(bukkit))
+            }
+
+            chunk.blockEntities.forEach { (pos, block) -> resolveBlock(block, pos, world) }
+        }
+
+        private fun resolveMob(mob: Entity) {
+            val bukkit = lazy { mob.bukkitEntity }
+            resolveTag(OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity ->
+                populate(entity, bukkit.value)
+            }
+
+            when (mob) {
+                is ItemEntity -> resolveItem(mob.item)
+                is ItemFrame -> resolveItem(mob.item)
+                is Player -> mob.inventory.contents.forEach { resolveItem(it) }
+                is LivingEntity -> mob.armorSlots.forEach { resolveItem(it) }
+            }
+        }
+
+        private fun resolveBlock(block: BlockEntity, pos: BlockPos, world: World) {
+            resolveTag(OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity ->
+                val backing = lazy { world.getBlockAt(pos.x, pos.y, pos.z) }
+                val state = lazy { backing.value.getState(false) }
+                entity.addComponent(object : HostedByBlock {
+                    override val block get() = backing.value
+                    override val state get() = state.value
+                })
+            }
+
+            when (block) {
+                is BaseContainerBlockEntity -> block.contents.forEach { resolveItem(it) }
+            }
+        }
+
+        private fun CompoundTag.compound(key: String) = tags[key] as? CompoundTag
+
+        private fun CompoundTag.list(key: String) = tags[key] as? ListTag
+
+        private fun resolveItemTagInternal(
+            tagMeta: CompoundTag,
+            getStack: () -> ItemStack,
+            onDirtied: (BukkitStack) -> Unit
+        ) {
+            val bukkitStack = lazy { getStack().bukkitStack }
+            val meta = lazy { bukkitStack.value.itemMeta }
+            var dirty = false
+
+            resolveTag(OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity ->
+                entity.addComponent(object : HostedByItem {
+                    override val stack get() = bukkitStack.value
+
+                    override fun <R> readMeta(action: (ItemMeta) -> R): R {
+                        return action(meta.value)
+                    }
+
+                    override fun writeMeta(action: (ItemMeta) -> Unit) {
+                        action(meta.value)
+                        dirty = true
+                    }
+                })
+            }
+
+            tagMeta.compound("BlockEntityTag")?.list("Items")?.forEach { tagItem ->
+                (tagItem as? CompoundTag)?.let {
+                    resolveItemTag(tagItem) { dirtied ->
+                        (dirtied as CraftItemStack).handle.save(tagItem)
+                    }
+                }
+            }
+
+            if (dirty) {
+                bukkitStack.value.itemMeta = meta.value
+                onDirtied(bukkitStack.value)
+            }
+        }
+
+        private fun resolveItemTag(tag: CompoundTag, onDirtied: (BukkitStack) -> Unit) {
+            tag.compound("tag")?.let { tagMeta ->
+                val stack = lazy { ItemStack.of(tag) }
+                resolveItemTagInternal(tagMeta, { stack.value }, onDirtied)
+            }
+        }
+
+        private fun resolveItem(item: ItemStack) {
+            val tag = item.tag
+            if (item.item === Items.AIR || tag == null) return
+            resolveItemTagInternal(tag, { item }, {})
+        }
     }
 }

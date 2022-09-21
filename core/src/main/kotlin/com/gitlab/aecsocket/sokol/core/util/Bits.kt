@@ -2,14 +2,12 @@ package com.gitlab.aecsocket.sokol.core.util
 
 import kotlin.math.min
 
-// https://github.com/junkdog/artemis-odb/blob/develop/artemis-core/artemis/src/main/java/com/artemis/utils/BitVector.java
-
-class Bits(capacity: Int = 0) : Iterable<Boolean> {
-    private var words = longArrayOf(0)
-
-    init {
+class Bits private constructor(private var words: LongArray) : Iterable<Boolean> {
+    constructor(capacity: Int = 64) : this(longArrayOf(0)) {
         ensureCapacity(capacity)
     }
+
+    constructor(bits: Bits) : this(bits.words.clone())
 
     val size: Int get() {
         val bits = words
@@ -106,3 +104,5 @@ class Bits(capacity: Int = 0) : Iterable<Boolean> {
 
     override fun iterator() = BitsIterator()
 }
+
+// https://github.com/junkdog/artemis-odb/blob/develop/artemis-core/artemis/src/main/java/com/artemis/utils/BitVector.java

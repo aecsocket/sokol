@@ -2,35 +2,29 @@ package com.gitlab.aecsocket.sokol.core
 
 import java.util.UUID
 
-private fun missingKey(key: String, type: String): () -> Nothing = {
-    throw IllegalStateException("Missing key '$key' of type $type")
-}
-
-private fun missingIndex(index: Int, type: String): () -> Nothing = {
-    throw IllegalStateException("Missing elemet at index $index of type $type")
-}
-
 private fun wrongType(expected: String): Nothing {
     throw IllegalStateException("Expected tag of type $expected")
 }
 
-interface NBTTag {
-    fun ofInt(value: Int): NumericNBTTag
-    fun ofLong(value: Long): NumericNBTTag
-    fun ofByte(value: Byte): NumericNBTTag
-    fun ofShort(value: Short): NumericNBTTag
-    fun ofFloat(value: Float): NumericNBTTag
-    fun ofDouble(value: Double): NumericNBTTag
-    fun ofString(value: String): StringNBTTag
-    fun ofUUID(value: UUID): UUIDNBTTag
-    fun ofCompound(): CompoundNBTTag.Mutable
-    fun ofIntArray(values: IntArray): IntArrayNBTTag
-    fun ofLongArray(values: LongArray): LongArrayNBTTag
-    fun ofByteArray(values: ByteArray): ByteArrayNBTTag
-    fun ofFloatArray(values: FloatArray): FloatArrayNBTTag
-    fun ofDoubleArray(values: DoubleArray): DoubleArrayNBTTag
-    fun ofList(): ListNBTTag.Mutable
+interface NBTTagContext {
+    fun makeInt(value: Int): NumericNBTTag
+    fun makeLong(value: Long): NumericNBTTag
+    fun makeByte(value: Byte): NumericNBTTag
+    fun makeShort(value: Short): NumericNBTTag
+    fun makeFloat(value: Float): NumericNBTTag
+    fun makeDouble(value: Double): NumericNBTTag
+    fun makeString(value: String): StringNBTTag
+    fun makeUUID(value: UUID): UUIDNBTTag
+    fun makeCompound(): CompoundNBTTag.Mutable
+    fun makeIntArray(values: IntArray): IntArrayNBTTag
+    fun makeLongArray(values: LongArray): LongArrayNBTTag
+    fun makeByteArray(values: ByteArray): ByteArrayNBTTag
+    fun makeFloatArray(values: FloatArray): FloatArrayNBTTag
+    fun makeDoubleArray(values: DoubleArray): DoubleArrayNBTTag
+    fun makeList(): ListNBTTag.Mutable
+}
 
+interface NBTTag : NBTTagContext {
     fun asInt() = (this as? NumericNBTTag)?.int ?: wrongType("int")
     fun asLong() = (this as? NumericNBTTag)?.long ?: wrongType("long")
     fun asByte() = (this as? NumericNBTTag)?.byte ?: wrongType("byte")
