@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.paper
+package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import org.bukkit.Chunk

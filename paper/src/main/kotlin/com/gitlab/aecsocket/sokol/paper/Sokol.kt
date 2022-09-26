@@ -1,37 +1,34 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
-import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.github.retrooper.packetevents.PacketEvents
-import com.github.retrooper.packetevents.event.PacketListenerAbstract
-import com.github.retrooper.packetevents.event.PacketSendEvent
-import com.github.retrooper.packetevents.protocol.packettype.PacketType
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
+import com.github.retrooper.packetevents.event.PacketListenerPriority
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
+import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.BasePlugin
+import com.gitlab.aecsocket.alexandria.paper.PacketInputListener
+import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
 import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.util.Timings
-import com.gitlab.aecsocket.sokol.paper.feature.*
-import io.github.retrooper.packetevents.util.SpigotReflectionUtil
+import com.gitlab.aecsocket.sokol.paper.component.*
 import net.kyori.adventure.key.Key
 import org.bukkit.entity.Entity
-import org.bukkit.entity.Player
-import org.bukkit.event.EventHandler
-import org.bukkit.event.Listener
+import org.bukkit.inventory.ItemStack
+import org.bukkit.persistence.PersistentDataContainer
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
 import java.nio.file.FileVisitResult
+import java.nio.file.Path
 import kotlin.io.path.isRegularFile
 
 private const val CONFIG = "config"
@@ -71,9 +68,8 @@ class Sokol : BasePlugin() {
     private val _componentTypes = HashMap<String, PersistentComponentType>()
     val componentTypes: Map<String, PersistentComponentType> get() = _componentTypes
 
-    /*
-    private val _itemBlueprints = Registry.create<ItemBlueprint>()
-    val itemBlueprints: Registry<ItemBlueprint> get() = _itemBlueprints*/
+    private val _itemBlueprints = Registry.create<KeyedItemBlueprint>()
+    val itemBlueprints: Registry<KeyedItemBlueprint> get() = _itemBlueprints
 
     private val _entityBlueprints = Registry.create<KeyedEntityBlueprint>()
     val entityBlueprints: Registry<KeyedEntityBlueprint> get() = _entityBlueprints
@@ -83,9 +79,12 @@ class Sokol : BasePlugin() {
 
     val engineTimings = Timings(TIMING_MAX_MEASUREMENTS)
 
-    //private val hostableByItem = HostableByItem()
+    val hostableByItem = HostableByItem.Type()
+    val colliders = Collider.Type()
+    val staticMeshes = StaticMesh.Type()
 
     private val registrations = ArrayList<Registration>()
+    private var hasReloaded = false
 
     override fun onEnable() {
         super.onEnable()
@@ -93,10 +92,12 @@ class Sokol : BasePlugin() {
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
-                    .register(PersistentComponent::class, ComponentSerializer(this@Sokol))
-                    //.registerExact(ItemBlueprint::class, ItemBlueprintSerializer(this@Sokol))
-                    .registerExact(SokolBlueprint::class, BlueprintSerializer())
+                    .registerExact(PersistentComponent::class, ComponentSerializer(this@Sokol))
+                    .registerExact(PersistentComponentFactory::class, ComponentFactorySerializer(this@Sokol))
+                    .registerExact(KeyedItemBlueprint::class, ItemBlueprintSerializer(this@Sokol))
                     .registerExact(KeyedEntityBlueprint::class, EntityBlueprintSerializer(this@Sokol))
+                    .registerExact(Mesh.PartDefinition::class, Mesh.PartDefinitionSerializer)
+                    .registerExact(StaticMesh.Config::class, StaticMesh.ConfigSerializer)
             },
             onLoad = {
                 addDefaultI18N()
@@ -105,39 +106,11 @@ class Sokol : BasePlugin() {
 
         registerDefaultConsumer()
 
-        registerEvents(object : Listener {
-            @EventHandler
-            fun on(event: EntityAddToWorldEvent) {
-                val mob = event.entity
-                updateMob(mob) { entity ->
-                    entity.call(SokolEvent.Add)
-                }
-            }
-
-            @EventHandler
-            fun on(event: EntityRemoveFromWorldEvent) {
-                val mob = event.entity
-                updateMob(mob) { entity ->
-                    entity.call(SokolEvent.Remove)
-                }
-            }
-        })
-
-        PacketEvents.getAPI().eventManager.registerListener(object : PacketListenerAbstract() {
-            override fun onPacketSend(event: PacketSendEvent) {
-                if (event.player !is Player) return
-                when (event.packetType) {
-                    PacketType.Play.Server.SPAWN_ENTITY -> {
-                        val packet = WrapperPlayServerSpawnEntity(event)
-                        SpigotReflectionUtil.getEntityById(packet.entityId)?.let { mob ->
-                            updateMob(mob) { entity ->
-                                entity.call(EntityEvent.Show(event))
-                            }
-                        }
-                    }
-                }
-            }
-        })
+        registerEvents(SokolEventListener(this))
+        PacketEvents.getAPI().eventManager.apply {
+            registerListener(SokolPacketListener(this@Sokol))
+            registerListener(PacketInputListener(::onInput), PacketListenerPriority.NORMAL)
+        }
     }
 
     override fun initInternal(): Boolean {
@@ -165,7 +138,12 @@ class Sokol : BasePlugin() {
 
             scheduleRepeating {
                 engineTimings.time {
-                    entityResolver.resolve { it.call(SokolEvent.Update) }
+                    entityResolver.resolve {
+                        if (hasReloaded)
+                            it.call(SokolEvent.Reload)
+                        it.call(SokolEvent.Update)
+                    }
+                    hasReloaded = false
                 }
             }
 
@@ -190,24 +168,25 @@ class Sokol : BasePlugin() {
                 return false
             }
 
-            //_itemBlueprints.clear()
-            //hostableByItem.clearConfigs()
+            _itemBlueprints.clear()
             _entityBlueprints.clear()
+            hostableByItem.registry.clear()
+            colliders.registry.clear()
+            staticMeshes.registry.clear()
             val configDir = dataFolder.resolve(CONFIG)
             if (configDir.exists()) {
+                data class FileData(
+                    val node: ConfigurationNode,
+                    val path: Path
+                )
+
+                val nodes = ArrayList<FileData>()
                 walkFile(configDir.toPath(),
                     onVisit = { path, _ ->
                         if (path.isRegularFile()) {
                             try {
                                 val node = AlexandriaAPI.configLoader().path(path).build().load()
-                                //hostableByItem.load(log, node)
-
-                                /*node.node(ITEMS).childrenMap().forEach { (_, child) ->
-                                _itemBlueprints.register(child.force())
-                            }*/
-                                node.node(ENTITIES).childrenMap().forEach { (_, child) ->
-                                    _entityBlueprints.register(child.force())
-                                }
+                                nodes.add(FileData(node, path))
                             } catch (ex: Exception) {
                                 log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
                             }
@@ -219,9 +198,34 @@ class Sokol : BasePlugin() {
                         FileVisitResult.CONTINUE
                     }
                 )
+
+                fun loadNodes(action: (ConfigurationNode) -> Unit) {
+                    nodes.forEach { (node, path) ->
+                        try {
+                            action(node)
+                        } catch (ex: Exception) {
+                            log.line(LogLevel.Warning, ex) { "Could not deserialize data from $path" }
+                        }
+                    }
+                }
+
+                loadNodes { hostableByItem.load(it) }
+                loadNodes { colliders.load(it) }
+                loadNodes { staticMeshes.load(it) }
+                loadNodes {
+                    it.node(ITEMS).childrenMap().forEach { (_, child) ->
+                        _itemBlueprints.register(child.force())
+                    }
+                }
+                loadNodes {
+                    it.node(ENTITIES).childrenMap().forEach { (_, child) ->
+                        _entityBlueprints.register(child.force())
+                    }
+                }
             }
             log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity blueprints" }
 
+            hasReloaded = true
             return true
         }
         return false
@@ -236,16 +240,48 @@ class Sokol : BasePlugin() {
 
     fun componentType(key: Key) = _componentTypes[key.asString()]
 
-    fun updateMob(mob: Entity, callback: (SokolEntityAccess) -> Unit) {
-        persistence.getTag(mob.persistentDataContainer, persistence.entityKey)?.let { tag ->
+    fun usePDC(pdc: PersistentDataContainer, write: Boolean = true, callback: (SokolEntityAccess) -> Unit): Boolean {
+        persistence.getTag(pdc, persistence.entityKey)?.let { tag ->
             val blueprint = persistence.readBlueprint(tag)
-            if (!blueprint.isEmpty()) {
+            if (blueprint.isNotEmpty()) {
                 val entity = blueprint.create(engine)
-                entityResolver.populate(entity, mob)
                 callback(entity)
-                // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
-                // how to implement this? idfk
-                persistence.writeEntity(entity, tag)
+                if (write) {
+                    // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
+                    // how to implement this? idfk
+                    persistence.writeEntity(entity, tag)
+                }
+            }
+            return true
+        }
+        return false
+    }
+
+    fun useMob(mob: Entity, write: Boolean = true, callback: (SokolEntityAccess) -> Unit): Boolean {
+        return usePDC(mob.persistentDataContainer, write) { entity ->
+            entityResolver.populate(entity, mob)
+            callback(entity)
+        }
+    }
+
+    fun useItem(stack: ItemStack, write: Boolean = true, callback: (SokolEntityAccess) -> Unit): Boolean {
+        val meta = stack.itemMeta
+        return usePDC(meta.persistentDataContainer, write) { entity ->
+            entityResolver.populate(entity, stack, meta)
+            callback(entity)
+        }
+    }
+
+    private fun onInput(event: PacketInputListener.Event) {
+        val player = event.player
+        when (event.input) {
+            is Input.Drop -> return
+            else -> {
+                player.inventory.forEach { stack ->
+                    useItem(stack, false /* TODO dont write here? */) { entity ->
+                        entity.call(PlayerEvent.Input(event))
+                    }
+                }
             }
         }
     }
@@ -256,23 +292,30 @@ class Sokol : BasePlugin() {
                 engine
                     .systemFactory { it.define(ColliderSystem(it)) }
                     .systemFactory { it.define(MeshSystem(it)) }
+                    .systemFactory { it.define(StaticMeshSystem(it)) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
                     .componentType<HostedByMob>()
                     .componentType<HostedByBlock>()
                     .componentType<HostedByItem>()
-                    .componentType<Location>()
+                    .componentType<Position>()
                     .componentType<IsValidSupplier>()
 
                     .componentType<HostableByEntity>()
                     .componentType<Rotation>()
                     .componentType<Collider>()
+                    .componentType<RigidBody>()
+                    .componentType<VehicleBody>()
                     .componentType<Mesh>()
+                    .componentType<StaticMesh>()
                 registerComponentType(HostableByEntity.Type)
                 registerComponentType(Rotation.Type)
-                registerComponentType(Collider.Type)
+                registerComponentType(colliders)
+                registerComponentType(RigidBody.Type)
+                registerComponentType(VehicleBody.Type)
                 registerComponentType(Mesh.Type)
+                registerComponentType(staticMeshes)
             },
             onPostInit = {
                 val mRotation = engine.componentMapper<Rotation>()
@@ -287,11 +330,15 @@ class Sokol : BasePlugin() {
 
                     val rotation = mRotation.mapOr(entity)?.rotation ?: Quaternion.Identity
                     var transform = Transform(mob.location.position(), rotation)
-                    entity.addComponent(object : Location {
+                    entity.addComponent(object : Position {
                         override val world get() = mob.world
+                        @Suppress("UnstableApiUsage")
                         override var transform: Transform
                             get() = transform
-                            set(value) { transform = value }
+                            set(value) {
+                                transform = value
+                                mob.teleport(value.translation.location(world), true)
+                            }
                     })
                 }
             }

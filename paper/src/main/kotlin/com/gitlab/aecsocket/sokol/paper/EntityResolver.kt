@@ -35,6 +35,11 @@ const val OBJECT_TYPE_ITEM = "item"
 private typealias Mob = org.bukkit.entity.Entity
 private typealias BukkitStack = org.bukkit.inventory.ItemStack
 
+data class ItemInstance(
+    val stack: BukkitStack,
+    val meta: ItemMeta,
+)
+
 class EntityResolver internal constructor(
     private val sokol: Sokol
 ) {
@@ -58,6 +63,7 @@ class EntityResolver internal constructor(
     val lastStats: Map<String, TypeStats> get() = _lastStats
 
     private val mobPopulators = ArrayList<Populator<Mob>>()
+    private val itemPopulators = ArrayList<Populator<ItemInstance>>()
     private val entityKey = sokol.persistence.entityKey.toString()
 
     internal fun load(settings: ConfigurationNode) {
@@ -68,8 +74,17 @@ class EntityResolver internal constructor(
         mobPopulators.add(populator)
     }
 
+    fun itemPopulator(populator: Populator<ItemInstance>) {
+        itemPopulators.add(populator)
+    }
+
     fun populate(entity: SokolEntityAccess, mob: Mob) {
         mobPopulators.forEach { it.populate(entity, mob) }
+    }
+
+    fun populate(entity: SokolEntityAccess, stack: BukkitStack, meta: ItemMeta) {
+        val instance = ItemInstance(stack, meta)
+        itemPopulators.forEach { it.populate(entity, instance) }
     }
 
     fun resolve(callback: (SokolEntityAccess) -> Unit) {

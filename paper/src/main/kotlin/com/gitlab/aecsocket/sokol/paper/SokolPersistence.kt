@@ -51,7 +51,7 @@ class SokolPersistence internal constructor(
 
     private fun SokolComponent.writeInto(tag: CompoundNBTTag.Mutable) {
         if (this is PersistentComponent) {
-            tag.set(key.toString(), ::write)
+            writeKeyed(tag)
         }
     }
 

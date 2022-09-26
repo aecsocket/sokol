@@ -25,6 +25,7 @@ private fun doublesOf(values: ByteArray) = ByteBuffer.wrap(values).run {
 sealed class PaperNBTTag(
     open val backing: Tag
 ) : NBTTag {
+    override fun makeBoolean(value: Boolean) = PaperNumericTag(ByteTag.valueOf(value))
     override fun makeInt(value: Int) = PaperNumericTag(IntTag.valueOf(value))
     override fun makeLong(value: Long) = PaperNumericTag(LongTag.valueOf(value))
     override fun makeByte(value: Byte) = PaperNumericTag(ByteTag.valueOf(value))
@@ -48,7 +49,8 @@ sealed class PaperNBTTag(
 
 private val NBTTag.backing get() = (this as PaperNBTTag).backing
 
-data class PaperNumericTag(override val backing: NumericTag) : PaperNBTTag(backing), NumericNBTTag {
+data class PaperNumericTag(override val backing: NumericTag) : PaperNBTTag(backing), NumericNBTTag, BooleanNBTTag {
+    override val boolean get() = backing.asByte == 1.toByte()
     override val int get() = backing.asInt
     override val long get() = backing.asLong
     override val byte get() = backing.asByte

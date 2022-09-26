@@ -1,4 +1,4 @@
-package com.gitlab.aecsocket.sokol.core
+package com.gitlab.aecsocket.sokol.core.util
 
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.objectmapping.ConfigSerializable

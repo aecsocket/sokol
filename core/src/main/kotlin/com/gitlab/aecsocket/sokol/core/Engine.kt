@@ -29,6 +29,16 @@ annotation class Priority(val value: Int)
 @Target(AnnotationTarget.FUNCTION)
 annotation class Subscribe
 
+const val PRIORITY_EARLIEST = -1000
+
+const val PRIORITY_EARLY = -100
+
+const val PRIORITY_NORMAL = 0
+
+const val PRIORITY_LATE = 100
+
+const val PRIORITY_LATEST = 1000
+
 data class SystemDefinition internal constructor(
     val filter: EntityFilter,
     val priority: Int,
@@ -42,14 +52,13 @@ data class EntityFilter internal constructor(
     val none: Bits,
 )
 
-@JvmInline
-value class Archetype internal constructor(val components: Bits) {
-    companion object {
-        val Empty = Archetype(Bits(0))
-    }
-}
+typealias Archetype = Bits
+
+val EMPTY_ARCHETYPE = Archetype(0)
 
 interface ComponentMapper<C : SokolComponent> {
+    fun has(entity: SokolEntityAccess): Boolean
+
     fun mapOr(entity: SokolEntityAccess): C?
 
     fun map(entity: SokolEntityAccess): C
@@ -62,6 +71,8 @@ interface SokolEntityAccess {
 
     fun allComponents(): Set<SokolComponent>
 
+    fun hasComponent(type: Int): Boolean
+
     fun getComponent(type: Int): SokolComponent?
 
     fun addComponent(component: SokolComponent)
@@ -72,6 +83,19 @@ interface SokolEntityAccess {
 }
 
 inline fun <reified C : SokolComponent> SokolEntityAccess.component(): C? = getComponent(engine.componentType<C>()) as? C
+
+data class SokolBlueprint(val components: Collection<SokolComponent>) {
+    fun isEmpty() = components.isEmpty()
+    fun isNotEmpty() = components.isNotEmpty()
+
+    fun archetype(engine: SokolEngine) = engine.createArchetype(components.map { it::class.java })
+
+    fun create(engine: SokolEngine): SokolEntityAccess {
+        val entity = engine.createEntity()
+        components.forEach { entity.addComponent(it) }
+        return entity
+    }
+}
 
 class SokolEngine internal constructor(
     private val componentTypes: Map<Class<out SokolComponent>, Int>
@@ -146,6 +170,7 @@ class SokolEngine internal constructor(
 
     fun addSystems(vararg systems: SystemDefinition) {
         systems.forEach { _systems.add(it) }
+        sortSystems()
     }
 
     fun removeSystem(system: SystemDefinition) {
@@ -181,6 +206,10 @@ class SokolEngine internal constructor(
     fun <C : SokolComponent> componentMapper(type: Class<out SokolComponent>): ComponentMapper<C> {
         val typeId = componentType(type)
         return object : ComponentMapper<C> {
+            override fun has(entity: SokolEntityAccess): Boolean {
+                return entity.hasComponent(typeId)
+            }
+
             override fun mapOr(entity: SokolEntityAccess): C? {
                 @Suppress("UNCHECKED_CAST")
                 return entity.getComponent(typeId) as? C
@@ -206,9 +235,9 @@ class SokolEngine internal constructor(
             && !filter.none.intersects(archetype)
     }
 
-    fun createEntity(archetype: Archetype = Archetype.Empty): SokolEntityAccess {
+    fun createEntity(archetype: Archetype = EMPTY_ARCHETYPE): SokolEntityAccess {
         return object : SokolEntityAccess {
-            val currentArchetype = Bits(archetype.components)
+            val currentArchetype = Bits(archetype)
             val components = Array<SokolComponent?>(componentTypes.size) { null }
 
             override val engine get() = this@SokolEngine
@@ -216,6 +245,10 @@ class SokolEngine internal constructor(
             override fun archetype() = Archetype(currentArchetype)
 
             override fun allComponents() = components.filterNotNull().toSet()
+
+            override fun hasComponent(type: Int): Boolean {
+                return components[type] != null
+            }
 
             override fun getComponent(type: Int) = components[type]
 
@@ -278,34 +311,4 @@ class SokolEngine internal constructor(
             addSystems(_systemFactories.map { it.create(this) })
         }
     }
-}
-
-class SokolBlueprint(val components: Collection<SokolComponent>) {
-    fun isEmpty() = components.isEmpty()
-
-    fun archetype(engine: SokolEngine) = engine.createArchetype(components.map { it.componentType })
-
-    fun apply(entity: SokolEntityAccess) {
-        components.forEach {
-            entity.addComponent(it)
-        }
-    }
-
-    fun create(engine: SokolEngine): SokolEntityAccess {
-        if (components.isEmpty())
-            throw IllegalArgumentException("Cannot create entity from blueprint with no components")
-        val entity = engine.createEntity(archetype(engine))
-        apply(entity)
-        return entity
-    }
-
-    fun byType(type: Class<out SokolComponent>): SokolComponent? {
-        return components.find { it.componentType === type }
-    }
-
-    inline fun <reified C : SokolComponent> byType(): C? = byType(C::class.java) as? C
-
-    fun containsType(type: Class<out SokolComponent>) = byType(type) != null
-
-    inline fun <reified C : SokolComponent> containsType() = containsType(C::class.java)
 }

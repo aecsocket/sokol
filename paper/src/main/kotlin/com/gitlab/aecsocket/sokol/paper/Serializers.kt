@@ -1,11 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.alexandria.core.extension.forceMap
-import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.glossa.core.force
-import com.gitlab.aecsocket.sokol.core.SokolBlueprint
-import net.kyori.adventure.key.InvalidKeyException
-import net.kyori.adventure.key.Key
+import com.gitlab.aecsocket.sokol.paper.util.validateNamespacedKey
+import com.gitlab.aecsocket.sokol.paper.util.validateStringKey
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
@@ -22,47 +19,36 @@ class ComponentSerializer(
     }
 
     override fun deserialize(type: Type, node: ConfigurationNode): PersistentComponent {
-        val key = try { Key.key(node.key().toString())
-        } catch (ex: InvalidKeyException) { throw SerializationException(node, type, "Invalid key", ex) }
+        val key = validateNamespacedKey(type, node)
         val componentType = sokol.componentType(key)
             ?: throw SerializationException(node, type, "Invalid component type '$key', valid: ${sokol.componentTypes.keys}")
         return componentType.read(node)
     }
 }
 
-/*
+class ComponentFactorySerializer(
+    private val sokol: Sokol
+) : TypeSerializer<PersistentComponentFactory> {
+    override fun serialize(type: Type, obj: PersistentComponentFactory?, node: ConfigurationNode) {}
+
+    override fun deserialize(type: Type, node: ConfigurationNode): PersistentComponentFactory {
+        val key = validateNamespacedKey(type, node)
+        val componentType = sokol.componentType(key)
+            ?: throw SerializationException(node, type, "Invalid component type '$key'")
+        return componentType.readFactory(node)
+    }
+}
+
 class ItemBlueprintSerializer(
     private val sokol: Sokol
-) : TypeSerializer<ItemBlueprint> {
-    override fun serialize(type: Type, obj: ItemBlueprint?, node: ConfigurationNode) {}
+) : TypeSerializer<KeyedItemBlueprint> {
+    override fun serialize(type: Type, obj: KeyedItemBlueprint?, node: ConfigurationNode) {}
 
-    override fun deserialize(type: Type, node: ConfigurationNode): ItemBlueprint {
-        return ItemBlueprint(sokol,
-            try {
-                Keyed.validate(node.key().toString())
-            } catch (ex: Keyed.ValidationException) {
-                throw SerializationException(node, type, "Invalid key", ex)
-            },
-            node.childrenMap().map { (_, child) -> child.force<SokolComponent.Persistent>() },
+    override fun deserialize(type: Type, node: ConfigurationNode): KeyedItemBlueprint {
+        return KeyedItemBlueprint(sokol,
+            validateStringKey(type, node),
+            node.force(),
         )
-    }
-}*/
-
-class BlueprintSerializer: TypeSerializer<SokolBlueprint> {
-    override fun serialize(type: Type, obj: SokolBlueprint?, node: ConfigurationNode) {
-        if (obj == null) node.set(null)
-        else {
-            obj.components.forEach { component ->
-                if (component is PersistentComponent) {
-                    node.node(component.key.asString()).set(component)
-                }
-            }
-        }
-    }
-
-    override fun deserialize(type: Type, node: ConfigurationNode): SokolBlueprint {
-        val components = node.forceMap(type).map { (_, child) -> child.force<PersistentComponent>() }
-        return SokolBlueprint(components)
     }
 }
 
@@ -73,8 +59,7 @@ class EntityBlueprintSerializer(
 
     override fun deserialize(type: Type, node: ConfigurationNode): KeyedEntityBlueprint {
         return KeyedEntityBlueprint(sokol,
-            try { Keyed.validate(node.key().toString())
-            } catch (ex: Keyed.ValidationException) { throw SerializationException(node, type, "Invalid key", ex) },
+            validateStringKey(type, node),
             node.force(),
         )
     }

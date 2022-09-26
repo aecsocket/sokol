@@ -7,6 +7,7 @@ private fun wrongType(expected: String): Nothing {
 }
 
 interface NBTTagContext {
+    fun makeBoolean(value: Boolean): BooleanNBTTag
     fun makeInt(value: Int): NumericNBTTag
     fun makeLong(value: Long): NumericNBTTag
     fun makeByte(value: Byte): NumericNBTTag
@@ -25,6 +26,7 @@ interface NBTTagContext {
 }
 
 interface NBTTag : NBTTagContext {
+    fun asBoolean() = (this as? BooleanNBTTag)?.boolean ?: wrongType("boolean")
     fun asInt() = (this as? NumericNBTTag)?.int ?: wrongType("int")
     fun asLong() = (this as? NumericNBTTag)?.long ?: wrongType("long")
     fun asByte() = (this as? NumericNBTTag)?.byte ?: wrongType("byte")
@@ -40,6 +42,10 @@ interface NBTTag : NBTTagContext {
     fun asFloatArray() = (this as? FloatArrayNBTTag)?.floatArray ?: wrongType("float_array")
     fun asDoubleArray() = (this as? DoubleArrayNBTTag)?.doubleArray ?: wrongType("double_array")
     fun asList() = this as? ListNBTTag ?: wrongType("list")
+}
+
+interface BooleanNBTTag : NBTTag {
+    val boolean: Boolean
 }
 
 interface NumericNBTTag : NBTTag {
@@ -86,6 +92,8 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
             }
         }
     }
+
+    fun getList(key: String): Iterable<NBTTag> = getOr(key) { asList() } ?: emptySet()
 
     interface Mutable : CompoundNBTTag {
         operator fun set(key: String, tag: NBTTag): Mutable

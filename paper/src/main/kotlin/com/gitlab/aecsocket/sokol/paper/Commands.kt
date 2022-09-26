@@ -8,7 +8,7 @@ import com.gitlab.aecsocket.alexandria.core.command.RegistryElementArgument
 class EntityBlueprintArgument<C : Any>(
     sokol: Sokol,
     name: String,
-    description: ArgumentDescription,
+    description: ArgumentDescription = ArgumentDescription.of(""),
     required: Boolean = true,
     defaultValue: String = "",
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,

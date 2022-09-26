@@ -6,9 +6,9 @@ import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.sokol.core.NBTTag
 import com.gitlab.aecsocket.sokol.core.NBTTagContext
 
-fun NBTTagContext.makeVector(value: Vector3) = makeDoubleArray(doubleArrayOf(value.x, value.y, value.z))
+fun NBTTagContext.makeVector3(value: Vector3) = makeDoubleArray(doubleArrayOf(value.x, value.y, value.z))
 
-fun NBTTag.asVector() = asDoubleArray().run { Vector3(get(0), get(1), get(2)) }
+fun NBTTag.asVector3() = asDoubleArray().run { Vector3(get(0), get(1), get(2)) }
 
 fun NBTTagContext.makeQuaternion(value: Quaternion) = makeDoubleArray(doubleArrayOf(value.x, value.y, value.z, value.w))
 
@@ -18,10 +18,10 @@ private const val TRANSLATION = "translation"
 private const val ROTATION = "rotation"
 
 fun NBTTagContext.makeTransform(value: Transform) = makeCompound()
-    .set(TRANSLATION) { makeVector(value.translation) }
+    .set(TRANSLATION) { makeVector3(value.translation) }
     .set(ROTATION) { makeQuaternion(value.rotation) }
 
 fun NBTTag.asTransform() = asCompound().run { Transform(
-    get(TRANSLATION) { asVector() },
+    get(TRANSLATION) { asVector3() },
     get(ROTATION) { asQuaternion() },
 ) }

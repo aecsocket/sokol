@@ -1,7 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.util
 
 import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
-import com.gitlab.aecsocket.sokol.core.ItemDescriptor
+import com.gitlab.aecsocket.sokol.core.util.ItemDescriptor
 import org.bukkit.NamespacedKey
 import org.bukkit.Registry
 import org.bukkit.inventory.ItemFlag
