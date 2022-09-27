@@ -1,9 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.github.retrooper.packetevents.event.PacketSendEvent
-import com.gitlab.aecsocket.alexandria.paper.PacketInputListener
+import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.sokol.core.SokolEvent
-import org.bukkit.event.player.PlayerDropItemEvent
+import org.bukkit.entity.Player
 
 interface MobEvent : SokolEvent {
     object Host : MobEvent
@@ -15,8 +15,8 @@ interface ItemEvent : SokolEvent {
     object Host : ItemEvent
 }
 
-interface PlayerEvent : SokolEvent {
-    data class Input(val backing: PacketInputListener.Event) : PlayerEvent
-
-    data class Drop(val backing: PlayerDropItemEvent) : PlayerEvent
-}
+data class PlayerInput(
+    val input: Input,
+    val player: Player,
+    val cancel: () -> Unit,
+) : SokolEvent

@@ -42,9 +42,9 @@ internal class SokolCommand(
             .handler { handle(it, ::stats) })
         manager.command(root
             .literal("give", desc("Creates and gives an item blueprint to a player."))
-            .argument(StringArgument.of("id"), desc("TODO: id of bp"))
+            .argument(ItemBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to give to."))
-            .argument(IntegerArgument.newBuilder<CommandSender?>("amount")
+            .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1)
                 .asOptional(), desc("Amount of items to give."))
             .permission(perm("give"))
@@ -53,7 +53,7 @@ internal class SokolCommand(
             .literal("summon", desc("Creates and summons an entity blueprint."))
             .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .argument(LocationArgument.of("location"), desc("Where to spawn the entity."))
-            .argument(IntegerArgument.newBuilder<CommandSender?>("amount")
+            .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1)
                 .asOptional(), desc("The amount of entities to spawn."))
             .permission(perm("summon"))
@@ -117,25 +117,22 @@ internal class SokolCommand(
     }
 
     fun give(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        /*val blueprint = plugin.itemBlueprints[ctx.get("id")] ?: throw Exception() // todo
+        val blueprint = ctx.get<KeyedItemBlueprint>("blueprint")
         val targets = ctx.players("targets", sender, i18n)
         val amount = ctx.value("amount") { 1 }
 
         val item = blueprint.createItem()
-
-        val stackSize = item.type.maxStackSize
-        val stacksNum = amount / stackSize
-        val remainderNum = amount % stackSize
-
-        val fullStack = listOf(item.clone().apply { setAmount(stackSize) })
-        val stacks = (
-            (0 until stacksNum).flatMap { fullStack } +
-            listOf(item.clone().apply { setAmount(remainderNum) })
-        ).toTypedArray()
+        item.amount = amount
 
         targets.forEach { target ->
-            target.inventory.addItem(*stacks)
-        }*/
+            target.inventory.addItem(item)
+        }
+
+        plugin.sendMessage(sender, i18n.csafe("give") {
+            subst("id", text(blueprint.id))
+            subst("target", if (targets.size == 1) targets.first().name() else text(targets.size))
+            icu("amount", amount)
+        })
     }
 
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {

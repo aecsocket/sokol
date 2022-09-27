@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
+import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -28,10 +29,9 @@ internal class SokolEventListener(
 
     @EventHandler
     fun on(event: PlayerDropItemEvent) {
-        event.player.inventory.forEach { stack ->
-            sokol.useItem(stack) { entity ->
-                entity.call(PlayerEvent.Drop(event))
-            }
+        val player = event.player
+        sokol.usePlayerItems(event.player) { entity ->
+            entity.call(PlayerInput(Input.Drop, player) { event.isCancelled = true })
         }
     }
 }

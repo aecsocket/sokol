@@ -21,6 +21,7 @@ import com.gitlab.aecsocket.sokol.core.util.Timings
 import com.gitlab.aecsocket.sokol.paper.component.*
 import net.kyori.adventure.key.Key
 import org.bukkit.entity.Entity
+import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataContainer
 import org.spongepowered.configurate.ConfigurationNode
@@ -223,7 +224,7 @@ class Sokol : BasePlugin() {
                     }
                 }
             }
-            log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity blueprints" }
+            log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity blueprints, ${_itemBlueprints.size} item blueprints" }
 
             hasReloaded = true
             return true
@@ -272,15 +273,24 @@ class Sokol : BasePlugin() {
         }
     }
 
+    fun usePlayerItems(player: Player, write: Boolean = true, callback: (SokolEntityAccess) -> Unit) {
+        player.inventory.forEachIndexed { idx, stack ->
+            stack?.let {
+                useItem(stack, write) { entity ->
+                    entity.addComponent(itemHolderOfPlayer(player, idx))
+                    callback(entity)
+                }
+            }
+        }
+    }
+
     private fun onInput(event: PacketInputListener.Event) {
         val player = event.player
-        when (event.input) {
+        when (val input = event.input) {
             is Input.Drop -> return
             else -> {
-                player.inventory.forEach { stack ->
-                    useItem(stack, false /* TODO dont write here? */) { entity ->
-                        entity.call(PlayerEvent.Input(event))
-                    }
+                usePlayerItems(player, false) { entity ->
+                    entity.call(PlayerInput(input, player) { event.cancel() })
                 }
             }
         }
@@ -302,6 +312,7 @@ class Sokol : BasePlugin() {
                     .componentType<Position>()
                     .componentType<IsValidSupplier>()
 
+                    .componentType<HostableByItem>()
                     .componentType<HostableByEntity>()
                     .componentType<Rotation>()
                     .componentType<Collider>()
@@ -309,6 +320,7 @@ class Sokol : BasePlugin() {
                     .componentType<VehicleBody>()
                     .componentType<Mesh>()
                     .componentType<StaticMesh>()
+                registerComponentType(hostableByItem)
                 registerComponentType(HostableByEntity.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(colliders)

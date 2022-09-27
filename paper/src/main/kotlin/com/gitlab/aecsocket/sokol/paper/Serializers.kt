@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.paper.util.validateNamespacedKey
 import com.gitlab.aecsocket.sokol.paper.util.validateStringKey
+import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
@@ -47,7 +48,7 @@ class ItemBlueprintSerializer(
     override fun deserialize(type: Type, node: ConfigurationNode): KeyedItemBlueprint {
         return KeyedItemBlueprint(sokol,
             validateStringKey(type, node),
-            node.force(),
+            node.force<MutableMap<String, PersistentComponentFactory>>(),
         )
     }
 }
@@ -60,7 +61,7 @@ class EntityBlueprintSerializer(
     override fun deserialize(type: Type, node: ConfigurationNode): KeyedEntityBlueprint {
         return KeyedEntityBlueprint(sokol,
             validateStringKey(type, node),
-            node.force(),
+            node.force<MutableMap<String, PersistentComponentFactory>>(),
         )
     }
 }

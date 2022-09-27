@@ -1,9 +1,14 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
+import com.gitlab.aecsocket.sokol.paper.component.HostedByBlock
+import com.gitlab.aecsocket.sokol.paper.component.HostedByItem
+import com.gitlab.aecsocket.sokol.paper.component.hostedByChunk
+import com.gitlab.aecsocket.sokol.paper.component.hostedByWorld
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
+import net.minecraft.server.ChunkSystem
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.Entity
 import net.minecraft.world.entity.LivingEntity
@@ -133,7 +138,7 @@ class EntityResolver internal constructor(
 
             level.entities.all.forEach { resolveMob(it) }
 
-            level.chunkSource.chunkMap.updatingChunks.visibleMap.forEach { (_, holder) ->
+            ChunkSystem.getVisibleChunkHolders(level).forEach { holder ->
                 @Suppress("UNNECESSARY_SAFE_CALL") // this may be null
                 holder.fullChunkNow?.let { resolveChunk(it, bukkit) }
             }
