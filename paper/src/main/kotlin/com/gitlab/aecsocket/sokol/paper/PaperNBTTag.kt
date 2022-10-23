@@ -184,8 +184,18 @@ data class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), L
         return this
     }
 
+    override fun addOr(tag: NBTTag?): PaperListTag {
+        tag?.let { backing.add(it.backing) }
+        return this
+    }
+
     override fun add(tagCreator: NBTTag.() -> NBTTag): PaperListTag {
         backing.add(tagCreator(this).backing)
+        return this
+    }
+
+    override fun addOr(tagCreator: NBTTag.() -> NBTTag?): PaperListTag {
+        tagCreator(this)?.let { backing.add(it.backing) }
         return this
     }
 

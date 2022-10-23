@@ -5,11 +5,11 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.util.ItemDescriptor
 import com.gitlab.aecsocket.sokol.paper.PersistentComponent
 import com.gitlab.aecsocket.sokol.paper.PersistentComponentFactory
 import com.gitlab.aecsocket.sokol.paper.PersistentComponentType
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
 import com.gitlab.aecsocket.sokol.paper.util.validateStringKey
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable

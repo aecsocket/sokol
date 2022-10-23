@@ -178,7 +178,11 @@ interface ListNBTTag : CollectionNBTTag, Iterable<NBTTag> {
 
         fun add(tag: NBTTag): Mutable
 
+        fun addOr(tag: NBTTag?): Mutable
+
         fun add(tagCreator: NBTTag.() -> NBTTag): Mutable
+
+        fun addOr(tagCreator: NBTTag.() -> NBTTag?): Mutable
 
         fun removeAt(index: Int): Mutable
     }

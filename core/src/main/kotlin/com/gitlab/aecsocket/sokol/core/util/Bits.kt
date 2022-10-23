@@ -105,4 +105,4 @@ class Bits private constructor(private var words: LongArray) : Iterable<Boolean>
     override fun iterator() = BitsIterator()
 }
 
-// https://github.com/junkdog/artemis-odb/blob/develop/artemis-core/artemis/src/main/java/com/artemis/utils/BitVector.java
+fun emptyBits() = Bits(0)

@@ -11,6 +11,7 @@ repositories {
 }
 
 dependencies {
+    compileOnly(libs.kotlinReflect)
     compileOnly(libs.glossaCore)
     compileOnly(libs.cloudCore)
     compileOnly(libs.adventureApi)

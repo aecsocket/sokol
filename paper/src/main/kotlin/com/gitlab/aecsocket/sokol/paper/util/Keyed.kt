@@ -19,6 +19,6 @@ fun validateNamespacedKey(type: Type, node: ConfigurationNode): Key {
     return try {
         Key.key(node.key().toString())
     } catch (ex: InvalidKeyException) {
-        throw SerializationException(node, type, "Invalid key", ex)
+        throw SerializationException(node, type, "Invalid namespaced key", ex)
     }
 }

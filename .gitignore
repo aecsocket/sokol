@@ -18,6 +18,9 @@ api/bin/
 # VS Code
 *bin/
 
+# Fleet
+.fleet/
+
 # Compiled class file
 *.class
 

@@ -7,10 +7,10 @@ import com.jme3.bullet.collision.shapes.PlaneCollisionShape
 import com.jme3.bullet.collision.shapes.SphereCollisionShape
 import com.jme3.math.Plane
 
-private val empty = com.jme3.bullet.collision.shapes.EmptyShape(false)
+private val EMPTY_SHAPE = com.jme3.bullet.collision.shapes.EmptyShape(false)
 
 fun collisionOf(shape: Shape) = when (shape) {
-    is EmptyShape -> empty
+    is EmptyShape -> EMPTY_SHAPE
     is PlaneShape -> PlaneCollisionShape(Plane(shape.normal.bullet(), 0f))
     is BoxShape -> BoxCollisionShape(shape.halfExtent.bullet())
     is SphereShape -> SphereCollisionShape(shape.radius.toFloat())

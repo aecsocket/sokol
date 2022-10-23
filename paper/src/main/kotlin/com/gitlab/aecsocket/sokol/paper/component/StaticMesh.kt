@@ -6,9 +6,8 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.util.ItemDescriptor
 import com.gitlab.aecsocket.sokol.paper.*
-import com.gitlab.aecsocket.sokol.paper.util.create
+import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
 import com.gitlab.aecsocket.sokol.paper.util.validateStringKey
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -94,7 +93,7 @@ class StaticMeshSystem(engine: SokolEngine) : SokolSystem {
         val mesh = mMesh.map(entity)
         val staticMesh = mStaticMesh.map(entity).backing
 
-        mesh.parts = staticMesh.parts
+        mesh.parts = staticMesh.parts.map { Mesh.PartEntry(it) }
         mesh.transform = staticMesh.transform
     }
 

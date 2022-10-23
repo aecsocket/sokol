@@ -5,7 +5,6 @@ import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.Archetype
 import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
 import com.gitlab.aecsocket.sokol.paper.component.HostableByItem
-import com.gitlab.aecsocket.sokol.paper.util.create
 import com.gitlab.aecsocket.sokol.paper.util.spawnMarkerEntity
 import net.kyori.adventure.key.Key
 import org.bukkit.Location

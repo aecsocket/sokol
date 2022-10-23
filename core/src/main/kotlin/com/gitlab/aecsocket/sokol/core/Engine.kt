@@ -54,8 +54,6 @@ data class EntityFilter internal constructor(
 
 typealias Archetype = Bits
 
-val EMPTY_ARCHETYPE = Archetype(0)
-
 interface ComponentMapper<C : SokolComponent> {
     fun has(entity: SokolEntityAccess): Boolean
 
@@ -235,7 +233,7 @@ class SokolEngine internal constructor(
             && !filter.none.intersects(archetype)
     }
 
-    fun createEntity(archetype: Archetype = EMPTY_ARCHETYPE): SokolEntityAccess {
+    fun createEntity(archetype: Archetype = emptyBits()): SokolEntityAccess {
         return object : SokolEntityAccess {
             val currentArchetype = Bits(archetype)
             val components = Array<SokolComponent?>(componentTypes.size) { null }

@@ -2,7 +2,6 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
-import com.gitlab.aecsocket.alexandria.paper.extension.bukkitNextEntityId
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
@@ -14,35 +13,44 @@ import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.Required
 import org.spongepowered.configurate.serialize.TypeSerializer
-import java.lang.reflect.Type
 import java.util.Base64
 
 private const val PARTS = "parts"
-private const val ITEM_DATA = "item_data"
 private const val TRANSFORM = "transform"
+private const val ITEM_DATA = "item_data"
+private const val DEFINITION = "definition"
+private const val ID = "id"
 
 data class Mesh(
-    var parts: List<PartDefinition> = emptyList(),
+    var parts: List<PartEntry> = emptyList(),
     var transform: Transform = Transform.Identity,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("mesh")
     }
 
+    @ConfigSerializable
+    data class PartEntry(
+        val definition: PartDefinition,
+        val id: Long? = null,
+    )
+
     override val componentType get() = Mesh::class.java
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
         .set(PARTS) { makeList().apply { parts.forEach { add { makeCompound()
-            .set(ITEM_DATA) { makeByteArray(it.itemData) }
-            .set(TRANSFORM) { makeTransform(it.transform) }
+            .set(DEFINITION) {makeCompound()
+                .set(ITEM_DATA) { makeByteArray(it.definition.itemData) }
+                .set(TRANSFORM) { makeTransform(it.definition.transform) }
+            }
+            .setOrClear(ID) { it.id?.let { makeLong(it) } }
         } } } }
         .set(TRANSFORM) { makeTransform(transform) }
 
     override fun write(node: ConfigurationNode) {
-        node.node(PARTS).setList(PartDefinition::class.java, parts)
+        node.node(PARTS).setList(PartEntry::class.java, parts)
         node.node(TRANSFORM).set(transform)
     }
 
@@ -70,11 +78,14 @@ data class Mesh(
         override val key get() = Key
 
         override fun read(tag: NBTTag) = tag.asCompound().run { Mesh(
-            get(PARTS) { asList().map { it.asCompound().run { PartDefinition(
-                get(ITEM_DATA) { asByteArray() },
-                get(TRANSFORM) { asTransform() },
+            get(PARTS) { asList().map { it.asCompound().run { PartEntry(
+                get(DEFINITION) { asCompound().run { PartDefinition(
+                    get(ITEM_DATA) { asByteArray() },
+                    get(TRANSFORM) { asTransform() },
+                ) } },
+                getOr(ID) { asLong() }
             ) } } },
-            get(TRANSFORM) { asTransform() }
+            get(TRANSFORM) { asTransform() },
         ) }
 
         override fun read(node: ConfigurationNode) = Mesh(
@@ -93,11 +104,32 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
     private val mMesh = engine.componentMapper<Mesh>()
 
     private fun createMesh(transform: Transform, mob: Entity, mesh: Mesh, send: Boolean = false) {
-        val instance = AlexandriaAPI.meshes.create(mob, transform + mesh.transform)
-        mesh.parts.forEach { part ->
-            instance.addPart(
-                instance.Part(bukkitNextEntityId, part.transform, ItemStack.deserializeBytes(part.itemData)),
-                send)
+        val tracked = mob.trackedPlayers
+        val parts = mesh.parts
+        mesh.parts = parts.map { entry ->
+            val (part, id) = entry
+            if (id == null) {
+                val item = ItemStack.deserializeBytes(part.itemData)
+                val inst = AlexandriaAPI.meshes.create(
+                    item,
+                    transform + part.transform,
+                    { mob.trackedPlayers },
+                    true /* todo */
+                )
+                if (send) {
+                    inst.spawn(tracked)
+                }
+
+                Mesh.PartEntry(part, inst.id)
+            } else entry
+        }
+    }
+
+    private fun removeMesh(mesh: Mesh) {
+        mesh.parts.forEach { (_, id) ->
+            if (id != null) {
+                AlexandriaAPI.meshes.remove(id)
+            }
         }
     }
 
@@ -122,9 +154,14 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
         val mob = mEntity.map(entity).mob
         val mesh = mMesh.map(entity)
 
-        if (!AlexandriaAPI.meshes.contains(mob)) {
-            createMesh(location.transform, mob, mesh)
-        }
+        createMesh(location.transform, mob, mesh)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Remove, entity: SokolEntityAccess) {
+        val mesh = mMesh.map(entity)
+
+        removeMesh(mesh)
     }
 
     @Subscribe
@@ -133,7 +170,7 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
         val mob = mEntity.map(entity).mob
         val mesh = mMesh.map(entity)
 
-        AlexandriaAPI.meshes.remove(mob)
+        removeMesh(mesh)
         createMesh(location.transform, mob, mesh, true)
     }
 
@@ -143,8 +180,12 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
         val mob = mEntity.map(entity).mob
         val mesh = mMesh.map(entity)
 
-        AlexandriaAPI.meshes[mob]?.let { meshInstance ->
-            meshInstance.meshTransform = location.transform + mesh.transform
+        mesh.parts.forEach { (part, id) ->
+            id?.let {
+                AlexandriaAPI.meshes[id]?.let { inst ->
+                    inst.transform = location.transform + part.transform
+                }
+            }
         }
     }
 }
