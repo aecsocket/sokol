@@ -1,28 +1,27 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import cloud.commandframework.arguments.standard.IntegerArgument
-import cloud.commandframework.arguments.standard.StringArgument
 import cloud.commandframework.bukkit.argument.NamespacedKeyArgument
 import cloud.commandframework.bukkit.parsers.location.LocationArgument
 import cloud.commandframework.bukkit.parsers.selector.MultipleEntitySelectorArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeArgument
 import com.gitlab.aecsocket.alexandria.core.extension.*
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
-import com.gitlab.aecsocket.alexandria.paper.BaseCommand
-import com.gitlab.aecsocket.alexandria.paper.Context
-import com.gitlab.aecsocket.alexandria.paper.desc
+import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
 import com.gitlab.aecsocket.glossa.core.I18N
+import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
 import com.gitlab.aecsocket.sokol.core.SokolBlueprint
-import com.gitlab.aecsocket.sokol.core.SokolComponent
 import com.gitlab.aecsocket.sokol.core.util.Timings
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
+import net.kyori.adventure.text.Component.translatable
 import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
+import java.util.Optional
 
 private val STATS_INTERVALS = listOf(
     5 * TPS,
@@ -59,25 +58,36 @@ internal class SokolCommand(
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
 
+        fun <C> NamespacedKeyArgument.Builder<C>.componentType() =
+            withSuggestionsProvider { _, _ -> plugin.componentTypes.keys.toList() }
+            .asOptional()
+
         val state = root
-            .literal("state", desc(""))
+            .literal("state", desc("Access the state of an entity in the world."))
         val stateRead = state
-            .literal("read", desc(""))
+            .literal("read", desc("Reads the state of an entity in the world."))
         manager.command(stateRead
-            .literal("mob", desc(""))
-            .argument(MultipleEntitySelectorArgument.of("targets"), desc(""))
+            .literal("mob", desc("Reads the state of the entity in a mob."))
+            .argument(MultipleEntitySelectorArgument.of("targets"), desc("Mobs to read entities from."))
             .argument(NamespacedKeyArgument.builder<CommandSender>("component-type")
-                .withSuggestionsProvider { _, _ -> plugin.componentTypes.keys.toList() }
-                .asOptional(), desc(""))
-            .permission(perm("state.read.entity"))
+                .componentType(), desc("Key of the component to read."))
+            .permission(perm("state.read.mob"))
             .handler { handle(it, ::stateReadMob) })
+        manager.command(stateRead
+            .literal("item", desc("Reads the state of an item in a player's inventory."))
+            .argument(PlayerInventorySlotArgument("slot"), desc("Slot to read item from."))
+            .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to get items from."))
+            .argument(NamespacedKeyArgument.builder<CommandSender>("component-type")
+                .componentType(), desc("Key of the component to read."))
+            .permission(perm("state.read.item"))
+            .handler { handle(it, ::stateReadItem) })
         val stateWrite = state
             .literal("write", desc(""))
         manager.command(stateWrite
             .literal("mob", desc(""))
             .argument(MultipleEntitySelectorArgument.of("targets"), desc(""))
             .argument(ConfigurationNodeArgument("data", { AlexandriaAPI.configLoader().buildAndLoadString(it) }), desc(""))
-            .permission(perm("state.write.entity"))
+            .permission(perm("state.write.mob"))
             .handler { handle(it, ::stateWriteMob) })
     }
 
@@ -150,40 +160,74 @@ internal class SokolCommand(
         })
     }
 
+    fun stateReadComponentType(i18n: I18N<Component>, key: Optional<NamespacedKey>) = key
+        .map { plugin.componentType(it) ?: error(i18n.safe("error.invalid_component_type") {
+            subst("component_type", text(it.toString()))
+        }) }
+        .orElse(null)
+
+    fun stateRead(
+        ctx: Context,
+        sender: CommandSender,
+        i18n: I18N<Component>,
+        componentType: PersistentComponentType?,
+        tag: CompoundNBTTag,
+        name: Component,
+    ) {
+        val configNode = AlexandriaAPI.configLoader().build().createNode()
+        plugin.persistence.readBlueprint(tag).components.forEach { component ->
+            if (
+                component is PersistentComponent
+                && (componentType == null || component.key == componentType.key)
+            ) {
+                component.writeKeyed(configNode)
+            }
+        }
+
+        val render = configNode.render()
+
+        plugin.sendMessage(sender, i18n.csafe("state.read.header_${if (render.isEmpty()) "empty" else "present"}") {
+            subst("entity", name)
+        })
+
+        plugin.sendMessage(sender, render.flatMap { line ->
+            i18n.csafe("state.read.line") {
+                subst("line", line)
+            }
+        })
+    }
+
     fun stateReadMob(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val targets = ctx.entities("targets", sender, i18n)
-        val componentType = ctx.getOptional<NamespacedKey>("component-type")
-            .map { plugin.componentType(it) ?: error(i18n.safe("error.invalid_component_type") {
-                subst("component_type", text(it.toString()))
-            }) }
-            .orElse(null)
+        val componentType = stateReadComponentType(i18n, ctx.getOptional("component-type"))
 
         var results = 0
         targets.forEach { target ->
             plugin.persistence.getTag(target.persistentDataContainer, plugin.persistence.entityKey)?.let { tag ->
-                val configNode = AlexandriaAPI.configLoader().build().createNode()
-                plugin.persistence.readBlueprint(tag).components.forEach { component ->
-                    if (
-                        component is PersistentComponent
-                        && (componentType == null || component.key == componentType.key)
-                    ) {
-                        component.writeKeyed(configNode)
-                    }
-                }
-
-                val render = configNode.render()
-
-                plugin.sendMessage(sender, i18n.csafe("state.read.header_${if (render.isEmpty()) "empty" else "present"}") {
-                    subst("entity", target.name())
-                })
-
-                plugin.sendMessage(sender, render.flatMap { line ->
-                    i18n.csafe("state.read.line") {
-                        subst("line", line)
-                    }
-                })
-
+                stateRead(ctx, sender, i18n, componentType, tag, target.name())
                 results++
+            }
+        }
+
+        plugin.sendMessage(sender, i18n.csafe("state.read.complete") {
+            icu("results", results)
+        })
+    }
+
+    fun stateReadItem(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val slot = ctx.get<PlayerInventorySlot>("slot")
+        val targets = ctx.players("targets", sender, i18n)
+        val componentType = stateReadComponentType(i18n, ctx.getOptional("component-type"))
+
+        var results = 0
+        targets.forEach { target ->
+            val item = slot.getFrom(target.inventory)
+            if (item.hasItemMeta()) {
+                val meta = item.itemMeta
+                plugin.persistence.getTag(meta.persistentDataContainer, plugin.persistence.entityKey)?.let { tag ->
+                    stateRead(ctx, sender, i18n, componentType, tag, meta.displayName() ?: translatable(item.translationKey()))
+                    results++
+                }
             }
         }
         plugin.sendMessage(sender, i18n.csafe("state.read.complete") {

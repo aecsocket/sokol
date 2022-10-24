@@ -312,6 +312,7 @@ class Sokol : BasePlugin() {
                     .componentType<HostedByItem>()
                     .componentType<Position>()
                     .componentType<IsValidSupplier>()
+                    .componentType<ItemHolder>()
 
                     .componentType<HostableByItem>()
                     .componentType<HostableByEntity>()
