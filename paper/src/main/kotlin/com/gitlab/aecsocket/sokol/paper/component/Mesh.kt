@@ -26,6 +26,7 @@ private const val ID = "id"
 data class Mesh(
     var parts: List<PartEntry> = emptyList(),
     var transform: Transform = Transform.Identity,
+    var interpolated: Boolean = true,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("mesh")
@@ -118,7 +119,7 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
                     item,
                     transform + part.transform,
                     { mob.trackedPlayers },
-                    true /* todo */
+                    mesh.interpolated,
                 )
                 if (send) {
                     inst.spawn(tracked)

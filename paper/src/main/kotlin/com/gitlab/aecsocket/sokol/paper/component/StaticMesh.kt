@@ -17,6 +17,7 @@ private const val STATIC_MESHES = "static_meshes"
 private const val PARTS = "parts"
 private const val ITEM = "item"
 private const val TRANSFORM = "transform"
+private const val INTERPOLATED = "interpolated"
 
 data class StaticMesh(val backing: Config) : PersistentComponent {
     companion object {
@@ -36,6 +37,7 @@ data class StaticMesh(val backing: Config) : PersistentComponent {
         override val id: String,
         val parts: List<Mesh.PartDefinition>,
         val transform: Transform,
+        val interpolated: Boolean,
     ) : Keyed
 
     class Type : PersistentComponentType {
@@ -79,6 +81,7 @@ data class StaticMesh(val backing: Config) : PersistentComponent {
                 )
             },
             node.node(TRANSFORM).get { Transform.Identity },
+            node.node(INTERPOLATED).get { true },
         )
     }
 }
@@ -95,6 +98,7 @@ class StaticMeshSystem(engine: SokolEngine) : SokolSystem {
 
         mesh.parts = staticMesh.parts.map { Mesh.PartEntry(it) }
         mesh.transform = staticMesh.transform
+        mesh.interpolated = staticMesh.interpolated
     }
 
     @Subscribe
