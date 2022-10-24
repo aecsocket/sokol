@@ -1,16 +1,14 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
-import com.gitlab.aecsocket.sokol.paper.component.HostedByBlock
-import com.gitlab.aecsocket.sokol.paper.component.HostedByItem
-import com.gitlab.aecsocket.sokol.paper.component.hostedByChunk
-import com.gitlab.aecsocket.sokol.paper.component.hostedByWorld
+import com.gitlab.aecsocket.sokol.paper.component.*
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
 import net.minecraft.server.ChunkSystem
 import net.minecraft.server.level.ServerLevel
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.entity.LivingEntity
 import net.minecraft.world.entity.decoration.ItemFrame
 import net.minecraft.world.entity.item.ItemEntity
@@ -22,6 +20,8 @@ import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.chunk.LevelChunk
 import org.bukkit.Bukkit
 import org.bukkit.World
+import org.bukkit.block.Container
+import org.bukkit.craftbukkit.v1_19_R1.CraftEquipmentSlot
 import org.bukkit.craftbukkit.v1_19_R1.CraftServer
 import org.bukkit.craftbukkit.v1_19_R1.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
@@ -104,9 +104,6 @@ class EntityResolver internal constructor(
         fun resolve() {
             val server = (Bukkit.getServer() as CraftServer).server
             server.allLevels.forEach { resolveLevel(it) }
-            server.playerList.players.forEach { player ->
-                resolveItem(player.inventoryMenu.carried)
-            }
         }
 
         private fun resolveTag(type: String, tag: CompoundTag?, populator: (SokolEntityAccess) -> Unit) {
@@ -154,31 +151,48 @@ class EntityResolver internal constructor(
         }
 
         private fun resolveMob(mob: Entity) {
-            val bukkit = lazy { mob.bukkitEntity }
-            resolveTag(OBJECT_TYPE_ENTITY, tagOf(mob.bukkitEntity.persistentDataContainer)) { entity ->
-                populate(entity, bukkit.value)
+            val bukkit = mob.bukkitEntity
+            resolveTag(OBJECT_TYPE_ENTITY, tagOf(bukkit.persistentDataContainer)) { entity ->
+                populate(entity, bukkit)
             }
 
             when (mob) {
-                is ItemEntity -> resolveItem(mob.item)
-                is ItemFrame -> resolveItem(mob.item)
-                is Player -> mob.inventory.contents.forEach { resolveItem(it) }
-                is LivingEntity -> mob.armorSlots.forEach { resolveItem(it) }
+                is ItemEntity -> resolveItem(mob.item, ItemHolder.byMob(bukkit))
+                is ItemFrame -> resolveItem(mob.item, ItemHolder.byMob(bukkit))
+                is Player -> {
+                    val player = bukkit as org.bukkit.entity.Player
+                    resolveItem(mob.inventoryMenu.carried, ItemHolder.inCursor(player))
+                    mob.inventory.contents.forEachIndexed { idx, item ->
+                        resolveItem(item, ItemHolder.byPlayer(player, idx))
+                    }
+                }
+                is LivingEntity -> {
+                    EquipmentSlot.values().forEach { slot ->
+                        val item = mob.getItemBySlot(slot)
+                        resolveItem(item, ItemHolder.inEquipment(mob.bukkitLivingEntity, CraftEquipmentSlot.getSlot(slot)))
+                    }
+                }
             }
         }
 
         private fun resolveBlock(block: BlockEntity, pos: BlockPos, world: World) {
+            val bukkit = world.getBlockAt(pos.x, pos.y, pos.z)
+            val state = lazy { bukkit.getState(false) }
             resolveTag(OBJECT_TYPE_BLOCK, tagOf(block.persistentDataContainer)) { entity ->
-                val backing = lazy { world.getBlockAt(pos.x, pos.y, pos.z) }
-                val state = lazy { backing.value.getState(false) }
                 entity.addComponent(object : HostedByBlock {
-                    override val block get() = backing.value
+                    override val block get() = bukkit
                     override val state get() = state.value
                 })
             }
 
             when (block) {
-                is BaseContainerBlockEntity -> block.contents.forEach { resolveItem(it) }
+                is BaseContainerBlockEntity -> {
+                    val containerState = state.value as Container
+                    val inventory = containerState.inventory
+                    block.contents.forEachIndexed { idx, item ->
+                        resolveItem(item, ItemHolder.byBlock(bukkit, inventory, idx))
+                    }
+                }
             }
         }
 
@@ -188,6 +202,7 @@ class EntityResolver internal constructor(
 
         private fun resolveItemTagInternal(
             tagMeta: CompoundTag,
+            holder: ItemHolder,
             getStack: () -> ItemStack,
             onDirtied: (BukkitStack) -> Unit
         ) {
@@ -195,7 +210,8 @@ class EntityResolver internal constructor(
             val meta = lazy { bukkitStack.value.itemMeta }
             var dirty = false
 
-            resolveTag(OBJECT_TYPE_ITEM, tagMeta.compound("PublicBukkitValues")?.compound(entityKey)) { entity ->
+            val tagEntity = tagMeta.compound("PublicBukkitValues")?.compound(entityKey)
+            resolveTag(OBJECT_TYPE_ITEM, tagEntity) { entity ->
                 entity.addComponent(object : HostedByItem {
                     override val stack get() = bukkitStack.value
 
@@ -208,33 +224,44 @@ class EntityResolver internal constructor(
                         dirty = true
                     }
                 })
+                entity.addComponent(holder)
             }
 
             tagMeta.compound("BlockEntityTag")?.list("Items")?.forEach { tagItem ->
                 (tagItem as? CompoundTag)?.let {
-                    resolveItemTag(tagItem) { dirtied ->
+                    val slot = tagItem.getByte("Slot").toInt()
+                    resolveItemTag(tagItem, ItemHolder.byContainerItem(holder, slot)) { dirtied ->
                         (dirtied as CraftItemStack).handle.save(tagItem)
                     }
                 }
             }
 
             if (dirty) {
-                bukkitStack.value.itemMeta = meta.value
-                onDirtied(bukkitStack.value)
+                val iStack = bukkitStack.value
+                val iMeta = meta.value
+
+                // our updated entity tag gets written into the meta
+                // then this meta is set to the stack
+                tagEntity?.let {
+                    (iMeta.persistentDataContainer as CraftPersistentDataContainer).raw[entityKey] = tagEntity
+                }
+
+                iStack.itemMeta = iMeta
+                onDirtied(iStack)
             }
         }
 
-        private fun resolveItemTag(tag: CompoundTag, onDirtied: (BukkitStack) -> Unit) {
+        private fun resolveItemTag(tag: CompoundTag, holder: ItemHolder, onDirtied: (BukkitStack) -> Unit) {
             tag.compound("tag")?.let { tagMeta ->
                 val stack = lazy { ItemStack.of(tag) }
-                resolveItemTagInternal(tagMeta, { stack.value }, onDirtied)
+                resolveItemTagInternal(tagMeta, holder, { stack.value }, onDirtied)
             }
         }
 
-        private fun resolveItem(item: ItemStack) {
+        private fun resolveItem(item: ItemStack, holder: ItemHolder) {
             val tag = item.tag
             if (item.item === Items.AIR || tag == null) return
-            resolveItemTagInternal(tag, { item }, {})
+            resolveItemTagInternal(tag, holder, { item }) {}
         }
     }
 }

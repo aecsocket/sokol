@@ -101,7 +101,7 @@ data class Mesh(
 @All(Position::class, HostedByMob::class, Mesh::class)
 class MeshSystem(engine: SokolEngine) : SokolSystem {
     private val mPosition = engine.componentMapper<Position>()
-    private val mEntity = engine.componentMapper<HostedByMob>()
+    private val mMob = engine.componentMapper<HostedByMob>()
     private val mMesh = engine.componentMapper<Mesh>()
 
     private fun createMesh(transform: Transform, mob: Entity, mesh: Mesh, send: Boolean = false) {
@@ -157,7 +157,7 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
         // (if this entity was already in the world, and we just loaded it e.g. from chunk load...)
         // we can add it with the same logic as above
         val location = mPosition.map(entity)
-        val mob = mEntity.map(entity).mob
+        val mob = mMob.map(entity).mob
         val mesh = mMesh.map(entity)
 
         createMesh(location.transform, mob, mesh)
@@ -191,7 +191,7 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
     @Subscribe
     fun on(event: SokolEvent.Reload, entity: SokolEntityAccess) {
         val location = mPosition.map(entity)
-        val mob = mEntity.map(entity).mob
+        val mob = mMob.map(entity).mob
         val mesh = mMesh.map(entity)
 
         removeMesh(mesh)

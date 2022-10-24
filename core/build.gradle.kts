@@ -12,11 +12,11 @@ repositories {
 
 dependencies {
     compileOnly(libs.kotlinReflect)
-    compileOnly(libs.glossaCore)
-    compileOnly(libs.cloudCore)
     compileOnly(libs.adventureApi)
-    compileOnly(libs.configurateExtraKotlin)
     compileOnly(libs.adventureExtraKotlin)
+    compileOnly(libs.glossaCore)
+    compileOnly(libs.configurateExtraKotlin)
+    compileOnly(libs.cloudCore)
     compileOnly(libs.alexandriaCore)
     compileOnly(libs.packetEventsApi)
     compileOnly(libs.craftbulletCore)

@@ -9,9 +9,7 @@ import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
-import com.gitlab.aecsocket.alexandria.paper.BasePlugin
-import com.gitlab.aecsocket.alexandria.paper.PacketInputListener
+import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
@@ -19,7 +17,9 @@ import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.util.Timings
 import com.gitlab.aecsocket.sokol.paper.component.*
+import com.gitlab.aecsocket.sokol.paper.component.Mesh
 import net.kyori.adventure.key.Key
+import org.bstats.bukkit.Metrics
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -35,6 +35,8 @@ import kotlin.io.path.isRegularFile
 private const val CONFIG = "config"
 private const val ITEMS = "items"
 private const val ENTITIES = "entities"
+
+private const val BSTATS_ID = 11870
 internal const val TIMING_MAX_MEASUREMENTS = 60 * TPS
 
 private lateinit var instance: Sokol
@@ -43,7 +45,7 @@ val SokolAPI get() = instance
 class Sokol : BasePlugin() {
     @ConfigSerializable
     data class Settings(
-        val enabled: Boolean = false
+        val enableBstats: Boolean = true,
     )
 
     private data class Registration(
@@ -94,12 +96,12 @@ class Sokol : BasePlugin() {
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
-                    .registerExact(PersistentComponent::class, ComponentSerializer(this@Sokol))
-                    .registerExact(PersistentComponentFactory::class, ComponentFactorySerializer(this@Sokol))
-                    .registerExact(KeyedItemBlueprint::class, ItemBlueprintSerializer(this@Sokol))
-                    .registerExact(KeyedEntityBlueprint::class, EntityBlueprintSerializer(this@Sokol))
-                    .registerExact(Mesh.PartDefinition::class, Mesh.PartDefinitionSerializer)
-                    .registerExact(StaticMesh.Config::class, StaticMesh.ConfigSerializer)
+                    .registerExact(ComponentSerializer(this@Sokol))
+                    .registerExact(ComponentFactorySerializer(this@Sokol))
+                    .registerExact(ItemBlueprintSerializer(this@Sokol))
+                    .registerExact(EntityBlueprintSerializer(this@Sokol))
+                    .registerExact(Mesh.PartDefinitionSerializer)
+                    .registerExact(StaticMesh.ConfigSerializer)
             },
             onLoad = {
                 addDefaultI18N()
@@ -161,6 +163,10 @@ class Sokol : BasePlugin() {
             } catch (ex: SerializationException) {
                 log.line(LogLevel.Error, ex) { "Could not load settings file" }
                 return false
+            }
+
+            if (this.settings.enableBstats) {
+                Metrics(this, BSTATS_ID)
             }
 
             try {
@@ -278,7 +284,7 @@ class Sokol : BasePlugin() {
         player.inventory.forEachIndexed { idx, stack ->
             stack?.let {
                 useItem(stack, write) { entity ->
-                    entity.addComponent(itemHolderOfPlayer(player, idx))
+                    entity.addComponent(ItemHolder.byPlayer(player, idx))
                     callback(entity)
                 }
             }

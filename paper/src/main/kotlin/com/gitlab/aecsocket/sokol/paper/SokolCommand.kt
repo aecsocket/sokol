@@ -10,12 +10,14 @@ import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
 import com.gitlab.aecsocket.glossa.core.I18N
-import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
 import com.gitlab.aecsocket.sokol.core.SokolBlueprint
+import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
 import com.gitlab.aecsocket.sokol.core.util.Timings
+import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
+import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
-import net.kyori.adventure.text.Component.translatable
+import net.kyori.adventure.text.JoinConfiguration
 import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
@@ -171,11 +173,22 @@ internal class SokolCommand(
         sender: CommandSender,
         i18n: I18N<Component>,
         componentType: PersistentComponentType?,
-        tag: CompoundNBTTag,
+        entity: SokolEntityAccess,
         name: Component,
     ) {
+        val components = entity.allComponents()
+
+        val hover = (
+            i18n.csafe("state.read.component.header") +
+            components.flatMap { component ->
+                i18n.csafe("state.read.component.line") {
+                    icu("type", component::class.simpleName ?: "?")
+                }
+            }
+        ).join(JoinConfiguration.newlines())
+
         val configNode = AlexandriaAPI.configLoader().build().createNode()
-        plugin.persistence.readBlueprint(tag).components.forEach { component ->
+        components.forEach { component ->
             if (
                 component is PersistentComponent
                 && (componentType == null || component.key == componentType.key)
@@ -186,9 +199,9 @@ internal class SokolCommand(
 
         val render = configNode.render()
 
-        plugin.sendMessage(sender, i18n.csafe("state.read.header_${if (render.isEmpty()) "empty" else "present"}") {
+        plugin.sendMessage(sender, i18n.csafe("state.read.header.${if (render.isEmpty()) "empty" else "present"}") {
             subst("entity", name)
-        })
+        }.map { it.hoverEvent(hover) })
 
         plugin.sendMessage(sender, render.flatMap { line ->
             i18n.csafe("state.read.line") {
@@ -203,8 +216,8 @@ internal class SokolCommand(
 
         var results = 0
         targets.forEach { target ->
-            plugin.persistence.getTag(target.persistentDataContainer, plugin.persistence.entityKey)?.let { tag ->
-                stateRead(ctx, sender, i18n, componentType, tag, target.name())
+            plugin.useMob(target, false) { entity ->
+                stateRead(ctx, sender, i18n, componentType, entity, target.name())
                 results++
             }
         }
@@ -222,12 +235,10 @@ internal class SokolCommand(
         var results = 0
         targets.forEach { target ->
             val item = slot.getFrom(target.inventory)
-            if (item.hasItemMeta()) {
-                val meta = item.itemMeta
-                plugin.persistence.getTag(meta.persistentDataContainer, plugin.persistence.entityKey)?.let { tag ->
-                    stateRead(ctx, sender, i18n, componentType, tag, meta.displayName() ?: translatable(item.translationKey()))
-                    results++
-                }
+            plugin.useItem(item, false) { entity ->
+                entity.addComponent(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
+                stateRead(ctx, sender, i18n, componentType, entity, item.displayName())
+                results++
             }
         }
         plugin.sendMessage(sender, i18n.csafe("state.read.complete") {

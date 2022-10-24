@@ -52,18 +52,18 @@ data class Collider(
         dirty = Int.MAX_VALUE
     }
 
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+        .set(BACKING) { makeString(backing.id) }
+        .setOrClear(MASS) { mass?.let { makeFloat(it) } }
+        .set(DIRTY) { makeInt(dirty) }
+        .setOrClear(BODY_ID) { bodyId?.let { makeUUID(it) } }
+
     override fun write(node: ConfigurationNode) {
         node.node(BACKING).set(backing.id)
         node.node(MASS).set(mass)
         node.node(DIRTY).set(dirty)
         node.node(BODY_ID).set(bodyId)
     }
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .set(BACKING) { makeString(backing.id) }
-        .setOrClear(MASS) { mass?.let { makeFloat(it) } }
-        .set(DIRTY) { makeInt(dirty) }
-        .setOrClear(BODY_ID) { bodyId?.let { makeUUID(it) } }
 
     @ConfigSerializable
     data class Config(

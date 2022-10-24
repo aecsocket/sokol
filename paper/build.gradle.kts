@@ -24,14 +24,13 @@ dependencies {
 
     compileOnly(libs.adventureExtraKotlin)
 
+    compileOnly(libs.glossaCore)
+
     compileOnly(libs.configurateCore)
-    compileOnly(libs.configurateHocon)
     compileOnly(libs.configurateExtraKotlin)
 
     compileOnly(libs.cloudPaper)
     compileOnly(libs.cloudMinecraftExtras) { isTransitive = false }
-
-    compileOnly(libs.glossaCore)
 
     compileOnly(libs.alexandriaCore)
     compileOnly(libs.alexandriaPaper)
@@ -55,10 +54,10 @@ tasks {
         exclude("kotlin/")
         exclude("kotlinx/")
         listOf(
-            "org.bstats",
-
             "org.jetbrains",
             "org.intellij",
+
+            "org.bstats",
         ).forEach { relocate(it, "${project.group}.lib.$it") }
     }
 
