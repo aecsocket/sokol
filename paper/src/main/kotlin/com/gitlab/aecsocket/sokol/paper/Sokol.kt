@@ -6,7 +6,7 @@ import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.input.Input
-import com.gitlab.aecsocket.alexandria.core.keyed.Registry
+import com.gitlab.aecsocket.alexandria.core.keyed.*
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.*
@@ -28,9 +28,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
-import java.nio.file.FileVisitResult
 import java.nio.file.Path
-import kotlin.io.path.isRegularFile
 
 private const val CONFIG = "config"
 private const val ITEMS = "items"
@@ -85,6 +83,7 @@ class Sokol : BasePlugin() {
     val hostableByItem = HostableByItem.Type()
     val colliders = Collider.Type()
     val staticMeshes = StaticMesh.Type()
+    val registryComponentTypes = listOf(hostableByItem, colliders, staticMeshes)
 
     internal val entitiesAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -178,59 +177,44 @@ class Sokol : BasePlugin() {
 
             _itemBlueprints.clear()
             _entityBlueprints.clear()
-            hostableByItem.registry.clear()
-            colliders.registry.clear()
-            staticMeshes.registry.clear()
-            val configDir = dataFolder.resolve(CONFIG)
-            if (configDir.exists()) {
-                data class FileData(
-                    val node: ConfigurationNode,
-                    val path: Path
-                )
+            registryComponentTypes.forEach { it.registry.clear() }
 
-                val nodes = ArrayList<FileData>()
-                walkFile(configDir.toPath(),
-                    onVisit = { path, _ ->
-                        if (path.isRegularFile()) {
-                            try {
-                                val node = AlexandriaAPI.configLoader().path(path).build().load()
-                                nodes.add(FileData(node, path))
-                            } catch (ex: Exception) {
-                                log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
-                            }
-                        }
-                        FileVisitResult.CONTINUE
-                    },
-                    onFail = { path, ex ->
-                        log.line(LogLevel.Warning, ex) { "Could not load data from $path" }
-                        FileVisitResult.CONTINUE
-                    }
-                )
-
-                fun loadNodes(action: (ConfigurationNode) -> Unit) {
-                    nodes.forEach { (node, path) ->
-                        try {
-                            action(node)
-                        } catch (ex: Exception) {
-                            log.line(LogLevel.Warning, ex) { "Could not deserialize data from $path" }
-                        }
-                    }
+            val configs = walkConfigs(dataFolder.resolve(CONFIG),
+                onError = { ex, path ->
+                    log.line(LogLevel.Warning, ex) { "Could not load config from $path" }
                 }
+            )
 
-                loadNodes { hostableByItem.load(it) }
-                loadNodes { colliders.load(it) }
-                loadNodes { staticMeshes.load(it) }
-                loadNodes {
-                    it.node(ITEMS).childrenMap().forEach { (_, child) ->
-                        _itemBlueprints.register(child.force())
-                    }
-                }
-                loadNodes {
-                    it.node(ENTITIES).childrenMap().forEach { (_, child) ->
-                        _entityBlueprints.register(child.force())
+            fun loadConfigs(
+                makeMessage: (Path) -> String,
+                action: (ConfigurationNode) -> Unit,
+            ) {
+                configs.forEach { (node, path) ->
+                    try {
+                        action(node)
+                    } catch (ex: Exception) {
+                        log.line(LogLevel.Warning, ex) { makeMessage(path) }
                     }
                 }
             }
+
+            registryComponentTypes.forEach { type ->
+                loadConfigs({ "Could not read config for ${type::class.simpleName} from $it" }) {
+                    type.load(it)
+                }
+            }
+
+            loadConfigs({ "Could not read item blueprints from $it" }) {
+                it.node(ITEMS).childrenMap().forEach { (_, child) ->
+                    _itemBlueprints.register(child.force())
+                }
+            }
+            loadConfigs({ "Could not read entity blueprints from $it" }) {
+                it.node(ENTITIES).childrenMap().forEach { (_, child) ->
+                    _entityBlueprints.register(child.force())
+                }
+            }
+
             log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity blueprints, ${_itemBlueprints.size} item blueprints" }
 
             hasReloaded = true

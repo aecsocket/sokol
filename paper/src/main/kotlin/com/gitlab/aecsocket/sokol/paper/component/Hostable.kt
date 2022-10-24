@@ -2,15 +2,10 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.extension.force
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.PersistentComponent
-import com.gitlab.aecsocket.sokol.paper.PersistentComponentFactory
-import com.gitlab.aecsocket.sokol.paper.PersistentComponentType
-import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
-import com.gitlab.aecsocket.sokol.paper.util.validateStringKey
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.NodeKey
@@ -40,20 +35,8 @@ data class HostableByItem(
         @Setting(nodeFromParent = true) val descriptor: ItemDescriptor,
     ) : Keyed
 
-    class Type : PersistentComponentType {
+    class Type : RegistryComponentType<Config>(Config::class, HOSTABLE_BY_ITEM) {
         override val key get() = Key
-
-        val registry = Registry.create<Config>()
-
-        fun entry(id: String) = registry[id]
-            ?: throw IllegalArgumentException("Invalid HostableByItem config '$id'")
-
-        fun load(node: ConfigurationNode) {
-            node.node(HOSTABLE_BY_ITEM).childrenMap().forEach { (_, child) ->
-                validateStringKey(Config::class.java, child)
-                registry.register(child.force())
-            }
-        }
 
         override fun read(tag: NBTTag) = HostableByItem(
             entry(tag.asString())

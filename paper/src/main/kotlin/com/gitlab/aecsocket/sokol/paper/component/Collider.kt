@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.extension.force
 import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.alexandria.core.keyed.Registry
 import com.gitlab.aecsocket.alexandria.core.physics.SimpleBody
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
@@ -16,7 +15,6 @@ import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
-import com.gitlab.aecsocket.sokol.paper.util.validateStringKey
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
 import org.spongepowered.configurate.ConfigurationNode
@@ -72,35 +70,22 @@ data class Collider(
         val mass: Float = 1f,
     ) : Keyed
 
-    class Type : PersistentComponentType {
+    class Type : RegistryComponentType<Config>(Config::class, COLLIDERS) {
         override val key get() = Key
 
-        val registry = Registry.create<Config>()
+        override fun read(tag: NBTTag) = tag.asCompound().run { Collider(
+            entry(get(BACKING) { asString() }),
+            getOr(MASS) { asFloat() },
+            get(DIRTY) { asInt() },
+            getOr(BODY_ID) { asUUID() },
+        ) }
 
-        fun entry(id: String) = registry[id]
-            ?: throw IllegalArgumentException("Invalid Collider config '$id'")
-
-        fun load(node: ConfigurationNode) {
-            node.node(COLLIDERS).childrenMap().forEach { (_, child) ->
-                validateStringKey(Config::class.java, child)
-                registry.register(child.force())
-            }
-        }
-
-        override fun read(tag: NBTTag) = tag.asCompound().run {
-            Collider(entry(get(BACKING) { asString() }),
-                getOr(MASS) { asFloat() },
-                get(DIRTY) { asInt() },
-                getOr(BODY_ID) { asUUID() },
-            )
-        }
-
-        override fun read(node: ConfigurationNode): Collider {
-            return Collider(entry(node.node(BACKING).force()),
-                node.node(MASS).getIfExists(),
-                node.node(DIRTY).get { 0 },
-                node.node(BODY_ID).getIfExists())
-        }
+        override fun read(node: ConfigurationNode) = Collider(
+            entry(node.node(BACKING).force()),
+            node.node(MASS).getIfExists(),
+            node.node(DIRTY).get { 0 },
+            node.node(BODY_ID).getIfExists()
+        )
 
         override fun readFactory(node: ConfigurationNode): PersistentComponentFactory {
             val backing = entry(node.force())
