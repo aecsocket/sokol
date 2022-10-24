@@ -6,9 +6,15 @@ import com.gitlab.aecsocket.sokol.core.SokolEvent
 import org.bukkit.entity.Player
 
 interface MobEvent : SokolEvent {
-    object Host : MobEvent
+    data class Show(
+        val player: Player,
+        val backing: PacketSendEvent,
+    ) : MobEvent
 
-    data class Show(val backing: PacketSendEvent) : MobEvent
+    data class Hide(
+        val player: Player,
+        val backing: PacketSendEvent,
+    ) : MobEvent
 }
 
 interface ItemEvent : SokolEvent {

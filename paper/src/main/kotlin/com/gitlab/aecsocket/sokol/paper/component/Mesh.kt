@@ -15,6 +15,7 @@ import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.util.Base64
+import java.util.UUID
 
 private const val PARTS = "parts"
 private const val TRANSFORM = "transform"
@@ -33,7 +34,7 @@ data class Mesh(
     @ConfigSerializable
     data class PartEntry(
         val definition: PartDefinition,
-        val id: Long? = null,
+        val id: UUID? = null,
     )
 
     override val componentType get() = Mesh::class.java
@@ -45,7 +46,7 @@ data class Mesh(
                 .set(ITEM_DATA) { makeByteArray(it.definition.itemData) }
                 .set(TRANSFORM) { makeTransform(it.definition.transform) }
             }
-            .setOrClear(ID) { it.id?.let { makeLong(it) } }
+            .setOrClear(ID) { it.id?.let { makeUUID(it) } }
         } } } }
         .set(TRANSFORM) { makeTransform(transform) }
 
@@ -83,7 +84,7 @@ data class Mesh(
                     get(ITEM_DATA) { asByteArray() },
                     get(TRANSFORM) { asTransform() },
                 ) } },
-                getOr(ID) { asLong() }
+                getOr(ID) { asUUID() }
             ) } } },
             get(TRANSFORM) { asTransform() },
         ) }
@@ -108,7 +109,10 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
         val parts = mesh.parts
         mesh.parts = parts.map { entry ->
             val (part, id) = entry
-            if (id == null) {
+            // make a new mesh only if we either
+            //  · don't have one
+            //  · or it's invalid (e.g. loaded after a server restart, so stale UUID here)
+            if (id == null || !AlexandriaAPI.meshes.contains(id)) {
                 val item = ItemStack.deserializeBytes(part.itemData)
                 val inst = AlexandriaAPI.meshes.create(
                     item,
@@ -119,9 +123,23 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
                 if (send) {
                     inst.spawn(tracked)
                 }
-
                 Mesh.PartEntry(part, inst.id)
             } else entry
+        }
+    }
+
+    private data class PartContext(
+        val part: com.gitlab.aecsocket.alexandria.paper.Mesh,
+        val definition: Mesh.PartDefinition
+    )
+
+    private fun forEachPart(mesh: Mesh, action: (PartContext) -> Unit) {
+        mesh.parts.forEach { (definition, id) ->
+            id?.let {
+                AlexandriaAPI.meshes[id]?.let {
+                    action(PartContext(it, definition))
+                }
+            }
         }
     }
 
@@ -134,18 +152,6 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: MobEvent.Host, entity: SokolEntityAccess) {
-        // define the mesh in Alexandria during host
-        // because if we do this on entity add to world we *will* run into issues
-        // with race condition between entity add and packet send
-        val location = mPosition.map(entity)
-        val mob = mEntity.map(entity).mob
-        val mesh = mMesh.map(entity)
-
-        createMesh(location.transform, mob, mesh)
-    }
-
-    @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntityAccess) {
         // if we haven't defined the hosting entity as a mesh yet...
         // (if this entity was already in the world, and we just loaded it e.g. from chunk load...)
@@ -155,6 +161,24 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
         val mesh = mMesh.map(entity)
 
         createMesh(location.transform, mob, mesh)
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Show, entity: SokolEntityAccess) {
+        val mesh = mMesh.map(entity)
+
+        forEachPart(mesh) { (part) ->
+            part.spawn(event.player)
+        }
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Hide, entity: SokolEntityAccess) {
+        val mesh = mMesh.map(entity)
+
+        forEachPart(mesh) { (part) ->
+            part.remove(event.player)
+        }
     }
 
     @Subscribe
@@ -177,15 +201,10 @@ class MeshSystem(engine: SokolEngine) : SokolSystem {
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntityAccess) {
         val location = mPosition.map(entity)
-        val mob = mEntity.map(entity).mob
         val mesh = mMesh.map(entity)
 
-        mesh.parts.forEach { (part, id) ->
-            id?.let {
-                AlexandriaAPI.meshes[id]?.let { inst ->
-                    inst.transform = location.transform + part.transform
-                }
-            }
+        forEachPart(mesh) { (part, definition) ->
+            part.transform = location.transform + definition.transform
         }
     }
 }

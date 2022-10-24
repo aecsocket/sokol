@@ -84,6 +84,7 @@ class Sokol : BasePlugin() {
     val colliders = Collider.Type()
     val staticMeshes = StaticMesh.Type()
 
+    internal val entitiesAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
     private var hasReloaded = false
 
@@ -340,8 +341,8 @@ class Sokol : BasePlugin() {
                         override val valid: () -> Boolean get() = { mob.isValid }
                     })
 
-                    val rotation = mRotation.mapOr(entity)?.rotation ?: Quaternion.Identity
-                    var transform = Transform(mob.location.position(), rotation)
+                    val rotation = mRotation.mapOr(entity)
+                    var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
                     entity.addComponent(object : Position {
                         override val world get() = mob.world
                         @Suppress("UnstableApiUsage")
@@ -349,6 +350,7 @@ class Sokol : BasePlugin() {
                             get() = transform
                             set(value) {
                                 transform = value
+                                rotation?.rotation = value.rotation
                                 mob.teleport(value.translation.location(world), true)
                             }
                     })

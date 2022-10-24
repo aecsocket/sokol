@@ -98,11 +98,6 @@ class StaticMeshSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: MobEvent.Host, entity: SokolEntityAccess) {
-        assign(entity)
-    }
-
-    @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntityAccess) {
         assign(entity)
     }

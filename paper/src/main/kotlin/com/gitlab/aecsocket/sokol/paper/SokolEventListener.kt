@@ -14,6 +14,11 @@ internal class SokolEventListener(
     @EventHandler
     fun on(event: EntityAddToWorldEvent) {
         val mob = event.entity
+        if (sokol.entitiesAdded.remove(mob.entityId)) {
+            // if we've already called SokolEvent.Add on this newly-spawned mob...
+            return
+        }
+
         sokol.useMob(mob) { entity ->
             entity.call(SokolEvent.Add)
         }

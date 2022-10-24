@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.Archetype
 import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
+import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.paper.component.HostableByItem
 import com.gitlab.aecsocket.sokol.paper.util.spawnMarkerEntity
 import net.kyori.adventure.key.Key
@@ -66,7 +67,8 @@ open class EntityBlueprint(
         return spawnMarkerEntity(location) { stand ->
             val entity = createEntity()
             sokol.entityResolver.populate(entity, stand)
-            entity.call(MobEvent.Host)
+            entity.call(SokolEvent.Add)
+            sokol.entitiesAdded.add(stand.entityId)
 
             val tag = sokol.persistence.newTag()
             sokol.persistence.writeEntity(entity, tag)
