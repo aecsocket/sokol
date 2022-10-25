@@ -54,11 +54,11 @@ class ItemBlueprintSerializer(
 
 class EntityBlueprintSerializer(
     private val sokol: Sokol
-) : TypeSerializer<KeyedEntityBlueprint> {
-    override fun serialize(type: Type, obj: KeyedEntityBlueprint?, node: ConfigurationNode) {}
+) : TypeSerializer<KeyedMobBlueprint> {
+    override fun serialize(type: Type, obj: KeyedMobBlueprint?, node: ConfigurationNode) {}
 
-    override fun deserialize(type: Type, node: ConfigurationNode): KeyedEntityBlueprint {
-        return KeyedEntityBlueprint(sokol,
+    override fun deserialize(type: Type, node: ConfigurationNode): KeyedMobBlueprint {
+        return KeyedMobBlueprint(sokol,
             parseNodeAlexandriaKey(type, node),
             node.force<MutableMap<String, PersistentComponentFactory>>(),
         )

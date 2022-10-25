@@ -31,7 +31,10 @@ interface HostedByBlock : SokolComponent {
     override val componentType get() = HostedByBlock::class.java
 
     val block: Block
-    val state: BlockState
+
+    fun <R> readState(action: (BlockState) -> R): R
+
+    fun writeState(action: (BlockState) -> Unit)
 }
 
 interface HostedByItem : SokolComponent {
@@ -52,18 +55,6 @@ fun hostedByChunk(chunk: Chunk) = object : HostedByChunk {
     override val chunk get() = chunk
 }
 
-fun hostedByEntity(entity: Entity) = object : HostedByMob {
-    override val mob get() = entity
-}
-
-fun hostedByItem(stack: ItemStack, meta: ItemMeta) = object : HostedByItem {
-    override val stack get() = stack
-
-    override fun <R> readMeta(action: (ItemMeta) -> R): R {
-        return action(meta)
-    }
-
-    override fun writeMeta(action: (ItemMeta) -> Unit) {
-        action(meta)
-    }
+fun hostedByMob(mob: Entity) = object : HostedByMob {
+    override val mob get() = mob
 }

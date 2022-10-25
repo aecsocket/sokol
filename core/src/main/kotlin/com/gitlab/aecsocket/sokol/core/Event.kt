@@ -7,6 +7,8 @@ interface SokolEvent {
         var cancelled: Boolean
     }
 
+    object Populate : SokolEvent
+
     object Add : SokolEvent
 
     object Update : SokolEvent

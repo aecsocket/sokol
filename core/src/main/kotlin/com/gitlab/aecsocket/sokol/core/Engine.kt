@@ -52,20 +52,16 @@ data class EntityFilter internal constructor(
     val none: Bits,
 )
 
-typealias Archetype = Bits
-
 interface ComponentMapper<C : SokolComponent> {
-    fun has(entity: SokolEntityAccess): Boolean
+    fun has(entity: SokolComponentAccess): Boolean
 
-    fun mapOr(entity: SokolEntityAccess): C?
+    fun mapOr(entity: SokolComponentAccess): C?
 
-    fun map(entity: SokolEntityAccess): C
+    fun map(entity: SokolComponentAccess): C
 }
 
-interface SokolEntityAccess {
-    val engine: SokolEngine
-
-    fun archetype(): Archetype
+interface SokolComponentAccess {
+    fun archetype(): Bits
 
     fun allComponents(): Set<SokolComponent>
 
@@ -76,20 +72,26 @@ interface SokolEntityAccess {
     fun addComponent(component: SokolComponent)
 
     fun removeComponent(type: Int)
+}
+
+interface SokolEntityBuilder : SokolComponentAccess {
+    fun build(): SokolEntityAccess
+}
+
+interface SokolEntityAccess : SokolComponentAccess {
+    val engine: SokolEngine
 
     fun <E : SokolEvent> call(event: E): E
 }
 
-inline fun <reified C : SokolComponent> SokolEntityAccess.component(): C? = getComponent(engine.componentType<C>()) as? C
+inline fun <reified C : SokolComponent> SokolEntityAccess.getComponent(): C? = getComponent(engine.componentType<C>()) as? C
 
 data class SokolBlueprint(val components: Collection<SokolComponent>) {
     fun isEmpty() = components.isEmpty()
     fun isNotEmpty() = components.isNotEmpty()
 
-    fun archetype(engine: SokolEngine) = engine.createArchetype(components.map { it::class.java })
-
-    fun create(engine: SokolEngine): SokolEntityAccess {
-        val entity = engine.createEntity()
+    fun build(engine: SokolEngine): SokolEntityBuilder {
+        val entity = engine.entityBuilder()
         components.forEach { entity.addComponent(it) }
         return entity
     }
@@ -204,16 +206,16 @@ class SokolEngine internal constructor(
     fun <C : SokolComponent> componentMapper(type: Class<out SokolComponent>): ComponentMapper<C> {
         val typeId = componentType(type)
         return object : ComponentMapper<C> {
-            override fun has(entity: SokolEntityAccess): Boolean {
+            override fun has(entity: SokolComponentAccess): Boolean {
                 return entity.hasComponent(typeId)
             }
 
-            override fun mapOr(entity: SokolEntityAccess): C? {
+            override fun mapOr(entity: SokolComponentAccess): C? {
                 @Suppress("UNCHECKED_CAST")
                 return entity.getComponent(typeId) as? C
             }
 
-            override fun map(entity: SokolEntityAccess): C {
+            override fun map(entity: SokolComponentAccess): C {
                 @Suppress("UNCHECKED_CAST")
                 return entity.getComponent(typeId) as? C
                     ?: throw IllegalStateException("Entity does not have component $type ($typeId)")
@@ -223,8 +225,8 @@ class SokolEngine internal constructor(
 
     inline fun <reified C : SokolComponent> componentMapper() = componentMapper<C>(C::class.java)
 
-    fun createArchetype(components: Collection<Class<out SokolComponent>>): Archetype {
-        return Archetype(bitTypesOf(components))
+    fun createArchetype(components: Collection<Class<out SokolComponent>>): Bits {
+        return Bits(bitTypesOf(components))
     }
 
     fun applies(filter: EntityFilter, archetype: Bits): Boolean {
@@ -232,55 +234,66 @@ class SokolEngine internal constructor(
             && (filter.one.isEmpty() || filter.one.intersects(archetype))
             && !filter.none.intersects(archetype)
     }
+    
+    fun entityBuilder(): SokolEntityBuilder = object : BaseComponentAccess(), SokolEntityBuilder {
+        override fun build(): SokolEntityAccess {
+            val entity = Entity(archetype, components.copyOf())
+            entity.call(SokolEvent.Populate)
+            return entity
+        }
+    }
 
-    fun createEntity(archetype: Archetype = emptyBits()): SokolEntityAccess {
-        return object : SokolEntityAccess {
-            val currentArchetype = Bits(archetype)
-            val components = Array<SokolComponent?>(componentTypes.size) { null }
+    internal open inner class BaseComponentAccess(
+        protected val archetype: Bits = Bits(componentTypes.size),
+        protected val components: Array<SokolComponent?> = Array(componentTypes.size) { null }
+    ) : SokolComponentAccess {
+        override fun archetype() = Bits(archetype)
 
-            override val engine get() = this@SokolEngine
+        override fun allComponents() = components.filterNotNull().toSet()
 
-            override fun archetype() = Archetype(currentArchetype)
+        override fun hasComponent(type: Int): Boolean {
+            return components[type] != null
+        }
 
-            override fun allComponents() = components.filterNotNull().toSet()
+        override fun getComponent(type: Int) = components[type]
 
-            override fun hasComponent(type: Int): Boolean {
-                return components[type] != null
-            }
+        fun setComponent(type: Int, component: SokolComponent) {
+            components[type] = component
+        }
 
-            override fun getComponent(type: Int) = components[type]
+        override fun addComponent(component: SokolComponent) {
+            val type = componentType(component.componentType)
+            archetype.set(type)
+            setComponent(type, component)
+        }
 
-            fun setComponent(type: Int, component: SokolComponent) {
-                currentArchetype.set(type)
-                components[type] = component
-            }
+        override fun removeComponent(type: Int) {
+            components[type] = null
+        }
+    }
+    
+    internal inner class Entity(
+        archetype: Bits,
+        components: Array<SokolComponent?>
+    ) : BaseComponentAccess(archetype, components), SokolEntityAccess {
+        override val engine get() = this@SokolEngine
 
-            override fun addComponent(component: SokolComponent) {
-                setComponent(componentType(component.componentType), component)
-            }
-
-            override fun removeComponent(type: Int) {
-                currentArchetype.clear(type)
-                components[type] = null
-            }
-
-            override fun <E : SokolEvent> call(event: E): E {
-                val eventType = event::class.java
-                systems.forEach { system ->
-                    if (applies(system.filter, currentArchetype)) {
-                        system.eventListeners.forEach { (type, listener) ->
-                            if (type.isAssignableFrom(eventType)) {
-                                listener(event, this)
-                            }
+        override fun <E : SokolEvent> call(event: E): E {
+            val eventType = event::class.java
+            systems.forEach { system ->
+                if (applies(system.filter, archetype)) {
+                    system.eventListeners.forEach { (type, listener) ->
+                        if (type.isAssignableFrom(eventType)) {
+                            listener(event, this)
                         }
                     }
                 }
-                return event
             }
+            return event
+        }
 
-            override fun toString(): String {
-                return "SokolEntity(${allComponents().joinToString()})"
-            }
+        override fun toString(): String {
+            return "SokolEntity(${allComponents().joinToString()})"
         }
     }
 

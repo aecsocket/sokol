@@ -38,16 +38,17 @@ interface PersistentComponentType {
 }
 
 abstract class RegistryComponentType<C : Keyed>(
-    type: KClass<C>,
+    configType: KClass<C>,
+    componentType: KClass<*>,
     private val configPath: String,
 ) : PersistentComponentType {
-    private val type = type.java
-    private val typeName = type.simpleName
+    private val type = configType.java
+    private val componentTypeName = componentType.simpleName ?: componentType
 
     val registry = Registry.create<C>()
 
     fun entry(id: String) = registry[id]
-        ?: throw IllegalArgumentException("Invalid $typeName config '$id'")
+        ?: throw IllegalArgumentException("Invalid $componentTypeName config '$id'")
 
     fun load(node: ConfigurationNode) {
         node.node(configPath).childrenMap().forEach { (_, child) ->

@@ -17,12 +17,13 @@ import com.gitlab.aecsocket.alexandria.paper.extension.scheduleRepeating
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.util.Timings
 import com.gitlab.aecsocket.sokol.paper.component.*
-import com.gitlab.aecsocket.sokol.paper.component.Mesh
+import com.gitlab.aecsocket.sokol.paper.component.Meshes
 import net.kyori.adventure.key.Key
 import org.bstats.bukkit.Metrics
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataContainer
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -32,7 +33,7 @@ import java.nio.file.Path
 
 private const val CONFIG = "config"
 private const val ITEMS = "items"
-private const val ENTITIES = "entities"
+private const val MOBS = "mobs"
 
 private const val BSTATS_ID = 11870
 internal const val TIMING_MAX_MEASUREMENTS = 60 * TPS
@@ -65,6 +66,7 @@ class Sokol : BasePlugin() {
 
     lateinit var settings: Settings private set
     lateinit var engine: SokolEngine private set
+    lateinit var space: SokolSpace private set
 
     private val _componentTypes = HashMap<String, PersistentComponentType>()
     val componentTypes: Map<String, PersistentComponentType> get() = _componentTypes
@@ -72,20 +74,21 @@ class Sokol : BasePlugin() {
     private val _itemBlueprints = Registry.create<KeyedItemBlueprint>()
     val itemBlueprints: Registry<KeyedItemBlueprint> get() = _itemBlueprints
 
-    private val _entityBlueprints = Registry.create<KeyedEntityBlueprint>()
-    val entityBlueprints: Registry<KeyedEntityBlueprint> get() = _entityBlueprints
+    private val _mobBlueprints = Registry.create<KeyedMobBlueprint>()
+    val mobBlueprints: Registry<KeyedMobBlueprint> get() = _mobBlueprints
 
     val persistence = SokolPersistence(this)
     val entityResolver = EntityResolver(this)
-
     val engineTimings = Timings(TIMING_MAX_MEASUREMENTS)
+    val itemPlacing = ItemPlacing(this)
 
     val hostableByItem = HostableByItem.Type()
     val colliders = Collider.Type()
-    val staticMeshes = StaticMesh.Type()
-    val registryComponentTypes = listOf(hostableByItem, colliders, staticMeshes)
+    val staticMeshes = StaticMeshes.Type()
+    val simplePlaceables = SimplePlaceable.Type()
+    val registryComponentTypes = listOf(hostableByItem, colliders, staticMeshes, simplePlaceables)
 
-    internal val entitiesAdded = HashSet<Int>()
+    internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
     private var hasReloaded = false
 
@@ -99,8 +102,7 @@ class Sokol : BasePlugin() {
                     .registerExact(ComponentFactorySerializer(this@Sokol))
                     .registerExact(ItemBlueprintSerializer(this@Sokol))
                     .registerExact(EntityBlueprintSerializer(this@Sokol))
-                    .registerExact(Mesh.PartDefinitionSerializer)
-                    .registerExact(StaticMesh.ConfigSerializer)
+                    .registerExact(Meshes.PartDefinitionSerializer)
             },
             onLoad = {
                 addDefaultI18N()
@@ -114,6 +116,8 @@ class Sokol : BasePlugin() {
             registerListener(SokolPacketListener(this@Sokol))
             registerListener(PacketInputListener(::onInput), PacketListenerPriority.NORMAL)
         }
+
+        itemPlacing.enable()
     }
 
     override fun initInternal(): Boolean {
@@ -126,6 +130,7 @@ class Sokol : BasePlugin() {
                     _componentTypes[type.key.asString()] = type
                 }
             }
+
             try {
                 registrations.forEach { it.onInit(initCtx) }
                 engine = engineBuilder.build()
@@ -133,6 +138,8 @@ class Sokol : BasePlugin() {
                 log.line(LogLevel.Error, ex) { "Could not set up engine" }
                 return false
             }
+
+            space = SokolSpace(engine)
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.componentTypes.size} transient component types, ${_componentTypes.size} persistent component types, ${engine.systems.size} systems" }
 
@@ -176,7 +183,7 @@ class Sokol : BasePlugin() {
             }
 
             _itemBlueprints.clear()
-            _entityBlueprints.clear()
+            _mobBlueprints.clear()
             registryComponentTypes.forEach { it.registry.clear() }
 
             val configs = walkConfigs(dataFolder.resolve(CONFIG),
@@ -209,13 +216,13 @@ class Sokol : BasePlugin() {
                     _itemBlueprints.register(child.force())
                 }
             }
-            loadConfigs({ "Could not read entity blueprints from $it" }) {
-                it.node(ENTITIES).childrenMap().forEach { (_, child) ->
-                    _entityBlueprints.register(child.force())
+            loadConfigs({ "Could not read mob blueprints from $it" }) {
+                it.node(MOBS).childrenMap().forEach { (_, child) ->
+                    _mobBlueprints.register(child.force())
                 }
             }
 
-            log.line(LogLevel.Info) { "Loaded ${_entityBlueprints.size} entity blueprints, ${_itemBlueprints.size} item blueprints" }
+            log.line(LogLevel.Info) { "Loaded ${_mobBlueprints.size} mob blueprints, ${_itemBlueprints.size} item blueprints" }
 
             hasReloaded = true
             return true
@@ -232,12 +239,18 @@ class Sokol : BasePlugin() {
 
     fun componentType(key: Key) = _componentTypes[key.asString()]
 
-    fun usePDC(pdc: PersistentDataContainer, write: Boolean = true, callback: (SokolEntityAccess) -> Unit): Boolean {
+    fun usePDC(
+        pdc: PersistentDataContainer,
+        write: Boolean = true,
+        builder: (SokolEntityBuilder) -> Unit,
+        consumer: (SokolEntityAccess) -> Unit,
+    ): Boolean {
         persistence.getTag(pdc, persistence.entityKey)?.let { tag ->
             val blueprint = persistence.readBlueprint(tag)
             if (blueprint.isNotEmpty()) {
-                val entity = blueprint.create(engine)
-                callback(entity)
+                val entity = blueprint
+                    .build(engine).also(builder)
+                    .build().also(consumer)
                 if (write) {
                     // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
                     // how to implement this? idfk
@@ -249,27 +262,66 @@ class Sokol : BasePlugin() {
         return false
     }
 
-    fun useMob(mob: Entity, write: Boolean = true, callback: (SokolEntityAccess) -> Unit): Boolean {
-        return usePDC(mob.persistentDataContainer, write) { entity ->
-            entityResolver.populate(entity, mob)
-            callback(entity)
+    fun useMob(
+        mob: Entity,
+        write: Boolean = true,
+        builder: (SokolEntityBuilder) -> Unit = {},
+        consumer: (SokolEntityAccess) -> Unit,
+    ): Boolean {
+        return usePDC(mob.persistentDataContainer, write,
+            {
+                entityResolver.populate(SokolObjectType.Mob, it, mob)
+                builder(it)
+            },
+            consumer
+        )
+    }
+
+    fun useItem(
+        item: ItemStack,
+        write: Boolean = true,
+        builder: (SokolEntityBuilder) -> Unit = {},
+        consumer: (SokolEntityAccess) -> Unit,
+    ): Boolean {
+        if (!item.hasItemMeta()) return false
+        val meta = item.itemMeta
+        var dirty = false
+        return usePDC(meta.persistentDataContainer, write, {
+            entityResolver.populate(SokolObjectType.Item, it, ItemData({ item }, { meta }))
+            it.addComponent(object : HostedByItem {
+                override val stack get() = item
+
+                override fun <R> readMeta(action: (ItemMeta) -> R): R {
+                    return action(meta)
+                }
+
+                override fun writeMeta(action: (ItemMeta) -> Unit) {
+                    action(meta)
+                    dirty = true
+                }
+            })
+            builder(it)
+        }) { entity ->
+            consumer(entity)
+            if (write && dirty) {
+                item.itemMeta = meta
+            }
         }
     }
 
-    fun useItem(stack: ItemStack, write: Boolean = true, callback: (SokolEntityAccess) -> Unit): Boolean {
-        val meta = stack.itemMeta
-        return usePDC(meta.persistentDataContainer, write) { entity ->
-            entityResolver.populate(entity, stack, meta)
-            callback(entity)
-        }
-    }
-
-    fun usePlayerItems(player: Player, write: Boolean = true, callback: (SokolEntityAccess) -> Unit) {
+    fun usePlayerItems(
+        player: Player,
+        write: Boolean = true,
+        consumer: (SokolEntityAccess) -> Unit
+    ) {
         player.inventory.forEachIndexed { idx, stack ->
             stack?.let {
-                useItem(stack, write) { entity ->
-                    entity.addComponent(ItemHolder.byPlayer(player, idx))
-                    callback(entity)
+                useItem(stack, write,
+                    {
+                        it.addComponent(ItemHolder.byPlayer(player, idx))
+                    }
+                ) { entity ->
+                    consumer(entity)
                 }
             }
         }
@@ -281,7 +333,7 @@ class Sokol : BasePlugin() {
             is Input.Drop -> return
             else -> {
                 usePlayerItems(player, false) { entity ->
-                    entity.call(PlayerInput(input, player) { event.cancel() })
+                    entity.call(ItemEvent.PlayerInput(input, player) { event.cancel() })
                 }
             }
         }
@@ -292,8 +344,10 @@ class Sokol : BasePlugin() {
             onInit = {
                 engine
                     .systemFactory { it.define(ColliderSystem(it)) }
-                    .systemFactory { it.define(MeshSystem(it)) }
-                    .systemFactory { it.define(StaticMeshSystem(it)) }
+                    .systemFactory { it.define(MeshesSystem(it)) }
+                    .systemFactory { it.define(StaticMeshesInjectorSystem(it)) }
+                    .systemFactory { it.define(PlaceableSystem(this@Sokol, it)) }
+                    .systemFactory { it.define(SimplePlaceableInjectorSystem(it)) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
@@ -310,31 +364,42 @@ class Sokol : BasePlugin() {
                     .componentType<Collider>()
                     .componentType<RigidBody>()
                     .componentType<VehicleBody>()
-                    .componentType<Mesh>()
-                    .componentType<StaticMesh>()
+                    .componentType<Meshes>()
+                    .componentType<StaticMeshes>()
+                    .componentType<Placeable>()
+                    .componentType<SimplePlaceable>()
                 registerComponentType(hostableByItem)
                 registerComponentType(HostableByEntity.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(colliders)
                 registerComponentType(RigidBody.Type)
                 registerComponentType(VehicleBody.Type)
-                registerComponentType(Mesh.Type)
+                registerComponentType(Meshes.Type)
                 registerComponentType(staticMeshes)
+                registerComponentType(Placeable.Type)
+                registerComponentType(simplePlaceables)
             },
             onPostInit = {
                 val mRotation = engine.componentMapper<Rotation>()
 
-                entityResolver.mobPopulator { entity, mob ->
-                    entity.addComponent(object : HostedByMob {
-                        override val mob get() = mob
-                    })
-                    entity.addComponent(object : IsValidSupplier {
+                entityResolver.populator(SokolObjectType.World) { builder, world ->
+                    builder.addComponent(hostedByWorld(world))
+                }
+
+                entityResolver.populator(SokolObjectType.Chunk) { builder, chunk ->
+                    builder.addComponent(hostedByChunk(chunk))
+                }
+
+                entityResolver.populator(SokolObjectType.Mob) { builder, mob ->
+                    builder.addComponent(hostedByMob(mob))
+
+                    builder.addComponent(object : IsValidSupplier {
                         override val valid: () -> Boolean get() = { mob.isValid }
                     })
 
-                    val rotation = mRotation.mapOr(entity)
+                    val rotation = mRotation.mapOr(builder)
                     var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
-                    entity.addComponent(object : Position {
+                    builder.addComponent(object : Position {
                         override val world get() = mob.world
                         @Suppress("UnstableApiUsage")
                         override var transform: Transform
@@ -346,6 +411,8 @@ class Sokol : BasePlugin() {
                             }
                     })
                 }
+
+                // populators for blocks and items are a bit more complicated
             }
         )
     }

@@ -30,7 +30,7 @@ private const val DIRTY = "dirty"
 private const val BODY_ID = "body_id"
 
 data class Collider(
-    var backing: Config,
+    val backing: Config,
     var mass: Float? = null,
 
     var dirty: Int = 0,
@@ -70,7 +70,7 @@ data class Collider(
         val mass: Float = 1f,
     ) : Keyed
 
-    class Type : RegistryComponentType<Config>(Config::class, COLLIDERS) {
+    class Type : RegistryComponentType<Config>(Config::class, Collider::class, COLLIDERS) {
         override val key get() = Key
 
         override fun read(tag: NBTTag) = tag.asCompound().run { Collider(

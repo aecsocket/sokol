@@ -12,6 +12,7 @@ import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
 import com.gitlab.aecsocket.glossa.core.I18N
 import com.gitlab.aecsocket.sokol.core.SokolBlueprint
 import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
+import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.core.util.Timings
 import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
 import net.kyori.adventure.extra.kotlin.join
@@ -120,7 +121,7 @@ internal class SokolCommand(
             val (candidates, updated) = stats
             val percent = updated.toDouble() / candidates
             plugin.sendMessage(sender, i18n.csafe("stats.object_type") {
-                subst("type", text(type))
+                subst("type", text(type.key))
                 icu("candidates", candidates)
                 icu("updated", updated)
                 icu("percent", percent)
@@ -148,12 +149,12 @@ internal class SokolCommand(
     }
 
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
+        val blueprint = ctx.get<KeyedMobBlueprint>("blueprint")
         val location = ctx.get<Location>("location")
         val amount = ctx.value("amount") { 1 }
 
         repeat(amount) {
-            blueprint.spawnEntity(location)
+            blueprint.spawnMob(location)
         }
 
         plugin.sendMessage(sender, i18n.csafe("summon") {
@@ -176,13 +177,14 @@ internal class SokolCommand(
         entity: SokolEntityAccess,
         name: Component,
     ) {
+        entity.call(SokolEvent.Populate)
         val components = entity.allComponents()
 
         val hover = (
             i18n.csafe("state.read.component.header") +
             components.flatMap { component ->
                 i18n.csafe("state.read.component.line") {
-                    icu("type", component::class.simpleName ?: "?")
+                    icu("type", component::class)
                 }
             }
         ).join(JoinConfiguration.newlines())
@@ -235,8 +237,11 @@ internal class SokolCommand(
         var results = 0
         targets.forEach { target ->
             val item = slot.getFrom(target.inventory)
-            plugin.useItem(item, false) { entity ->
-                entity.addComponent(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
+            plugin.useItem(item, false,
+                {
+                    it.addComponent(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
+                }
+            ) { entity ->
                 stateRead(ctx, sender, i18n, componentType, entity, item.displayName())
                 results++
             }

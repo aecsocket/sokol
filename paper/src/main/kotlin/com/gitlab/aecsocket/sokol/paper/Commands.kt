@@ -28,8 +28,8 @@ class EntityBlueprintArgument<C : Any>(
     required: Boolean = true,
     defaultValue: String = "",
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
-) : RegistryElementArgument<C, KeyedEntityBlueprint>(
-    name, sokol.entityBlueprints, ARGUMENT_PARSE_FAILURE_ENTITY_BLUEPRINT, KeyedEntityBlueprint::class.java,
+) : RegistryElementArgument<C, KeyedMobBlueprint>(
+    name, sokol.mobBlueprints, ARGUMENT_PARSE_FAILURE_ENTITY_BLUEPRINT, KeyedMobBlueprint::class.java,
     description, required, defaultValue, suggestionsProvider
 ) {
     companion object {

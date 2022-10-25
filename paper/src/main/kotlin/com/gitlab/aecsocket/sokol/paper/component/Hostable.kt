@@ -35,7 +35,7 @@ data class HostableByItem(
         @Setting(nodeFromParent = true) val descriptor: ItemDescriptor,
     ) : Keyed
 
-    class Type : RegistryComponentType<Config>(Config::class, HOSTABLE_BY_ITEM) {
+    class Type : RegistryComponentType<Config>(Config::class, HostableByItem::class, HOSTABLE_BY_ITEM) {
         override val key get() = Key
 
         override fun read(tag: NBTTag) = HostableByItem(
