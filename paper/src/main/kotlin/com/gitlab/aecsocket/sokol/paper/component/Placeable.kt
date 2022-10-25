@@ -55,7 +55,7 @@ class PlaceableSystem(
                 event.backing.slot,
                 listOf(
                     AlexandriaAPI.meshes.create(
-                        item.stack,
+                        item.item,
                         Transform(
                             player.eyeLocation.position()
                         ),

@@ -5,6 +5,8 @@ import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.SokolEntityBuilder
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.paper.component.HostableByItem
+import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
+import com.gitlab.aecsocket.sokol.paper.component.hostedByItem
 import com.gitlab.aecsocket.sokol.paper.util.spawnMarkerEntity
 import net.kyori.adventure.key.Key
 import org.bukkit.Location
@@ -34,13 +36,15 @@ open class ItemBlueprint(
     sokol: Sokol,
     factories: Map<String, PersistentComponentFactory>,
 ) : PersistentBlueprint(sokol, factories) {
-    fun createItem(): ItemStack {
+    fun createItem(holder: ItemHolder? = null): ItemStack {
         val hostable = factoryFor(HostableByItem.Key)?.create() as? HostableByItem
             ?: throw IllegalStateException("ItemBlueprint must have component ${HostableByItem.Key}")
-        val stack = hostable.backing.descriptor.create()
-        return stack.withMeta { meta ->
+        val item = hostable.backing.descriptor.create()
+        return item.withMeta { meta ->
             val entity = builder().apply {
-                sokol.entityResolver.populate(SokolObjectType.Item, this, ItemData({ stack }, { meta }))
+                sokol.entityResolver.populate(SokolObjectType.Item, this, ItemData({ item }, { meta }))
+                setComponent(hostedByItem(item, meta))
+                holder?.let { setComponent(it) }
             }.build()
             entity.call(SokolEvent.Add)
 

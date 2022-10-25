@@ -290,7 +290,7 @@ class Sokol : BasePlugin() {
         return usePDC(meta.persistentDataContainer, write, {
             entityResolver.populate(SokolObjectType.Item, it, ItemData({ item }, { meta }))
             it.setComponent(object : HostedByItem {
-                override val stack get() = item
+                override val item get() = item
 
                 override fun <R> readMeta(action: (ItemMeta) -> R): R {
                     return action(meta)
@@ -347,6 +347,7 @@ class Sokol : BasePlugin() {
                     .systemFactory { it.define(ColliderSystem(it)) }
                     .systemFactory { it.define(MeshesSystem(it)) }
                     .systemFactory { it.define(StaticMeshesInjectorSystem(it)) }
+                    .systemFactory { it.define(ItemNameSystem(it)) }
                     .systemFactory { it.define(PlaceableSystem(this@Sokol, it)) }
                     .systemFactory { it.define(SimplePlaceableInjectorSystem(it)) }
 
@@ -367,6 +368,7 @@ class Sokol : BasePlugin() {
                     .componentType<VehicleBody>()
                     .componentType<Meshes>()
                     .componentType<StaticMeshes>()
+                    .componentType<ItemName>()
                     .componentType<Placeable>()
                     .componentType<SimplePlaceable>()
                 registerComponentType(hostableByItem)
@@ -377,6 +379,7 @@ class Sokol : BasePlugin() {
                 registerComponentType(VehicleBody.Type)
                 registerComponentType(Meshes.Type)
                 registerComponentType(staticMeshes)
+                registerComponentType(ItemName.Type)
                 registerComponentType(Placeable.Type)
                 registerComponentType(simplePlaceables)
             },

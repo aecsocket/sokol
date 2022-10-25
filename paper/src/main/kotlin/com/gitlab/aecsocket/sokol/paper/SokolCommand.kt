@@ -24,6 +24,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
 import java.util.Optional
@@ -136,15 +137,16 @@ internal class SokolCommand(
         val targets = ctx.players("targets", sender, i18n)
         val amount = ctx.value("amount") { 1 }
 
-        val item = blueprint.createItem()
-        item.amount = amount
-
         targets.forEach { target ->
+            val item = blueprint.createItem(ItemHolder.byMob(target))
+            item.amount = amount
             target.inventory.addItem(item)
         }
 
+        val item = blueprint.createItem(if (sender is Player) ItemHolder.byMob(sender) else null)
+
         plugin.sendMessage(sender, i18n.csafe("give") {
-            subst("id", text(blueprint.id))
+            subst("item", item.displayName())
             subst("target", if (targets.size == 1) targets.first().name() else text(targets.size))
             icu("amount", amount)
         })

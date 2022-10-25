@@ -325,7 +325,7 @@ class EntityResolver internal constructor(
                     tagEntity
                 ) { builder ->
                     builder.setComponent(object : HostedByItem {
-                        override val stack get() = bukkit.value
+                        override val item get() = bukkit.value
 
                         override fun <R> readMeta(action: (ItemMeta) -> R): R {
                             return action(meta.value)
