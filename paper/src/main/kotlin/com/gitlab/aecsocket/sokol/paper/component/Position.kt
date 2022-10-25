@@ -39,6 +39,7 @@ data class Rotation(
     }
 
     object Type : PersistentComponentType {
+        override val componentType get() = Rotation::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = Rotation(tag.asQuaternion())

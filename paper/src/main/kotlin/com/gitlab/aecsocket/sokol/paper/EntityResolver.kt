@@ -265,7 +265,7 @@ class EntityResolver internal constructor(
                     BlockData(bukkit) { state.value },
                     tagOf(block.persistentDataContainer)
                 ) { builder ->
-                    builder.addComponent(object : HostedByBlock {
+                    builder.setComponent(object : HostedByBlock {
                         override val block get() = bukkit
 
                         override fun <R> readState(action: (BlockState) -> R): R {
@@ -324,7 +324,7 @@ class EntityResolver internal constructor(
                     ItemData({ bukkit.value }, { meta.value }),
                     tagEntity
                 ) { builder ->
-                    builder.addComponent(object : HostedByItem {
+                    builder.setComponent(object : HostedByItem {
                         override val stack get() = bukkit.value
 
                         override fun <R> readMeta(action: (ItemMeta) -> R): R {
@@ -336,7 +336,7 @@ class EntityResolver internal constructor(
                             dirty = true
                         }
                     })
-                    builder.addComponent(holder)
+                    builder.setComponent(holder)
                 }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve item ${entityInfo.value}" }

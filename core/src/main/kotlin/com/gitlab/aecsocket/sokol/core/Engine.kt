@@ -1,6 +1,8 @@
 package com.gitlab.aecsocket.sokol.core
 
 import com.gitlab.aecsocket.sokol.core.util.*
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Setting
 import java.lang.invoke.MethodHandles
 import kotlin.reflect.KClass
 
@@ -69,7 +71,7 @@ interface SokolComponentAccess {
 
     fun getComponent(type: Int): SokolComponent?
 
-    fun addComponent(component: SokolComponent)
+    fun setComponent(component: SokolComponent)
 
     fun removeComponent(type: Int)
 }
@@ -92,7 +94,7 @@ data class SokolBlueprint(val components: Collection<SokolComponent>) {
 
     fun build(engine: SokolEngine): SokolEntityBuilder {
         val entity = engine.entityBuilder()
-        components.forEach { entity.addComponent(it) }
+        components.forEach { entity.setComponent(it) }
         return entity
     }
 }
@@ -257,14 +259,10 @@ class SokolEngine internal constructor(
 
         override fun getComponent(type: Int) = components[type]
 
-        fun setComponent(type: Int, component: SokolComponent) {
-            components[type] = component
-        }
-
-        override fun addComponent(component: SokolComponent) {
+        override fun setComponent(component: SokolComponent) {
             val type = componentType(component.componentType)
             archetype.set(type)
-            setComponent(type, component)
+            components[type] = component
         }
 
         override fun removeComponent(type: Int) {

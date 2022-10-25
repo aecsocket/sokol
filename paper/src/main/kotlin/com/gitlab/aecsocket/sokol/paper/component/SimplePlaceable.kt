@@ -36,6 +36,7 @@ data class SimplePlaceable(val backing: Config) : PersistentComponent {
     ) : Keyed
 
     class Type : RegistryComponentType<Config>(Config::class, SimplePlaceable::class, SIMPLE_PLACEABLES) {
+        override val componentType get() = SimplePlaceable::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = SimplePlaceable(entry(tag.asString()))

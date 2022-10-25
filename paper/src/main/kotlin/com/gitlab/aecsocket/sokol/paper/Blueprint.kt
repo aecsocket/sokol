@@ -24,7 +24,7 @@ open class PersistentBlueprint(
     fun builder(): SokolEntityBuilder {
         return sokol.engine.entityBuilder().apply {
             factories.forEach { (_, factory) ->
-                addComponent(factory.create())
+                setComponent(factory.create())
             }
         }
     }

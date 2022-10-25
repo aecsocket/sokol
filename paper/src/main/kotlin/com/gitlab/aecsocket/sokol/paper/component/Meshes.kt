@@ -44,6 +44,7 @@ class Meshes : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 
     object Type : PersistentComponentType {
+        override val componentType get() = Meshes::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = Meshes()
@@ -61,6 +62,8 @@ class Meshes : PersistentComponent {
             node.node(TRANSFORM).get { Transform.Identity }
         )
     }
+
+    object CreateMesh : SokolEvent
 }
 
 @All(Position::class, HostedByMob::class, Meshes::class)
@@ -97,7 +100,7 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
             } else entry
         }
 
-        entity.call(CreateMesh)
+        entity.call(Meshes.CreateMesh)
     }
 
     private data class PartContext(
@@ -174,6 +177,4 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
             part.transform = location.transform + def.transform
         }
     }
-
-    object CreateMesh : SokolEvent
 }

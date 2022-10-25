@@ -7,6 +7,7 @@ import cloud.commandframework.bukkit.parsers.selector.MultipleEntitySelectorArgu
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeArgument
 import com.gitlab.aecsocket.alexandria.core.extension.*
+import com.gitlab.aecsocket.alexandria.core.keyed.parseNodeNamespacedKey
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
 import com.gitlab.aecsocket.glossa.core.I18N
@@ -19,6 +20,7 @@ import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
+import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
@@ -239,13 +241,14 @@ internal class SokolCommand(
             val item = slot.getFrom(target.inventory)
             plugin.useItem(item, false,
                 {
-                    it.addComponent(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
+                    it.setComponent(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
                 }
             ) { entity ->
                 stateRead(ctx, sender, i18n, componentType, entity, item.displayName())
                 results++
             }
         }
+
         plugin.sendMessage(sender, i18n.csafe("state.read.complete") {
             icu("results", results)
         })
@@ -255,15 +258,51 @@ internal class SokolCommand(
         val targets = ctx.entities("targets", sender, i18n)
         val data = ctx.get<ConfigurationNode>("data")
 
-        val blueprint = try {
-            data.force<SokolBlueprint>()
+        val dataMap = try {
+            data.forceMap(SokolBlueprint::class.java).map { (_, child) ->
+                val type = componentTypeFrom(plugin, SokolBlueprint::class.java, child)
+                type to child
+            }.associate { it }
         } catch (ex: SerializationException) {
             error(i18n.safe("error.parse_blueprint"), ex)
         }
 
-
+        var results = 0
         targets.forEach { target ->
-            // TODO
+            plugin.useMob(target) { entity ->
+                dataMap.forEach { (type, child) ->
+                    val engineType = plugin.engine.componentType(type.componentType)
+                    entity.getComponent(engineType)?.let { existing ->
+                        if (existing is PersistentComponent) {
+                            // merge cfg values
+                            val configNode = AlexandriaAPI.configLoader().build().createNode()
+                            existing.write(configNode)
+                            child.mergeFrom(configNode)
+
+                            val newComponent = try {
+                                type.read(child)
+                            } catch (ex: SerializationException) {
+                                error(i18n.safe("error.parse_blueprint"), ex)
+                            }
+
+                            entity.setComponent(newComponent)
+                        }
+                    } ?: run {
+                        // add new component
+                        val newComponent = try {
+                            type.read(child)
+                        } catch (ex: SerializationException) {
+                            error(i18n.safe("error.parse_blueprint"), ex)
+                        }
+                        entity.setComponent(newComponent)
+                    }
+                }
+                results++
+            }
         }
+
+        plugin.sendMessage(sender, i18n.csafe("state.write.complete") {
+            icu("results", results)
+        })
     }
 }

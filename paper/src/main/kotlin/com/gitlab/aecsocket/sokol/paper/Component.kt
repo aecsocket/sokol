@@ -13,6 +13,9 @@ import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 import kotlin.reflect.KClass
 
+class ComponentSerializationException(message: String? = null, cause: Throwable? = null)
+    : RuntimeException(message, cause)
+
 interface PersistentComponent : SokolComponent {
     val key: Key
 
@@ -28,6 +31,7 @@ fun PersistentComponent.writeKeyed(node: ConfigurationNode) =
     write(node.node(key.toString()))
 
 interface PersistentComponentType {
+    val componentType: Class<out SokolComponent>
     val key: Key
 
     fun read(tag: NBTTag): PersistentComponent
@@ -48,7 +52,7 @@ abstract class RegistryComponentType<C : Keyed>(
     val registry = Registry.create<C>()
 
     fun entry(id: String) = registry[id]
-        ?: throw IllegalArgumentException("Invalid $componentTypeName config '$id'")
+        ?: throw ComponentSerializationException("Invalid $componentTypeName config '$id'")
 
     fun load(node: ConfigurationNode) {
         node.node(configPath).childrenMap().forEach { (_, child) ->

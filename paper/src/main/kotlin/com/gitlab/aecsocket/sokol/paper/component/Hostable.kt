@@ -36,6 +36,7 @@ data class HostableByItem(
     ) : Keyed
 
     class Type : RegistryComponentType<Config>(Config::class, HostableByItem::class, HOSTABLE_BY_ITEM) {
+        override val componentType get() = HostableByItem::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = HostableByItem(
@@ -53,13 +54,13 @@ data class HostableByItem(
     }
 }
 
-class HostableByEntity : PersistentComponent {
+class HostableByMob : PersistentComponent {
 
     companion object {
-        val Key = SokolAPI.key("hostable_by_entity")
+        val Key = SokolAPI.key("hostable_by_mob")
     }
 
-    override val componentType get() = HostableByEntity::class.java
+    override val componentType get() = HostableByMob::class.java
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -67,12 +68,13 @@ class HostableByEntity : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 
     object Type : PersistentComponentType {
+        override val componentType get() = HostableByMob::class.java
         override val key get() = Key
 
-        override fun read(tag: NBTTag) = HostableByEntity()
+        override fun read(tag: NBTTag) = HostableByMob()
 
-        override fun read(node: ConfigurationNode) = HostableByEntity()
+        override fun read(node: ConfigurationNode) = HostableByMob()
 
-        override fun readFactory(node: ConfigurationNode) = PersistentComponentFactory { HostableByEntity() }
+        override fun readFactory(node: ConfigurationNode) = PersistentComponentFactory { HostableByMob() }
     }
 }

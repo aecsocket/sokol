@@ -46,6 +46,7 @@ data class Collider(
     fun mass() = mass ?: backing.mass
 
     fun isBackingDirty() = dirty and 0x1 != 0x0
+    fun isMassDirty() = dirty and 0x2 != 0x0
     fun markDirty() {
         dirty = Int.MAX_VALUE
     }
@@ -71,6 +72,7 @@ data class Collider(
     ) : Keyed
 
     class Type : RegistryComponentType<Config>(Config::class, Collider::class, COLLIDERS) {
+        override val componentType get() = Collider::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = tag.asCompound().run { Collider(
@@ -92,6 +94,11 @@ data class Collider(
             return PersistentComponentFactory { Collider(backing) }
         }
     }
+
+    // NB: modifying component data during this will not persist
+    data class PhysicsUpdate(
+        val body: TrackedPhysicsObject
+    ) : SokolEvent
 }
 
 class RigidBody : PersistentComponent {
@@ -107,6 +114,7 @@ class RigidBody : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 
     object Type : PersistentComponentType {
+        override val componentType get() = RigidBody::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = RigidBody()
@@ -130,6 +138,7 @@ class VehicleBody : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 
     object Type : PersistentComponentType {
+        override val componentType get() = VehicleBody::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = VehicleBody()
@@ -182,7 +191,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                     override fun update(ctx: TrackedPhysicsObject.Context) {
                         if (!isValid())
                             ctx.remove()
-                        entity.call(SokolEvent.PhysicsUpdate(this))
+                        entity.call(Collider.PhysicsUpdate(this))
                     }
                 }
                 0x2 -> object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
@@ -193,7 +202,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                     override fun update(ctx: TrackedPhysicsObject.Context) {
                         if (!isValid())
                             ctx.remove()
-                        entity.call(SokolEvent.PhysicsUpdate(this))
+                        entity.call(Collider.PhysicsUpdate(this))
                     }
                 }
                 else -> throw IllegalStateException("Multiple body types defined for collider")
@@ -225,13 +234,18 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
             physSpace.trackedBy(bodyId)?.let { tracked ->
                 val body = tracked.body
                 if (tracked !is SokolPhysicsObject)
-                    throw IllegalStateException("Collider physics body is not of type SokolPhysicsObject")
+                    throw IllegalStateException("Collider physics body is not of type ${SokolPhysicsObject::class.java}")
 
-                if (collider.isBackingDirty())
-                    body.collisionShape = collisionOf(collider.backing.shape)
-                if (body is PhysicsRigidBody)
-                    body.mass = collider.mass()
+                val backingDirty = collider.isBackingDirty()
+                val massDirty = collider.isMassDirty()
                 collider.dirty = 0
+
+                CraftBulletAPI.executePhysics {
+                    if (backingDirty)
+                        body.collisionShape = collisionOf(collider.backing.shape)
+                    if (massDirty && body is PhysicsRigidBody)
+                        body.mass = collider.mass()
+                }
 
                 tracked.entity = entity
                 location.transform = Transform(

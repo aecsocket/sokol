@@ -24,6 +24,7 @@ class Placeable : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 
     object Type : PersistentComponentType {
+        override val componentType get() = Placeable::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = Placeable()

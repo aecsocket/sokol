@@ -13,8 +13,6 @@ interface SokolEvent {
 
     object Update : SokolEvent
 
-    data class PhysicsUpdate(val obj: TrackedPhysicsObject) : SokolEvent
-
     object Remove : SokolEvent
 
     object Reload : SokolEvent

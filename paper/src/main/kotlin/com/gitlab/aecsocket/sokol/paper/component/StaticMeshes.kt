@@ -45,6 +45,7 @@ data class StaticMeshes(
     ) : Keyed
 
     class Type : RegistryComponentType<Config>(Config::class, StaticMeshes::class, STATIC_MESHES) {
+        override val componentType get() = StaticMeshes::class.java
         override val key get() = Key
 
         override fun read(tag: NBTTag) = tag.asCompound().run { StaticMeshes(
@@ -86,7 +87,7 @@ class StaticMeshesInjectorSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: MeshesSystem.CreateMesh, entity: SokolEntityAccess) {
+    fun on(event: Meshes.CreateMesh, entity: SokolEntityAccess) {
         val consumer = mConsumer.map(entity)
         val provider = mProvider.map(entity)
 

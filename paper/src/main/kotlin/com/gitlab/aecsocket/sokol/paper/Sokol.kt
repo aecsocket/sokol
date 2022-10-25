@@ -98,8 +98,9 @@ class Sokol : BasePlugin() {
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
-                    .registerExact(ComponentSerializer(this@Sokol))
-                    .registerExact(ComponentFactorySerializer(this@Sokol))
+                    .register(ComponentSerializer(this@Sokol))
+                    .register(ComponentFactorySerializer(this@Sokol))
+                    .registerExact(BlueprintSerializer(this@Sokol))
                     .registerExact(ItemBlueprintSerializer(this@Sokol))
                     .registerExact(EntityBlueprintSerializer(this@Sokol))
                     .registerExact(Meshes.PartDefinitionSerializer)
@@ -288,7 +289,7 @@ class Sokol : BasePlugin() {
         var dirty = false
         return usePDC(meta.persistentDataContainer, write, {
             entityResolver.populate(SokolObjectType.Item, it, ItemData({ item }, { meta }))
-            it.addComponent(object : HostedByItem {
+            it.setComponent(object : HostedByItem {
                 override val stack get() = item
 
                 override fun <R> readMeta(action: (ItemMeta) -> R): R {
@@ -318,7 +319,7 @@ class Sokol : BasePlugin() {
             stack?.let {
                 useItem(stack, write,
                     {
-                        it.addComponent(ItemHolder.byPlayer(player, idx))
+                        it.setComponent(ItemHolder.byPlayer(player, idx))
                     }
                 ) { entity ->
                     consumer(entity)
@@ -359,7 +360,7 @@ class Sokol : BasePlugin() {
                     .componentType<ItemHolder>()
 
                     .componentType<HostableByItem>()
-                    .componentType<HostableByEntity>()
+                    .componentType<HostableByMob>()
                     .componentType<Rotation>()
                     .componentType<Collider>()
                     .componentType<RigidBody>()
@@ -369,7 +370,7 @@ class Sokol : BasePlugin() {
                     .componentType<Placeable>()
                     .componentType<SimplePlaceable>()
                 registerComponentType(hostableByItem)
-                registerComponentType(HostableByEntity.Type)
+                registerComponentType(HostableByMob.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(colliders)
                 registerComponentType(RigidBody.Type)
@@ -383,23 +384,23 @@ class Sokol : BasePlugin() {
                 val mRotation = engine.componentMapper<Rotation>()
 
                 entityResolver.populator(SokolObjectType.World) { builder, world ->
-                    builder.addComponent(hostedByWorld(world))
+                    builder.setComponent(hostedByWorld(world))
                 }
 
                 entityResolver.populator(SokolObjectType.Chunk) { builder, chunk ->
-                    builder.addComponent(hostedByChunk(chunk))
+                    builder.setComponent(hostedByChunk(chunk))
                 }
 
                 entityResolver.populator(SokolObjectType.Mob) { builder, mob ->
-                    builder.addComponent(hostedByMob(mob))
+                    builder.setComponent(hostedByMob(mob))
 
-                    builder.addComponent(object : IsValidSupplier {
+                    builder.setComponent(object : IsValidSupplier {
                         override val valid: () -> Boolean get() = { mob.isValid }
                     })
 
                     val rotation = mRotation.mapOr(builder)
                     var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
-                    builder.addComponent(object : Position {
+                    builder.setComponent(object : Position {
                         override val world get() = mob.world
                         @Suppress("UnstableApiUsage")
                         override var transform: Transform
