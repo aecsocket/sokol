@@ -7,14 +7,11 @@ import cloud.commandframework.bukkit.parsers.selector.MultipleEntitySelectorArgu
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeArgument
 import com.gitlab.aecsocket.alexandria.core.extension.*
-import com.gitlab.aecsocket.alexandria.core.keyed.parseNodeNamespacedKey
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
+import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.glossa.core.I18N
-import com.gitlab.aecsocket.sokol.core.SokolBlueprint
-import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
-import com.gitlab.aecsocket.sokol.core.SokolEvent
-import com.gitlab.aecsocket.sokol.core.util.Timings
+import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
@@ -25,29 +22,23 @@ import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.inventory.EquipmentSlot
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.serialize.SerializationException
 import java.util.Optional
 
-private val STATS_INTERVALS = listOf(
-    5 * TPS,
-    30 * TPS,
-    60 * TPS,
-)
+private val TIMING_INTERVALS = listOf(5, 30, 60)
 
 internal class SokolCommand(
     override val plugin: Sokol
 ) : BaseCommand(plugin) {
     init {
-        captions?.registerMessageFactory(EntityBlueprintArgument.ARGUMENT_PARSE_FAILURE_ENTITY_BLUEPRINT, captionLocalizer)
-
         manager.command(root
             .literal("stats", desc("Show stats for the object resolver."))
             .permission(perm("stats"))
             .handler { handle(it, ::stats) })
         manager.command(root
             .literal("give", desc("Creates and gives an item blueprint to a player."))
-            .argument(ItemBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
+            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to give to."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1)
@@ -55,12 +46,12 @@ internal class SokolCommand(
             .permission(perm("give"))
             .handler { handle(it, ::give) })
         manager.command(root
-            .literal("summon", desc("Creates and summons an entity blueprint."))
+            .literal("summon", desc("Creates and summons a mob blueprint."))
             .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
-            .argument(LocationArgument.of("location"), desc("Where to spawn the entity."))
+            .argument(LocationArgument.of("location"), desc("Where to spawn the mob."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1)
-                .asOptional(), desc("The amount of entities to spawn."))
+                .asOptional(), desc("The amount of mobs to spawn."))
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
 
@@ -81,7 +72,7 @@ internal class SokolCommand(
             .handler { handle(it, ::stateReadMob) })
         manager.command(stateRead
             .literal("item", desc("Reads the state of an item in a player's inventory."))
-            .argument(PlayerInventorySlotArgument("slot"), desc("Slot to read item from."))
+            .argument(PlayerInventorySlotArgument("slot", required = false), desc("Slot to read item from."))
             .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to get items from."))
             .argument(NamespacedKeyArgument.builder<CommandSender>("component-type")
                 .componentType(), desc("Key of the component to read."))
@@ -100,12 +91,12 @@ internal class SokolCommand(
     fun stats(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         fun sendTimings(baseTimings: Timings, headerKey: String) {
             plugin.sendMessage(sender, i18n.csafe(headerKey) {
-                icu("time_last", baseTimings.last())
+                icu("time_last", baseTimings.allEntries().lastOrNull() ?: "?")
             })
 
-            STATS_INTERVALS.forEach { intervalTicks ->
-                val intervalMs = (intervalTicks * MSPT).toDouble()
-                val timings = baseTimings.takeLast(intervalTicks)
+            TIMING_INTERVALS.forEach { interval ->
+                val intervalMs = interval * 1000L
+                val timings = baseTimings.lastEntries(intervalMs)
                 plugin.sendMessage(sender, i18n.csafe("stats.timing") {
                     icu("interval_ms", intervalMs)
                     icu("interval_sec", intervalMs / 1000.0)
@@ -133,17 +124,24 @@ internal class SokolCommand(
     }
 
     fun give(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val blueprint = ctx.get<KeyedItemBlueprint>("blueprint")
+        val blueprint = ctx.get<EntityBlueprint>("blueprint")
         val targets = ctx.players("targets", sender, i18n)
         val amount = ctx.value("amount") { 1 }
 
+        if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Item))
+            error(i18n.safe("error.cannot_host"))
+
         targets.forEach { target ->
-            val item = blueprint.createItem(ItemHolder.byMob(target))
+            val newBlueprint = blueprint.copyOf()
+            newBlueprint.components.set(ItemHolder.byMob(target))
+            val item = plugin.entityHoster.hostItem(newBlueprint)
             item.amount = amount
             target.inventory.addItem(item)
         }
 
-        val item = blueprint.createItem(if (sender is Player) ItemHolder.byMob(sender) else null)
+        if (sender is Player)
+            blueprint.components.set(ItemHolder.byMob(sender))
+        val item = plugin.entityHoster.hostItem(blueprint)
 
         plugin.sendMessage(sender, i18n.csafe("give") {
             subst("item", item.displayName())
@@ -153,16 +151,19 @@ internal class SokolCommand(
     }
 
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val blueprint = ctx.get<KeyedMobBlueprint>("blueprint")
+        val blueprint = ctx.get<EntityBlueprint>("blueprint")
         val location = ctx.get<Location>("location")
         val amount = ctx.value("amount") { 1 }
 
+        if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Mob))
+            error(i18n.safe("error.cannot_host"))
+
         repeat(amount) {
-            blueprint.spawnMob(location)
+            plugin.entityHoster.hostMob(blueprint, location)
         }
 
         plugin.sendMessage(sender, i18n.csafe("summon") {
-            subst("id", text(blueprint.id))
+            subst("id", text(blueprint.profile.id))
             icu("amount", amount)
         })
     }
@@ -177,34 +178,33 @@ internal class SokolCommand(
         ctx: Context,
         sender: CommandSender,
         i18n: I18N<Component>,
-        componentType: PersistentComponentType?,
-        entity: SokolEntityAccess,
+        componentType: ComponentType?,
+        entity: SokolEntity,
         name: Component,
     ) {
-        entity.call(SokolEvent.Populate)
-        val components = entity.allComponents()
+        val components = entity.components.all()
 
         val hover = (
             i18n.csafe("state.read.component.header") +
             components.flatMap { component ->
                 i18n.csafe("state.read.component.line") {
-                    icu("type", component::class)
+                    icu("type", component::class.simpleName ?: "?")
+                    icu("to_string", component.toString())
                 }
             }
         ).join(JoinConfiguration.newlines())
 
-        val configNode = AlexandriaAPI.configLoader().build().createNode()
+        val node = AlexandriaAPI.configLoader().build().createNode()
         components.forEach { component ->
             if (
                 component is PersistentComponent
                 && (componentType == null || component.key == componentType.key)
             ) {
-                component.writeKeyed(configNode)
+                component.write(node.node(component.key.asString()))
             }
         }
 
-        val render = configNode.render()
-
+        val render = node.render()
         plugin.sendMessage(sender, i18n.csafe("state.read.header.${if (render.isEmpty()) "empty" else "present"}") {
             subst("entity", name)
         }.map { it.hoverEvent(hover) })
@@ -234,7 +234,8 @@ internal class SokolCommand(
     }
 
     fun stateReadItem(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val slot = ctx.get<PlayerInventorySlot>("slot")
+        val slot = ctx.getOptional<PlayerInventorySlot>("slot")
+            .orElse(PlayerInventorySlot.ByEquipment(EquipmentSlot.HAND))
         val targets = ctx.players("targets", sender, i18n)
         val componentType = stateReadComponentType(i18n, ctx.getOptional("component-type"))
 
@@ -242,8 +243,8 @@ internal class SokolCommand(
         targets.forEach { target ->
             val item = slot.getFrom(target.inventory)
             plugin.useItem(item, false,
-                {
-                    it.setComponent(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
+                { blueprint ->
+                    blueprint.components.set(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
                 }
             ) { entity ->
                 stateRead(ctx, sender, i18n, componentType, entity, item.displayName())
@@ -260,6 +261,7 @@ internal class SokolCommand(
         val targets = ctx.entities("targets", sender, i18n)
         val data = ctx.get<ConfigurationNode>("data")
 
+        /*
         val dataMap = try {
             data.forceMap(SokolBlueprint::class.java).map { (_, child) ->
                 val type = componentTypeFrom(plugin, SokolBlueprint::class.java, child)
@@ -305,6 +307,6 @@ internal class SokolCommand(
 
         plugin.sendMessage(sender, i18n.csafe("state.write.complete") {
             icu("results", results)
-        })
+        })*/
     }
 }

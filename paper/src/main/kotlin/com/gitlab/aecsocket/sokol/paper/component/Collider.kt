@@ -1,9 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.core.extension.force
 import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
-import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
-import com.gitlab.aecsocket.alexandria.core.physics.SimpleBody
+import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
@@ -20,79 +18,62 @@ import com.jme3.bullet.objects.PhysicsVehicle
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.NodeKey
+import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
 
-private const val COLLIDERS = "colliders"
-private const val BACKING = "backing"
 private const val MASS = "mass"
 private const val DIRTY = "dirty"
 private const val BODY_ID = "body_id"
 
 data class Collider(
-    val backing: Config,
+    val profile: Profile,
     var mass: Float? = null,
-
     var dirty: Int = 0,
     var bodyId: UUID? = null
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider")
+        val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = Collider::class.java
+    override val componentType get() = Collider::class
     override val key get() = Key
 
-    fun mass() = mass ?: backing.mass
+    fun mass() = mass ?: profile.mass
 
-    fun isBackingDirty() = dirty and 0x1 != 0x0
+    fun isProfileDirty() = dirty and 0x1 != 0x0
     fun isMassDirty() = dirty and 0x2 != 0x0
     fun markDirty() {
         dirty = Int.MAX_VALUE
     }
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .set(BACKING) { makeString(backing.id) }
         .setOrClear(MASS) { mass?.let { makeFloat(it) } }
         .set(DIRTY) { makeInt(dirty) }
         .setOrClear(BODY_ID) { bodyId?.let { makeUUID(it) } }
 
     override fun write(node: ConfigurationNode) {
-        node.node(BACKING).set(backing.id)
         node.node(MASS).set(mass)
         node.node(DIRTY).set(dirty)
         node.node(BODY_ID).set(bodyId)
     }
 
     @ConfigSerializable
-    data class Config(
-        @NodeKey override val id: String,
-        val shape: List<SimpleBody>,
-        val mass: Float = 1f,
-    ) : Keyed
-
-    class Type : RegistryComponentType<Config>(Config::class, Collider::class, COLLIDERS) {
-        override val componentType get() = Collider::class.java
-        override val key get() = Key
-
-        override fun read(tag: NBTTag) = tag.asCompound().run { Collider(
-            entry(get(BACKING) { asString() }),
+    data class Profile(
+        @Required val shape: Shape,
+        val mass: Float = 1f
+    ) : ComponentProfile {
+        override fun read(tag: NBTTag) = tag.asCompound().run { Collider(this@Profile,
             getOr(MASS) { asFloat() },
             get(DIRTY) { asInt() },
             getOr(BODY_ID) { asUUID() },
         ) }
 
-        override fun read(node: ConfigurationNode) = Collider(
-            entry(node.node(BACKING).force()),
+        override fun read(node: ConfigurationNode) = Collider(this,
             node.node(MASS).getIfExists(),
             node.node(DIRTY).get { 0 },
             node.node(BODY_ID).getIfExists()
         )
-
-        override fun readFactory(node: ConfigurationNode): PersistentComponentFactory {
-            val backing = entry(node.force())
-            return PersistentComponentFactory { Collider(backing) }
-        }
     }
 
     // NB: modifying component data during this will not persist
@@ -101,56 +82,28 @@ data class Collider(
     ) : SokolEvent
 }
 
-class RigidBody : PersistentComponent {
-    companion object {
-        val Key = SokolAPI.key("rigid_body")
-    }
-
-    override val componentType get() = RigidBody::class.java
-    override val key get() = Key
+object RigidBody : PersistentComponent {
+    override val componentType get() = RigidBody::class
+    override val key = SokolAPI.key("rigid_body")
+    val Type = ComponentType.singletonComponent(key, RigidBody)
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
 
     override fun write(node: ConfigurationNode) {}
-
-    object Type : PersistentComponentType {
-        override val componentType get() = RigidBody::class.java
-        override val key get() = Key
-
-        override fun read(tag: NBTTag) = RigidBody()
-
-        override fun read(node: ConfigurationNode) = RigidBody()
-
-        override fun readFactory(node: ConfigurationNode) = PersistentComponentFactory { RigidBody() }
-    }
 }
 
-class VehicleBody : PersistentComponent {
-    companion object {
-        val Key = SokolAPI.key("vehicle_body")
-    }
-
-    override val componentType get() = VehicleBody::class.java
-    override val key get() = Key
+object VehicleBody : PersistentComponent {
+    override val componentType get() = VehicleBody::class
+    override val key = SokolAPI.key("vehicle_body")
+    val Type = ComponentType.singletonComponent(key, VehicleBody)
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
 
     override fun write(node: ConfigurationNode) {}
-
-    object Type : PersistentComponentType {
-        override val componentType get() = VehicleBody::class.java
-        override val key get() = Key
-
-        override fun read(tag: NBTTag) = VehicleBody()
-
-        override fun read(node: ConfigurationNode) = VehicleBody()
-
-        override fun readFactory(node: ConfigurationNode) = PersistentComponentFactory { VehicleBody() }
-    }
 }
 
 interface SokolPhysicsObject : TrackedPhysicsObject {
-    var entity: SokolEntityAccess
+    var entity: SokolEntity
 }
 
 @All(Position::class, Collider::class, IsValidSupplier::class)
@@ -165,12 +118,12 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
     private val mVehicleBody = engine.componentMapper<VehicleBody>()
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Add, entity: SokolEntity) {
         val location = mPosition.map(entity)
         val collider = mCollider.map(entity)
         val isValid = mIsValidSupplier.map(entity).valid
 
-        val shape = collisionOf(collider.backing.shape)
+        val shape = collisionOf(collider.profile.shape)
         val mass = collider.mass()
 
         val id = UUID.randomUUID()
@@ -219,13 +172,13 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Reload, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
         val collider = mCollider.map(entity)
         collider.markDirty()
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Update, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Update, entity: SokolEntity) {
         val location = mPosition.map(entity)
         val collider = mCollider.map(entity)
 
@@ -236,13 +189,13 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                 if (tracked !is SokolPhysicsObject)
                     throw IllegalStateException("Collider physics body is not of type ${SokolPhysicsObject::class.java}")
 
-                val backingDirty = collider.isBackingDirty()
+                val backingDirty = collider.isProfileDirty()
                 val massDirty = collider.isMassDirty()
                 collider.dirty = 0
 
                 CraftBulletAPI.executePhysics {
                     if (backingDirty)
-                        body.collisionShape = collisionOf(collider.backing.shape)
+                        body.collisionShape = collisionOf(collider.profile.shape)
                     if (massDirty && body is PhysicsRigidBody)
                         body.mass = collider.mass()
                 }
@@ -259,7 +212,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
         val location = mPosition.map(entity)
         val collider = mCollider.map(entity)
 

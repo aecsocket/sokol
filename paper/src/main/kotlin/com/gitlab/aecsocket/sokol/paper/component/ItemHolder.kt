@@ -10,7 +10,7 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.Inventory
 
 sealed interface ItemHolder : SokolComponent {
-    override val componentType get() = ItemHolder::class.java
+    override val componentType get() = ItemHolder::class
 
     interface ByMob : ItemHolder {
         val mob: Entity

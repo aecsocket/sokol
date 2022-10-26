@@ -3,8 +3,8 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.ForwardingLogging
 import com.gitlab.aecsocket.alexandria.core.LogAcceptor
 import com.gitlab.aecsocket.alexandria.core.LogLevel
-import com.gitlab.aecsocket.sokol.core.SokolEntityAccess
-import com.gitlab.aecsocket.sokol.core.SokolEntityBuilder
+import com.gitlab.aecsocket.sokol.core.EntityBlueprint
+import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.paper.component.*
 import io.papermc.paper.chunk.system.ChunkSystem
 import net.minecraft.core.BlockPos
@@ -23,9 +23,7 @@ import net.minecraft.world.level.block.entity.BaseContainerBlockEntity
 import net.minecraft.world.level.block.entity.BlockEntity
 import net.minecraft.world.level.chunk.LevelChunk
 import org.bukkit.Bukkit
-import org.bukkit.Chunk
 import org.bukkit.World
-import org.bukkit.block.Block
 import org.bukkit.block.BlockState
 import org.bukkit.block.Container
 import org.bukkit.craftbukkit.v1_19_R1.CraftEquipmentSlot
@@ -34,37 +32,21 @@ import org.bukkit.craftbukkit.v1_19_R1.inventory.CraftItemStack
 import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataContainer
-import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.lang.RuntimeException
 
-private typealias Mob = org.bukkit.entity.Entity
-private typealias Item = org.bukkit.inventory.ItemStack
-
-data class BlockData(
-    val block: Block,
-    val getState: () -> BlockState,
-)
-
-data class ItemData(
-    val getItem: () -> Item,
-    val getMeta: () -> ItemMeta,
-)
-
-interface SokolObjectType<T> {
+interface SokolObjectType {
     val key: String
 
     companion object {
-        val World = objectTypeOf<World>("world")
-        val Chunk = objectTypeOf<Chunk>("chunk")
-        val Mob = objectTypeOf<Mob>("mob")
-        val Block = objectTypeOf<BlockData>("block")
-        val Item = objectTypeOf<ItemData>("item")
+        val World = objectTypeOf("world")
+        val Chunk = objectTypeOf("chunk")
+        val Mob = objectTypeOf("mob")
+        val Block = objectTypeOf("block")
+        val Item = objectTypeOf("item")
     }
 }
 
-inline fun <reified T> objectTypeOf(key: String) = object : SokolObjectType<T> {
+fun objectTypeOf(key: String) = object : SokolObjectType {
     override val key get() = key
 }
 
@@ -74,64 +56,35 @@ class EntityResolutionException(message: String? = null, cause: Throwable? = nul
 class EntityResolver internal constructor(
     private val sokol: Sokol
 ) {
-    @ConfigSerializable
-    data class Settings(
-        val a: Boolean = false
-    )
-
     data class TypeStats(
         var candidates: Int = 0,
         var updated: Int = 0,
     )
 
-    fun interface Populator<T> {
-        fun populate(builder: SokolEntityBuilder, obj: T)
-    }
-
     private val log = sokol.log
-    lateinit var settings: Settings
 
-    private val _lastStats = HashMap<SokolObjectType<*>, TypeStats>()
-    val lastStats: Map<SokolObjectType<*>, TypeStats> get() = _lastStats
+    private val _lastStats = HashMap<SokolObjectType, TypeStats>()
+    val lastStats: Map<SokolObjectType, TypeStats> get() = _lastStats
 
-    private val populators = HashMap<SokolObjectType<*>, MutableList<Populator<*>>>()
     private val entityKey = sokol.persistence.entityKey.toString()
 
-    internal fun load(settings: ConfigurationNode) {
-        this.settings = settings.get { Settings() }
-    }
-
-    fun <T> populator(objectType: SokolObjectType<T>, populator: Populator<T>) {
-        populators.computeIfAbsent(objectType) { ArrayList() }.add(populator)
-    }
-
-    fun <T> populate(objectType: SokolObjectType<T>, builder: SokolEntityBuilder, obj: T): SokolEntityBuilder {
-        @Suppress("UNCHECKED_CAST")
-        val populators: List<Populator<T>> = populators[objectType] as? List<Populator<T>> ?: return builder
-        populators.forEach {
-            it.populate(builder, obj)
-        }
-        return builder
-    }
-
-    fun resolve(callback: (SokolEntityAccess) -> Unit) {
+    fun resolve(callback: (SokolEntity) -> Unit) {
         _lastStats.clear()
         ResolveOperation(callback, _lastStats).resolve()
     }
 
     private inner class ResolveOperation(
-        val callback: (SokolEntityAccess) -> Unit,
-        val stats: MutableMap<SokolObjectType<*>, TypeStats>,
+        val callback: (SokolEntity) -> Unit,
+        val stats: MutableMap<SokolObjectType, TypeStats>,
     ) {
         private fun tagOf(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
 
         private fun Double.format() = "%.1f".format(this)
 
-        private fun <T> resolveTag(
-            type: SokolObjectType<T>,
-            obj: T,
+        private fun resolveTag(
+            type: SokolObjectType,
             tag: CompoundTag?,
-            consumer: (SokolEntityBuilder) -> Unit = {}
+            builder: (EntityBlueprint) -> Unit = {}
         ) {
             val typeStats = stats.computeIfAbsent(type) { TypeStats() }
             typeStats.candidates++
@@ -145,25 +98,21 @@ class EntityResolver internal constructor(
                     throw EntityResolutionException("Could not read blueprint", ex)
                 }
 
-                if (!blueprint.isEmpty()) {
-                    val builder = blueprint.build(sokol.engine)
-                    populate(type, builder, obj)
-                    consumer(builder)
-                    val entity = builder.build()
+                builder(blueprint)
+                val entity = sokol.engine.buildEntity(blueprint)
 
-                    try {
-                        callback(entity)
-                    } catch (ex: Exception) {
-                        throw EntityResolutionException("Could not run callback", ex)
-                    }
+                try {
+                    callback(entity)
+                } catch (ex: Exception) {
+                    throw EntityResolutionException("Could not run callback", ex)
+                }
 
-                    // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
-                    // how to implement this? idfk
-                    try {
-                        sokol.persistence.writeEntity(entity, wrappedTag)
-                    } catch (ex: Exception) {
-                        throw EntityResolutionException("Could not write entity to tag", ex)
-                    }
+                // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
+                // how to implement this? idfk
+                try {
+                    sokol.persistence.writeEntity(entity, wrappedTag)
+                } catch (ex: Exception) {
+                    throw EntityResolutionException("Could not write entity to tag", ex)
                 }
             }
         }
@@ -179,7 +128,9 @@ class EntityResolver internal constructor(
             val bukkit = level.world
             val entityInfo = bukkit.name
             try {
-                resolveTag(SokolObjectType.World, bukkit, tagOf(level.world.persistentDataContainer))
+                resolveTag(SokolObjectType.World, tagOf(level.world.persistentDataContainer)) { blueprint ->
+                    blueprint.components.set(hostedByWorld(bukkit))
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve level $entityInfo" }
             }
@@ -199,7 +150,9 @@ class EntityResolver internal constructor(
         private fun resolveChunk(chunk: LevelChunk, world: World, log: LogAcceptor) {
             val bukkit = chunk.bukkitChunk
             try {
-                resolveTag(SokolObjectType.Chunk, bukkit, tagOf(bukkit.persistentDataContainer))
+                resolveTag(SokolObjectType.Chunk, tagOf(bukkit.persistentDataContainer)) { blueprint ->
+                    blueprint.components.set(hostedByChunk(bukkit))
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve chunk (${chunk.locX}, ${chunk.locZ})" }
             }
@@ -214,7 +167,9 @@ class EntityResolver internal constructor(
             val pos = mob.position()
             val entityInfo = "${bukkit.name} (${mob.uuid}) @ (${pos.x.format()}, ${pos.y.format()}, ${pos.z.format()})"
             try {
-                resolveTag(SokolObjectType.Mob, bukkit, tagOf(bukkit.persistentDataContainer))
+                resolveTag(SokolObjectType.Mob, tagOf(bukkit.persistentDataContainer)) { blueprint ->
+                    blueprint.components.set(hostedByMob(bukkit))
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve mob $entityInfo" }
             }
@@ -262,10 +217,9 @@ class EntityResolver internal constructor(
             try {
                 resolveTag(
                     SokolObjectType.Block,
-                    BlockData(bukkit) { state.value },
                     tagOf(block.persistentDataContainer)
-                ) { builder ->
-                    builder.setComponent(object : HostedByBlock {
+                ) { blueprint ->
+                    blueprint.components.set(object : HostedByBlock {
                         override val block get() = bukkit
 
                         override fun <R> readState(action: (BlockState) -> R): R {
@@ -321,10 +275,9 @@ class EntityResolver internal constructor(
             try {
                 resolveTag(
                     SokolObjectType.Item,
-                    ItemData({ bukkit.value }, { meta.value }),
                     tagEntity
-                ) { builder ->
-                    builder.setComponent(object : HostedByItem {
+                ) { blueprint ->
+                    blueprint.components.set(object : HostedByItem {
                         override val item get() = bukkit.value
 
                         override fun <R> readMeta(action: (ItemMeta) -> R): R {
@@ -336,7 +289,7 @@ class EntityResolver internal constructor(
                             dirty = true
                         }
                     })
-                    builder.setComponent(holder)
+                    blueprint.components.set(holder)
                 }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve item ${entityInfo.value}" }

@@ -1,23 +1,51 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import cloud.commandframework.ArgumentDescription
-import cloud.commandframework.captions.Caption
+import cloud.commandframework.arguments.CommandArgument
+import cloud.commandframework.arguments.parser.ArgumentParseResult
+import cloud.commandframework.arguments.parser.ArgumentParser
 import cloud.commandframework.context.CommandContext
-import com.gitlab.aecsocket.alexandria.core.command.RegistryElementArgument
+import cloud.commandframework.exceptions.parsing.NoInputProvidedException
+import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeParser
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
+import com.gitlab.aecsocket.glossa.core.force
+import com.gitlab.aecsocket.sokol.core.EntityBlueprint
+import org.spongepowered.configurate.ConfigurateException
+import org.spongepowered.configurate.serialize.SerializationException
+import java.util.*
 
-class ItemBlueprintArgument<C : Any>(
-    sokol: Sokol,
-    name: String,
-    description: ArgumentDescription = ArgumentDescription.of(""),
-    required: Boolean = true,
-    defaultValue: String = "",
-    suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
-) : RegistryElementArgument<C, KeyedItemBlueprint>(
-    name, sokol.itemBlueprints, ARGUMENT_PARSE_FAILURE_ITEM_BLUEPRINT, KeyedItemBlueprint::class.java,
-    description, required, defaultValue, suggestionsProvider
-) {
-    companion object {
-        val ARGUMENT_PARSE_FAILURE_ITEM_BLUEPRINT = Caption.of("argument.parse.failure.item_blueprint")
+class EntityBlueprintParser<C : Any>(
+    private val sokol: Sokol
+) : ArgumentParser<C, EntityBlueprint> {
+    override fun parse(
+        commandContext: CommandContext<C>,
+        inputQueue: Queue<String>
+    ): ArgumentParseResult<EntityBlueprint> {
+        return inputQueue.peek()?.let {
+            val input = inputQueue.joinToString(" ")
+            inputQueue.clear()
+
+            try {
+                val node = AlexandriaAPI.configLoader().buildAndLoadString(input)
+
+                try {
+                    ArgumentParseResult.success(node.force<EntityBlueprint>())
+                } catch (ex: SerializationException) {
+                    ArgumentParseResult.failure(ex)
+                }
+            } catch (ex: ConfigurateException) {
+                sokol.entityProfile(input)?.let { profile ->
+                    ArgumentParseResult.success(sokol.engine.emptyBlueprint(profile))
+                } ?: ArgumentParseResult.failure(ex)
+            }
+        } ?: ArgumentParseResult.failure(NoInputProvidedException(
+            ConfigurationNodeParser::class.java,
+            commandContext
+        ))
+    }
+
+    override fun suggestions(commandContext: CommandContext<C>, input: String): List<String> {
+        return sokol.entityProfiles.entries.keys.toList()
     }
 }
 
@@ -28,11 +56,4 @@ class EntityBlueprintArgument<C : Any>(
     required: Boolean = true,
     defaultValue: String = "",
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
-) : RegistryElementArgument<C, KeyedMobBlueprint>(
-    name, sokol.mobBlueprints, ARGUMENT_PARSE_FAILURE_ENTITY_BLUEPRINT, KeyedMobBlueprint::class.java,
-    description, required, defaultValue, suggestionsProvider
-) {
-    companion object {
-        val ARGUMENT_PARSE_FAILURE_ENTITY_BLUEPRINT = Caption.of("argument.parse.failure.entity_blueprint")
-    }
-}
+) : CommandArgument<C, EntityBlueprint>(required, name, EntityBlueprintParser(sokol), defaultValue, EntityBlueprint::class.java, suggestionsProvider, description)

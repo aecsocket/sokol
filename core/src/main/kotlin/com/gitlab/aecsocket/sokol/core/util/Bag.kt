@@ -18,9 +18,8 @@ interface MutableBag<E> : Bag<E>, MutableCollection<E> {
 
 private class BagImpl<E>(
     private var data: Array<E?>,
+    override var size: Int = 0,
 ) : MutableBag<E> {
-    override var size: Int = 0
-
     @Suppress("UNCHECKED_CAST")
     constructor(capacity: Int) : this(java.lang.reflect.Array.newInstance(Any::class.java, capacity) as Array<E?>)
 
@@ -149,6 +148,10 @@ private class BagImpl<E>(
 }
 
 fun <E> emptyBag(capacity: Int = 64): MutableBag<E> = BagImpl(capacity)
+
+fun <E> bagOf(elements: Collection<E>): MutableBag<E> = BagImpl<E>(elements.size).apply {
+    elements.forEach { add(it) }
+}
 
 fun <E> bagOf(vararg elements: E): MutableBag<E> = BagImpl<E>(elements.size).apply {
     elements.forEach { add(it) }

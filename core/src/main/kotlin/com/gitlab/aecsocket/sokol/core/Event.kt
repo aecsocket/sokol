@@ -1,7 +1,5 @@
 package com.gitlab.aecsocket.sokol.core
 
-import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
-
 interface SokolEvent {
     interface Cancellable : SokolEvent {
         var cancelled: Boolean

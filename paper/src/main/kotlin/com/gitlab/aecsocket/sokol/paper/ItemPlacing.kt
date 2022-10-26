@@ -2,15 +2,11 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.physics.*
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaPlayer
-import com.gitlab.aecsocket.alexandria.paper.Mesh
-import com.gitlab.aecsocket.alexandria.paper.PlayerFeature
-import com.gitlab.aecsocket.alexandria.paper.alexandria
+import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.hitNormal
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.craftbullet.paper.bullet
-import com.gitlab.aecsocket.craftbullet.paper.executePhysics
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -23,12 +19,20 @@ import kotlin.math.PI
 class ItemPlacing(
     private val sokol: Sokol
 ) : PlayerFeature<ItemPlacing.PlayerData> {
+    data class Part(
+        val mesh: Mesh,
+        val transform: Transform,
+    )
+
     data class State(
         val slotId: Int,
-        val meshes: List<Mesh>,
+        var raiseHandLock: PlayerLockInstance,
+        val parts: List<Part>,
         val placeTransform: Transform,
+        val holdDistance: Double,
+        val snapDistance: Double,
 
-        var snapTransform: Transform? = null,
+        var nextTransform: Transform? = null,
     )
 
     inner class PlayerData(
@@ -39,16 +43,23 @@ class ItemPlacing(
             state?.let { state ->
                 val from = player.handle.eyeLocation
                 val direction = from.direction
-                val distance = 2.0
-                val to = from + direction * distance
+
+                val snapDistance = state.snapDistance
+                val snapTo = from + direction * snapDistance
                 val physSpace = CraftBulletAPI.spaceOf(from.world)
 
-                player.handle.executePhysics { playerBody ->
-                    val result = physSpace.rayTest(from.bullet(), to.bullet())
+                CraftBulletAPI.executePhysics {
+                    val playerBody = player.handle
+                    val result = physSpace.rayTest(from.bullet(), snapTo.bullet())
                         .firstOrNull { it.collisionObject !== playerBody }
 
-                    state.snapTransform = if (result == null) null else {
-                        val hitPos = from.position() + direction * (distance * result.hitFraction)
+                    state.nextTransform = if (result == null) {
+                        Transform(
+                            (from + direction * state.holdDistance).position(),
+                            from.rotation()
+                        )
+                    } else {
+                        val hitPos = from.position() + direction * (snapDistance * result.hitFraction)
                         val dir = result.hitNormal.alexandria()
                         val v1 = Vector3.Up.cross(dir).normalized
 
@@ -64,18 +75,12 @@ class ItemPlacing(
                             quaternionOfAxes(v1, v2, dir)
                         }
 
-                        Transform(
-                            hitPos,
-                            rotation,
-                        )
+                        Transform(hitPos, rotation)
                     }
                 }
 
-                state.meshes.forEach { mesh ->
-                    mesh.transform = (state.snapTransform ?: Transform(
-                        (from + from.direction * 2.0).position(),
-                        from.rotation()
-                    )) + state.placeTransform
+                state.parts.forEach { (mesh, transform) ->
+                    state.nextTransform?.let { mesh.transform = it + transform + state.placeTransform }
                 }
             }
         }
@@ -89,13 +94,16 @@ class ItemPlacing(
             fun on(event: PlayerInteractEvent) {
                 val player = event.player.alexandria
                 val data = player.featureData(this@ItemPlacing)
-                data.state?.let {
+                data.state?.let { state ->
                     if (event.action.isLeftClick) {
-                        exit(player)
+                        exitInternal(player, state)
+                        data.state = null
                         return
                     }
 
                     event.isCancelled = true
+                    if (!event.action.isRightClick) return
+
                 }
             }
 
@@ -113,7 +121,8 @@ class ItemPlacing(
     }
 
     private fun exitInternal(player: AlexandriaPlayer, state: State) {
-        state.meshes.forEach { mesh ->
+        player.releaseLock(state.raiseHandLock)
+        state.parts.forEach { (mesh) ->
             mesh.remove(player.handle)
         }
     }
@@ -123,7 +132,7 @@ class ItemPlacing(
         data.state?.let { exitInternal(player, it) }
         data.state = state
 
-        state.meshes.forEach { mesh ->
+        state.parts.forEach { (mesh) ->
             mesh.spawn(player.handle)
             mesh.glowing(true, player.handle)
         }

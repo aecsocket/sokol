@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.Mesh
-import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
@@ -17,11 +16,11 @@ import org.spongepowered.configurate.serialize.TypeSerializer
 private const val ITEM = "item"
 private const val TRANSFORM = "transform"
 
-class Meshes : PersistentComponent {
-    companion object {
-        val Key = SokolAPI.key("meshes")
-    }
-
+data class Meshes(
+    val parts: List<PartEntry>,
+    val transform: Transform,
+    val interpolated: Boolean
+) : SokolComponent {
     data class PartDefinition(
         val item: ItemStack,
         val transform: Transform = Transform.Identity,
@@ -32,27 +31,7 @@ class Meshes : PersistentComponent {
         val part: Mesh? = null,
     )
 
-    override val componentType get() = Meshes::class.java
-    override val key get() = Key
-
-    lateinit var parts: List<PartEntry>
-    lateinit var transform: Transform
-    var interpolated = true
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
-
-    object Type : PersistentComponentType {
-        override val componentType get() = Meshes::class.java
-        override val key get() = Key
-
-        override fun read(tag: NBTTag) = Meshes()
-
-        override fun read(node: ConfigurationNode) = Meshes()
-
-        override fun readFactory(node: ConfigurationNode) = PersistentComponentFactory { Meshes() }
-    }
+    override val componentType get() = Meshes::class
 
     object PartDefinitionSerializer : TypeSerializer<PartDefinition> {
         override fun serialize(type: java.lang.reflect.Type, obj: PartDefinition?, node: ConfigurationNode) {}
@@ -63,7 +42,9 @@ class Meshes : PersistentComponent {
         )
     }
 
-    object CreateMesh : SokolEvent
+    data class CreateMesh(
+        val newParts: List<PartEntry>
+    ) : SokolEvent
 }
 
 @All(Position::class, HostedByMob::class, Meshes::class)
@@ -76,13 +57,13 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
         transform: Transform,
         mob: Entity,
         meshes: Meshes,
-        entity: SokolEntityAccess,
+        entity: SokolEntity,
         send: Boolean = false
     ) {
         val tracked = mob.trackedPlayers
         val parts = meshes.parts
 
-        meshes.parts = parts.map { entry ->
+        val newParts = parts.map { entry ->
             val (def, part) = entry
             // make a new mesh only if we don't have a valid one
             if (part == null) {
@@ -100,7 +81,7 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
             } else entry
         }
 
-        entity.call(Meshes.CreateMesh)
+        entity.call(Meshes.CreateMesh(newParts))
     }
 
     private data class PartContext(
@@ -125,7 +106,7 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Add, entity: SokolEntity) {
         val location = mPosition.map(entity)
         val mob = mMob.map(entity).mob
         val meshes = mMeshes.map(entity)
@@ -134,7 +115,7 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: MobEvent.Show, entity: SokolEntityAccess) {
+    fun on(event: MobEvent.Show, entity: SokolEntity) {
         val meshes = mMeshes.map(entity)
 
         forEachPart(meshes) { (part) ->
@@ -143,7 +124,7 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: MobEvent.Hide, entity: SokolEntityAccess) {
+    fun on(event: MobEvent.Hide, entity: SokolEntity) {
         val meshes = mMeshes.map(entity)
 
         forEachPart(meshes) { (part) ->
@@ -152,14 +133,14 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
         val meshes = mMeshes.map(entity)
 
         removeMesh(meshes)
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Reload, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
         val location = mPosition.map(entity)
         val mob = mMob.map(entity).mob
         val meshes = mMeshes.map(entity)
@@ -169,7 +150,7 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Update, entity: SokolEntityAccess) {
+    fun on(event: SokolEvent.Update, entity: SokolEntity) {
         val location = mPosition.map(entity)
         val meshes = mMeshes.map(entity)
 
