@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.alexandria.core.ForwardingLogging
 import com.gitlab.aecsocket.alexandria.core.LogAcceptor
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.sokol.core.EntityBlueprint
+import com.gitlab.aecsocket.sokol.core.PersistenceException
 import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.paper.component.*
 import io.papermc.paper.chunk.system.ChunkSystem
@@ -94,7 +95,7 @@ class EntityResolver internal constructor(
                 val wrappedTag = PaperCompoundTag(tag)
                 val blueprint = try {
                     sokol.persistence.readBlueprint(wrappedTag)
-                } catch (ex: IllegalArgumentException) {
+                } catch (ex: PersistenceException) {
                     throw EntityResolutionException("Could not read blueprint", ex)
                 }
 

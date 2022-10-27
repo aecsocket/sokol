@@ -38,20 +38,18 @@ internal class SokolCommand(
             .handler { handle(it, ::stats) })
         manager.command(root
             .literal("give", desc("Creates and gives an item blueprint to a player."))
-            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
-            .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to give to."))
+            .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
-                .withMin(1)
-                .asOptional(), desc("Amount of items to give."))
+                .withMin(1), desc("Amount of items to give."))
+            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .permission(perm("give"))
             .handler { handle(it, ::give) })
         manager.command(root
             .literal("summon", desc("Creates and summons a mob blueprint."))
-            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .argument(LocationArgument.of("location"), desc("Where to spawn the mob."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
-                .withMin(1)
-                .asOptional(), desc("The amount of mobs to spawn."))
+                .withMin(1), desc("The amount of mobs to spawn."))
+            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
 
@@ -124,9 +122,9 @@ internal class SokolCommand(
     }
 
     fun give(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val blueprint = ctx.get<EntityBlueprint>("blueprint")
         val targets = ctx.players("targets", sender, i18n)
         val amount = ctx.value("amount") { 1 }
+        val blueprint = ctx.get<EntityBlueprint>("blueprint")
 
         if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Item))
             error(i18n.safe("error.cannot_host"))
@@ -151,9 +149,9 @@ internal class SokolCommand(
     }
 
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val blueprint = ctx.get<EntityBlueprint>("blueprint")
         val location = ctx.get<Location>("location")
         val amount = ctx.value("amount") { 1 }
+        val blueprint = ctx.get<EntityBlueprint>("blueprint")
 
         if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Mob))
             error(i18n.safe("error.cannot_host"))
@@ -188,21 +186,14 @@ internal class SokolCommand(
             i18n.csafe("state.read.component.header") +
             components.flatMap { component ->
                 i18n.csafe("state.read.component.line") {
-                    icu("type", component::class.simpleName ?: "?")
+                    icu("type", component.componentType.simpleName ?: "?")
                     icu("to_string", component.toString())
                 }
             }
         ).join(JoinConfiguration.newlines())
 
         val node = AlexandriaAPI.configLoader().build().createNode()
-        components.forEach { component ->
-            if (
-                component is PersistentComponent
-                && (componentType == null || component.key == componentType.key)
-            ) {
-                component.write(node.node(component.key.asString()))
-            }
-        }
+        node.set(entity)
 
         val render = node.render()
         plugin.sendMessage(sender, i18n.csafe("state.read.header.${if (render.isEmpty()) "empty" else "present"}") {
@@ -234,8 +225,7 @@ internal class SokolCommand(
     }
 
     fun stateReadItem(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
-        val slot = ctx.getOptional<PlayerInventorySlot>("slot")
-            .orElse(PlayerInventorySlot.ByEquipment(EquipmentSlot.HAND))
+        val slot = ctx.value<PlayerInventorySlot>("slot") { PlayerInventorySlot.ByEquipment(EquipmentSlot.HAND) }
         val targets = ctx.players("targets", sender, i18n)
         val componentType = stateReadComponentType(i18n, ctx.getOptional("component-type"))
 

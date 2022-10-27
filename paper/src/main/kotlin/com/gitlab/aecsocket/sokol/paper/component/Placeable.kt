@@ -25,7 +25,7 @@ class PlaceableSystem(
     private val mPlaceable = engine.componentMapper<Placeable>()
     private val mItem = engine.componentMapper<HostedByItem>()
     private val mComposite = engine.componentMapper<Composite>()
-    private val mSlotTransform = engine.componentMapper<SlotTransform>()
+    private val mRelativeTransform = engine.componentMapper<RelativeTransform>()
 
     @Subscribe
     fun on(event: ItemEvent.ClickAsCurrent, entity: SokolEntity) {
@@ -47,7 +47,7 @@ class PlaceableSystem(
 
             fun walkComposite(composite: Composite, parent: Transform) {
                 composite.children.forEach { (_, child) ->
-                    val transform = parent + (mSlotTransform.mapOr(child)?.transform ?: Transform.Identity)
+                    val transform = parent + (mRelativeTransform.mapOr(child)?.transform ?: Transform.Identity)
 
                     val itemBlueprint = child.toBlueprint()
                     itemBlueprint.components.set(ItemHolder.byMob(player))

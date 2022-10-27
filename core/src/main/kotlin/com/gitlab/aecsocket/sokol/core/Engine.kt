@@ -1,15 +1,11 @@
 package com.gitlab.aecsocket.sokol.core
 
 import com.gitlab.aecsocket.sokol.core.util.Bits
-import com.gitlab.aecsocket.sokol.core.util.MutableBag
-import com.gitlab.aecsocket.sokol.core.util.emptyBag
 import org.spongepowered.configurate.BasicConfigurationNode
 import java.lang.invoke.MethodHandles
 import java.util.*
-import kotlin.Comparator
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
-import kotlin.collections.HashSet
 import kotlin.reflect.KClass
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.javaMethod
@@ -221,6 +217,10 @@ class SokolEngine internal constructor(
         }
 
         override fun mutableCopy() = ComponentMapImpl(components.copyOf(), Bits(archetype))
+
+        override fun toString() = components.filterNotNull().joinToString(prefix = "[", postfix = "]") {
+            it.componentType.simpleName ?: "?"
+        }
     }
 
     private inner class EntityImpl(
@@ -240,6 +240,8 @@ class SokolEngine internal constructor(
             }
             return event
         }
+
+        override fun toString() = "EntityImpl$components"
     }
 
     class Builder {

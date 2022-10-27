@@ -10,6 +10,7 @@ import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.block.BlockState
 import org.bukkit.entity.Entity
+import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
@@ -96,9 +97,20 @@ class MobInjectorSystem(engine: SokolEngine) : SokolSystem {
             override val valid: () -> Boolean get() = { mob.isValid }
         })
 
+        entity.components.set(object : TrackedPlayersSupplier {
+            override val trackedPlayers: () -> Set<Player> get() = { mob.trackedPlayers }
+        })
+
         val rotation = mRotation.mapOr(entity)
         var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
-        entity.components.set(object : Position {
+
+        entity.components.set(object : PositionRead {
+            override val world get() = mob.world
+
+            override val transform get() = transform
+        })
+
+        entity.components.set(object : PositionWrite {
             override val world get() = mob.world
 
             @Suppress("UnstableApiUsage")

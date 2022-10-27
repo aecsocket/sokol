@@ -8,15 +8,15 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class StaticSlotTransform(
+data class StaticRelativeTransform(
     val profile: Profile
 ) : PersistentComponent {
     companion object {
-        val Key = SokolAPI.key("static_slot_transform")
+        val Key = SokolAPI.key("static_relative_transform")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = StaticSlotTransform::class
+    override val componentType get() = StaticRelativeTransform::class
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -27,20 +27,20 @@ data class StaticSlotTransform(
     data class Profile(
         @Setting(nodeFromParent = true) val transform: Transform,
     ) : ComponentProfile {
-        override fun read(tag: NBTTag) = StaticSlotTransform(this)
+        override fun read(tag: NBTTag) = StaticRelativeTransform(this)
 
-        override fun read(node: ConfigurationNode) = StaticSlotTransform(this)
+        override fun read(node: ConfigurationNode) = StaticRelativeTransform(this)
     }
 }
 
-@All(StaticSlotTransform::class)
-class StaticSlotTransformSystem(engine: SokolEngine) : SokolSystem {
-    private val mStaticSlotTransform = engine.componentMapper<StaticSlotTransform>()
+@All(StaticRelativeTransform::class)
+class StaticRelativeTransformSystem(engine: SokolEngine) : SokolSystem {
+    private val mStaticRelativeTransform = engine.componentMapper<StaticRelativeTransform>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticSlotTransform = mStaticSlotTransform.map(entity)
+        val staticSlotTransform = mStaticRelativeTransform.map(entity)
 
-        entity.components.set(SlotTransform(staticSlotTransform.profile.transform))
+        entity.components.set(RelativeTransform(staticSlotTransform.profile.transform))
     }
 }

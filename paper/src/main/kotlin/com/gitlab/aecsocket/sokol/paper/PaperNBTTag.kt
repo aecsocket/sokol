@@ -50,6 +50,8 @@ sealed class PaperNBTTag(
 private val NBTTag.backing get() = (this as PaperNBTTag).backing
 
 data class PaperNumericTag(override val backing: NumericTag) : PaperNBTTag(backing), NumericNBTTag, BooleanNBTTag {
+    override val typeName get() = "${super<NumericNBTTag>.typeName} / ${super<BooleanNBTTag>.typeName}"
+
     override val boolean get() = backing.asByte == 1.toByte()
     override val int get() = backing.asInt
     override val long get() = backing.asLong
@@ -103,6 +105,8 @@ data class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(bac
 }
 
 data class PaperIntArrayTag(override val backing: IntArrayTag) : PaperNBTTag(backing), IntArrayNBTTag, UUIDNBTTag {
+    override val typeName get() = "${super<IntArrayNBTTag>.typeName} / ${super<UUIDNBTTag>.typeName}"
+
     override val uuid: UUID get() = NbtUtils.loadUUID(backing)
     override val intArray: IntArray get() = backing.asIntArray
 
@@ -134,6 +138,8 @@ data class PaperLongArrayTag(override val backing: LongArrayTag) : PaperNBTTag(b
 }
 
 data class PaperByteArrayTag(override val backing: ByteArrayTag) : PaperNBTTag(backing), ByteArrayNBTTag, FloatArrayNBTTag, DoubleArrayNBTTag {
+    override val typeName get() = "${super<ByteArrayNBTTag>.typeName} / ${super<FloatArrayNBTTag>.typeName} / ${super<DoubleArrayNBTTag>.typeName}"
+
     override val byteArray: ByteArray get() = backing.asByteArray
     override val floatArray get() = floatsOf(backing.asByteArray)
     override val doubleArray get() = doublesOf(backing.asByteArray)

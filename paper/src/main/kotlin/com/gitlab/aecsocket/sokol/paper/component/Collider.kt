@@ -75,11 +75,6 @@ data class Collider(
             node.node(BODY_ID).getIfExists()
         )
     }
-
-    // NB: modifying component data during this will not persist
-    data class PhysicsUpdate(
-        val body: TrackedPhysicsObject
-    ) : SokolEvent
 }
 
 object RigidBody : PersistentComponent {
@@ -106,11 +101,11 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
 
-@All(Position::class, Collider::class, IsValidSupplier::class)
+@All(Collider::class, PositionWrite::class, IsValidSupplier::class)
 @One(RigidBody::class, VehicleBody::class)
 @Priority(PRIORITY_EARLY)
 class ColliderSystem(engine: SokolEngine) : SokolSystem {
-    private val mPosition = engine.componentMapper<Position>()
+    private val mPosition = engine.componentMapper<PositionWrite>()
     private val mCollider = engine.componentMapper<Collider>()
     private val mIsValidSupplier = engine.componentMapper<IsValidSupplier>()
 
@@ -119,7 +114,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
 
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        val location = mPosition.map(entity)
+        val position = mPosition.map(entity)
         val collider = mCollider.map(entity)
         val isValid = mIsValidSupplier.map(entity).valid
 
@@ -127,9 +122,9 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
         val mass = collider.mass()
 
         val id = UUID.randomUUID()
-        val physSpace = CraftBulletAPI.spaceOf(location.world)
+        val physSpace = CraftBulletAPI.spaceOf(position.world)
 
-        val transform = location.transform
+        val transform = position.transform
         CraftBulletAPI.executePhysics {
             val typeField =
                 (if (mRigidBody.has(entity)) 0x1 else 0) or
@@ -144,7 +139,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                     override fun update(ctx: TrackedPhysicsObject.Context) {
                         if (!isValid())
                             ctx.remove()
-                        entity.call(Collider.PhysicsUpdate(this))
+                        entity.call(PhysicsUpdate(this))
                     }
                 }
                 0x2 -> object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
@@ -155,7 +150,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                     override fun update(ctx: TrackedPhysicsObject.Context) {
                         if (!isValid())
                             ctx.remove()
-                        entity.call(Collider.PhysicsUpdate(this))
+                        entity.call(PhysicsUpdate(this))
                     }
                 }
                 else -> throw IllegalStateException("Multiple body types defined for collider")
@@ -179,11 +174,11 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
 
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
-        val location = mPosition.map(entity)
+        val position = mPosition.map(entity)
         val collider = mCollider.map(entity)
 
         collider.bodyId?.let { bodyId ->
-            val physSpace = CraftBulletAPI.spaceOf(location.world)
+            val physSpace = CraftBulletAPI.spaceOf(position.world)
             physSpace.trackedBy(bodyId)?.let { tracked ->
                 val body = tracked.body
                 if (tracked !is SokolPhysicsObject)
@@ -201,7 +196,7 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
                 }
 
                 tracked.entity = entity
-                location.transform = Transform(
+                position.transform = Transform(
                     body.physPosition.alexandria(),
                     body.physRotation.alexandria(),
                 )
@@ -213,11 +208,11 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
 
     @Subscribe
     fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        val location = mPosition.map(entity)
+        val position = mPosition.map(entity)
         val collider = mCollider.map(entity)
 
         collider.bodyId?.let { bodyId ->
-            val physSpace = CraftBulletAPI.spaceOf(location.world)
+            val physSpace = CraftBulletAPI.spaceOf(position.world)
             CraftBulletAPI.executePhysics {
                 physSpace.removeTracked(bodyId)
             }
@@ -225,4 +220,9 @@ class ColliderSystem(engine: SokolEngine) : SokolSystem {
             collider.bodyId = null
         }
     }
+
+    // NB: modifying component data during this will not persist
+    data class PhysicsUpdate(
+        val body: TrackedPhysicsObject
+    ) : SokolEvent
 }

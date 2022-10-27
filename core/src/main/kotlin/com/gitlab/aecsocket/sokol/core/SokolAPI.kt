@@ -36,7 +36,7 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
             try {
                 profile.read(config)
             } catch (ex: PersistenceException) {
-                throw PersistenceException("Could not read component $key")
+                throw PersistenceException("Could not read component $key", ex)
             }
         }
 

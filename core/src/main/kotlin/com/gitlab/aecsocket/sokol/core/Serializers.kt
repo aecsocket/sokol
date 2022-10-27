@@ -17,7 +17,7 @@ class ComponentProfileSerializer(private val sokol: SokolAPI) : TypeSerializer<C
     override fun deserialize(type: Type, node: ConfigurationNode): ComponentProfile {
         val componentTypeKey = parseNodeNamespacedKey(type, node)
         val componentType = sokol.componentType(componentTypeKey)
-            ?: throw SerializationException(node, type, "Invalid component type $componentTypeKey")
+            ?: throw SerializationException(node, type, "Invalid component type '$componentTypeKey'")
         return try {
             componentType.createProfile(node)
         } catch (ex: ComponentPersistenceException) {

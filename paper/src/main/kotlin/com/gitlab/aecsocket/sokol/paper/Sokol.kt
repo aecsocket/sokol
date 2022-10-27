@@ -89,7 +89,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .registerExact(ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfilerSerializer(this@Sokol))
                     .registerExact(EntityBlueprintSerializer(this@Sokol))
-                    .registerExact(SokolEntitySerializer)
+                    .register(SokolEntitySerializer)
                     .registerExact(Meshes.PartDefinitionSerializer)
             },
             onLoad = {
@@ -177,9 +177,13 @@ class Sokol : BasePlugin(), SokolAPI {
 
             configs.forEach { (node, path) ->
                 try {
-                    node.node(ENTITY_PROFILES).childrenMap().forEach { (_, child) ->
-                        val entityProfile = child.force<EntityProfile>()
-                        _entityProfiles.register(entityProfile)
+                    node.node(ENTITY_PROFILES).childrenMap().forEach { (key, child) ->
+                        try {
+                            val entityProfile = child.force<EntityProfile>()
+                            _entityProfiles.register(entityProfile)
+                        } catch (ex: SerializationException) {
+                            log.line(LogLevel.Warning, ex) { "Could not read entity profile '$key' from $path" }
+                        }
                     }
                 } catch (ex: SerializationException) {
                     log.line(LogLevel.Warning, ex) { "Could not read entity profiles from $path" }
@@ -314,7 +318,10 @@ class Sokol : BasePlugin(), SokolAPI {
                 engine
                     .systemFactory { it.define(CompositeSystem(it)) }
                     .systemFactory { it.define(MobInjectorSystem(it)) }
-                    .systemFactory { it.define(StaticSlotTransformSystem(it)) }
+                    .systemFactory { it.define(PositionComposeSystem(it)) }
+                    .systemFactory { it.define(IsValidSupplierComposeSystem(it)) }
+                    .systemFactory { it.define(TrackedPlayersSupplierComposeSystem(it)) }
+                    .systemFactory { it.define(StaticRelativeTransformSystem(it)) }
                     .systemFactory { it.define(ColliderSystem(it)) }
                     .systemFactory { it.define(MeshesSystem(it)) }
                     .systemFactory { it.define(StaticMeshesSystem(it)) }
@@ -329,15 +336,17 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostedByMob>()
                     .componentType<HostedByBlock>()
                     .componentType<HostedByItem>()
-                    .componentType<Position>()
+                    .componentType<PositionRead>()
+                    .componentType<PositionWrite>()
                     .componentType<IsValidSupplier>()
+                    .componentType<TrackedPlayersSupplier>()
                     .componentType<ItemHolder>()
 
                     .componentType<HostableByMob>()
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
-                    .componentType<SlotTransform>()
-                    .componentType<StaticSlotTransform>()
+                    .componentType<RelativeTransform>()
+                    .componentType<StaticRelativeTransform>()
                     .componentType<Rotation>()
                     .componentType<Collider>()
                     .componentType<RigidBody>()
@@ -352,8 +361,9 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
-                registerComponentType(StaticSlotTransform.Type)
+                registerComponentType(StaticRelativeTransform.Type)
                 registerComponentType(Rotation.Type)
+                registerComponentType(Collider.Type)
                 registerComponentType(RigidBody.Type)
                 registerComponentType(VehicleBody.Type)
                 registerComponentType(StaticMeshes.Type)

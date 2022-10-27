@@ -25,8 +25,9 @@ data class StaticMeshes(
     override val componentType get() = StaticMeshes::class
     override val key get() = Key
 
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .set(MESH_IDS) { makeList().apply { meshIds.forEach { add { makeUUID(it) } } } }
+    override fun write(ctx: NBTTagContext) = ctx.makeList().apply {
+        meshIds.forEach { add { makeUUID(it) } }
+    }
 
     override fun write(node: ConfigurationNode) {
         node.node(MESH_IDS).setList(UUID::class.java, meshIds)
@@ -66,7 +67,7 @@ class StaticMeshesSystem(engine: SokolEngine) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: Meshes.CreateMesh, entity: SokolEntity) {
+    fun on(event: MeshesSystem.Created, entity: SokolEntity) {
         val staticMeshes = mStaticMeshes.map(entity)
 
         staticMeshes.meshIds = event.newParts.mapNotNull { it.part?.id }

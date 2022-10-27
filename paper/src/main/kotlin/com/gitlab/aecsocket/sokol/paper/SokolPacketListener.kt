@@ -4,6 +4,8 @@ import com.github.retrooper.packetevents.event.*
 import com.github.retrooper.packetevents.protocol.packettype.PacketType
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
+import com.gitlab.aecsocket.alexandria.core.LogLevel
+import com.gitlab.aecsocket.sokol.core.PersistenceException
 import org.bukkit.World
 import org.bukkit.craftbukkit.v1_19_R1.CraftWorld
 import org.bukkit.entity.Entity
@@ -31,13 +33,23 @@ internal class SokolPacketListener(
     }
 
     override fun onPacketSend(event: PacketSendEvent) {
+        fun useEntity(action: () -> Unit) {
+            try {
+                action()
+            } catch (ex: PersistenceException) {
+                sokol.log.line(LogLevel.Warning, ex) { "Could not handle packet type ${event.packetType}" }
+            }
+        }
+
         val player = event.player as? Player ?: return
         when (event.packetType) {
             PacketType.Play.Server.SPAWN_ENTITY -> {
                 val packet = WrapperPlayServerSpawnEntity(event)
                 mobById(player.world, packet.entityId)?.let { mob ->
-                    sokol.useMob(mob) { entity ->
-                        entity.call(MobEvent.Show(player, event))
+                    useEntity {
+                        sokol.useMob(mob) { entity ->
+                            entity.call(MobEvent.Show(player, event))
+                        }
                     }
                 }
             }
@@ -45,8 +57,10 @@ internal class SokolPacketListener(
                 val packet = WrapperPlayServerDestroyEntities(event)
                 packet.entityIds.map { mobById(player.world, it) }.forEach { mob ->
                     mob?.let {
-                        sokol.useMob(mob) { entity ->
-                            entity.call(MobEvent.Hide(player, event))
+                        useEntity {
+                            sokol.useMob(mob) { entity ->
+                                entity.call(MobEvent.Hide(player, event))
+                            }
                         }
                     }
                 }

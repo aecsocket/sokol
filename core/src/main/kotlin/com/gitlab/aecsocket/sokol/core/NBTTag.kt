@@ -2,10 +2,6 @@ package com.gitlab.aecsocket.sokol.core
 
 import java.util.UUID
 
-private fun wrongType(expected: String): Nothing {
-    throw IllegalStateException("Expected tag of type $expected")
-}
-
 interface NBTTagContext {
     fun makeBoolean(value: Boolean): BooleanNBTTag
     fun makeInt(value: Int): NumericNBTTag
@@ -25,30 +21,52 @@ interface NBTTagContext {
     fun makeList(): ListNBTTag.Mutable
 }
 
+private fun NBTTag.wrongType(expected: String): Nothing {
+    throw PersistenceException("Expected tag of type $expected, was $typeName")
+}
+
+private const val TYPE_BOOLEAN = "boolean"
+private const val TYPE_NUMERIC = "numeric"
+private const val TYPE_STRING = "string"
+private const val TYPE_UUID = "uuid"
+private const val TYPE_COMPOUND = "compound"
+private const val TYPE_INT_ARRAY = "int_array"
+private const val TYPE_LONG_ARRAY = "long_array"
+private const val TYPE_BYTE_ARRAY = "byte_array"
+private const val TYPE_FLOAT_ARRAY = "float_array"
+private const val TYPE_DOUBLE_ARRAY = "double_array"
+private const val TYPE_LIST = "list"
+
 interface NBTTag : NBTTagContext {
-    fun asBoolean() = (this as? BooleanNBTTag)?.boolean ?: wrongType("boolean")
-    fun asInt() = (this as? NumericNBTTag)?.int ?: wrongType("int")
-    fun asLong() = (this as? NumericNBTTag)?.long ?: wrongType("long")
-    fun asByte() = (this as? NumericNBTTag)?.byte ?: wrongType("byte")
-    fun asShort() = (this as? NumericNBTTag)?.short ?: wrongType("short")
-    fun asFloat() = (this as? NumericNBTTag)?.float ?: wrongType("short")
-    fun asDouble() = (this as? NumericNBTTag)?.double ?: wrongType("double")
-    fun asString() = (this as? StringNBTTag)?.string ?: wrongType("string")
-    fun asUUID() = (this as? UUIDNBTTag)?.uuid ?: wrongType("uuid")
-    fun asCompound() = this as? CompoundNBTTag ?: wrongType("compound")
-    fun asIntArray() = (this as? IntArrayNBTTag)?.intArray ?: wrongType("int_array")
-    fun asLongArray() = (this as? LongArrayNBTTag)?.longArray ?: wrongType("long_array")
-    fun asByteArray() = (this as? ByteArrayNBTTag)?.byteArray ?: wrongType("byte_array")
-    fun asFloatArray() = (this as? FloatArrayNBTTag)?.floatArray ?: wrongType("float_array")
-    fun asDoubleArray() = (this as? DoubleArrayNBTTag)?.doubleArray ?: wrongType("double_array")
-    fun asList() = this as? ListNBTTag ?: wrongType("list")
+    val typeName: String
+
+    fun asBoolean() = (this as? BooleanNBTTag)?.boolean ?: wrongType(TYPE_BOOLEAN)
+    fun asInt() = (this as? NumericNBTTag)?.int ?: wrongType(TYPE_NUMERIC)
+    fun asLong() = (this as? NumericNBTTag)?.long ?: wrongType(TYPE_NUMERIC)
+    fun asByte() = (this as? NumericNBTTag)?.byte ?: wrongType(TYPE_NUMERIC)
+    fun asShort() = (this as? NumericNBTTag)?.short ?: wrongType(TYPE_NUMERIC)
+    fun asFloat() = (this as? NumericNBTTag)?.float ?: wrongType(TYPE_NUMERIC)
+    fun asDouble() = (this as? NumericNBTTag)?.double ?: wrongType(TYPE_NUMERIC)
+    fun asString() = (this as? StringNBTTag)?.string ?: wrongType(TYPE_STRING)
+    fun asUUID() = (this as? UUIDNBTTag)?.uuid ?: wrongType(TYPE_UUID)
+    fun asCompound() = this as? CompoundNBTTag ?: wrongType(TYPE_COMPOUND)
+    fun asIntArray() = (this as? IntArrayNBTTag)?.intArray ?: wrongType(TYPE_INT_ARRAY)
+    fun asLongArray() = (this as? LongArrayNBTTag)?.longArray ?: wrongType(TYPE_LONG_ARRAY)
+    fun asByteArray() = (this as? ByteArrayNBTTag)?.byteArray ?: wrongType(TYPE_BYTE_ARRAY)
+    fun asFloatArray() = (this as? FloatArrayNBTTag)?.floatArray ?: wrongType(TYPE_FLOAT_ARRAY)
+    fun asDoubleArray() = (this as? DoubleArrayNBTTag)?.doubleArray ?: wrongType(TYPE_DOUBLE_ARRAY)
+    fun asList() = this as? ListNBTTag ?: wrongType(TYPE_LIST)
 }
 
 interface BooleanNBTTag : NBTTag {
+    override val typeName get() = TYPE_BOOLEAN
+
     val boolean: Boolean
 }
 
 interface NumericNBTTag : NBTTag {
+    override val typeName get() = TYPE_NUMERIC
+
     val int: Int
     val long: Long
     val byte: Byte
@@ -58,14 +76,20 @@ interface NumericNBTTag : NBTTag {
 }
 
 interface StringNBTTag : NBTTag {
+    override val typeName get() = TYPE_STRING
+
     val string: String
 }
 
 interface UUIDNBTTag : NBTTag {
+    override val typeName get() = TYPE_UUID
+
     val uuid: UUID
 }
 
 interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
+    override val typeName get() = TYPE_COMPOUND
+
     val size: Int
     val keys: Set<String>
     val map: Map<String, NBTTag>
@@ -75,11 +99,11 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
     operator fun get(key: String): NBTTag?
 
     fun <R> get(key: String, mapper: NBTTag.() -> R): R {
-        val tag = get(key) ?: throw IllegalStateException("Requires key '$key'")
+        val tag = get(key) ?: throw PersistenceException("Requires key '$key'")
         return try {
             mapper(tag)
-        } catch (ex: IllegalStateException) {
-            throw IllegalStateException("Invalid key '$key': ${ex.message}")
+        } catch (ex: PersistenceException) {
+            throw PersistenceException("Invalid key '$key': ${ex.message}")
         }
     }
 
@@ -113,6 +137,8 @@ interface CollectionNBTTag : NBTTag {
 }
 
 interface IntArrayNBTTag : CollectionNBTTag {
+    override val typeName get() = TYPE_INT_ARRAY
+
     val intArray: IntArray
 
     fun getInt(index: Int): Int
@@ -123,6 +149,8 @@ interface IntArrayNBTTag : CollectionNBTTag {
 }
 
 interface LongArrayNBTTag : CollectionNBTTag {
+    override val typeName get() = TYPE_LONG_ARRAY
+
     val longArray: LongArray
 
     fun getLong(index: Int): Long
@@ -133,6 +161,8 @@ interface LongArrayNBTTag : CollectionNBTTag {
 }
 
 interface ByteArrayNBTTag : CollectionNBTTag {
+    override val typeName get() = TYPE_BYTE_ARRAY
+
     val byteArray: ByteArray
 
     fun getByte(index: Int): Byte
@@ -143,27 +173,33 @@ interface ByteArrayNBTTag : CollectionNBTTag {
 }
 
 interface FloatArrayNBTTag : CollectionNBTTag {
+    override val typeName get() = TYPE_FLOAT_ARRAY
+
     val floatArray: FloatArray
 
     fun asFloatIterable(): Iterable<Float>
 }
 
 interface DoubleArrayNBTTag : CollectionNBTTag {
+    override val typeName get() = TYPE_DOUBLE_ARRAY
+
     val doubleArray: DoubleArray
 
     fun asDoubleIterable(): Iterable<Double>
 }
 
 interface ListNBTTag : CollectionNBTTag, Iterable<NBTTag> {
+    override val typeName get() = TYPE_LIST
+
     operator fun get(index: Int): NBTTag
 
     fun <R> get(index: Int, mapper: NBTTag.() -> R): R {
         if (index >= size)
-            throw IllegalStateException("Requires element at $index, list only has $size")
+            throw PersistenceException("Requires element at $index, list only has $size")
         return try {
             mapper(get(index))
-        } catch (ex: IllegalStateException) {
-            throw IllegalStateException("Invalid element at $index: ${ex.message}")
+        } catch (ex: PersistenceException) {
+            throw PersistenceException("Invalid element at $index: ${ex.message}")
         }
     }
 

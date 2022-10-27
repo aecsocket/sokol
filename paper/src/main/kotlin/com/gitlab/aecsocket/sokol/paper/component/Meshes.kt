@@ -7,7 +7,7 @@ import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
-import org.bukkit.entity.Entity
+import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -41,26 +41,30 @@ data class Meshes(
             node.node(TRANSFORM).get { Transform.Identity }
         )
     }
-
-    data class CreateMesh(
-        val newParts: List<PartEntry>
-    ) : SokolEvent
 }
 
-@All(Position::class, HostedByMob::class, Meshes::class)
+@All(Meshes::class, PositionRead::class, TrackedPlayersSupplier::class)
 class MeshesSystem(engine: SokolEngine) : SokolSystem {
-    private val mPosition = engine.componentMapper<Position>()
-    private val mMob = engine.componentMapper<HostedByMob>()
     private val mMeshes = engine.componentMapper<Meshes>()
+    private val mPosition = engine.componentMapper<PositionRead>()
+    private val mTrackedPlayersSupplier = engine.componentMapper<TrackedPlayersSupplier>()
+    private val mComposite = engine.componentMapper<Composite>()
 
-    private fun createMesh(
-        transform: Transform,
-        mob: Entity,
-        meshes: Meshes,
-        entity: SokolEntity,
-        send: Boolean = false
-    ) {
-        val tracked = mob.trackedPlayers
+    private fun forEachPart(meshes: Meshes, action: (Pair<Mesh, Meshes.PartDefinition>) -> Unit) {
+        meshes.parts.forEach { (def, part) ->
+            part?.let {
+                action(it to def)
+            }
+        }
+    }
+
+    @Subscribe
+    fun on(event: Create, entity: SokolEntity) {
+        val meshes = mMeshes.map(entity)
+        val position = mPosition.map(entity)
+        val trackedPlayers = mTrackedPlayersSupplier.map(entity).trackedPlayers
+
+        val transform = position.transform
         val parts = meshes.parts
 
         val newParts = parts.map { entry ->
@@ -71,91 +75,115 @@ class MeshesSystem(engine: SokolEngine) : SokolSystem {
                 val newPart = AlexandriaAPI.meshes.create(
                     item,
                     transform + def.transform,
-                    { mob.trackedPlayers },
+                    trackedPlayers,
                     meshes.interpolated,
                 )
-                if (send) {
-                    newPart.spawn(tracked)
+                if (event.sendToPlayers) {
+                    newPart.spawn(trackedPlayers())
                 }
                 Meshes.PartEntry(def, newPart)
             } else entry
         }
 
-        entity.call(Meshes.CreateMesh(newParts))
-    }
-
-    private data class PartContext(
-        val part: Mesh,
-        val definition: Meshes.PartDefinition
-    )
-
-    private fun forEachPart(meshes: Meshes, action: (PartContext) -> Unit) {
-        meshes.parts.forEach { (def, part) ->
-            part?.let {
-                action(PartContext(it, def))
-            }
-        }
-    }
-
-    private fun removeMesh(meshes: Meshes) {
-        meshes.parts.forEach { (_, part) ->
-            part?.let {
-                AlexandriaAPI.meshes.remove(it.id)
-            }
-        }
+        entity.call(Created(newParts))
+        mComposite.forward(entity, event)
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        val location = mPosition.map(entity)
-        val mob = mMob.map(entity).mob
-        val meshes = mMeshes.map(entity)
-
-        createMesh(location.transform, mob, meshes, entity)
-    }
-
-    @Subscribe
-    fun on(event: MobEvent.Show, entity: SokolEntity) {
+    fun on(event: Show, entity: SokolEntity) {
         val meshes = mMeshes.map(entity)
 
         forEachPart(meshes) { (part) ->
             part.spawn(event.player)
         }
+
+        mComposite.forward(entity, event)
     }
 
     @Subscribe
-    fun on(event: MobEvent.Hide, entity: SokolEntity) {
+    fun on(event: Hide, entity: SokolEntity) {
         val meshes = mMeshes.map(entity)
 
         forEachPart(meshes) { (part) ->
             part.remove(event.player)
         }
+
+        mComposite.forward(entity, event)
+    }
+
+    @Subscribe
+    fun on(event: Remove, entity: SokolEntity) {
+        val meshes = mMeshes.map(entity)
+
+        forEachPart(meshes) { (part) ->
+            AlexandriaAPI.meshes.remove(part.id)
+        }
+
+        mComposite.forward(entity, event)
+    }
+
+    @Subscribe
+    fun on(event: Reload, entity: SokolEntity) {
+        entity.call(Remove)
+        entity.call(Create(true))
+    }
+
+    @Subscribe
+    fun on(event: Update, entity: SokolEntity) {
+        val position = mPosition.map(entity)
+        val meshes = mMeshes.map(entity)
+
+        forEachPart(meshes) { (part, def) ->
+            part.transform = position.transform + def.transform
+        }
+
+        mComposite.forward(entity, event)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Add, entity: SokolEntity) {
+        entity.call(Create(false))
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Show, entity: SokolEntity) {
+        entity.call(Show(event.player))
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Hide, entity: SokolEntity) {
+        entity.call(Hide(event.player))
     }
 
     @Subscribe
     fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        val meshes = mMeshes.map(entity)
-
-        removeMesh(meshes)
-    }
-
-    @Subscribe
-    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
-        val location = mPosition.map(entity)
-        val mob = mMob.map(entity).mob
-        val meshes = mMeshes.map(entity)
-
-        removeMesh(meshes)
-        createMesh(location.transform, mob, meshes, entity, true)
+        entity.call(Remove)
     }
 
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
-        val location = mPosition.map(entity)
-        val meshes = mMeshes.map(entity)
-
-        forEachPart(meshes) { (part, def) ->
-            part.transform = location.transform + def.transform
-        }
+        entity.call(Update)
     }
+
+    data class Create(
+        val sendToPlayers: Boolean,
+    ) : SokolEvent
+
+    data class Created(
+        val newParts: List<Meshes.PartEntry>
+    ) : SokolEvent
+
+    data class Show(
+        val player: Player
+    ) : SokolEvent
+
+    data class Hide(
+        val player: Player
+    ) : SokolEvent
+
+    object Remove : SokolEvent
+
+    object Reload : SokolEvent
+
+    object Update : SokolEvent
 }
