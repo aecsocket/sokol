@@ -196,6 +196,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: SokolEvent.Reload, entity: SokolEntity) {
         val collider = mCollider.get(entity)
+
         collider.markDirty()
     }
 
@@ -211,13 +212,20 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                 if (tracked !is SokolPhysicsObject)
                     throw IllegalStateException("Collider physics body is not of type ${SokolPhysicsObject::class.java}")
 
-                val backingDirty = collider.isProfileDirty()
+                val profileDirty = collider.isProfileDirty()
                 val massDirty = collider.isMassDirty()
                 collider.dirty = 0
 
                 CraftBulletAPI.executePhysics {
-                    if (backingDirty)
-                        body.collisionShape = collisionOf(collider.profile.shape)
+                    if (profileDirty) {
+                        val (shape) = entity.call(ColliderBuildSystem.BuildBody(
+                            CompoundCollisionShape(),
+                            AtomicReference(0f),
+                        ))
+                        println("start setting shape")
+                        body.collisionShape = shape
+                        println("stop setting shape")
+                    }
                     if (massDirty && body is PhysicsRigidBody)
                         body.mass = collider.mass()
                 }

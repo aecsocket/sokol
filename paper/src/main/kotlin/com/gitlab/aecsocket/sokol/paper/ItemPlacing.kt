@@ -15,6 +15,7 @@ import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import kotlin.math.PI
+import kotlin.math.abs
 
 class ItemPlacing(
     private val sokol: Sokol
@@ -60,17 +61,16 @@ class ItemPlacing(
                         )
                     } else {
                         val hitPos = from.position() + direction * (snapDistance * result.hitFraction)
-                        val dir = result.hitNormal.alexandria()
-                        val v1 = Vector3.Up.cross(dir).normalized
 
-                        // todo this code sucks and doesn't work
-                        val rotation = if (v1.sqrLength < EPSILON) {
-                            // `dir` and `up` are collinear
+                        val dir = result.hitNormal.alexandria()
+                        val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
+                            // `dir` and `up` are (close to) collinear
                             val yaw = player.handle.location.yaw.radians.toDouble()
                             // `rotation` will be facing "away" from the player
                             quaternionFromTo(Vector3.Forward, dir) *
                                 Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + PI).quaternion(EulerOrder.XYZ)
                         } else {
+                            val v1 = Vector3.Up.cross(dir).normalized
                             val v2 = dir.cross(v1).normalized
                             quaternionOfAxes(v1, v2, dir)
                         }
@@ -80,7 +80,7 @@ class ItemPlacing(
                 }
 
                 state.parts.forEach { (mesh, transform) ->
-                    state.nextTransform?.let { mesh.transform = it + transform + state.placeTransform }
+                    state.nextTransform?.let { mesh.transform = it + state.placeTransform + transform }
                 }
             }
         }
