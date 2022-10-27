@@ -8,15 +8,15 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class StaticRelativeTransform(
+data class StaticLocalTransform(
     val profile: Profile
 ) : PersistentComponent {
     companion object {
-        val Key = SokolAPI.key("static_relative_transform")
+        val Key = SokolAPI.key("static_local_transform")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = StaticRelativeTransform::class
+    override val componentType get() = StaticLocalTransform::class
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -27,21 +27,22 @@ data class StaticRelativeTransform(
     data class Profile(
         @Setting(nodeFromParent = true) val transform: Transform,
     ) : ComponentProfile {
-        override fun read(tag: NBTTag) = StaticRelativeTransform(this)
+        override fun read(tag: NBTTag) = StaticLocalTransform(this)
 
-        override fun read(node: ConfigurationNode) = StaticRelativeTransform(this)
+        override fun read(node: ConfigurationNode) = StaticLocalTransform(this)
     }
 }
 
-@All(StaticRelativeTransform::class)
-@Before(PositionComposeSystem::class)
-class StaticRelativeTransformSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mStaticRelativeTransform = mappers.componentMapper<StaticRelativeTransform>()
+@All(StaticLocalTransform::class)
+@Before(PositionSystem::class, CompositeTransformSystem::class)
+class StaticLocalTransformSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mStaticLocalTransform = mappers.componentMapper<StaticLocalTransform>()
+    private val mLocalTransform = mappers.componentMapper<LocalTransform>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticSlotTransform = mStaticRelativeTransform.map(entity)
+        val staticLocalTransform = mStaticLocalTransform.get(entity)
 
-        entity.components.set(RelativeTransform(staticSlotTransform.profile.transform))
+        mLocalTransform.set(entity, LocalTransform(staticLocalTransform.profile.transform))
     }
 }

@@ -50,12 +50,13 @@ data class StaticMeshes(
 @All(StaticMeshes::class)
 class StaticMeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mStaticMeshes = mappers.componentMapper<StaticMeshes>()
+    private val mMeshes = mappers.componentMapper<Meshes>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticMeshes = mStaticMeshes.map(entity)
+        val staticMeshes = mStaticMeshes.get(entity)
 
-        entity.components.set(Meshes(
+        mMeshes.set(entity, Meshes(
             staticMeshes.profile.parts.mapIndexed { idx, def -> Meshes.PartEntry(
                 def,
                 if (idx >= staticMeshes.meshIds.size) null
@@ -68,7 +69,7 @@ class StaticMeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: MeshesSystem.Created, entity: SokolEntity) {
-        val staticMeshes = mStaticMeshes.map(entity)
+        val staticMeshes = mStaticMeshes.get(entity)
 
         staticMeshes.meshIds = event.newParts.mapNotNull { it.part?.id }
     }

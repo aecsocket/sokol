@@ -16,10 +16,10 @@ class TrackedPlayersSupplierComposeSystem(mappers: ComponentIdAccess) : SokolSys
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {
-        val trackedPlayersSupplier = mTrackedPlayersSupplier.map(entity)
+        val trackedPlayersSupplier = mTrackedPlayersSupplier.get(entity)
 
         mComposite.forEachChild(entity) { (_, child) ->
-            child.components.set(trackedPlayersSupplier)
+            mTrackedPlayersSupplier.set(child, trackedPlayersSupplier)
             child.call(Compose)
         }
     }

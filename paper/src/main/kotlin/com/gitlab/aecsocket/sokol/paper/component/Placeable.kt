@@ -25,12 +25,13 @@ class PlaceableSystem(
     private val mPlaceable = mappers.componentMapper<Placeable>()
     private val mItem = mappers.componentMapper<HostedByItem>()
     private val mComposite = mappers.componentMapper<Composite>()
-    private val mRelativeTransform = mappers.componentMapper<RelativeTransform>()
+    private val mLocalTransform = mappers.componentMapper<LocalTransform>()
+    private val mItemHolder = mappers.componentMapper<ItemHolder>()
 
     @Subscribe
     fun on(event: ItemEvent.ClickAsCurrent, entity: SokolEntity) {
-        val placeable = mPlaceable.map(entity)
-        val item = mItem.map(entity)
+        val placeable = mPlaceable.get(entity)
+        val item = mItem.get(entity)
         val player = event.player
 
         if (event.isRightClick && event.isShiftClick) {
@@ -47,21 +48,21 @@ class PlaceableSystem(
 
             fun walkComposite(composite: Composite, parent: Transform) {
                 composite.children.forEach { (_, child) ->
-                    val transform = parent + (mRelativeTransform.mapOr(child)?.transform ?: Transform.Identity)
+                    val transform = parent + (mLocalTransform.getOr(child)?.transform ?: Transform.Identity)
 
                     val itemBlueprint = child.toBlueprint()
-                    itemBlueprint.components.set(ItemHolder.byMob(player))
+                    mItemHolder.set(itemBlueprint, ItemHolder.byMob(player))
                     sokol.entityHoster.hostItemOr(itemBlueprint)?.let { item ->
                         parts.add(ItemPlacing.Part(
                             AlexandriaAPI.meshes.create(item, worldTransform, { tracked }, false),
                             transform
                         ))
                     }
-                    mComposite.mapOr(child)?.let { walkComposite(it, transform) }
+                    mComposite.getOr(child)?.let { walkComposite(it, transform) }
                 }
             }
 
-            mComposite.mapOr(entity)?.let { walkComposite(it, rootTransform) }
+            mComposite.getOr(entity)?.let { walkComposite(it, rootTransform) }
 
             sokol.itemPlacing.enter(player.alexandria, ItemPlacing.State(
                 event.backing.slot,

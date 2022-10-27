@@ -38,10 +38,20 @@ class SystemExecutionException(message: String? = null, cause: Throwable? = null
 interface ComponentMapper<C : SokolComponent> {
     fun has(components: ComponentMap): Boolean
 
-    fun mapOr(components: ComponentMap): C?
+    fun getOr(components: ComponentMap): C?
 
-    fun map(components: ComponentMap): C
+    fun get(components: ComponentMap): C
+
+    fun set(components: MutableComponentMap, component: C)
 }
+
+fun <C : SokolComponent> ComponentMapper<C>.has(holder: ComponentMapHolder) = has(holder.components)
+
+fun <C : SokolComponent> ComponentMapper<C>.getOr(holder: ComponentMapHolder) = getOr(holder.components)
+
+fun <C : SokolComponent> ComponentMapper<C>.get(holder: ComponentMapHolder) = get(holder.components)
+
+fun <C : SokolComponent> ComponentMapper<C>.set(holder: ComponentMapHolder, component: C) = set(holder.components, component)
 
 fun <C : SokolComponent> componentMapperOf(id: Int, type: KClass<out SokolComponent>) = object : ComponentMapper<C> {
     val typeName = type.java.name
@@ -49,17 +59,15 @@ fun <C : SokolComponent> componentMapperOf(id: Int, type: KClass<out SokolCompon
     override fun has(components: ComponentMap) = components.has(id)
 
     @Suppress("UNCHECKED_CAST")
-    override fun mapOr(components: ComponentMap) = components.get(id) as? C
+    override fun getOr(components: ComponentMap) = components.get(id) as? C
 
-    override fun map(components: ComponentMap) = mapOr(components)
+    override fun get(components: ComponentMap) = getOr(components)
         ?: throw SystemExecutionException("Entity does not have component type $typeName")
+
+    override fun set(components: MutableComponentMap, component: C) {
+        components.set(id, component)
+    }
 }
-
-fun <C : SokolComponent> ComponentMapper<C>.has(entity: SokolEntity) = has(entity.components)
-
-fun <C : SokolComponent> ComponentMapper<C>.mapOr(entity: SokolEntity) = mapOr(entity.components)
-
-fun <C : SokolComponent> ComponentMapper<C>.map(entity: SokolEntity) = map(entity.components)
 
 interface ComponentIdAccess {
     fun countComponentIds(): Int
@@ -108,6 +116,8 @@ class SokolEngine internal constructor(
         val eventListeners: Map<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>,
     )
 
+    fun systems() = systems.map { it.system }
+
     fun emptyComponentMap(): MutableComponentMap =
         ComponentMapImpl(arrayOfNulls(componentIds.size))
 
@@ -138,9 +148,6 @@ class SokolEngine internal constructor(
         return entity
     }
 
-    fun <C : SokolComponent> componentMapper(type: KClass<out C>): ComponentMapper<C> =
-        ComponentMapperImpl(componentId(type), type.java.name)
-
     private inner class ComponentMapImpl(
         private val components: Array<SokolComponent?>,
         val archetype: Bits = Bits(componentIds.size).apply {
@@ -161,10 +168,13 @@ class SokolEngine internal constructor(
         override fun <C : SokolComponent> get(type: KClass<out C>) =
             components[componentId(type)] as? C
 
-        override fun set(component: SokolComponent) {
-            val id = componentId(component.componentType)
+        override fun set(id: Int, component: SokolComponent) {
             components[id] = component
             archetype.set(id)
+        }
+
+        override fun set(component: SokolComponent) {
+            set(componentId(component.componentType), component)
         }
 
         override fun removeById(id: Int) {
@@ -204,19 +214,6 @@ class SokolEngine internal constructor(
         override fun toString() = "EntityImpl$components"
     }
 
-    private class ComponentMapperImpl<C : SokolComponent>(
-        private val id: Int,
-        private val typeName: String
-    ) : ComponentMapper<C> {
-        override fun has(components: ComponentMap) = components.has(id)
-
-        @Suppress("UNCHECKED_CAST")
-        override fun mapOr(components: ComponentMap) = components.get(id) as? C
-
-        override fun map(components: ComponentMap) = mapOr(components)
-            ?: throw SystemExecutionException("Entity does not have component type $typeName")
-    }
-
     class Builder {
         private val systemFactories = ArrayList<(ComponentIdAccess) -> SokolSystem>()
         private val componentTypes = ArrayList<KClass<out SokolComponent>>()
@@ -253,6 +250,7 @@ class SokolEngine internal constructor(
                 val after: Set<KClass<out SokolSystem>>,
             )
 
+            val dependencyGraph = GraphBuilder.directed().build<SystemDefinition>()
             val systems = systemFactories.associate { factory ->
                 val system = factory(componentIdAccess)
                 val systemType = system::class
@@ -296,25 +294,28 @@ class SokolEngine internal constructor(
                     }
                 }
 
-                systemType to SystemPreDefinition(
-                    SystemDefinition(system, componentIdAccess.entityFilter(all, one, none), eventListeners),
-                    before, after
-                )
+                val definition = SystemDefinition(system, componentIdAccess.entityFilter(all, one, none), eventListeners)
+                dependencyGraph.addNode(definition)
+                systemType to SystemPreDefinition(definition, before, after)
             }
 
-            fun target(system: SystemPreDefinition, pos: String, type: KClass<out SokolSystem>) = systems[type]
-                ?: throw IllegalArgumentException("System ${system.definition.system} is attempting to execute $pos $type which is not registered")
+            fun target(system: KClass<out SokolSystem>, target: KClass<out SokolSystem>) = systems[target]
+                ?: throw IllegalArgumentException("System ${system.simpleName} is referencing ${target.simpleName}, which is not registered")
 
-            val dependencyGraph = GraphBuilder.directed().build<SystemDefinition>()
             systems.forEach { (_, system) ->
+                val systemType = system.definition.system::class
                 system.after.forEach { targetType ->
-                    val target = target(system, "after", targetType)
-                    dependencyGraph.putEdge(system.definition, target.definition)
+                    val target = target(systemType, targetType)
+                    if (target.after.contains(systemType))
+                        throw IllegalArgumentException("Cyclical dependency: ${targetType.simpleName} and ${systemType.simpleName} executing after each other")
+                    dependencyGraph.putEdge(target.definition, system.definition)
                 }
 
                 system.before.forEach { targetType ->
-                    val target = target(system, "before", targetType)
-                    dependencyGraph.putEdge(target.definition, system.definition)
+                    val target = target(systemType, targetType)
+                    if (target.before.contains(systemType))
+                        throw IllegalArgumentException("Cyclical dependency: ${targetType.simpleName} and ${systemType.simpleName} executing before each other")
+                    dependencyGraph.putEdge(system.definition, target.definition)
                 }
             }
 
@@ -323,9 +324,5 @@ class SokolEngine internal constructor(
         }
     }
 }
-
-inline fun <reified C : SokolComponent> SokolEngine.componentId() = componentId(C::class)
-
-inline fun <reified C : SokolComponent> SokolEngine.componentMapper() = componentMapper(C::class)
 
 inline fun <reified C : SokolComponent> SokolEngine.Builder.componentType() = componentType(C::class)

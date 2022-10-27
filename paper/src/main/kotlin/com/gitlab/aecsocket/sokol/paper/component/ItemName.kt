@@ -1,13 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
-import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.format.TextDecoration
-import org.spongepowered.configurate.ConfigurationNode
 
 data class ItemName(
     val i18nKey: String
@@ -23,9 +19,9 @@ class ItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        val itemName = mItemName.map(entity)
-        val item = mItem.map(entity)
-        val itemHolder = mItemHolder.mapOr(entity)
+        val itemName = mItemName.get(entity)
+        val item = mItem.get(entity)
+        val itemHolder = mItemHolder.getOr(entity)
 
         val i18n = if (itemHolder is ItemHolder.ByMob) AlexandriaAPI.i18nFor(itemHolder.mob) else AlexandriaAPI.i18n
         val name = i18n.safeOne(itemName.i18nKey)

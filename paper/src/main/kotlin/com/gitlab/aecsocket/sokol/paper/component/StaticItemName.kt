@@ -33,11 +33,12 @@ data class StaticItemName(val profile: Profile) : PersistentComponent {
 @All(StaticItemName::class)
 class StaticItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mStaticItemName = mappers.componentMapper<StaticItemName>()
+    private val mItemName = mappers.componentMapper<ItemName>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticItemName = mStaticItemName.map(entity).profile
+        val staticItemName = mStaticItemName.get(entity).profile
 
-        entity.components.set(ItemName(staticItemName.i18nKey))
+        mItemName.set(entity, ItemName(staticItemName.i18nKey))
     }
 }

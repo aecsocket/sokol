@@ -20,10 +20,14 @@ class KeyedEntityProfile(
     componentProfiles: Map<Key, ComponentProfile>
 ) : SimpleEntityProfile(componentProfiles), Keyed
 
+interface ComponentMapHolder {
+    val components: MutableComponentMap
+}
+
 open class EntityBlueprint(
     open val profile: EntityProfile,
-    val components: MutableComponentMap
-) {
+    override val components: MutableComponentMap
+) : ComponentMapHolder {
     open fun copyOf() = EntityBlueprint(profile, components.mutableCopy())
 }
 
@@ -34,9 +38,8 @@ class KeyedEntityBlueprint(
     override fun copyOf() = KeyedEntityBlueprint(profile, components.mutableCopy())
 }
 
-interface SokolEntity {
+interface SokolEntity : ComponentMapHolder {
     val profile: EntityProfile
-    val components: MutableComponentMap
 
     fun <E : SokolEvent> call(event: E): E
 }

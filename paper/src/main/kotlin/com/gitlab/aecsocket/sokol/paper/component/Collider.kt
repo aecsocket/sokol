@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
+import com.gitlab.aecsocket.craftbullet.core.addShape
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.core.physRotation
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
@@ -13,6 +14,7 @@ import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.collision.shapes.CompoundCollisionShape
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
 import org.spongepowered.configurate.ConfigurationNode
@@ -20,6 +22,7 @@ import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 private const val MASS = "mass"
 private const val DIRTY = "dirty"
@@ -101,24 +104,49 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
 
+@All(Collider::class, CompositeTransform::class)
+class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mCollider = mappers.componentMapper<Collider>()
+    private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
+    private val mComposite = mappers.componentMapper<Composite>()
+
+    @Subscribe
+    fun on(event: BuildBody, entity: SokolEntity) {
+        val collider = mCollider.get(entity)
+        val compositeTransform = mCompositeTransform.get(entity)
+
+        val transform = compositeTransform.transform
+        event.shape.addShape(collisionOf(collider.profile.shape), transform.bullet())
+        event.mass.set(event.mass.get() + collider.mass())
+
+        mComposite.forward(entity, BuildBody(event.shape, event.mass))
+    }
+
+    data class BuildBody(
+        val shape: CompoundCollisionShape,
+        val mass: AtomicReference<Float>,
+    ) : SokolEvent
+}
+
 @All(Collider::class, PositionWrite::class, IsValidSupplier::class)
 @One(RigidBody::class, VehicleBody::class)
 class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionWrite>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
-
     private val mRigidBody = mappers.componentMapper<RigidBody>()
     private val mVehicleBody = mappers.componentMapper<VehicleBody>()
 
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        val position = mPosition.map(entity)
-        val collider = mCollider.map(entity)
-        val isValid = mIsValidSupplier.map(entity).valid
+        val position = mPosition.get(entity)
+        val collider = mCollider.get(entity)
+        val isValid = mIsValidSupplier.get(entity).valid
 
-        val shape = collisionOf(collider.profile.shape)
-        val mass = collider.mass()
+        val (shape, mass) = entity.call(ColliderBuildSystem.BuildBody(
+            CompoundCollisionShape(),
+            AtomicReference(0f),
+        ))
 
         val id = UUID.randomUUID()
         val physSpace = CraftBulletAPI.spaceOf(position.world)
@@ -130,7 +158,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                 (if (mVehicleBody.has(entity)) 0x2 else 0)
 
             val body = when (typeField) {
-                0x1 -> object : PhysicsRigidBody(shape, mass), SokolPhysicsObject {
+                0x1 -> object : PhysicsRigidBody(shape, mass.get()), SokolPhysicsObject {
                     override val id get() = id
                     override val body get() = this
                     override var entity = entity
@@ -141,7 +169,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                         entity.call(PhysicsUpdate(this))
                     }
                 }
-                0x2 -> object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
+                0x2 -> object : PhysicsVehicle(shape, mass.get()), SokolPhysicsObject {
                     override val id get() = id
                     override val body get() = this
                     override var entity = entity
@@ -167,14 +195,14 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: SokolEvent.Reload, entity: SokolEntity) {
-        val collider = mCollider.map(entity)
+        val collider = mCollider.get(entity)
         collider.markDirty()
     }
 
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
-        val position = mPosition.map(entity)
-        val collider = mCollider.map(entity)
+        val position = mPosition.get(entity)
+        val collider = mCollider.get(entity)
 
         collider.bodyId?.let { bodyId ->
             val physSpace = CraftBulletAPI.spaceOf(position.world)
@@ -207,8 +235,8 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        val position = mPosition.map(entity)
-        val collider = mCollider.map(entity)
+        val position = mPosition.get(entity)
+        val collider = mCollider.get(entity)
 
         collider.bodyId?.let { bodyId ->
             val physSpace = CraftBulletAPI.spaceOf(position.world)

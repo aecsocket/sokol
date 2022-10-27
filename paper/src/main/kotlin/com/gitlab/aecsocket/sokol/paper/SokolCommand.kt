@@ -17,7 +17,6 @@ import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
-import org.bukkit.Bukkit
 import org.bukkit.Location
 import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
@@ -36,6 +35,10 @@ internal class SokolCommand(
             .literal("stats", desc("Show stats for the object resolver."))
             .permission(perm("stats"))
             .handler { handle(it, ::stats) })
+        manager.command(root
+            .literal("systems", desc("See the system information."))
+            .permission(perm("systems"))
+            .handler { handle(it, ::systems) })
         manager.command(root
             .literal("give", desc("Creates and gives an item blueprint to a player."))
             .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
@@ -113,10 +116,23 @@ internal class SokolCommand(
             val (candidates, updated) = stats
             val percent = updated.toDouble() / candidates
             plugin.sendMessage(sender, i18n.csafe("stats.object_type") {
-                subst("type", text(type.key))
+                icu("type", type.key)
                 icu("candidates", candidates)
                 icu("updated", updated)
                 icu("percent", percent)
+            })
+        }
+    }
+
+    fun systems(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val systemTypes = plugin.engine.systems()
+            .mapNotNull { it::class.simpleName }
+
+        plugin.sendMessage(sender, i18n.csafe("systems.header"))
+        systemTypes.forEachIndexed { idx, type ->
+            plugin.sendMessage(sender, i18n.csafe("systems.line") {
+                icu("index", idx + 1)
+                icu("type", type)
             })
         }
     }
@@ -182,12 +198,15 @@ internal class SokolCommand(
     ) {
         val components = entity.components.all()
 
+        val componentTypes = components
+            .mapNotNull { it.componentType.simpleName }
+            .sorted()
+
         val hover = (
             i18n.csafe("state.read.component.header") +
-            components.flatMap { component ->
+            componentTypes.flatMap { type ->
                 i18n.csafe("state.read.component.line") {
-                    icu("type", component.componentType.simpleName ?: "?")
-                    icu("to_string", component.toString())
+                    icu("type", type)
                 }
             }
         ).join(JoinConfiguration.newlines())

@@ -131,6 +131,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 return false
             }
 
+            entityResolver.enable()
             entityHoster.enable()
             space = SokolSpace(engine)
 
@@ -318,10 +319,13 @@ class Sokol : BasePlugin(), SokolAPI {
             onInit = {
                 engine
                     .systemFactory { MobInjectorSystem(it) }
-                    .systemFactory { PositionComposeSystem(it) }
+                    .systemFactory { ForwardingSystem(it) }
+                    .systemFactory { CompositeTransformSystem(it) }
+                    .systemFactory { PositionSystem(it) }
                     .systemFactory { IsValidSupplierComposeSystem(it) }
                     .systemFactory { TrackedPlayersSupplierComposeSystem(it) }
-                    .systemFactory { StaticRelativeTransformSystem(it) }
+                    .systemFactory { StaticLocalTransformSystem(it) }
+                    .systemFactory { ColliderBuildSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { MeshesSystem(it) }
                     .systemFactory { StaticMeshesSystem(it) }
@@ -345,8 +349,10 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostableByMob>()
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
-                    .componentType<RelativeTransform>()
-                    .componentType<StaticRelativeTransform>()
+                    .componentType<Forwarding>()
+                    .componentType<LocalTransform>()
+                    .componentType<StaticLocalTransform>()
+                    .componentType<CompositeTransform>()
                     .componentType<Rotation>()
                     .componentType<Collider>()
                     .componentType<RigidBody>()
@@ -361,7 +367,8 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
-                registerComponentType(StaticRelativeTransform.Type)
+                registerComponentType(Forwarding.Type)
+                registerComponentType(StaticLocalTransform.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(Collider.Type)
                 registerComponentType(RigidBody.Type)

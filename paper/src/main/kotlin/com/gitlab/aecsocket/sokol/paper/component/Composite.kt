@@ -63,7 +63,7 @@ data class Composite(
 }
 
 fun ComponentMapper<Composite>.forEachChild(entity: SokolEntity, action: (Map.Entry<String, SokolEntity>) -> Unit) {
-    mapOr(entity)?.children?.forEach(action)
+    getOr(entity)?.children?.forEach(action)
 }
 
 fun ComponentMapper<Composite>.forward(entity: SokolEntity, event: SokolEvent) {

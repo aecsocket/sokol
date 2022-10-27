@@ -9,7 +9,9 @@ import java.util.*
 @Suppress("UnstableApiUsage")
 fun <N> Graph<N>.topologicallySorted() = object : Iterable<N> {
     override fun iterator() = object : AbstractIterator<N>() {
-        val roots: MutableList<N> = nodes().filter { inDegree(it) == 0 }.toMutableList()
+        val roots: MutableList<N> = nodes()
+            .filter { inDegree(it) == 0 }
+            .toMutableList()
         val nonRootsToInDegree: MutableMap<N, Int> = nodes()
             .filter { inDegree(it) > 0 }
             .associateWith { inDegree(it) }
@@ -29,7 +31,7 @@ fun <N> Graph<N>.topologicallySorted() = object : Iterable<N> {
                 }
                 return next
             }
-            if (nonRootsToInDegree.isEmpty())
+            if (nonRootsToInDegree.isNotEmpty())
                 throw IllegalStateException("Graph has at least one cycle")
             return endOfData()
         }

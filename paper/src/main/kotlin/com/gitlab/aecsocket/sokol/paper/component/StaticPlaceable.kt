@@ -35,12 +35,13 @@ data class StaticPlaceable(val profile: Profile) : PersistentComponent {
 @All(StaticPlaceable::class)
 class StaticPlaceableSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mStaticPlaceable = mappers.componentMapper<StaticPlaceable>()
+    private val mPlaceable = mappers.componentMapper<Placeable>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticPlaceable = mStaticPlaceable.map(entity).profile
+        val staticPlaceable = mStaticPlaceable.get(entity).profile
 
-        entity.components.set(Placeable(
+        mPlaceable.set(entity, Placeable(
             staticPlaceable.placeTransform,
             staticPlaceable.holdDistance,
             staticPlaceable.snapDistance

@@ -34,16 +34,17 @@ data class ProfileItemName(val profile: Profile) : PersistentComponent {
 @All(ProfileItemName::class)
 class ProfileItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mProfileItemName = mappers.componentMapper<ProfileItemName>()
+    private val mItemName = mappers.componentMapper<ItemName>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val profileItemName = mProfileItemName.map(entity).profile
+        val profileItemName = mProfileItemName.get(entity).profile
 
         val profile = entity.profile
         if (profile !is Keyed)
             throw SystemExecutionException("Profile must be keyed")
 
         val i18nKey = profileItemName.prefix + profile.id + profileItemName.suffix
-        entity.components.set(ItemName(i18nKey))
+        mItemName.set(entity, ItemName(i18nKey))
     }
 }

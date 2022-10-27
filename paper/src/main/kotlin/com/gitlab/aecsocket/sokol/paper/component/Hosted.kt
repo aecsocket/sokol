@@ -88,29 +88,33 @@ fun hostedByItem(item: ItemStack, meta: ItemMeta) = object : HostedByItem {
 class MobInjectorSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMob = mappers.componentMapper<HostedByMob>()
     private val mRotation = mappers.componentMapper<Rotation>()
+    private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
+    private val mTrackedPlayersSupplier = mappers.componentMapper<TrackedPlayersSupplier>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
+    private val mPositionWrite = mappers.componentMapper<PositionWrite>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val mob = mMob.map(entity).mob
+        val mob = mMob.get(entity).mob
 
-        entity.components.set(object : IsValidSupplier {
+        mIsValidSupplier.set(entity, object : IsValidSupplier {
             override val valid: () -> Boolean get() = { mob.isValid }
         })
 
-        entity.components.set(object : TrackedPlayersSupplier {
+        mTrackedPlayersSupplier.set(entity, object : TrackedPlayersSupplier {
             override val trackedPlayers: () -> Set<Player> get() = { mob.trackedPlayers }
         })
 
-        val rotation = mRotation.mapOr(entity)
+        val rotation = mRotation.getOr(entity)
         var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
 
-        entity.components.set(object : PositionRead {
+        mPositionRead.set(entity, object : PositionRead {
             override val world get() = mob.world
 
             override val transform get() = transform
         })
 
-        entity.components.set(object : PositionWrite {
+        mPositionWrite.set(entity, object : PositionWrite {
             override val world get() = mob.world
 
             @Suppress("UnstableApiUsage")

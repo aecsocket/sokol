@@ -2,7 +2,6 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
@@ -51,26 +50,28 @@ data class Rotation(
 }
 
 @All(PositionRead::class, Composite::class)
-class PositionComposeSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mPositionRead = mappers.componentMapper<PositionRead>()
+class PositionSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mPosition = mappers.componentMapper<PositionRead>()
     private val mComposite = mappers.componentMapper<Composite>()
-    private val mRelativeTransform = mappers.componentMapper<RelativeTransform>()
+    private val mLocalTransform = mappers.componentMapper<LocalTransform>()
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {
-        val position = mPositionRead.map(entity)
+        val position = mPosition.get(entity)
 
         mComposite.forEachChild(entity) { (_, child) ->
-            val relativeTransform = mRelativeTransform.mapOr(child)?.transform ?: Transform.Identity
+            mLocalTransform.getOr(child)?.let {
+                val relativeTransform = it.transform
 
-            child.components.set(object : PositionRead {
-                override val world get() = position.world
+                mPosition.set(child, object : PositionRead {
+                    override val world get() = position.world
 
-                override val transform: Transform
-                    get() = position.transform + relativeTransform
-            })
+                    override val transform: Transform
+                        get() = position.transform + relativeTransform
+                })
 
-            child.call(Compose)
+                child.call(Compose)
+            }
         }
     }
 

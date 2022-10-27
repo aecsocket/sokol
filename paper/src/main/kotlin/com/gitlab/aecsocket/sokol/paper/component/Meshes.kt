@@ -60,9 +60,9 @@ class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
-        val meshes = mMeshes.map(entity)
-        val position = mPosition.map(entity)
-        val trackedPlayers = mTrackedPlayersSupplier.map(entity).trackedPlayers
+        val meshes = mMeshes.get(entity)
+        val position = mPosition.get(entity)
+        val trackedPlayers = mTrackedPlayersSupplier.get(entity).trackedPlayers
 
         val transform = position.transform
         val parts = meshes.parts
@@ -91,7 +91,7 @@ class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Show, entity: SokolEntity) {
-        val meshes = mMeshes.map(entity)
+        val meshes = mMeshes.get(entity)
 
         forEachPart(meshes) { (part) ->
             part.spawn(event.player)
@@ -102,7 +102,7 @@ class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Hide, entity: SokolEntity) {
-        val meshes = mMeshes.map(entity)
+        val meshes = mMeshes.get(entity)
 
         forEachPart(meshes) { (part) ->
             part.remove(event.player)
@@ -113,7 +113,7 @@ class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Remove, entity: SokolEntity) {
-        val meshes = mMeshes.map(entity)
+        val meshes = mMeshes.get(entity)
 
         forEachPart(meshes) { (part) ->
             AlexandriaAPI.meshes.remove(part.id)
@@ -130,8 +130,8 @@ class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Update, entity: SokolEntity) {
-        val position = mPosition.map(entity)
-        val meshes = mMeshes.map(entity)
+        val position = mPosition.get(entity)
+        val meshes = mMeshes.get(entity)
 
         forEachPart(meshes) { (part, def) ->
             part.transform = position.transform + def.transform

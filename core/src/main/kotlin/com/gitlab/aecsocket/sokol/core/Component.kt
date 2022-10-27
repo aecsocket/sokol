@@ -82,6 +82,8 @@ inline fun <reified C : SokolComponent> ComponentMap.has() = has(C::class)
 inline fun <reified C : SokolComponent> ComponentMap.get() = get(C::class)
 
 interface MutableComponentMap : ComponentMap {
+    fun set(id: Int, component: SokolComponent)
+
     fun set(component: SokolComponent)
 
     fun removeById(id: Int)
