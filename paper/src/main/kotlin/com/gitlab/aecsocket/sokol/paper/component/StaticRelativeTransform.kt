@@ -34,8 +34,9 @@ data class StaticRelativeTransform(
 }
 
 @All(StaticRelativeTransform::class)
-class StaticRelativeTransformSystem(engine: SokolEngine) : SokolSystem {
-    private val mStaticRelativeTransform = engine.componentMapper<StaticRelativeTransform>()
+@Before(PositionComposeSystem::class)
+class StaticRelativeTransformSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mStaticRelativeTransform = mappers.componentMapper<StaticRelativeTransform>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {

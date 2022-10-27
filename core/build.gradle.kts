@@ -16,6 +16,7 @@ dependencies {
     compileOnly(libs.glossaCore)
     compileOnly(libs.configurateExtraKotlin)
     compileOnly(libs.cloudCore)
+    compileOnly(libs.guava)
     compileOnly(libs.alexandriaCore)
     compileOnly(libs.packetEventsApi)
     compileOnly(libs.craftbulletCore)

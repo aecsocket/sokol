@@ -31,8 +31,8 @@ data class StaticItemName(val profile: Profile) : PersistentComponent {
 }
 
 @All(StaticItemName::class)
-class StaticItemNameSystem(engine: SokolEngine) : SokolSystem {
-    private val mStaticItemName = engine.componentMapper<StaticItemName>()
+class StaticItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mStaticItemName = mappers.componentMapper<StaticItemName>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {

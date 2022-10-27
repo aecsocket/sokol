@@ -3,18 +3,35 @@ package com.gitlab.aecsocket.sokol.core
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import net.kyori.adventure.key.Key
 
-data class EntityProfile(
-    override val id: String,
-    val componentProfiles: Map<Key, ComponentProfile>,
-) : Keyed {
-    fun componentProfile(key: Key) = componentProfiles[key]
+interface EntityProfile {
+    val componentProfiles: Map<Key, ComponentProfile>
+
+    fun componentProfile(key: Key): ComponentProfile?
 }
 
-data class EntityBlueprint(
-    val profile: EntityProfile,
+open class SimpleEntityProfile(
+    override val componentProfiles: Map<Key, ComponentProfile>
+) : EntityProfile {
+    override fun componentProfile(key: Key) = componentProfiles[key]
+}
+
+class KeyedEntityProfile(
+    override val id: String,
+    componentProfiles: Map<Key, ComponentProfile>
+) : SimpleEntityProfile(componentProfiles), Keyed
+
+open class EntityBlueprint(
+    open val profile: EntityProfile,
     val components: MutableComponentMap
 ) {
-    fun copyOf() = EntityBlueprint(profile, components.mutableCopy())
+    open fun copyOf() = EntityBlueprint(profile, components.mutableCopy())
+}
+
+class KeyedEntityBlueprint(
+    override val profile: KeyedEntityProfile,
+    components: MutableComponentMap
+) : EntityBlueprint(profile, components) {
+    override fun copyOf() = KeyedEntityBlueprint(profile, components.mutableCopy())
 }
 
 interface SokolEntity {

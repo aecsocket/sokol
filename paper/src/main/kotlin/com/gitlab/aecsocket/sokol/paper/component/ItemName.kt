@@ -16,10 +16,10 @@ data class ItemName(
 }
 
 @All(ItemName::class, HostedByItem::class)
-class ItemNameSystem(engine: SokolEngine) : SokolSystem {
-    private val mItemName = engine.componentMapper<ItemName>()
-    private val mItem = engine.componentMapper<HostedByItem>()
-    private val mItemHolder = engine.componentMapper<ItemHolder>()
+class ItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mItemName = mappers.componentMapper<ItemName>()
+    private val mItem = mappers.componentMapper<HostedByItem>()
+    private val mItemHolder = mappers.componentMapper<ItemHolder>()
 
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {

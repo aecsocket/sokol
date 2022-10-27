@@ -10,9 +10,9 @@ interface TrackedPlayersSupplier : SokolComponent {
 }
 
 @All(TrackedPlayersSupplier::class, Composite::class)
-class TrackedPlayersSupplierComposeSystem(engine: SokolEngine) : SokolSystem {
-    private val mTrackedPlayersSupplier = engine.componentMapper<TrackedPlayersSupplier>()
-    private val mComposite = engine.componentMapper<Composite>()
+class TrackedPlayersSupplierComposeSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mTrackedPlayersSupplier = mappers.componentMapper<TrackedPlayersSupplier>()
+    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {

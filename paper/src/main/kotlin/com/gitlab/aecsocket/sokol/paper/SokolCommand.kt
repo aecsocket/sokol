@@ -41,7 +41,7 @@ internal class SokolCommand(
             .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1), desc("Amount of items to give."))
-            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
+            .argument(KeyedEntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .permission(perm("give"))
             .handler { handle(it, ::give) })
         manager.command(root
@@ -49,7 +49,7 @@ internal class SokolCommand(
             .argument(LocationArgument.of("location"), desc("Where to spawn the mob."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1), desc("The amount of mobs to spawn."))
-            .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
+            .argument(KeyedEntityBlueprintArgument(plugin, "blueprint"), desc("The blueprint to use."))
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
 
@@ -151,7 +151,7 @@ internal class SokolCommand(
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val location = ctx.get<Location>("location")
         val amount = ctx.value("amount") { 1 }
-        val blueprint = ctx.get<EntityBlueprint>("blueprint")
+        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
 
         if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Mob))
             error(i18n.safe("error.cannot_host"))

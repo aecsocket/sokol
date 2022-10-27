@@ -1,6 +1,8 @@
 package com.gitlab.aecsocket.sokol.core
 
 import com.gitlab.aecsocket.sokol.core.util.Bits
+import com.gitlab.aecsocket.sokol.core.util.topologicallySorted
+import com.google.common.graph.GraphBuilder
 import org.spongepowered.configurate.BasicConfigurationNode
 import java.lang.invoke.MethodHandles
 import java.util.*
@@ -22,20 +24,13 @@ annotation class One(vararg val types: KClass<out SokolComponent>)
 annotation class None(vararg val types: KClass<out SokolComponent>)
 
 @Target(AnnotationTarget.CLASS)
-annotation class Priority(val value: Int)
+annotation class Before(vararg val types: KClass<out SokolSystem>)
+
+@Target(AnnotationTarget.CLASS)
+annotation class After(vararg val types: KClass<out SokolSystem>)
 
 @Target(AnnotationTarget.FUNCTION)
 annotation class Subscribe
-
-const val PRIORITY_EARLIEST = -10000
-
-const val PRIORITY_EARLY = -1000
-
-const val PRIORITY_NORMAL = 0
-
-const val PRIORITY_LATE = 1000
-
-const val PRIORITY_LATEST = 10000
 
 class SystemExecutionException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
@@ -48,35 +43,70 @@ interface ComponentMapper<C : SokolComponent> {
     fun map(components: ComponentMap): C
 }
 
+fun <C : SokolComponent> componentMapperOf(id: Int, type: KClass<out SokolComponent>) = object : ComponentMapper<C> {
+    val typeName = type.java.name
+
+    override fun has(components: ComponentMap) = components.has(id)
+
+    @Suppress("UNCHECKED_CAST")
+    override fun mapOr(components: ComponentMap) = components.get(id) as? C
+
+    override fun map(components: ComponentMap) = mapOr(components)
+        ?: throw SystemExecutionException("Entity does not have component type $typeName")
+}
+
 fun <C : SokolComponent> ComponentMapper<C>.has(entity: SokolEntity) = has(entity.components)
 
 fun <C : SokolComponent> ComponentMapper<C>.mapOr(entity: SokolEntity) = mapOr(entity.components)
 
 fun <C : SokolComponent> ComponentMapper<C>.map(entity: SokolEntity) = map(entity.components)
 
+interface ComponentIdAccess {
+    fun countComponentIds(): Int
+
+    fun componentId(type: KClass<out SokolComponent>): Int
+}
+
+data class EntityFilter(
+    val all: Bits,
+    val one: Bits,
+    val none: Bits,
+)
+
+fun ComponentIdAccess.entityFilter(
+    all: Iterable<KClass<out SokolComponent>>,
+    one: Iterable<KClass<out SokolComponent>>,
+    none: Iterable<KClass<out SokolComponent>>,
+): EntityFilter {
+    fun bitsOf(set: Iterable<KClass<out SokolComponent>>) = Bits(countComponentIds()).apply {
+        set.forEach { set(componentId(it)) }
+    }
+
+    return EntityFilter(bitsOf(all), bitsOf(one), bitsOf(none))
+}
+
+fun <C : SokolComponent> ComponentIdAccess.componentMapper(type: KClass<out C>) = componentMapperOf<C>(componentId(type), type)
+
+inline fun <reified C : SokolComponent> ComponentIdAccess.componentMapper() = componentMapper(C::class)
+
+open class AbstractComponentIdAccess(
+    protected val componentIds: Map<KClass<out SokolComponent>, Int>
+) : ComponentIdAccess {
+    override fun countComponentIds() = componentIds.size
+
+    override fun componentId(type: KClass<out SokolComponent>) = componentIds[type]
+        ?: throw IllegalArgumentException("Component type $type is not registered")
+}
 
 class SokolEngine internal constructor(
-    private val componentIds: Map<KClass<out SokolComponent>, Int>
-) {
-    data class EntityFilter(
-        val all: Bits,
-        val one: Bits,
-        val none: Bits,
-    )
-
-    data class SystemDefinition(
+    private val systems: List<SystemDefinition>,
+    componentIds: Map<KClass<out SokolComponent>, Int>
+) : AbstractComponentIdAccess(componentIds) {
+    internal data class SystemDefinition(
         val system: SokolSystem,
         val filter: EntityFilter,
-        val priority: Int,
-        internal val eventListeners: Map<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>,
+        val eventListeners: Map<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>,
     )
-
-    private val systems = ArrayList<SystemDefinition>()
-
-    private val handleLookup = MethodHandles.publicLookup()
-
-    fun componentId(type: KClass<out SokolComponent>) = componentIds[type]
-        ?: throw IllegalArgumentException("Component type $type is not registered")
 
     fun emptyComponentMap(): MutableComponentMap =
         ComponentMapImpl(arrayOfNulls(componentIds.size))
@@ -86,78 +116,21 @@ class SokolEngine internal constructor(
             components.forEach { set(it) }
         }
 
+    private fun makeComponents(profile: EntityProfile) = profile.componentProfiles.map { (_, profile) ->
+        profile.read(BasicConfigurationNode.root())
+    }
+
     fun emptyBlueprint(profile: EntityProfile): EntityBlueprint {
-        val components = profile.componentProfiles.map { (_, profile) ->
-            profile.read(BasicConfigurationNode.root())
-        }
-        return EntityBlueprint(profile, componentMap(components))
+        return EntityBlueprint(profile, componentMap(makeComponents(profile)))
     }
 
-    fun entityFilter(
-        all: Iterable<KClass<out SokolComponent>>,
-        one: Iterable<KClass<out SokolComponent>>,
-        none: Iterable<KClass<out SokolComponent>>,
-    ): EntityFilter {
-        fun bitsOf(set: Iterable<KClass<out SokolComponent>>) = Bits(componentIds.size).apply {
-            set.forEach { set(componentId(it)) }
-        }
-
-        return EntityFilter(bitsOf(all), bitsOf(one), bitsOf(none))
+    fun emptyKeyedBlueprint(profile: KeyedEntityProfile): KeyedEntityBlueprint {
+        return KeyedEntityBlueprint(profile, componentMap(makeComponents(profile)))
     }
 
-    fun applies(filter: EntityFilter, archetype: Bits) =
-        archetype.containsAll(filter.all)
-                && (filter.one.isEmpty() || filter.one.intersects(archetype))
-                && !filter.none.intersects(archetype)
-
-    fun define(system: SokolSystem): SystemDefinition {
-        val systemType = system::class
-
-        val all = systemType.findAnnotation<All>()?.types?.asIterable() ?: emptySet()
-        val one = systemType.findAnnotation<One>()?.types?.asIterable() ?: emptySet()
-        val none = systemType.findAnnotation<None>()?.types?.asIterable() ?: emptySet()
-        val priority = systemType.findAnnotation<Priority>()?.value ?: 0
-
-        val eventListeners = HashMap<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>()
-        systemType.functions.forEach { function ->
-            if (function.hasAnnotation<Subscribe>()) {
-                val funcName = function.name
-                fun error(message: String, cause: Throwable? = null): Nothing =
-                    throw IllegalArgumentException("${systemType.qualifiedName}.${funcName}(${function.parameters.joinToString { it.type.toString() }}) -> ${function.returnType}: $message", cause)
-
-                val params = function.parameters
-                if (params.size != 3)
-                    error("Event listener must have parameters (event, entity)")
-
-                val eventType = params[1].type
-                if (!eventType.isSubtypeOf(SokolEvent::class.createType()))
-                    error("Event type must extend ${SokolEvent::class}")
-
-                @Suppress("UNCHECKED_CAST")
-                val eventClass = eventType.classifier as? KClass<out SokolEvent>
-                    ?: error("Event type $eventType is not instance of ${KClass::class}")
-
-                if (eventListeners.contains(eventClass))
-                    error("Duplicate event listener for type $eventClass")
-
-                val handle = try {
-                    handleLookup.unreflect(function.javaMethod
-                        ?: error("Function cannot be expressed as Java method"))
-                } catch (ex: Exception) {
-                    error("Could not make method handle", ex)
-                }.bindTo(system)
-
-                eventListeners[eventClass] = { event, entity -> handle.invoke(event, entity) }
-            }
-        }
-
-        return SystemDefinition(system, entityFilter(all, one, none), priority, eventListeners)
-    }
-
-    fun addSystem(definition: SystemDefinition) {
-        systems.add(definition)
-        systems.sortBy { it.priority }
-    }
+    fun applies(filter: EntityFilter, archetype: Bits) = archetype.containsAll(filter.all)
+        && (filter.one.isEmpty() || filter.one.intersects(archetype))
+        && !filter.none.intersects(archetype)
 
     fun buildEntity(blueprint: EntityBlueprint): SokolEntity {
         val entity = EntityImpl(blueprint.profile, blueprint.components.mutableCopy())
@@ -167,19 +140,6 @@ class SokolEngine internal constructor(
 
     fun <C : SokolComponent> componentMapper(type: KClass<out C>): ComponentMapper<C> =
         ComponentMapperImpl(componentId(type), type.java.name)
-
-    private inner class ComponentMapperImpl<C : SokolComponent>(
-        private val id: Int,
-        private val typeName: String
-    ) : ComponentMapper<C> {
-        override fun has(components: ComponentMap) = components.has(id)
-
-        @Suppress("UNCHECKED_CAST")
-        override fun mapOr(components: ComponentMap) = components.get(id) as? C
-
-        override fun map(components: ComponentMap) = mapOr(components)
-            ?: throw SystemExecutionException("Entity does not have component type $typeName")
-    }
 
     private inner class ComponentMapImpl(
         private val components: Array<SokolComponent?>,
@@ -244,14 +204,28 @@ class SokolEngine internal constructor(
         override fun toString() = "EntityImpl$components"
     }
 
+    private class ComponentMapperImpl<C : SokolComponent>(
+        private val id: Int,
+        private val typeName: String
+    ) : ComponentMapper<C> {
+        override fun has(components: ComponentMap) = components.has(id)
+
+        @Suppress("UNCHECKED_CAST")
+        override fun mapOr(components: ComponentMap) = components.get(id) as? C
+
+        override fun map(components: ComponentMap) = mapOr(components)
+            ?: throw SystemExecutionException("Entity does not have component type $typeName")
+    }
+
     class Builder {
-        private val systemFactories = ArrayList<(SokolEngine) -> SystemDefinition>()
+        private val systemFactories = ArrayList<(ComponentIdAccess) -> SokolSystem>()
         private val componentTypes = ArrayList<KClass<out SokolComponent>>()
+        private val handleLookup = MethodHandles.publicLookup()
 
         fun countSystemFactories() = systemFactories.size
         fun countComponentTypes() = componentTypes.size
 
-        fun systemFactory(factory: (SokolEngine) -> SystemDefinition): Builder {
+        fun systemFactory(factory: (ComponentIdAccess) -> SokolSystem): Builder {
             systemFactories.add(factory)
             return this
         }
@@ -261,12 +235,91 @@ class SokolEngine internal constructor(
             return this
         }
 
+        @Suppress("UnstableApiUsage")
         fun build(): SokolEngine {
-            val engine = SokolEngine(componentTypes.mapIndexed { idx, type -> type to idx }.toMap())
-            systemFactories.forEach { factory ->
-                engine.addSystem(factory(engine))
+            val componentIds = componentTypes.mapIndexed { idx, type -> type to idx }.toMap()
+            val componentIdAccess = object : ComponentIdAccess {
+                override fun countComponentIds() = componentIds.size
+
+                override fun componentId(type: KClass<out SokolComponent>): Int {
+                    return componentIds[type]
+                        ?: throw IllegalArgumentException("Component type $type is not registered")
+                }
             }
-            return engine
+
+            data class SystemPreDefinition(
+                val definition: SystemDefinition,
+                val before: Set<KClass<out SokolSystem>>,
+                val after: Set<KClass<out SokolSystem>>,
+            )
+
+            val systems = systemFactories.associate { factory ->
+                val system = factory(componentIdAccess)
+                val systemType = system::class
+
+                val all = systemType.findAnnotation<All>()?.types?.toSet() ?: emptySet()
+                val one = systemType.findAnnotation<One>()?.types?.toSet() ?: emptySet()
+                val none = systemType.findAnnotation<None>()?.types?.toSet() ?: emptySet()
+                val before = systemType.findAnnotation<Before>()?.types?.toSet() ?: emptySet()
+                val after = systemType.findAnnotation<After>()?.types?.toSet() ?: emptySet()
+
+                val eventListeners = HashMap<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>()
+                systemType.functions.forEach { function ->
+                    if (function.hasAnnotation<Subscribe>()) {
+                        val funcName = function.name
+                        fun error(message: String, cause: Throwable? = null): Nothing =
+                            throw IllegalArgumentException("${systemType.qualifiedName}.${funcName}(${function.parameters.joinToString { it.type.toString() }}) -> ${function.returnType}: $message", cause)
+
+                        val params = function.parameters
+                        if (params.size != 3)
+                            error("Event listener must have parameters (event, entity)")
+
+                        val eventType = params[1].type
+                        if (!eventType.isSubtypeOf(SokolEvent::class.createType()))
+                            error("Event type must extend ${SokolEvent::class}")
+
+                        @Suppress("UNCHECKED_CAST")
+                        val eventClass = eventType.classifier as? KClass<out SokolEvent>
+                            ?: error("Event type $eventType is not instance of ${KClass::class}")
+
+                        if (eventListeners.contains(eventClass))
+                            error("Duplicate event listener for type $eventClass")
+
+                        val handle = try {
+                            handleLookup.unreflect(function.javaMethod
+                                ?: error("Function cannot be expressed as Java method"))
+                        } catch (ex: Exception) {
+                            error("Could not make method handle", ex)
+                        }.bindTo(system)
+
+                        eventListeners[eventClass] = { event, entity -> handle.invoke(event, entity) }
+                    }
+                }
+
+                systemType to SystemPreDefinition(
+                    SystemDefinition(system, componentIdAccess.entityFilter(all, one, none), eventListeners),
+                    before, after
+                )
+            }
+
+            fun target(system: SystemPreDefinition, pos: String, type: KClass<out SokolSystem>) = systems[type]
+                ?: throw IllegalArgumentException("System ${system.definition.system} is attempting to execute $pos $type which is not registered")
+
+            val dependencyGraph = GraphBuilder.directed().build<SystemDefinition>()
+            systems.forEach { (_, system) ->
+                system.after.forEach { targetType ->
+                    val target = target(system, "after", targetType)
+                    dependencyGraph.putEdge(system.definition, target.definition)
+                }
+
+                system.before.forEach { targetType ->
+                    val target = target(system, "before", targetType)
+                    dependencyGraph.putEdge(target.definition, system.definition)
+                }
+            }
+
+            val sorted = dependencyGraph.topologicallySorted().toList()
+            return SokolEngine(sorted, componentIds)
         }
     }
 }

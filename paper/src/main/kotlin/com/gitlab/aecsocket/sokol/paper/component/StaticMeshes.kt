@@ -48,8 +48,8 @@ data class StaticMeshes(
 }
 
 @All(StaticMeshes::class)
-class StaticMeshesSystem(engine: SokolEngine) : SokolSystem {
-    private val mStaticMeshes = engine.componentMapper<StaticMeshes>()
+class StaticMeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mStaticMeshes = mappers.componentMapper<StaticMeshes>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {

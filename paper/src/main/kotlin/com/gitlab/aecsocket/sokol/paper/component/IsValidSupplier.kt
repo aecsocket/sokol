@@ -9,9 +9,9 @@ interface IsValidSupplier : SokolComponent {
 }
 
 @All(IsValidSupplier::class, Composite::class)
-class IsValidSupplierComposeSystem(engine: SokolEngine) : SokolSystem {
-    private val mIsValidSupplier = engine.componentMapper<IsValidSupplier>()
-    private val mComposite = engine.componentMapper<Composite>()
+class IsValidSupplierComposeSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
+    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {

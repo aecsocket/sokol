@@ -10,6 +10,3 @@ fun NBTTagContext.makeBlueprint(sokol: Sokol, blueprint: EntityBlueprint) = make
 fun NBTTagContext.makeEntity(sokol: Sokol, entity: SokolEntity) = makeCompound().apply {
     sokol.persistence.writeEntity(entity, this)
 }
-
-fun NBTTag.asBlueprint(sokol: Sokol) =
-    sokol.persistence.readBlueprint(asCompound())

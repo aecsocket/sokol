@@ -44,11 +44,11 @@ data class Meshes(
 }
 
 @All(Meshes::class, PositionRead::class, TrackedPlayersSupplier::class)
-class MeshesSystem(engine: SokolEngine) : SokolSystem {
-    private val mMeshes = engine.componentMapper<Meshes>()
-    private val mPosition = engine.componentMapper<PositionRead>()
-    private val mTrackedPlayersSupplier = engine.componentMapper<TrackedPlayersSupplier>()
-    private val mComposite = engine.componentMapper<Composite>()
+class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mMeshes = mappers.componentMapper<Meshes>()
+    private val mPosition = mappers.componentMapper<PositionRead>()
+    private val mTrackedPlayersSupplier = mappers.componentMapper<TrackedPlayersSupplier>()
+    private val mComposite = mappers.componentMapper<Composite>()
 
     private fun forEachPart(meshes: Meshes, action: (Pair<Mesh, Meshes.PartDefinition>) -> Unit) {
         meshes.parts.forEach { (def, part) ->

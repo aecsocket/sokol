@@ -67,8 +67,8 @@ class Sokol : BasePlugin(), SokolAPI {
     private val _componentTypes = HashMap<String, ComponentType>()
     val componentTypes: Map<String, ComponentType> get() = _componentTypes
 
-    private val _entityProfiles = Registry.create<EntityProfile>()
-    val entityProfiles: Registry<EntityProfile> get() = _entityProfiles
+    private val _entityProfiles = Registry.create<KeyedEntityProfile>()
+    val entityProfiles: Registry<KeyedEntityProfile> get() = _entityProfiles
 
     override val persistence = PaperSokolPersistence(this)
     val entityResolver = EntityResolver(this)
@@ -87,8 +87,9 @@ class Sokol : BasePlugin(), SokolAPI {
             onInit = {
                 serializers
                     .registerExact(ComponentProfileSerializer(this@Sokol))
-                    .registerExact(EntityProfilerSerializer(this@Sokol))
-                    .registerExact(EntityBlueprintSerializer(this@Sokol))
+                    .registerExact(EntityProfileSerializer)
+                    .registerExact(KeyedEntityProfileSerializer)
+                    .register(EntityBlueprintSerializer(this@Sokol))
                     .register(SokolEntitySerializer)
                     .registerExact(Meshes.PartDefinitionSerializer)
             },
@@ -179,7 +180,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 try {
                     node.node(ENTITY_PROFILES).childrenMap().forEach { (key, child) ->
                         try {
-                            val entityProfile = child.force<EntityProfile>()
+                            val entityProfile = child.force<KeyedEntityProfile>()
                             _entityProfiles.register(entityProfile)
                         } catch (ex: SerializationException) {
                             log.line(LogLevel.Warning, ex) { "Could not read entity profile '$key' from $path" }
@@ -316,20 +317,19 @@ class Sokol : BasePlugin(), SokolAPI {
         registerConsumer(
             onInit = {
                 engine
-                    .systemFactory { it.define(CompositeSystem(it)) }
-                    .systemFactory { it.define(MobInjectorSystem(it)) }
-                    .systemFactory { it.define(PositionComposeSystem(it)) }
-                    .systemFactory { it.define(IsValidSupplierComposeSystem(it)) }
-                    .systemFactory { it.define(TrackedPlayersSupplierComposeSystem(it)) }
-                    .systemFactory { it.define(StaticRelativeTransformSystem(it)) }
-                    .systemFactory { it.define(ColliderSystem(it)) }
-                    .systemFactory { it.define(MeshesSystem(it)) }
-                    .systemFactory { it.define(StaticMeshesSystem(it)) }
-                    .systemFactory { it.define(ItemNameSystem(it)) }
-                    .systemFactory { it.define(StaticItemNameSystem(it)) }
-                    .systemFactory { it.define(ProfileItemNameSystem(it)) }
-                    .systemFactory { it.define(PlaceableSystem(this@Sokol, it)) }
-                    .systemFactory { it.define(StaticPlaceableSystem(it)) }
+                    .systemFactory { MobInjectorSystem(it) }
+                    .systemFactory { PositionComposeSystem(it) }
+                    .systemFactory { IsValidSupplierComposeSystem(it) }
+                    .systemFactory { TrackedPlayersSupplierComposeSystem(it) }
+                    .systemFactory { StaticRelativeTransformSystem(it) }
+                    .systemFactory { ColliderSystem(it) }
+                    .systemFactory { MeshesSystem(it) }
+                    .systemFactory { StaticMeshesSystem(it) }
+                    .systemFactory { ItemNameSystem(it) }
+                    .systemFactory { StaticItemNameSystem(it) }
+                    .systemFactory { ProfileItemNameSystem(it) }
+                    .systemFactory { PlaceableSystem(this@Sokol, it) }
+                    .systemFactory { StaticPlaceableSystem(it) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()

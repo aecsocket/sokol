@@ -51,10 +51,10 @@ data class Rotation(
 }
 
 @All(PositionRead::class, Composite::class)
-class PositionComposeSystem(engine: SokolEngine) : SokolSystem {
-    private val mPositionRead = engine.componentMapper<PositionRead>()
-    private val mComposite = engine.componentMapper<Composite>()
-    private val mRelativeTransform = engine.componentMapper<RelativeTransform>()
+class PositionComposeSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
+    private val mComposite = mappers.componentMapper<Composite>()
+    private val mRelativeTransform = mappers.componentMapper<RelativeTransform>()
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {

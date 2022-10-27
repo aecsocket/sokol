@@ -20,12 +20,12 @@ data class Placeable(
 @All(Placeable::class, HostedByItem::class)
 class PlaceableSystem(
     private val sokol: Sokol,
-    engine: SokolEngine
+    mappers: ComponentIdAccess
 ) : SokolSystem {
-    private val mPlaceable = engine.componentMapper<Placeable>()
-    private val mItem = engine.componentMapper<HostedByItem>()
-    private val mComposite = engine.componentMapper<Composite>()
-    private val mRelativeTransform = engine.componentMapper<RelativeTransform>()
+    private val mPlaceable = mappers.componentMapper<Placeable>()
+    private val mItem = mappers.componentMapper<HostedByItem>()
+    private val mComposite = mappers.componentMapper<Composite>()
+    private val mRelativeTransform = mappers.componentMapper<RelativeTransform>()
 
     @Subscribe
     fun on(event: ItemEvent.ClickAsCurrent, entity: SokolEntity) {

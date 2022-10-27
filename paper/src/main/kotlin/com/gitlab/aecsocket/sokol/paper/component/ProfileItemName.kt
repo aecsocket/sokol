@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
@@ -31,14 +32,18 @@ data class ProfileItemName(val profile: Profile) : PersistentComponent {
 }
 
 @All(ProfileItemName::class)
-class ProfileItemNameSystem(engine: SokolEngine) : SokolSystem {
-    private val mProfileItemName = engine.componentMapper<ProfileItemName>()
+class ProfileItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mProfileItemName = mappers.componentMapper<ProfileItemName>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
         val profileItemName = mProfileItemName.map(entity).profile
 
-        val i18nKey = profileItemName.prefix + entity.profile.id + profileItemName.suffix
+        val profile = entity.profile
+        if (profile !is Keyed)
+            throw SystemExecutionException("Profile must be keyed")
+
+        val i18nKey = profileItemName.prefix + profile.id + profileItemName.suffix
         entity.components.set(ItemName(i18nKey))
     }
 }

@@ -85,9 +85,9 @@ fun hostedByItem(item: ItemStack, meta: ItemMeta) = object : HostedByItem {
 }
 
 @All(HostedByMob::class)
-class MobInjectorSystem(engine: SokolEngine) : SokolSystem {
-    private val mMob = engine.componentMapper<HostedByMob>()
-    private val mRotation = engine.componentMapper<Rotation>()
+class MobInjectorSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mMob = mappers.componentMapper<HostedByMob>()
+    private val mRotation = mappers.componentMapper<Rotation>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {

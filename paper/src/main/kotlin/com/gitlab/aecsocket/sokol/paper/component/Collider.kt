@@ -103,14 +103,13 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
 
 @All(Collider::class, PositionWrite::class, IsValidSupplier::class)
 @One(RigidBody::class, VehicleBody::class)
-@Priority(PRIORITY_EARLY)
-class ColliderSystem(engine: SokolEngine) : SokolSystem {
-    private val mPosition = engine.componentMapper<PositionWrite>()
-    private val mCollider = engine.componentMapper<Collider>()
-    private val mIsValidSupplier = engine.componentMapper<IsValidSupplier>()
+class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mPosition = mappers.componentMapper<PositionWrite>()
+    private val mCollider = mappers.componentMapper<Collider>()
+    private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
 
-    private val mRigidBody = engine.componentMapper<RigidBody>()
-    private val mVehicleBody = engine.componentMapper<VehicleBody>()
+    private val mRigidBody = mappers.componentMapper<RigidBody>()
+    private val mVehicleBody = mappers.componentMapper<VehicleBody>()
 
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {

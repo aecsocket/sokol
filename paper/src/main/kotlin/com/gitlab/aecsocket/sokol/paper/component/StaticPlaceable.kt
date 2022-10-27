@@ -33,8 +33,8 @@ data class StaticPlaceable(val profile: Profile) : PersistentComponent {
 }
 
 @All(StaticPlaceable::class)
-class StaticPlaceableSystem(engine: SokolEngine) : SokolSystem {
-    private val mStaticPlaceable = engine.componentMapper<StaticPlaceable>()
+class StaticPlaceableSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mStaticPlaceable = mappers.componentMapper<StaticPlaceable>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
