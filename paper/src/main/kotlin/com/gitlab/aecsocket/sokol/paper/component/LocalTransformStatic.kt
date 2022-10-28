@@ -8,15 +8,15 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class StaticLocalTransform(
+data class LocalTransformStatic(
     val profile: Profile
 ) : PersistentComponent {
     companion object {
-        val Key = SokolAPI.key("static_local_transform")
+        val Key = SokolAPI.key("local_transform_static")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = StaticLocalTransform::class
+    override val componentType get() = LocalTransformStatic::class
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -26,22 +26,20 @@ data class StaticLocalTransform(
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val transform: Transform,
-    ) : ComponentProfile {
-        override fun read(tag: NBTTag) = StaticLocalTransform(this)
-
-        override fun read(node: ConfigurationNode) = StaticLocalTransform(this)
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = LocalTransformStatic(this)
     }
 }
 
-@All(StaticLocalTransform::class)
-@Before(PositionSystem::class, CompositeTransformSystem::class)
-class StaticLocalTransformSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mStaticLocalTransform = mappers.componentMapper<StaticLocalTransform>()
+@All(LocalTransformStatic::class)
+@Before(LocalTransformTarget::class)
+class LocalTransformStaticSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mLocalTransformStatic = mappers.componentMapper<LocalTransformStatic>()
     private val mLocalTransform = mappers.componentMapper<LocalTransform>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticLocalTransform = mStaticLocalTransform.get(entity)
+        val staticLocalTransform = mLocalTransformStatic.get(entity)
 
         mLocalTransform.set(entity, LocalTransform(staticLocalTransform.profile.transform))
     }

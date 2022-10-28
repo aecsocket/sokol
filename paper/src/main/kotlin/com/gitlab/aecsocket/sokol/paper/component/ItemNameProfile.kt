@@ -7,13 +7,13 @@ import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class ProfileItemName(val profile: Profile) : PersistentComponent {
+data class ItemNameProfile(val profile: Profile) : PersistentComponent {
     companion object {
-        val Key = SokolAPI.key("profile_item_name")
+        val Key = SokolAPI.key("item_name_profile")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = ProfileItemName::class
+    override val componentType get() = ItemNameProfile::class
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -24,21 +24,20 @@ data class ProfileItemName(val profile: Profile) : PersistentComponent {
     data class Profile(
         val prefix: String = "",
         val suffix: String = ""
-    ) : ComponentProfile {
-        override fun read(tag: NBTTag) = ProfileItemName(this)
-
-        override fun read(node: ConfigurationNode) = ProfileItemName(this)
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = ItemNameProfile(this)
     }
 }
 
-@All(ProfileItemName::class)
-class ProfileItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mProfileItemName = mappers.componentMapper<ProfileItemName>()
+@All(ItemNameProfile::class)
+@Before(ItemNameSystem::class)
+class ItemNameProfileSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mItemNameProfile = mappers.componentMapper<ItemNameProfile>()
     private val mItemName = mappers.componentMapper<ItemName>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val profileItemName = mProfileItemName.get(entity).profile
+        val profileItemName = mItemNameProfile.get(entity).profile
 
         val profile = entity.profile
         if (profile !is Keyed)

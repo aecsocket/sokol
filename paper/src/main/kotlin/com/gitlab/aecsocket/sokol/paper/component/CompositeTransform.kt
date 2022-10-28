@@ -10,6 +10,7 @@ data class CompositeTransform(
 }
 
 @All(LocalTransform::class)
+@After(LocalTransformTarget::class)
 class CompositeTransformSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mLocalTransform = mappers.componentMapper<LocalTransform>()
     private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()

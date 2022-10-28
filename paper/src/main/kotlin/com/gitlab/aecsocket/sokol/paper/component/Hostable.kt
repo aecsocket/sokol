@@ -24,10 +24,8 @@ data class HostableByItem(val profile: Profile) : PersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val descriptor: ItemDescriptor,
-    ) : ComponentProfile {
-        override fun read(tag: NBTTag) = HostableByItem(this)
-
-        override fun read(node: ConfigurationNode) = HostableByItem(this)
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = HostableByItem(this)
     }
 }
 

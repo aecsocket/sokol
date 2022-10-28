@@ -12,6 +12,7 @@ data class ItemName(
 }
 
 @All(ItemName::class, HostedByItem::class)
+@After(HostedByItemFormTarget::class)
 class ItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mItemName = mappers.componentMapper<ItemName>()
     private val mItem = mappers.componentMapper<HostedByItem>()

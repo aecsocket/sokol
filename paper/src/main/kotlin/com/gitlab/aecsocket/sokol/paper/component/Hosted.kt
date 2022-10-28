@@ -84,12 +84,26 @@ fun hostedByItem(item: ItemStack, meta: ItemMeta) = object : HostedByItem {
     override fun toString() = "HostedByItem($item)"
 }
 
+object HostedByWorldTarget : SokolSystem
+
+object HostedByChunkTarget : SokolSystem
+
+object HostedByMobTarget : SokolSystem
+
+object HostedByBlockTarget : SokolSystem
+
+object HostedByItemFormTarget : SokolSystem
+
+@After(HostedByItemFormTarget::class)
+object HostedByItemTarget : SokolSystem
+
 @All(HostedByMob::class)
+@Before(HostedByMobTarget::class)
 class MobInjectorSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMob = mappers.componentMapper<HostedByMob>()
     private val mRotation = mappers.componentMapper<Rotation>()
-    private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
-    private val mTrackedPlayersSupplier = mappers.componentMapper<TrackedPlayersSupplier>()
+    private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
+    private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mPositionWrite = mappers.componentMapper<PositionWrite>()
 
@@ -97,11 +111,11 @@ class MobInjectorSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
         val mob = mMob.get(entity).mob
 
-        mIsValidSupplier.set(entity, object : IsValidSupplier {
+        mSupplierIsValid.set(entity, object : SupplierIsValid {
             override val valid: () -> Boolean get() = { mob.isValid }
         })
 
-        mTrackedPlayersSupplier.set(entity, object : TrackedPlayersSupplier {
+        mSupplierTrackedPlayers.set(entity, object : SupplierTrackedPlayers {
             override val trackedPlayers: () -> Set<Player> get() = { mob.trackedPlayers }
         })
 

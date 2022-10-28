@@ -10,7 +10,7 @@ import kotlin.collections.HashMap
 
 data class Composite(
     private val sokol: Sokol,
-    val children: MutableMap<String, SokolEntity> = HashMap(),
+    val children: MutableMap<String, SokolEntity>,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("composite")
@@ -52,6 +52,8 @@ data class Composite(
                 key.toString() to sokol.engine.buildEntity(blueprint)
             }.toMap().toMutableMap()
         )
+
+        override fun readEmpty() = Composite(sokol, HashMap())
     }
 
     class Type(private val sokol: Sokol) : ComponentType {
@@ -60,6 +62,19 @@ data class Composite(
         override fun createProfile(node: ConfigurationNode) = Profile(sokol,
             node.force<HashMap<String, EntityProfile>>())
     }
+}
+
+fun Composite.allChildren(): Map<List<String>, SokolEntity> {
+    val result = HashMap<List<String>, SokolEntity>()
+    children.forEach { (key, entity) ->
+        result[listOf(key)] = entity
+        entity.components.get<Composite>()?.let { child ->
+            child.allChildren().forEach { (subKeys, subChild) ->
+                result[listOf(key) + subKeys] = subChild
+            }
+        }
+    }
+    return result
 }
 
 fun ComponentMapper<Composite>.forEachChild(entity: SokolEntity, action: (Map.Entry<String, SokolEntity>) -> Unit) {

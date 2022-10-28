@@ -7,13 +7,13 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
-data class StaticItemName(val profile: Profile) : PersistentComponent {
+data class ItemNameStatic(val profile: Profile) : PersistentComponent {
     companion object {
-        val Key = SokolAPI.key("static_item_name")
+        val Key = SokolAPI.key("item_name_static")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = StaticItemName::class
+    override val componentType get() = ItemNameStatic::class
     override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -23,21 +23,20 @@ data class StaticItemName(val profile: Profile) : PersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Required val i18nKey: String
-    ) : ComponentProfile {
-        override fun read(tag: NBTTag) = StaticItemName(this)
-
-        override fun read(node: ConfigurationNode) = StaticItemName(this)
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = ItemNameStatic(this)
     }
 }
 
-@All(StaticItemName::class)
-class StaticItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mStaticItemName = mappers.componentMapper<StaticItemName>()
+@All(ItemNameStatic::class)
+@Before(ItemNameSystem::class)
+class ItemNameStaticSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mItemNameStatic = mappers.componentMapper<ItemNameStatic>()
     private val mItemName = mappers.componentMapper<ItemName>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val staticItemName = mStaticItemName.get(entity).profile
+        val staticItemName = mItemNameStatic.get(entity).profile
 
         mItemName.set(entity, ItemName(staticItemName.i18nKey))
     }

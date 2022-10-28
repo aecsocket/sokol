@@ -74,7 +74,7 @@ class Sokol : BasePlugin(), SokolAPI {
     val entityResolver = EntityResolver(this)
     val entityHoster = EntityHoster(this)
     val engineTimings = Timings(60 * 1000)
-    val itemPlacing = ItemPlacing(this)
+    val entityHolding = EntityHolding(this)
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -106,7 +106,7 @@ class Sokol : BasePlugin(), SokolAPI {
             registerListener(PacketInputListener(::onInput), PacketListenerPriority.NORMAL)
         }
 
-        itemPlacing.enable()
+        entityHolding.enable()
     }
 
     override fun initInternal(): Boolean {
@@ -318,22 +318,34 @@ class Sokol : BasePlugin(), SokolAPI {
         registerConsumer(
             onInit = {
                 engine
+                    .systemFactory { HostedByWorldTarget }
+                    .systemFactory { HostedByChunkTarget }
+                    .systemFactory { HostedByMobTarget }
+                    .systemFactory { HostedByBlockTarget }
+                    .systemFactory { HostedByItemFormTarget }
+                    .systemFactory { HostedByItemTarget }
                     .systemFactory { MobInjectorSystem(it) }
                     .systemFactory { ForwardingSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
                     .systemFactory { PositionSystem(it) }
-                    .systemFactory { IsValidSupplierComposeSystem(it) }
-                    .systemFactory { TrackedPlayersSupplierComposeSystem(it) }
-                    .systemFactory { StaticLocalTransformSystem(it) }
+                    .systemFactory { SupplierIsValidTarget }
+                    .systemFactory { SupplierIsValidBuildSystem(it) }
+                    .systemFactory { SupplierTrackedPlayersTarget }
+                    .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
+                    .systemFactory { LocalTransformTarget }
+                    .systemFactory { LocalTransformStaticSystem(it) }
                     .systemFactory { ColliderBuildSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { MeshesSystem(it) }
-                    .systemFactory { StaticMeshesSystem(it) }
+                    .systemFactory { MeshesInWorldSystem(it) }
+                    .systemFactory { MeshesStaticSystem(it) }
+                    .systemFactory { MeshesItemSystem(this@Sokol, it) }
                     .systemFactory { ItemNameSystem(it) }
-                    .systemFactory { StaticItemNameSystem(it) }
-                    .systemFactory { ProfileItemNameSystem(it) }
-                    .systemFactory { PlaceableSystem(this@Sokol, it) }
-                    .systemFactory { StaticPlaceableSystem(it) }
+                    .systemFactory { ItemNameStaticSystem(it) }
+                    .systemFactory { ItemNameProfileSystem(it) }
+                    .systemFactory { HoldableBuildSystem(it) }
+                    .systemFactory { HoldableSystem(this@Sokol, it) }
+                    .systemFactory { HoldableStaticSystem(it) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
@@ -342,41 +354,44 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostedByItem>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
-                    .componentType<IsValidSupplier>()
-                    .componentType<TrackedPlayersSupplier>()
+                    .componentType<SupplierIsValid>()
+                    .componentType<SupplierTrackedPlayers>()
                     .componentType<ItemHolder>()
-
                     .componentType<HostableByMob>()
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
                     .componentType<Forwarding>()
                     .componentType<LocalTransform>()
-                    .componentType<StaticLocalTransform>()
+                    .componentType<LocalTransformStatic>()
                     .componentType<CompositeTransform>()
                     .componentType<Rotation>()
                     .componentType<Collider>()
                     .componentType<RigidBody>()
                     .componentType<VehicleBody>()
                     .componentType<Meshes>()
-                    .componentType<StaticMeshes>()
+                    .componentType<MeshesStatic>()
+                    .componentType<MeshesItem>()
+                    .componentType<MeshesInWorld>()
                     .componentType<ItemName>()
-                    .componentType<StaticItemName>()
-                    .componentType<ProfileItemName>()
-                    .componentType<Placeable>()
-                    .componentType<StaticPlaceable>()
+                    .componentType<ItemNameStatic>()
+                    .componentType<ItemNameProfile>()
+                    .componentType<Holdable>()
+                    .componentType<HoldableStatic>()
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
                 registerComponentType(Forwarding.Type)
-                registerComponentType(StaticLocalTransform.Type)
+                registerComponentType(LocalTransformStatic.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(Collider.Type)
                 registerComponentType(RigidBody.Type)
                 registerComponentType(VehicleBody.Type)
-                registerComponentType(StaticMeshes.Type)
-                registerComponentType(StaticItemName.Type)
-                registerComponentType(ProfileItemName.Type)
-                registerComponentType(StaticPlaceable.Type)
+                registerComponentType(MeshesStatic.Type)
+                registerComponentType(MeshesItem.Type)
+                registerComponentType(MeshesInWorld.Type)
+                registerComponentType(ItemNameStatic.Type)
+                registerComponentType(ItemNameProfile.Type)
+                registerComponentType(HoldableStatic.Type)
             }
         )
     }

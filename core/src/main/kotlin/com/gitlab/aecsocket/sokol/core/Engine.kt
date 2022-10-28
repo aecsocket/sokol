@@ -43,6 +43,8 @@ interface ComponentMapper<C : SokolComponent> {
     fun get(components: ComponentMap): C
 
     fun set(components: MutableComponentMap, component: C)
+
+    fun remove(components: MutableComponentMap)
 }
 
 fun <C : SokolComponent> ComponentMapper<C>.has(holder: ComponentMapHolder) = has(holder.components)
@@ -52,6 +54,8 @@ fun <C : SokolComponent> ComponentMapper<C>.getOr(holder: ComponentMapHolder) = 
 fun <C : SokolComponent> ComponentMapper<C>.get(holder: ComponentMapHolder) = get(holder.components)
 
 fun <C : SokolComponent> ComponentMapper<C>.set(holder: ComponentMapHolder, component: C) = set(holder.components, component)
+
+fun <C : SokolComponent> ComponentMapper<C>.remove(holder: ComponentMapHolder) = remove(holder.components)
 
 fun <C : SokolComponent> componentMapperOf(id: Int, type: KClass<out SokolComponent>) = object : ComponentMapper<C> {
     val typeName = type.java.name
@@ -66,6 +70,10 @@ fun <C : SokolComponent> componentMapperOf(id: Int, type: KClass<out SokolCompon
 
     override fun set(components: MutableComponentMap, component: C) {
         components.set(id, component)
+    }
+
+    override fun remove(components: MutableComponentMap) {
+        components.removeById(id)
     }
 }
 
@@ -144,7 +152,7 @@ class SokolEngine internal constructor(
 
     fun buildEntity(blueprint: EntityBlueprint): SokolEntity {
         val entity = EntityImpl(blueprint.profile, blueprint.components.mutableCopy())
-        entity.call(SokolEvent.Populate)
+        entity.call(SokolEvent.Populate(blueprint))
         return entity
     }
 
@@ -193,21 +201,41 @@ class SokolEngine internal constructor(
         }
     }
 
-    private inner class EntityImpl(
+    data class SystemExecutionResult(
+        val system: SokolSystem,
+        val executed: Boolean,
+    )
+
+    data class EventCallResult(
+        val event: SokolEvent,
+        val systems: List<SystemExecutionResult>
+    )
+
+    inner class EntityImpl(
         override val profile: EntityProfile,
         override val components: MutableComponentMap
     ) : SokolEntity {
+        // TODO this should probably be a toggle because it can be intensive?
+        // or another class which doesn't do logging
+        val callResults = ArrayList<EventCallResult>()
+
         override fun <E : SokolEvent> call(event: E): E {
             val eventType = event::class
+            val systemResults = ArrayList<SystemExecutionResult>()
+            val callResult = EventCallResult(event, systemResults)
             systems.forEach { system ->
                 if (applies(system.filter, components.archetype())) {
+                    systemResults.add(SystemExecutionResult(system.system, true))
                     system.eventListeners.forEach { (type, listener) ->
                         if (eventType.isSubclassOf(type)) {
                             listener(event, this)
                         }
                     }
+                } else {
+                    systemResults.add(SystemExecutionResult(system.system, false))
                 }
             }
+            callResults.add(callResult)
             return event
         }
 

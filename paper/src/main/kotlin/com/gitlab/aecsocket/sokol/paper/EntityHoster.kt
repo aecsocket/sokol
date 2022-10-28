@@ -1,11 +1,15 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.gitlab.aecsocket.sokol.paper.util.spawnMarkerEntity
 import net.kyori.adventure.key.Key
 import org.bukkit.Location
+import org.bukkit.World
+import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
@@ -16,12 +20,14 @@ class EntityHoster internal constructor(
     private lateinit var mAsItem: ComponentMapper<HostableByItem>
     private lateinit var mMob: ComponentMapper<HostedByMob>
     private lateinit var mItem: ComponentMapper<HostedByItem>
+    private lateinit var mRotation: ComponentMapper<Rotation>
 
     internal fun enable() {
         mAsMob = sokol.engine.componentMapper()
         mAsItem = sokol.engine.componentMapper()
         mMob = sokol.engine.componentMapper()
         mItem = sokol.engine.componentMapper()
+        mRotation = sokol.engine.componentMapper()
     }
 
     fun canHost(blueprint: EntityBlueprint, type: SokolObjectType): Boolean {
@@ -54,6 +60,15 @@ class EntityHoster internal constructor(
     fun hostMob(blueprint: EntityBlueprint, location: Location) = hostMobOr(blueprint, location)
         ?: hostError(HostableByMob.key, "mob")
 
+    fun hostMobOr(blueprint: EntityBlueprint, world: World, transform: Transform): Entity? {
+        val location = transform.translation.location(world)
+        mRotation.set(blueprint, Rotation(transform.rotation))
+        return hostMobOr(blueprint, location)
+    }
+
+    fun hostMob(blueprint: EntityBlueprint, world: World, transform: Transform) = hostMobOr(blueprint, world, transform)
+        ?: hostError(HostableByMob.key, "mob")
+
     private fun hostItemInternal(blueprint: EntityBlueprint, consumer: (SokolEntity, ItemMeta) -> Unit): ItemStack? {
         val hostable = mAsItem.getOr(blueprint) ?: return null
         val item = hostable.profile.descriptor.create()
@@ -68,7 +83,6 @@ class EntityHoster internal constructor(
 
     fun hostItemOr(blueprint: EntityBlueprint): ItemStack? {
         return hostItemInternal(blueprint) { entity, meta ->
-            entity.call(ItemEvent.CreateForm)
             entity.call(SokolEvent.Add)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
@@ -78,7 +92,7 @@ class EntityHoster internal constructor(
         ?: hostError(HostableByItem.Key, "item")
 
     fun createItemFormOr(blueprint: EntityBlueprint): ItemStack? {
-        return hostItemInternal(blueprint) { entity, meta ->
+        return hostItemInternal(blueprint) { entity, _ ->
             entity.call(ItemEvent.CreateForm)
         }
     }

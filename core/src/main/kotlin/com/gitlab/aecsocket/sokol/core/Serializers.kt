@@ -73,7 +73,7 @@ fun deserializeBlueprintByProfile(
     val components = entityProfile.componentProfiles.map { (key, profile) ->
         val config = node.node(key.asString())
         try {
-            profile.read(config)
+            if (config.empty()) profile.readEmpty() else profile.read(config)
         } catch (ex: PersistenceException) {
             throw SerializationException(config, EntityBlueprint::class.java, "Could not read component $key")
         }

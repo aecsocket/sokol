@@ -22,9 +22,8 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
 
     fun readBlueprintByProfile(entityProfile: EntityProfile, tag: CompoundNBTTag): EntityBlueprint {
         val components = entityProfile.componentProfiles.map { (key, profile) ->
-            val config = tag[key.asString()] ?: tag.makeCompound()
             try {
-                profile.read(config)
+                tag[key.asString()]?.let { profile.read(it) } ?: profile.readEmpty()
             } catch (ex: PersistenceException) {
                 throw PersistenceException("Could not read component $key", ex)
             }

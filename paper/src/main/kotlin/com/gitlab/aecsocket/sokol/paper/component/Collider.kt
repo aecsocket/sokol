@@ -70,6 +70,8 @@ data class Collider(
             node.node(CENTER_OF_MASS).get { Vector3.Zero },
             node.node(BODY_ID).getIfExists()
         )
+
+        override fun readEmpty() = Collider(this, null, Vector3.Zero, null)
     }
 }
 
@@ -135,12 +137,13 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(Collider::class, PositionWrite::class, IsValidSupplier::class)
+@All(Collider::class, PositionWrite::class, SupplierIsValid::class)
 @One(RigidBody::class, VehicleBody::class)
+@After(SupplierIsValidTarget::class)
 class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionWrite>()
     private val mCollider = mappers.componentMapper<Collider>()
-    private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
+    private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
     private val mRigidBody = mappers.componentMapper<RigidBody>()
     private val mVehicleBody = mappers.componentMapper<VehicleBody>()
 
@@ -196,7 +199,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
         val position = mPosition.get(entity)
         val collider = mCollider.get(entity)
-        val isValid = mIsValidSupplier.get(entity).valid
+        val isValid = mSupplierIsValid.get(entity).valid
 
         val (shape, mass, centerOfMass) = buildBody(entity)
 

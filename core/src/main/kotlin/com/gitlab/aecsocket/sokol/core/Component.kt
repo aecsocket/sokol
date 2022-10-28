@@ -25,6 +25,14 @@ interface ComponentProfile {
     fun read(tag: NBTTag): PersistentComponent
 
     fun read(node: ConfigurationNode): PersistentComponent
+
+    fun readEmpty(): PersistentComponent
+}
+
+fun interface NonReadingComponentProfile : ComponentProfile {
+    override fun read(tag: NBTTag) = readEmpty()
+
+    override fun read(node: ConfigurationNode) = readEmpty()
 }
 
 interface ComponentType {
@@ -40,6 +48,8 @@ interface ComponentType {
                 override fun read(tag: NBTTag) = component
 
                 override fun read(node: ConfigurationNode) = component
+
+                override fun readEmpty() = component
             }
         }
 

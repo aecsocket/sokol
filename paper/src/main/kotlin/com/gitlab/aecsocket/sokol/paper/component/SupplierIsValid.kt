@@ -2,23 +2,26 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.sokol.core.*
 
-interface IsValidSupplier : SokolComponent {
-    override val componentType get() = IsValidSupplier::class
+interface SupplierIsValid : SokolComponent {
+    override val componentType get() = SupplierIsValid::class
 
     val valid: () -> Boolean
 }
 
-@All(IsValidSupplier::class, Composite::class)
-class IsValidSupplierComposeSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mIsValidSupplier = mappers.componentMapper<IsValidSupplier>()
+object SupplierIsValidTarget : SokolSystem
+
+@All(SupplierIsValid::class, Composite::class)
+@Before(SupplierIsValidTarget::class)
+class SupplierIsValidBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {
-        val isValidSupplier = mIsValidSupplier.get(entity)
+        val isValidSupplier = mSupplierIsValid.get(entity)
 
         mComposite.forEachChild(entity) { (_, child) ->
-            mIsValidSupplier.set(child, isValidSupplier)
+            mSupplierIsValid.set(child, isValidSupplier)
             child.call(Compose)
         }
     }

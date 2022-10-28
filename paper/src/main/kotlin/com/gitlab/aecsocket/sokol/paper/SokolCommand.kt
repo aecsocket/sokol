@@ -1,29 +1,32 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
-import cloud.commandframework.bukkit.argument.NamespacedKeyArgument
 import cloud.commandframework.bukkit.parsers.location.LocationArgument
 import cloud.commandframework.bukkit.parsers.selector.MultipleEntitySelectorArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeArgument
 import com.gitlab.aecsocket.alexandria.core.extension.*
+import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
 import com.gitlab.aecsocket.craftbullet.core.Timings
+import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.glossa.core.I18N
+import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.JoinConfiguration
 import org.bukkit.Location
-import org.bukkit.NamespacedKey
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 import org.bukkit.inventory.EquipmentSlot
 import org.spongepowered.configurate.ConfigurationNode
-import java.util.Optional
+import org.spongepowered.configurate.serialize.SerializationException
 
 private val TIMING_INTERVALS = listOf(5, 30, 60)
 
@@ -56,27 +59,34 @@ internal class SokolCommand(
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
 
-        fun <C> NamespacedKeyArgument.Builder<C>.componentType() =
-            withSuggestionsProvider { _, _ -> plugin.componentTypes.keys.toList() }
-            .asOptional()
+        val holding = root
+            .literal("holding", desc("Tools for manipulating the current held item."))
+        manager.command(holding
+            .literal("freeze", desc("Freezes the held item in place."))
+            .argument(BooleanArgument.optional("enable"), desc("If the item should be frozen."))
+            .permission(perm("holding.freeze"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::holdingFreeze) })
+        manager.command(holding
+            .literal("shape", desc("Draws the shape from a config on the held item."))
+            .argument(ConfigurationNodeArgument("config", { AlexandriaAPI.configLoader().buildAndLoadString(it) }), desc("The configuration node."))
+            .permission(perm("holding.shape"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::holdingShape) })
 
         val state = root
             .literal("state", desc("Access the state of an entity in the world."))
         val stateRead = state
-            .literal("read", desc("Reads the state of an entity in the world."))
+            .literal("read", desc("Read the state of an entity in the world."))
         manager.command(stateRead
-            .literal("mob", desc("Reads the state of the entity in a mob."))
+            .literal("mob", desc("Read from a mob."))
             .argument(MultipleEntitySelectorArgument.of("targets"), desc("Mobs to read entities from."))
-            .argument(NamespacedKeyArgument.builder<CommandSender>("component-type")
-                .componentType(), desc("Key of the component to read."))
             .permission(perm("state.read.mob"))
             .handler { handle(it, ::stateReadMob) })
         manager.command(stateRead
-            .literal("item", desc("Reads the state of an item in a player's inventory."))
+            .literal("item", desc("Read from an item in a player inventory."))
             .argument(PlayerInventorySlotArgument("slot", required = false), desc("Slot to read item from."))
             .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to get items from."))
-            .argument(NamespacedKeyArgument.builder<CommandSender>("component-type")
-                .componentType(), desc("Key of the component to read."))
             .permission(perm("state.read.item"))
             .handler { handle(it, ::stateReadItem) })
         val stateWrite = state
@@ -87,6 +97,20 @@ internal class SokolCommand(
             .argument(ConfigurationNodeArgument("data", { AlexandriaAPI.configLoader().buildAndLoadString(it) }), desc(""))
             .permission(perm("state.write.mob"))
             .handler { handle(it, ::stateWriteMob) })
+
+        val composite = root
+            .literal("composite", desc("Read the info of a composite tree of an entity."))
+        manager.command(composite
+            .literal("mob", desc("Read from a mob."))
+            .argument(MultipleEntitySelectorArgument.of("targets"), desc("Mobs to read entities from."))
+            .permission(perm("composite.mob"))
+            .handler { handle(it, ::compositeReadMob) })
+        manager.command(composite
+            .literal("item", desc("Read from an item in a player inventory."))
+            .argument(PlayerInventorySlotArgument("slot", required = false), desc("Slot to read item from."))
+            .argument(MultiplePlayerSelectorArgument.optional("targets"), desc("Players to get items from."))
+            .permission(perm("composite.mob"))
+            .handler { handle(it, ::compositeReadItem) })
     }
 
     fun stats(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
@@ -182,17 +206,38 @@ internal class SokolCommand(
         })
     }
 
-    fun stateReadComponentType(i18n: I18N<Component>, key: Optional<NamespacedKey>) = key
-        .map { plugin.componentType(it) ?: error(i18n.safe("error.invalid_component_type") {
-            subst("component_type", text(it.toString()))
-        }) }
-        .orElse(null)
+    fun holdingFreeze(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val player = sender as Player
+        val holding = player.alexandria.entityHolding ?: error(i18n.safe("error.not_holding"))
+        val enable = ctx.value("enable") { !holding.frozen }
+
+        holding.frozen = enable
+        plugin.sendMessage(sender, i18n.csafe("holding.freeze.${if (enable) "enable" else "disable"}"))
+    }
+
+    fun holdingShape(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val player = sender as Player
+        val holding = player.alexandria.entityHolding ?: error(i18n.safe("error.not_holding"))
+        val shape = try {
+            var node = ctx.get<ConfigurationNode>("config")
+            // hocon serializers only accepts map nodes as root
+            // if someone wants to define a compound `[...]` they use `{_:[...]}`
+            if (node.hasChild("_"))
+                node = node.node("_")
+            node.force<Shape>()
+        } catch (ex: SerializationException) {
+            error(i18n.safe("error.parse_shape"), ex)
+        }
+
+        CraftBulletAPI.executePhysics {
+            holding.drawShape = collisionOf(shape)
+        }
+    }
 
     fun stateRead(
         ctx: Context,
         sender: CommandSender,
         i18n: I18N<Component>,
-        componentType: ComponentType?,
         entity: SokolEntity,
         name: Component,
     ) {
@@ -228,12 +273,11 @@ internal class SokolCommand(
 
     fun stateReadMob(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val targets = ctx.entities("targets", sender, i18n)
-        val componentType = stateReadComponentType(i18n, ctx.getOptional("component-type"))
 
         var results = 0
         targets.forEach { target ->
             plugin.useMob(target, false) { entity ->
-                stateRead(ctx, sender, i18n, componentType, entity, target.name())
+                stateRead(ctx, sender, i18n, entity, target.name())
                 results++
             }
         }
@@ -246,7 +290,6 @@ internal class SokolCommand(
     fun stateReadItem(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val slot = ctx.value<PlayerInventorySlot>("slot") { PlayerInventorySlot.ByEquipment(EquipmentSlot.HAND) }
         val targets = ctx.players("targets", sender, i18n)
-        val componentType = stateReadComponentType(i18n, ctx.getOptional("component-type"))
 
         var results = 0
         targets.forEach { target ->
@@ -256,7 +299,7 @@ internal class SokolCommand(
                     blueprint.components.set(ItemHolder.byPlayer(target, slot.asInt(target.inventory)))
                 }
             ) { entity ->
-                stateRead(ctx, sender, i18n, componentType, entity, item.displayName())
+                stateRead(ctx, sender, i18n, entity, item.displayName())
                 results++
             }
         }
@@ -317,5 +360,13 @@ internal class SokolCommand(
         plugin.sendMessage(sender, i18n.csafe("state.write.complete") {
             icu("results", results)
         })*/
+    }
+
+    fun compositeReadMob(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        // todo
+    }
+
+    fun compositeReadItem(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        // todo
     }
 }
