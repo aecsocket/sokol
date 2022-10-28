@@ -83,7 +83,8 @@ class EntityHoster internal constructor(
 
     fun hostItemOr(blueprint: EntityBlueprint): ItemStack? {
         return hostItemInternal(blueprint) { entity, meta ->
-            entity.call(SokolEvent.Add)
+            entity.call(ItemEvent.CreateForm)
+            entity.call(ItemEvent.Create)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
     }

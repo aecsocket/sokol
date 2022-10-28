@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.ItemEvent
 import net.kyori.adventure.text.Component.text
 import net.kyori.adventure.text.format.TextDecoration
 
@@ -19,7 +20,7 @@ class ItemNameSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mItemHolder = mappers.componentMapper<ItemHolder>()
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntity) {
+    fun on(event: ItemEvent.Create, entity: SokolEntity) {
         val itemName = mItemName.get(entity)
         val item = mItem.get(entity)
         val itemHolder = mItemHolder.getOr(entity)

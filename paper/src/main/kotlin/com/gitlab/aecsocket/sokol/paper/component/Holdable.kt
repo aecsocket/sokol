@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
@@ -9,6 +10,7 @@ import org.bukkit.entity.Player
 
 data class Holdable(
     val settings: EntityHolding.StateSettings,
+    var removed: Boolean = false,
 ) : SokolComponent {
     override val componentType get() = Holdable::class
 }
@@ -52,8 +54,11 @@ class HoldableBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     ) : SokolEvent
 }
 
+object HoldableTarget : SokolSystem
+
 @All(Holdable::class, HostedByItem::class)
-class HoldableSystem(
+@After(HoldableTarget::class)
+class HoldableItemSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
 ) : SokolSystem {
@@ -61,7 +66,7 @@ class HoldableSystem(
 
     @Subscribe
     fun on(event: ItemEvent.ClickAsCurrent, entity: SokolEntity) {
-        val placeable = mHoldable.get(entity)
+        val holdable = mHoldable.get(entity)
         val player = event.player
 
         if (event.isRightClick && event.isShiftClick) {
@@ -78,13 +83,47 @@ class HoldableSystem(
             if (parts.isEmpty()) return
 
             sokol.entityHolding.enter(player.alexandria, EntityHolding.State(
-                placeable.settings,
-                entity,
+                holdable.settings,
                 event.backing.slot,
                 player.alexandria.acquireLock(PlayerLock.RaiseHand),
                 worldTransform,
                 parts
             ))
+        }
+    }
+}
+
+@All(Holdable::class, HostedByMob::class)
+@Before(OnInputSystem::class)
+@After(HoldableTarget::class)
+class HoldableMobSystem(
+    private val sokol: Sokol,
+    mappers: ComponentIdAccess
+) : SokolSystem {
+    companion object {
+        val Take = SokolAPI.key("holdable_mob/take")
+    }
+
+    private val mHoldable = mappers.componentMapper<Holdable>()
+    private val mMob = mappers.componentMapper<HostedByMob>()
+    private val mAsItem = mappers.componentMapper<HostableByItem>()
+
+    @Subscribe
+    fun on(event: OnInputSystem.Build, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val mob = mMob.get(entity).mob
+
+        event.addAction(Take) { (_, player, cancel) ->
+            if (holdable.removed) return@addAction
+            mAsItem.getOr(entity)?.let {
+                cancel()
+
+                holdable.removed = true
+                mob.remove()
+
+                val item = sokol.entityHoster.hostItem(entity.toBlueprint())
+                player.inventory.addItem(item)
+            }
         }
     }
 }

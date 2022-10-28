@@ -5,6 +5,8 @@ import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
+import com.gitlab.aecsocket.sokol.paper.writeEntityTagTo
 import org.bukkit.Chunk
 import org.bukkit.World
 import org.bukkit.block.Block
@@ -99,11 +101,15 @@ object HostedByItemTarget : SokolSystem
 
 @All(HostedByMob::class)
 @Before(HostedByMobTarget::class)
-class MobInjectorSystem(mappers: ComponentIdAccess) : SokolSystem {
+class MobInjectorSystem(
+    private val sokol: Sokol,
+    mappers: ComponentIdAccess
+) : SokolSystem {
     private val mMob = mappers.componentMapper<HostedByMob>()
     private val mRotation = mappers.componentMapper<Rotation>()
     private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
+    private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mPositionWrite = mappers.componentMapper<PositionWrite>()
 
@@ -117,6 +123,13 @@ class MobInjectorSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         mSupplierTrackedPlayers.set(entity, object : SupplierTrackedPlayers {
             override val trackedPlayers: () -> Set<Player> get() = { mob.trackedPlayers }
+        })
+
+        mSupplierEntityAccess.set(entity, object : SupplierEntityAccess {
+            override fun useEntity(consumer: (SokolEntity) -> Unit) {
+                consumer(entity)
+                sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
+            }
         })
 
         val rotation = mRotation.getOr(entity)

@@ -25,11 +25,7 @@ interface ItemEvent : SokolEvent {
     // useful for when we make a mesh of the item
     object CreateForm : ItemEvent
 
-    data class PlayerInput(
-        val input: Input,
-        val player: Player,
-        val cancel: () -> Unit,
-    ) : ItemEvent
+    object Create : ItemEvent
 
     open class Click(
         val player: Player,
@@ -48,3 +44,9 @@ interface ItemEvent : SokolEvent {
 
     class ClickAsCursor(player: Player, backing: InventoryClickEvent) : Click(player, backing)
 }
+
+data class PlayerInput(
+    val input: Input,
+    val player: Player,
+    val cancel: () -> Unit,
+) : SokolEvent

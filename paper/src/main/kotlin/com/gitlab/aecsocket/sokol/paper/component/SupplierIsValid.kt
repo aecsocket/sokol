@@ -18,10 +18,10 @@ class SupplierIsValidBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Compose, entity: SokolEntity) {
-        val isValidSupplier = mSupplierIsValid.get(entity)
+        val supplierIsValid = mSupplierIsValid.get(entity)
 
         mComposite.forEachChild(entity) { (_, child) ->
-            mSupplierIsValid.set(child, isValidSupplier)
+            mSupplierIsValid.set(child, supplierIsValid)
             child.call(Compose)
         }
     }

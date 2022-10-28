@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.EntityHolding
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
@@ -30,15 +31,15 @@ data class HoldableStatic(val profile: Profile) : PersistentComponent {
 }
 
 @All(HoldableStatic::class)
-@Before(HoldableSystem::class)
+@Before(HoldableTarget::class)
 class HoldableStaticSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mHoldableStatic = mappers.componentMapper<HoldableStatic>()
     private val mHoldable = mappers.componentMapper<Holdable>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val holdableStatic = mHoldableStatic.get(entity).profile
+        val holdableStatic = mHoldableStatic.get(entity)
 
-        mHoldable.set(entity, Holdable(holdableStatic.settings))
+        mHoldable.set(entity, Holdable(holdableStatic.profile.settings))
     }
 }

@@ -113,7 +113,11 @@ class EntityResolver internal constructor(
                 }
 
                 builder(blueprint)
-                val entity = sokol.engine.buildEntity(blueprint)
+                val entity = try {
+                    sokol.engine.buildEntity(blueprint)
+                } catch (ex: Exception) {
+                    throw EntityResolutionException("Could not build entity", ex)
+                }
 
                 try {
                     callback(entity)

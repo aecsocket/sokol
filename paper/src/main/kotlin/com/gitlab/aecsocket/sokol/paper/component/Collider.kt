@@ -260,12 +260,10 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         val collider = mCollider.get(entity)
 
         val physSpace = CraftBulletAPI.spaceOf(position.world)
-
-
         physSpace.trackedBy(collider.bodyId ?: return)?.let { tracked ->
-            val body = tracked.body
             if (tracked !is SokolPhysicsObject)
-                throw SystemExecutionException("Collider physics body is not of type ${SokolPhysicsObject::class}")
+                throw SystemExecutionException("Collider physics body is of type ${tracked::class}, expected ${SokolPhysicsObject::class}")
+            val body = tracked.body
 
             tracked.entity = entity
             position.transform = Transform(
@@ -295,6 +293,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     object RebuildBody : SokolEvent
 
     // NB: modifying component data during this will not persist
+    // use SupplierEntityAccess instead
     data class PhysicsUpdate(
         val body: TrackedPhysicsObject
     ) : SokolEvent

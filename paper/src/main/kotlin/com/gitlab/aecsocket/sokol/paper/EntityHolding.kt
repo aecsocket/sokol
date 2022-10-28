@@ -8,17 +8,20 @@ import com.gitlab.aecsocket.craftbullet.core.hitNormal
 import com.gitlab.aecsocket.craftbullet.paper.CraftBullet
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.craftbullet.paper.bullet
+import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.toBlueprint
 import com.jme3.bullet.collision.shapes.CollisionShape
+import org.bukkit.GameMode
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerItemHeldEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import kotlin.math.PI
@@ -41,7 +44,6 @@ class EntityHolding(
 
     data class State(
         val settings: StateSettings,
-        val entity: SokolEntity,
         val slotId: Int,
         var raiseHandLock: PlayerLockInstance,
         var transform: Transform,
@@ -59,16 +61,11 @@ class EntityHolding(
             state?.let { state ->
                 val from = player.handle.eyeLocation
                 val direction = from.direction.alexandria()
-
                 val snapDistance = state.settings.snapDistance
-                val snapTo = from + direction * snapDistance
-                val physSpace = CraftBulletAPI.spaceOf(from.world)
 
                 CraftBulletAPI.executePhysics {
                     if (!state.frozen) {
-                        val playerBody = player.handle
-                        val result = physSpace.rayTestWorld(from.bullet(), snapTo.bullet())
-                            .firstOrNull { it.collisionObject !== playerBody }
+                        val result = player.handle.rayTestFrom(snapDistance.toFloat()).firstOrNull()
 
                         state.transform = if (result == null) {
                             Transform(
@@ -130,15 +127,27 @@ class EntityHolding(
                     event.isCancelled = true
                     if (!event.action.isRightClick) return
 
-                    // todo remove item here
-                    sokol.entityHoster.hostMob(state.entity.toBlueprint(), player.handle.world, state.transform)
+                    player.handle.inventory.getItem(state.slotId)?.let { slotItem ->
+                        sokol.useItem(slotItem, false) { slotEntity ->
+                            // todo remove item here
+                            if (player.handle.gameMode != GameMode.CREATIVE) {
+                                slotItem.subtract()
+                                if (slotItem.amount == 0) {
+                                    exitInternal(player, state)
+                                    data.state = null
+                                }
+                            }
+
+                            sokol.entityHoster.hostMob(slotEntity.toBlueprint(), player.handle.world, state.transform)
+                        }
+                    }
                 }
             }
 
             @EventHandler(priority = EventPriority.HIGH)
             fun on(event: InventoryClickEvent) {
                 val player = (event.whoClicked as? Player ?: return).alexandria
-                player.featureData(this@EntityHolding).state?.let { state ->
+                player.entityHolding?.let { state ->
                     val slotId = state.slotId
                     if (event.slot == slotId || event.hotbarButton == slotId) {
                         event.isCancelled = true

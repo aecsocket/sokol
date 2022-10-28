@@ -7,9 +7,12 @@ import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.core.keyed.*
+import com.gitlab.aecsocket.alexandria.core.serializer.InputMapperSerializer
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.Timings
+import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
+import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.EntityBlueprintSerializer
 import com.gitlab.aecsocket.sokol.paper.component.*
@@ -25,6 +28,8 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
+import java.util.concurrent.ThreadLocalRandom
+import kotlin.random.Random
 
 internal typealias Mob = Entity
 internal typealias Item = ItemStack
@@ -41,6 +46,7 @@ class Sokol : BasePlugin(), SokolAPI {
     @ConfigSerializable
     data class Settings(
         val enableBstats: Boolean = true,
+        val entityTargetDistance: Double = 0.0,
     )
 
     private data class Registration(
@@ -77,6 +83,7 @@ class Sokol : BasePlugin(), SokolAPI {
     val entityHolding = EntityHolding(this)
 
     internal val mobsAdded = HashSet<Int>()
+    private lateinit var mSupplierEntityAccess: ComponentMapper<SupplierEntityAccess>
     private val registrations = ArrayList<Registration>()
     private var hasReloaded = false
 
@@ -92,6 +99,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .register(EntityBlueprintSerializer(this@Sokol))
                     .register(SokolEntitySerializer)
                     .registerExact(Meshes.PartDefinitionSerializer)
+                    .register(InputMapperSerializer<List<Key>>())
             },
             onLoad = {
                 addDefaultI18N()
@@ -133,6 +141,7 @@ class Sokol : BasePlugin(), SokolAPI {
 
             entityResolver.enable()
             entityHoster.enable()
+            mSupplierEntityAccess = engine.componentMapper()
             space = SokolSpace(engine)
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
@@ -302,14 +311,33 @@ class Sokol : BasePlugin(), SokolAPI {
         }
     }
 
+    internal fun handleInput(player: Player, input: Input, cancel: () -> Unit) {
+        val event = PlayerInput(input, player, cancel)
+
+        usePlayerItems(player, false) { entity ->
+            entity.call(event)
+        }
+
+        CraftBulletAPI.executePhysics {
+            player.rayTestFrom(settings.entityTargetDistance.toFloat()).firstOrNull()?.let { result ->
+                val obj = result.collisionObject
+                if (obj is SokolPhysicsObject) {
+                    scheduleDelayed {
+                        mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
+                            entity.call(event)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     private fun onInput(event: PacketInputListener.Event) {
         val player = event.player
         when (val input = event.input) {
             is Input.Drop -> return
             else -> {
-                usePlayerItems(player, false) { entity ->
-                    entity.call(ItemEvent.PlayerInput(input, player) { event.cancel() })
-                }
+                handleInput(player, input) { event.cancel() }
             }
         }
     }
@@ -324,7 +352,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HostedByBlockTarget }
                     .systemFactory { HostedByItemFormTarget }
                     .systemFactory { HostedByItemTarget }
-                    .systemFactory { MobInjectorSystem(it) }
+                    .systemFactory { MobInjectorSystem(this@Sokol, it) }
                     .systemFactory { ForwardingSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
                     .systemFactory { PositionSystem(it) }
@@ -332,6 +360,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { SupplierIsValidBuildSystem(it) }
                     .systemFactory { SupplierTrackedPlayersTarget }
                     .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
+                    .systemFactory { SupplierEntityAccessTarget }
+                    .systemFactory { SupplierEntityAccessBuildSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
                     .systemFactory { ColliderBuildSystem(it) }
@@ -343,8 +373,12 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemNameSystem(it) }
                     .systemFactory { ItemNameStaticSystem(it) }
                     .systemFactory { ItemNameProfileSystem(it) }
+                    .systemFactory { OnInputSystem(it) }
+                    .systemFactory { OnInputInstanceSystem(it) }
                     .systemFactory { HoldableBuildSystem(it) }
-                    .systemFactory { HoldableSystem(this@Sokol, it) }
+                    .systemFactory { HoldableTarget }
+                    .systemFactory { HoldableItemSystem(this@Sokol, it) }
+                    .systemFactory { HoldableMobSystem(this@Sokol, it) }
                     .systemFactory { HoldableStaticSystem(it) }
 
                     .componentType<HostedByWorld>()
@@ -352,11 +386,13 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostedByMob>()
                     .componentType<HostedByBlock>()
                     .componentType<HostedByItem>()
+                    .componentType<ItemHolder>()
+                    .componentType<LookedAt>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
                     .componentType<SupplierIsValid>()
                     .componentType<SupplierTrackedPlayers>()
-                    .componentType<ItemHolder>()
+                    .componentType<SupplierEntityAccess>()
                     .componentType<HostableByMob>()
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
@@ -375,6 +411,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<ItemName>()
                     .componentType<ItemNameStatic>()
                     .componentType<ItemNameProfile>()
+                    .componentType<OnInput>()
+                    .componentType<OnInputInstance>()
                     .componentType<Holdable>()
                     .componentType<HoldableStatic>()
                 registerComponentType(HostableByMob.Type)
@@ -391,6 +429,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(MeshesInWorld.Type)
                 registerComponentType(ItemNameStatic.Type)
                 registerComponentType(ItemNameProfile.Type)
+                registerComponentType(OnInput.Type)
                 registerComponentType(HoldableStatic.Type)
             }
         )
