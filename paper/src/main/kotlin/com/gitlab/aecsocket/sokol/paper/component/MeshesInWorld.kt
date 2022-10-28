@@ -58,7 +58,6 @@ data class MeshesInWorld(
 @After(MeshesSystem::class, PositionSystem::class, SupplierTrackedPlayersTarget::class)
 class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = mappers.componentMapper<MeshesInWorld>()
-    private val mMeshes = mappers.componentMapper<Meshes>()
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
 
@@ -95,6 +94,9 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private fun remove(entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
+        // TODO we need to have composite children store their own meshes
+        // not just consolidate all meshes into the root MIW
+        println(" !! REMOVE > ${meshesInWorld.meshes.map { it.id }}")
         forEachMesh(meshesInWorld) { mesh, _ ->
             AlexandriaAPI.meshes.remove(mesh.id)
         }
@@ -132,7 +134,6 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
         val position = mPosition.get(entity)
         val meshesInWorld = mMeshesInWorld.get(entity)
-        val meshes = mMeshes.get(entity)
 
         val rootTransform = position.transform
         forEachMesh(meshesInWorld) { mesh, transform ->

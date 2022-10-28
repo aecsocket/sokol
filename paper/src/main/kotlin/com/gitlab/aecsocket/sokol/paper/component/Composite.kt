@@ -64,17 +64,97 @@ data class Composite(
     }
 }
 
-fun Composite.allChildren(): Map<List<String>, SokolEntity> {
-    val result = HashMap<List<String>, SokolEntity>()
-    children.forEach { (key, entity) ->
-        result[listOf(key)] = entity
-        entity.components.get<Composite>()?.let { child ->
-            child.allChildren().forEach { (subKeys, subChild) ->
-                result[listOf(key) + subKeys] = subChild
-            }
-        }
+interface CompositePath : List<String>
+
+private object EmptyListIterator : ListIterator<String> {
+    override fun hasNext() = false
+    override fun hasPrevious() = false
+    override fun next() = throw NoSuchElementException()
+    override fun nextIndex() = 1
+    override fun previous() = throw NoSuchElementException()
+    override fun previousIndex() = -1
+}
+
+private object EmptyCompositePath : CompositePath {
+    override val size get() = 0
+    override fun isEmpty() = true
+    override fun contains(element: String) = false
+    override fun containsAll(elements: Collection<String>) = elements.isEmpty()
+    override fun get(index: Int) = throw IndexOutOfBoundsException(index)
+    override fun indexOf(element: String) = -1
+    override fun lastIndexOf(element: String) = -1
+    override fun listIterator() = EmptyListIterator
+    override fun listIterator(index: Int) = EmptyListIterator
+    override fun iterator() = EmptyListIterator
+    override fun subList(fromIndex: Int, toIndex: Int) = emptyList<String>()
+    override fun toString() = "[]"
+}
+
+private class CompositePathImpl(private val path: List<String>) : CompositePath {
+    override val size get() = path.size
+    override fun isEmpty() = path.isEmpty()
+    override fun contains(element: String) = path.contains(element)
+    override fun containsAll(elements: Collection<String>) = path.containsAll(elements)
+    override fun get(index: Int) = path[index]
+    override fun indexOf(element: String) = path.indexOf(element)
+    override fun lastIndexOf(element: String) = path.lastIndexOf(element)
+    override fun listIterator() = path.listIterator()
+    override fun listIterator(index: Int) = path.listIterator(index)
+    override fun iterator() = path.iterator()
+    override fun subList(fromIndex: Int, toIndex: Int) = path.subList(fromIndex, toIndex)
+    override fun toString() = path.toString()
+}
+
+fun emptyCompositePath(): CompositePath = EmptyCompositePath
+
+fun compositePathOf(path: List<String>): CompositePath = when (path.size) {
+    0 -> EmptyCompositePath
+    else -> CompositePathImpl(path)
+}
+
+fun compositePathOf(vararg path: String): CompositePath = compositePathOf(path.asList())
+
+interface CompositeMapper {
+    fun composite(entity: SokolEntity): Composite?
+
+    fun child(entity: SokolEntity, key: String): SokolEntity?
+
+    fun child(entity: SokolEntity, path: Iterable<String>): SokolEntity?
+
+    fun allChildren(entity: SokolEntity): Map<List<String>, SokolEntity>
+}
+
+fun CompositeMapper.child(entity: SokolEntity, vararg path: String) = child(entity, path.asList())
+
+fun compositeMapperFor(mappers: ComponentIdAccess) = object : CompositeMapper {
+    val mapper = mappers.componentMapper<Composite>()
+
+    override fun composite(entity: SokolEntity): Composite? {
+        return mapper.getOr(entity)
     }
-    return result
+
+    override fun child(entity: SokolEntity, key: String): SokolEntity? {
+        return mapper.getOr(entity)?.children?.get(key)
+    }
+
+    override fun child(entity: SokolEntity, path: Iterable<String>): SokolEntity? {
+        var current = entity
+        path.forEach { key -> current = mapper.getOr(current)?.children?.get(key) ?: return null }
+        return current
+    }
+
+    override fun allChildren(entity: SokolEntity): Map<List<String>, SokolEntity> {
+        mapper.getOr(entity)?.let { composite ->
+            val result = HashMap<List<String>, SokolEntity>()
+            composite.children.forEach { (key, child) ->
+                result[listOf(key)] = child
+                allChildren(child).forEach { (subKeys, subChild) ->
+                    result[listOf(key) + subKeys] = subChild
+                }
+            }
+            return result
+        } ?: return emptyMap()
+    }
 }
 
 fun ComponentMapper<Composite>.forEachChild(entity: SokolEntity, action: (Map.Entry<String, SokolEntity>) -> Unit) {

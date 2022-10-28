@@ -10,7 +10,7 @@ import org.bukkit.entity.Player
 
 data class Holdable(
     val settings: EntityHolding.StateSettings,
-    var removed: Boolean = false,
+    var inUse: Boolean = false,
 ) : SokolComponent {
     override val componentType get() = Holdable::class
 }
@@ -95,7 +95,7 @@ class HoldableItemSystem(
 
 @All(Holdable::class, HostedByMob::class)
 @Before(OnInputSystem::class)
-@After(HoldableTarget::class)
+@After(HoldableTarget::class, HostedByMobTarget::class)
 class HoldableMobSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
@@ -107,6 +107,9 @@ class HoldableMobSystem(
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mMob = mappers.componentMapper<HostedByMob>()
     private val mAsItem = mappers.componentMapper<HostableByItem>()
+    private val mLookedAt = mappers.componentMapper<LookedAt>()
+    private val mCollider = mappers.componentMapper<Collider>()
+    private val composites = compositeMapperFor(mappers)
 
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
@@ -114,15 +117,57 @@ class HoldableMobSystem(
         val mob = mMob.get(entity).mob
 
         event.addAction(Take) { (_, player, cancel) ->
-            if (holdable.removed) return@addAction
-            mAsItem.getOr(entity)?.let {
-                cancel()
+            // todo
+            /*println("taking... ${mLookedAt.has(entity)} / ${mCollider.has(entity)}")
+            val lookedAt = mLookedAt.getOr(entity) ?: return@addAction
+            val collider = mCollider.getOr(entity) ?: return@addAction
 
-                holdable.removed = true
-                mob.remove()
+            val childIdx = lookedAt.rayTestResult.triangleIndex()
+            if (childIdx != -1) {
+                collider.body?.compositeMap?.get(childIdx)?.let { hitPath ->
+                    println("hit child path = $hitPath")
+                    composites.child(entity, hitPath)?.let { hitChild ->
+                        println("hit child = $hitChild")
+                    }
+                }
+            }*/
 
-                val item = sokol.entityHoster.hostItem(entity.toBlueprint())
-                player.inventory.addItem(item)
+            if (holdable.inUse) return@addAction
+            val lookedAt = mLookedAt.getOr(entity) ?: return@addAction
+            val collider = mCollider.getOr(entity) ?: return@addAction
+            val asItem = mAsItem.getOr(entity) ?: return@addAction
+
+            cancel()
+            holdable.inUse = true
+
+            val childIdx = lookedAt.rayTestResult.triangleIndex()
+            if (childIdx != -1) {
+                collider.body?.compositeMap?.get(childIdx)?.let { hitPath ->
+                    println("finding hit...")
+                    val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
+                        println(" > was root $hitPath")
+                        mob.remove()
+                        entity
+                    } else {
+                        println(" > was $hitPath = ${composites.child(entity, hitPath)}")
+                        val nHitPath = hitPath.toMutableList()
+                        val last = nHitPath.removeLast()
+                        val parent = composites.child(entity, nHitPath) ?: return@addAction
+
+                        // todo modularize
+                        entity.call(ColliderSystem.Rebuild)
+                        //entity.call(MeshesInWorldSystem.Rebuild)
+                        composites.composite(parent)?.children?.remove(last)?.also { child ->
+                            child.call(SokolEvent.Remove)
+                        }
+                    }
+
+                    removedEntity?.let {
+                        if (!mAsItem.has(entity)) return@addAction
+                        val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
+                        player.inventory.addItem(item)
+                    }
+                }
             }
         }
     }

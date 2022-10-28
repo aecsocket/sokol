@@ -28,8 +28,6 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
-import java.util.concurrent.ThreadLocalRandom
-import kotlin.random.Random
 
 internal typealias Mob = Entity
 internal typealias Item = ItemStack
@@ -84,6 +82,7 @@ class Sokol : BasePlugin(), SokolAPI {
 
     internal val mobsAdded = HashSet<Int>()
     private lateinit var mSupplierEntityAccess: ComponentMapper<SupplierEntityAccess>
+    private lateinit var mLookedAt: ComponentMapper<LookedAt>
     private val registrations = ArrayList<Registration>()
     private var hasReloaded = false
 
@@ -99,6 +98,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .register(EntityBlueprintSerializer(this@Sokol))
                     .register(SokolEntitySerializer)
                     .registerExact(Meshes.PartDefinitionSerializer)
+                    .register(CompositePathSerializer)
                     .register(InputMapperSerializer<List<Key>>())
             },
             onLoad = {
@@ -142,6 +142,7 @@ class Sokol : BasePlugin(), SokolAPI {
             entityResolver.enable()
             entityHoster.enable()
             mSupplierEntityAccess = engine.componentMapper()
+            mLookedAt = engine.componentMapper()
             space = SokolSpace(engine)
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
@@ -324,6 +325,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 if (obj is SokolPhysicsObject) {
                     scheduleDelayed {
                         mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
+                            mLookedAt.set(entity, lookedAt(player, result))
                             entity.call(event)
                         }
                     }
@@ -354,6 +356,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HostedByItemTarget }
                     .systemFactory { MobInjectorSystem(this@Sokol, it) }
                     .systemFactory { ForwardingSystem(it) }
+                    .systemFactory { CompositePathedSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
                     .systemFactory { PositionSystem(it) }
                     .systemFactory { SupplierIsValidTarget }
@@ -396,6 +399,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostableByMob>()
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
+                    .componentType<CompositePathed>()
                     .componentType<Forwarding>()
                     .componentType<LocalTransform>()
                     .componentType<LocalTransformStatic>()

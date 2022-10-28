@@ -53,7 +53,7 @@ private fun writeComponentMap(map: ComponentMap, node: ConfigurationNode) {
             try {
                 component.write(child)
             } catch (ex: SerializationException) {
-                throw SerializationException(node, ComponentMap::class.java, "Could not write component ${component.key}")
+                throw SerializationException(node, ComponentMap::class.java, "Could not write component ${component.key}", ex)
             }
         }
     }
@@ -75,7 +75,7 @@ fun deserializeBlueprintByProfile(
         try {
             if (config.empty()) profile.readEmpty() else profile.read(config)
         } catch (ex: PersistenceException) {
-            throw SerializationException(config, EntityBlueprint::class.java, "Could not read component $key")
+            throw SerializationException(config, EntityBlueprint::class.java, "Could not read component $key", ex)
         }
     }
     val componentMap = sokol.engine.componentMap(components)
