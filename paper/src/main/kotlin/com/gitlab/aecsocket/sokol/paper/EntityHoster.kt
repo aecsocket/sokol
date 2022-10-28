@@ -7,6 +7,7 @@ import com.gitlab.aecsocket.sokol.paper.util.spawnMarkerEntity
 import net.kyori.adventure.key.Key
 import org.bukkit.Location
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
 
 class EntityHoster internal constructor(
     private val sokol: Sokol
@@ -53,7 +54,7 @@ class EntityHoster internal constructor(
     fun hostMob(blueprint: EntityBlueprint, location: Location) = hostMobOr(blueprint, location)
         ?: hostError(HostableByMob.key, "mob")
 
-    fun hostItemOr(blueprint: EntityBlueprint): ItemStack? {
+    private fun hostItemInternal(blueprint: EntityBlueprint, consumer: (SokolEntity, ItemMeta) -> Unit): ItemStack? {
         val hostable = mAsItem.getOr(blueprint) ?: return null
         val item = hostable.profile.descriptor.create()
 
@@ -61,12 +62,27 @@ class EntityHoster internal constructor(
             mItem.set(blueprint, hostedByItem(item, meta))
 
             val entity = sokol.engine.buildEntity(blueprint)
-            entity.call(SokolEvent.Add)
+            consumer(entity, meta)
+        }
+    }
 
+    fun hostItemOr(blueprint: EntityBlueprint): ItemStack? {
+        return hostItemInternal(blueprint) { entity, meta ->
+            entity.call(ItemEvent.CreateForm)
+            entity.call(SokolEvent.Add)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
     }
 
     fun hostItem(blueprint: EntityBlueprint) = hostItemOr(blueprint)
+        ?: hostError(HostableByItem.Key, "item")
+
+    fun createItemFormOr(blueprint: EntityBlueprint): ItemStack? {
+        return hostItemInternal(blueprint) { entity, meta ->
+            entity.call(ItemEvent.CreateForm)
+        }
+    }
+
+    fun createItemForm(blueprint: EntityBlueprint) = createItemFormOr(blueprint)
         ?: hostError(HostableByItem.Key, "item")
 }

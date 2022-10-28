@@ -7,6 +7,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.hitNormal
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.craftbullet.paper.bullet
+import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -26,6 +27,7 @@ class ItemPlacing(
     )
 
     data class State(
+        val entity: SokolEntity,
         val slotId: Int,
         var raiseHandLock: PlayerLockInstance,
         val parts: List<Part>,
@@ -103,6 +105,7 @@ class ItemPlacing(
 
                     event.isCancelled = true
                     if (!event.action.isRightClick) return
+
 
                 }
             }

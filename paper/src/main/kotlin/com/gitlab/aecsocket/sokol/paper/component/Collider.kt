@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
 import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
 import com.gitlab.aecsocket.craftbullet.core.addShape
@@ -10,10 +11,9 @@ import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.core.physRotation
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.extension.alexandria
-import com.gitlab.aecsocket.sokol.core.extension.bullet
-import com.gitlab.aecsocket.sokol.core.extension.collisionOf
+import com.gitlab.aecsocket.sokol.core.extension.*
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.collision.shapes.CollisionShape
 import com.jme3.bullet.collision.shapes.CompoundCollisionShape
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
@@ -22,17 +22,16 @@ import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicReference
 
 private const val MASS = "mass"
-private const val DIRTY = "dirty"
+private const val CENTER_OF_MASS = "center_of_mass"
 private const val BODY_ID = "body_id"
 
 data class Collider(
     val profile: Profile,
-    var mass: Float? = null,
-    var dirty: Int = 0,
-    var bodyId: UUID? = null
+    var mass: Float?,
+    var centerOfMass: Vector3,
+    var bodyId: UUID?,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider")
@@ -44,20 +43,14 @@ data class Collider(
 
     fun mass() = mass ?: profile.mass
 
-    fun isProfileDirty() = dirty and 0x1 != 0x0
-    fun isMassDirty() = dirty and 0x2 != 0x0
-    fun markDirty() {
-        dirty = Int.MAX_VALUE
-    }
-
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
         .setOrClear(MASS) { mass?.let { makeFloat(it) } }
-        .set(DIRTY) { makeInt(dirty) }
+        .set(CENTER_OF_MASS) { makeVector3(centerOfMass) }
         .setOrClear(BODY_ID) { bodyId?.let { makeUUID(it) } }
 
     override fun write(node: ConfigurationNode) {
         node.node(MASS).set(mass)
-        node.node(DIRTY).set(dirty)
+        node.node(CENTER_OF_MASS).set(centerOfMass)
         node.node(BODY_ID).set(bodyId)
     }
 
@@ -68,13 +61,13 @@ data class Collider(
     ) : ComponentProfile {
         override fun read(tag: NBTTag) = tag.asCompound().run { Collider(this@Profile,
             getOr(MASS) { asFloat() },
-            get(DIRTY) { asInt() },
+            getOr(CENTER_OF_MASS) { asVector3() } ?: Vector3.Zero,
             getOr(BODY_ID) { asUUID() },
         ) }
 
         override fun read(node: ConfigurationNode) = Collider(this,
             node.node(MASS).getIfExists(),
-            node.node(DIRTY).get { 0 },
+            node.node(CENTER_OF_MASS).get { Vector3.Zero },
             node.node(BODY_ID).getIfExists()
         )
     }
@@ -105,6 +98,7 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
 }
 
 @All(Collider::class, CompositeTransform::class)
+@After(CompositeTransformSystem::class)
 class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mCollider = mappers.componentMapper<Collider>()
     private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
@@ -115,17 +109,30 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
         val collider = mCollider.get(entity)
         val compositeTransform = mCompositeTransform.get(entity)
 
-        val transform = compositeTransform.transform
-        event.shape.addShape(collisionOf(collider.profile.shape), transform.bullet())
-        event.mass.set(event.mass.get() + collider.mass())
+        event.addBody(
+            collisionOf(collider.profile.shape),
+            compositeTransform.transform,
+            collider.mass()
+        )
 
-        mComposite.forward(entity, BuildBody(event.shape, event.mass))
+        mComposite.forward(entity, event)
     }
 
+    data class BodyData(
+        val shape: CollisionShape,
+        val transform: Transform,
+        val mass: Float,
+    )
+
     data class BuildBody(
-        val shape: CompoundCollisionShape,
-        val mass: AtomicReference<Float>,
-    ) : SokolEvent
+        val bodies: MutableList<BodyData> = ArrayList()
+    ) : SokolEvent {
+        fun addBody(shape: CollisionShape, transform: Transform, mass: Float) {
+            if (mass < 0)
+                throw IllegalArgumentException("Cannot have negative mass")
+            bodies.add(BodyData(shape, transform, mass))
+        }
+    }
 }
 
 @All(Collider::class, PositionWrite::class, IsValidSupplier::class)
@@ -137,16 +144,61 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mRigidBody = mappers.componentMapper<RigidBody>()
     private val mVehicleBody = mappers.componentMapper<VehicleBody>()
 
+    private data class BodyData(
+        val shape: CollisionShape,
+        val mass: Float,
+        val centerOfMass: Vector3
+    )
+
+    private fun buildBody(entity: SokolEntity): BodyData {
+        val (bodies) = entity.call(ColliderBuildSystem.BuildBody())
+
+        val totalMass = bodies.map { it.mass }.sum()
+        var centerOfMass = Vector3.Zero
+        bodies.forEach { (_, transform, mass) ->
+            val portionOfTotal = mass / totalMass
+            centerOfMass += transform.translation * portionOfTotal.toDouble()
+        }
+
+        val compoundShape = CompoundCollisionShape()
+        bodies.forEach { (shape, transform) ->
+            val newTransform = Transform(
+                transform.translation - centerOfMass,
+                transform.rotation
+            )
+            compoundShape.addShape(shape, newTransform.bullet())
+        }
+
+        return BodyData(compoundShape, totalMass, centerOfMass)
+    }
+
+    @Subscribe
+    fun on(event: RebuildBody, entity: SokolEntity) {
+        val position = mPosition.get(entity)
+        val collider = mCollider.get(entity)
+
+        val physSpace = CraftBulletAPI.spaceOf(position.world)
+        val tracked = physSpace.trackedBy(collider.bodyId ?: return) ?: return
+        val body = tracked.body
+
+        val (shape, mass, centerOfMass) = buildBody(entity)
+
+        CraftBulletAPI.executePhysics {
+            body.collisionShape = shape
+            if (body is PhysicsRigidBody)
+                body.mass = mass
+        }
+
+        collider.centerOfMass = centerOfMass
+    }
+
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
         val position = mPosition.get(entity)
         val collider = mCollider.get(entity)
         val isValid = mIsValidSupplier.get(entity).valid
 
-        val (shape, mass) = entity.call(ColliderBuildSystem.BuildBody(
-            CompoundCollisionShape(),
-            AtomicReference(0f),
-        ))
+        val (shape, mass, centerOfMass) = buildBody(entity)
 
         val id = UUID.randomUUID()
         val physSpace = CraftBulletAPI.spaceOf(position.world)
@@ -158,7 +210,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                 (if (mVehicleBody.has(entity)) 0x2 else 0)
 
             val body = when (typeField) {
-                0x1 -> object : PhysicsRigidBody(shape, mass.get()), SokolPhysicsObject {
+                0x1 -> object : PhysicsRigidBody(shape, mass), SokolPhysicsObject {
                     override val id get() = id
                     override val body get() = this
                     override var entity = entity
@@ -169,7 +221,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                         entity.call(PhysicsUpdate(this))
                     }
                 }
-                0x2 -> object : PhysicsVehicle(shape, mass.get()), SokolPhysicsObject {
+                0x2 -> object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
                     override val id get() = id
                     override val body get() = this
                     override var entity = entity
@@ -190,14 +242,13 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
             physSpace.addCollisionObject(body)
         }
 
+        collider.centerOfMass = centerOfMass
         collider.bodyId = id
     }
 
     @Subscribe
     fun on(event: SokolEvent.Reload, entity: SokolEntity) {
-        val collider = mCollider.get(entity)
-
-        collider.markDirty()
+        entity.call(RebuildBody)
     }
 
     @Subscribe
@@ -205,39 +256,21 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         val position = mPosition.get(entity)
         val collider = mCollider.get(entity)
 
-        collider.bodyId?.let { bodyId ->
-            val physSpace = CraftBulletAPI.spaceOf(position.world)
-            physSpace.trackedBy(bodyId)?.let { tracked ->
-                val body = tracked.body
-                if (tracked !is SokolPhysicsObject)
-                    throw IllegalStateException("Collider physics body is not of type ${SokolPhysicsObject::class.java}")
+        val physSpace = CraftBulletAPI.spaceOf(position.world)
 
-                val profileDirty = collider.isProfileDirty()
-                val massDirty = collider.isMassDirty()
-                collider.dirty = 0
 
-                CraftBulletAPI.executePhysics {
-                    if (profileDirty) {
-                        val (shape) = entity.call(ColliderBuildSystem.BuildBody(
-                            CompoundCollisionShape(),
-                            AtomicReference(0f),
-                        ))
-                        println("start setting shape")
-                        body.collisionShape = shape
-                        println("stop setting shape")
-                    }
-                    if (massDirty && body is PhysicsRigidBody)
-                        body.mass = collider.mass()
-                }
+        physSpace.trackedBy(collider.bodyId ?: return)?.let { tracked ->
+            val body = tracked.body
+            if (tracked !is SokolPhysicsObject)
+                throw SystemExecutionException("Collider physics body is not of type ${SokolPhysicsObject::class}")
 
-                tracked.entity = entity
-                position.transform = Transform(
-                    body.physPosition.alexandria(),
-                    body.physRotation.alexandria(),
-                )
-            } ?: run {
-                collider.bodyId = null
-            }
+            tracked.entity = entity
+            position.transform = Transform(
+                body.physPosition.alexandria(),
+                body.physRotation.alexandria(),
+            ) + Transform(-collider.centerOfMass)
+        } ?: run {
+            collider.bodyId = null
         }
     }
 
@@ -255,6 +288,8 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
             collider.bodyId = null
         }
     }
+
+    object RebuildBody : SokolEvent
 
     // NB: modifying component data during this will not persist
     data class PhysicsUpdate(

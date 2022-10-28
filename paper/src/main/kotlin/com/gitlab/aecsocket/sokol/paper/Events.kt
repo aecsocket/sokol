@@ -19,6 +19,12 @@ interface MobEvent : SokolEvent {
 }
 
 interface ItemEvent : SokolEvent {
+    // as an alternative to listening to SokolEvent.Add,
+    // if we want to just make visual changes instead of a full item build
+    // (e.g. just change custom model data, instead of building lore + writing persistence...)
+    // useful for when we make a mesh of the item
+    object CreateForm : ItemEvent
+
     data class PlayerInput(
         val input: Input,
         val player: Player,

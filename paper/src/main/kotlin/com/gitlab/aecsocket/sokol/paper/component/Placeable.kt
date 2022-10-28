@@ -17,6 +17,28 @@ data class Placeable(
     override val componentType get() = Placeable::class
 }
 
+@All(Meshes::class, CompositeTransform::class)
+@After(CompositeTransformSystem::class)
+class PlaceableBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mMeshes = mappers.componentMapper<Meshes>()
+    private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
+    private val mComposite = mappers.componentMapper<Composite>()
+
+    @Subscribe
+    fun on(event: BuildParts, entity: SokolEntity) {
+        val meshes = mMeshes.get(entity)
+        val compositeTransform = mCompositeTransform.get(entity)
+
+
+
+        mComposite.forward(entity, event)
+    }
+
+    class BuildParts(
+
+    ) : SokolEvent
+}
+
 @All(Placeable::class, HostedByItem::class)
 class PlaceableSystem(
     private val sokol: Sokol,
@@ -65,6 +87,7 @@ class PlaceableSystem(
             mComposite.getOr(entity)?.let { walkComposite(it, rootTransform) }
 
             sokol.itemPlacing.enter(player.alexandria, ItemPlacing.State(
+                entity,
                 event.backing.slot,
                 player.alexandria.acquireLock(PlayerLock.RaiseHand),
                 parts,
