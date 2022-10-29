@@ -9,6 +9,8 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asTransform
 import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
+import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
+import com.jme3.bullet.collision.PhysicsRayTestResult
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
@@ -61,6 +63,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = mappers.componentMapper<MeshesInWorld>()
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
+    private val mCollider = mappers.componentMapper<Collider>()
     private val mComposite = mappers.componentMapper<Composite>()
 
     private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (Mesh, Transform) -> Unit) {
@@ -103,6 +106,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         forEachMesh(meshesInWorld) { mesh, _ ->
             AlexandriaAPI.meshes.remove(mesh.id)
         }
+        meshesInWorld.meshes = emptyList()
 
         mComposite.forward(entity, event)
     }
@@ -143,6 +147,15 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
+    fun on(event: Glow, entity: SokolEntity) {
+        val meshesInWorld = mMeshesInWorld.get(entity)
+
+        forEachMesh(meshesInWorld) { mesh, _ ->
+            mesh.glowing(event.state, event.players)
+        }
+    }
+
+    @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
         entity.call(Create(false))
     }
@@ -173,6 +186,27 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         entity.call(Create(true))
     }
 
+    private fun glow(entity: SokolEntity, state: Boolean, player: Player, childIdx: Int) {
+        val hitPath = colliderCompositeHitPath(mCollider.getOr(entity), childIdx)
+        mComposite.child(entity, hitPath)?.call(Glow(state, setOf(player)))
+    }
+
+    @Subscribe
+    fun on(event: EntityHover.StartHovered, entity: SokolEntity) {
+        glow(entity, true, event.player, event.newTestResult.triangleIndex())
+    }
+
+    @Subscribe
+    fun on(event: EntityHover.ChangeHoverIndex, entity: SokolEntity) {
+        glow(entity, false, event.player, event.oldIndex)
+        glow(entity, true, event.player, event.newIndex)
+    }
+
+    @Subscribe
+    fun on(event: EntityHover.StopHovered, entity: SokolEntity) {
+        glow(entity, false, event.player, event.oldTestResult.triangleIndex())
+    }
+
     data class Create(
         val sendToPlayers: Boolean
     ) : SokolEvent
@@ -188,4 +222,9 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     ) : SokolEvent
 
     object Update : SokolEvent
+
+    data class Glow(
+        val state: Boolean,
+        val players: Iterable<Player>
+    ) : SokolEvent
 }

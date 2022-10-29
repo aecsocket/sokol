@@ -22,8 +22,8 @@ import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
 
 private const val MASS = "mass"
-private const val BODY = "center_of_mass"
-private const val BODY_ID = "body_id"
+private const val BODY = "body"
+private const val ID = "id"
 private const val CENTER_OF_MASS = "center_of_mass"
 private const val COMPOSITE_MAP = "composite_map"
 
@@ -51,9 +51,8 @@ data class Collider(
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
         .setOrClear(MASS) { mass?.let { body -> makeFloat(body) } }
-        .setOrClear(BODY) { body?.let { body ->
-            makeCompound()
-            .set(BODY_ID) { makeUUID(body.bodyId) }
+        .setOrClear(BODY) { body?.let { body -> makeCompound()
+            .set(ID) { makeUUID(body.bodyId) }
             .set(CENTER_OF_MASS) { makeVector3(body.centerOfMass) }
             .set(COMPOSITE_MAP) { makeList().apply { body.compositeMap.forEach { path -> add { makeCompositePath(path) } } } }
         } }
@@ -71,7 +70,7 @@ data class Collider(
         override fun read(tag: NBTTag) = tag.asCompound().run { Collider(this@Profile,
             getOr(MASS) { asFloat() },
             getOr(BODY) { asCompound().run { BodyData(
-                get(BODY_ID) { asUUID() },
+                get(ID) { asUUID() },
                 get(CENTER_OF_MASS) { asVector3() },
                 get(COMPOSITE_MAP) { asList().map { it.asCompositePath() } }
             ) } }

@@ -42,7 +42,7 @@ class Sokol : BasePlugin(), SokolAPI {
     @ConfigSerializable
     data class Settings(
         val enableBstats: Boolean = true,
-        val entityTargetDistance: Float = 0f,
+        val entityHoverDistance: Float = 0f,
     )
 
     private data class Registration(
@@ -75,6 +75,7 @@ class Sokol : BasePlugin(), SokolAPI {
     override val persistence = PaperSokolPersistence(this)
     val entityResolver = EntityResolver(this)
     val entityHoster = EntityHoster(this)
+    val entityHover = EntityHover(this)
     val engineTimings = Timings(60 * 1000)
     val entityHolding = EntityHolding(this)
 
@@ -137,6 +138,7 @@ class Sokol : BasePlugin(), SokolAPI {
 
             entityResolver.enable()
             entityHoster.enable()
+            entityHover.enable()
             space = SokolSpace(engine)
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
@@ -311,7 +313,7 @@ class Sokol : BasePlugin(), SokolAPI {
         when (val input = event.input) {
             is Input.Drop -> return
             else -> {
-                entityResolver.handleInput(player, input) { event.cancel() }
+                entityResolver.handleInput(PlayerInput(input, player) { event.cancel() })
             }
         }
     }
@@ -330,6 +332,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ForwardingSystem(it) }
                     .systemFactory { CompositePathedSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
+                    .systemFactory { RotationSystem(it) }
                     .systemFactory { PositionSystem(it) }
                     .systemFactory { SupplierIsValidTarget }
                     .systemFactory { SupplierIsValidBuildSystem(it) }

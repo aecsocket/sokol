@@ -7,6 +7,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
+import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
 import org.bukkit.entity.Player
 
 data class Holdable(
@@ -74,6 +75,8 @@ class HoldableItemSystem(
         if (event.isRightClick && event.isShiftClick) {
             event.cancel()
 
+
+
             // todo a proper transform here
             val worldTransform = Transform(player.location.position())
             val (parts) = entity.call(HoldableBuildSystem.Build(
@@ -112,7 +115,7 @@ class HoldableMobSystem(
     private val mAsItem = mappers.componentMapper<HostableByItem>()
     private val mHovered = mappers.componentMapper<Hovered>()
     private val mCollider = mappers.componentMapper<Collider>()
-    private val composites = compositeMapperFor(mappers)
+    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
@@ -120,52 +123,31 @@ class HoldableMobSystem(
         val mob = mMob.get(entity).mob
 
         event.addAction(Take) { (_, player, cancel) ->
-            // todo
-            /*println("taking... ${mLookedAt.has(entity)} / ${mCollider.has(entity)}")
-            val lookedAt = mLookedAt.getOr(entity) ?: return@addAction
-            val collider = mCollider.getOr(entity) ?: return@addAction
-
-            val childIdx = lookedAt.rayTestResult.triangleIndex()
-            if (childIdx != -1) {
-                collider.body?.compositeMap?.get(childIdx)?.let { hitPath ->
-                    println("hit child path = $hitPath")
-                    composites.child(entity, hitPath)?.let { hitChild ->
-                        println("hit child = $hitChild")
-                    }
-                }
-            }*/
-
             if (holdable.inUse) return@addAction
-            val lookedAt = mHovered.getOr(entity) ?: return@addAction
+            val hovered = mHovered.getOr(entity) ?: return@addAction
             val collider = mCollider.getOr(entity) ?: return@addAction
-            val asItem = mAsItem.getOr(entity) ?: return@addAction
-            val compositeMap = collider.body?.compositeMap ?: return@addAction
 
             cancel()
             holdable.inUse = true
 
-            val childIdx = lookedAt.rayTestResult.triangleIndex()
-            if (childIdx != -1) {
-                val hitPath = if (compositeMap.isEmpty()) emptyCompositePath() else compositeMap[childIdx]
-                val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
-                    mob.remove()
-                    entity
-                } else {
-                    val nHitPath = hitPath.toMutableList()
-                    val last = nHitPath.removeLast()
-                    val parent = composites.child(entity, nHitPath) ?: return@addAction
+            val hitPath = colliderCompositeHitPath(collider, hovered.rayTestResult)
+            val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
+                mob.remove()
+                entity
+            } else {
+                val nHitPath = hitPath.toMutableList()
+                val last = nHitPath.removeLast()
+                val parent = mComposite.child(entity, nHitPath) ?: return@addAction
 
-                    entity.call(Composite.TreeMutate)
-                    composites.composite(parent)?.children?.remove(last)?.also { child ->
-                        child.call(SokolEvent.Remove)
-                    }
-                }
+                entity.call(Composite.TreeMutate)
+                mComposite.getOr(parent)?.children?.remove(last)
+            }
 
-                removedEntity?.let {
-                    if (!mAsItem.has(entity)) return@addAction
-                    val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
-                    player.give(item)
-                }
+            removedEntity?.let {
+                removedEntity.call(SokolEvent.Remove)
+                if (!mAsItem.has(entity)) return@addAction
+                val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
+                player.give(item)
             }
         }
     }

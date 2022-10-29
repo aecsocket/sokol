@@ -24,7 +24,7 @@ data class Rotation(
     override fun write(ctx: NBTTagContext) = ctx.makeQuaternion(rotation)
 
     override fun write(node: ConfigurationNode) {
-        node.set(rotation)
+        if (rotation != Quaternion.Identity) node.set(rotation)
     }
 
     object Profile : ComponentProfile {
@@ -33,5 +33,17 @@ data class Rotation(
         override fun read(node: ConfigurationNode) = Rotation(node.get { Quaternion.Identity })
 
         override fun readEmpty() = Rotation(Quaternion.Identity)
+    }
+}
+
+@All(Rotation::class)
+class RotationSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mRotation = mappers.componentMapper<Rotation>()
+
+    @Subscribe
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+        val rotation = mRotation.get(entity)
+
+        rotation.rotation = Quaternion.Identity
     }
 }
