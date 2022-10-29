@@ -10,6 +10,7 @@ import com.gitlab.aecsocket.sokol.core.extension.asTransform
 import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
@@ -155,6 +156,15 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
+    fun on(event: GlowColor, entity: SokolEntity) {
+        val meshesInWorld = mMeshesInWorld.get(entity)
+
+        forEachMesh(meshesInWorld) { mesh, _ ->
+            mesh.glowingColor = event.color
+        }
+    }
+
+    @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
         entity.call(Create(false))
     }
@@ -185,7 +195,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         entity.call(Create(true))
     }
 
-    private fun glow(entity: SokolEntity, state: Boolean, player: Player, childIdx: Int) {
+    /*private fun glow(entity: SokolEntity, state: Boolean, player: Player, childIdx: Int) {
         val hitPath = colliderCompositeHitPath(mCollider.getOr(entity), childIdx)
         mComposite.child(entity, hitPath)?.call(Glow(state, setOf(player)))
     }
@@ -204,7 +214,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: EntityHover.StopHovered, entity: SokolEntity) {
         glow(entity, false, event.player, event.oldTestResult.triangleIndex())
-    }
+    }*/
 
     data class Create(
         val sendToPlayers: Boolean
@@ -225,5 +235,9 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     data class Glow(
         val state: Boolean,
         val players: Iterable<Player>
+    ) : SokolEvent
+
+    data class GlowColor(
+        val color: NamedTextColor
     ) : SokolEvent
 }

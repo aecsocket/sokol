@@ -2,29 +2,24 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.sokol.paper.component.HoldPlaceState
+import com.gitlab.aecsocket.sokol.paper.component.HoldableMobSystem
 import com.jme3.bullet.collision.shapes.CollisionShape
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
-import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.lang.ref.WeakReference
 import java.util.UUID
 
 class EntityHolding(
     private val sokol: Sokol
 ) : PlayerFeature<EntityHolding.PlayerData> {
-    @ConfigSerializable
-    data class HoldSettings(
-        val placeTransform: Transform,
-        val holdDistance: Double,
-        val snapDistance: Double,
-    )
-
     data class State(
         val player: Player,
         val mobHost: WeakReference<Entity>,
         val raiseHandLock: PlayerLockInstance,
         var transform: Transform,
 
+        var placeState: HoldPlaceState = HoldPlaceState.DISALLOW,
         var frozen: Boolean = false,
         var drawShape: CollisionShape? = null,
     )
@@ -45,7 +40,12 @@ class EntityHolding(
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
     private fun stopInternal(player: AlexandriaPlayer, state: State, releaseLock: Boolean = true) {
-        state.mobHost.get()?.let { _mobToState.remove(it.uniqueId) }
+        state.mobHost.get()?.let { mob ->
+            sokol.useMob(mob) { entity ->
+                entity.call(HoldableMobSystem.StopHold)
+            }
+            _mobToState.remove(mob.uniqueId)
+        }
         if (releaseLock) {
             player.releaseLock(state.raiseHandLock)
         }
@@ -55,7 +55,12 @@ class EntityHolding(
         val data = player.featureData(this)
         data.state?.let { stopInternal(player, it) }
         data.state = state
-        state.mobHost.get()?.let { _mobToState[it.uniqueId] = state }
+        state.mobHost.get()?.let { mob ->
+            _mobToState[mob.uniqueId] = state
+            sokol.useMob(mob) { entity ->
+                entity.call(HoldableMobSystem.StartHold)
+            }
+        }
     }
 
     fun start(player: AlexandriaPlayer, mobHost: Entity, transform: Transform): State {

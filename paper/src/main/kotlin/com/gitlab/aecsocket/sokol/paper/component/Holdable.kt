@@ -21,6 +21,7 @@ import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.GameMode
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
@@ -31,6 +32,22 @@ import kotlin.math.PI
 import kotlin.math.abs
 
 private const val HOLDER_ID = "holder_id"
+
+enum class HoldPlaceState(val valid: Boolean) {
+    ALLOW           (true),
+    ALLOW_ATTACH    (true),
+    DISALLOW        (false),
+    DISALLOW_ATTACH (true),
+}
+
+@ConfigSerializable
+data class HoldSettings(
+    val placeTransform: Transform = Transform.Identity,
+    val holdDistance: Double = 0.0,
+    val snapDistance: Double = 0.0,
+    val allowNonSnapPlacing: Boolean = true,
+    val placeColors: Map<HoldPlaceState, NamedTextColor> = emptyMap(),
+)
 
 data class Holdable(
     val profile: Profile,
@@ -55,7 +72,7 @@ data class Holdable(
 
     @ConfigSerializable
     data class Profile(
-        @Setting(nodeFromParent = true) val settings: EntityHolding.HoldSettings
+        @Setting(nodeFromParent = true) val settings: HoldSettings
     ) : NonReadingComponentProfile {
         override fun readEmpty() = Holdable(this)
     }
@@ -69,7 +86,6 @@ class HoldableItemSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
 ) : SokolSystem {
-    private val mHoldable = mappers.componentMapper<Holdable>()
     private val mItem = mappers.componentMapper<HostedByItem>()
 
     @Subscribe
@@ -108,11 +124,13 @@ class HoldableMobSystem(
 
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mMob = mappers.componentMapper<HostedByMob>()
-    private val mPosition = mappers.componentMapper<PositionWrite>()
+    private val mPositionWrite = mappers.componentMapper<PositionWrite>()
     private val mAsItem = mappers.componentMapper<HostableByItem>()
     private val mHovered = mappers.componentMapper<Hovered>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mComposite = mappers.componentMapper<Composite>()
+    private val mEntitySlot = mappers.componentMapper<EntitySlot>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
@@ -125,7 +143,7 @@ class HoldableMobSystem(
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
-        val position = mPosition.get(entity)
+        val position = mPositionWrite.get(entity)
         val mob = mMob.get(entity).mob
 
         fun start(player: Player) {
@@ -133,7 +151,10 @@ class HoldableMobSystem(
         }
 
         fun stop(player: Player) {
-            sokol.entityHolding.stop(player.alexandria)
+            val holdState = holdable.holdState ?: return
+            if (holdState.placeState.valid) {
+                sokol.entityHolding.stop(player.alexandria)
+            }
         }
 
         event.addAction(HoldStart) { (_, player, cancel) ->
@@ -186,10 +207,29 @@ class HoldableMobSystem(
         }
     }
 
+    private fun glow(entity: SokolEntity, state: Boolean) {
+        val holdable = mHoldable.get(entity)
+        val player = holdable.holdState?.player ?: return
+
+        val glowEvent = MeshesInWorldSystem.Glow(state, setOf(player))
+        entity.call(glowEvent)
+        mComposite.forward(entity, glowEvent)
+    }
+
+    @Subscribe
+    fun on(event: StartHold, entity: SokolEntity) {
+        glow(entity, true)
+    }
+
+    @Subscribe
+    fun on(event: StopHold, entity: SokolEntity) {
+        glow(entity, false)
+    }
+
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
-        val position = mPosition.get(entity)
+        val position = mPositionWrite.get(entity)
         val collider = mCollider.get(entity)
         val holdState = holdable.holdState ?: return
         val (tracked) = collider.body ?: return
@@ -229,32 +269,67 @@ class HoldableMobSystem(
                         obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
                     }
 
+                var placeState = HoldPlaceState.DISALLOW
                 holdState.transform = if (result == null) {
+                    if (settings.allowNonSnapPlacing)
+                        placeState = HoldPlaceState.ALLOW
                     Transform(
                         (from + direction * settings.holdDistance).position(),
                         from.rotation()
-                    )
+                    ) + settings.placeTransform
                 } else {
-                    val hitPos = from.position() + direction * (snapDistance * result.hitFraction)
+                    fun default(setState: Boolean = true): Transform {
+                        val hitPos = from.position() + direction * (snapDistance * result.hitFraction)
 
-                    // the hit normal is facing from the surface, to the player
-                    // but when holding (non-snap) it's the opposite direction
-                    // so we invert the normal here to face it in the right direction
-                    val dir = -result.hitNormal.alexandria()
-                    val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
-                        // `dir` and `up` are (close to) collinear
-                        val yaw = player.location.yaw.radians.toDouble()
-                        // `rotation` will be facing "away" from the player
-                        quaternionFromTo(Vector3.Forward, dir) *
-                            Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2* PI).quaternion(EulerOrder.XYZ)
-                    } else {
-                        val v1 = Vector3.Up.cross(dir).normalized
-                        val v2 = dir.cross(v1).normalized
-                        quaternionOfAxes(v1, v2, dir)
+                        // the hit normal is facing from the surface, to the player
+                        // but when holding (non-snap) it's the opposite direction
+                        // so we invert the normal here to face it in the right direction
+                        val dir = -result.hitNormal.alexandria()
+                        val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
+                            // `dir` and `up` are (close to) collinear
+                            val yaw = player.location.yaw.radians.toDouble()
+                            // `rotation` will be facing "away" from the player
+                            quaternionFromTo(Vector3.Forward, dir) *
+                                    Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2 * PI).quaternion(EulerOrder.XYZ)
+                        } else {
+                            val v1 = Vector3.Up.cross(dir).normalized
+                            val v2 = dir.cross(v1).normalized
+                            quaternionOfAxes(v1, v2, dir)
+                        }
+
+                        if (setState) placeState = HoldPlaceState.ALLOW
+                        return Transform(hitPos, rotation) + settings.placeTransform
                     }
 
-                    Transform(hitPos, rotation)
-                } + settings.placeTransform
+                    fun transform(): Transform {
+                        val obj = result.collisionObject as? SokolPhysicsObject ?: return default()
+                        val hitEntity = obj.entity
+                        val hitPath = colliderCompositeHitPath(mCollider.getOr(hitEntity), result)
+                        val slotEntity = mComposite.child(hitEntity, hitPath) ?: return default()
+
+                        val entitySlot = mEntitySlot.getOr(slotEntity) ?: return default()
+                        val composite = mComposite.getOr(slotEntity) ?: return default()
+                        val slotPosition = mPositionRead.getOr(slotEntity) ?: return default()
+                        if (composite.children.isNotEmpty()) return default()
+
+                        return if (entitySlot.profile.accepts) {
+                            placeState = HoldPlaceState.ALLOW_ATTACH
+                            slotPosition.transform
+                        } else {
+                            placeState = HoldPlaceState.DISALLOW_ATTACH
+                            default(false)
+                        }
+                    }
+
+                    transform()
+                }
+
+                if (placeState != holdState.placeState) {
+                    holdState.placeState = placeState
+                    val glowColorEvent = MeshesInWorldSystem.GlowColor(settings.placeColors[placeState] ?: NamedTextColor.WHITE)
+                    entity.call(glowColorEvent)
+                    mComposite.forward(entity, glowColorEvent)
+                }
             }
 
             holdState.drawShape?.let { drawShape ->
@@ -270,4 +345,8 @@ class HoldableMobSystem(
 
         holdable.holdState = null
     }
+
+    object StartHold : SokolEvent
+
+    object StopHold : SokolEvent
 }
