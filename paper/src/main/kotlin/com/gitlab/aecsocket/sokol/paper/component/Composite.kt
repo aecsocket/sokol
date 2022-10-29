@@ -35,23 +35,43 @@ data class Composite(
         private val sokol: Sokol,
         val children: Map<String, EntityProfile>
     ) : ComponentProfile {
-        override fun read(tag: NBTTag) = tag.asCompound().run { Composite(sokol,
-            associate { (key, tag) -> tag.asCompound().run {
-                val blueprint = children[key]?.let { profile ->
-                    sokol.persistence.readBlueprintByProfile(profile, this)
-                } ?: sokol.persistence.readBlueprint(this)
-                key to sokol.engine.buildEntity(blueprint)
-            } }.toMutableMap()
-        ) }
+        override fun read(tag: NBTTag): Composite {
+            val compound = tag.asCompound()
 
-        override fun read(node: ConfigurationNode) = Composite(sokol,
-            node.childrenMap().map { (key, child) ->
+            val result = HashMap<String, SokolEntity>()
+            compound.forEach { (key, child) ->
+                val blueprint = children[key]?.let { profile ->
+                    sokol.persistence.readBlueprintByProfile(profile, child.asCompound())
+                } ?: sokol.persistence.readBlueprint(child.asCompound())
+                result[key] = sokol.engine.buildEntity(blueprint)
+            }
+
+            children.forEach { (key, profile) ->
+                if (!result.contains(key)) {
+                    result[key] = sokol.engine.buildEntity(sokol.engine.emptyBlueprint(profile))
+                }
+            }
+
+            return Composite(sokol, result)
+        }
+
+        override fun read(node: ConfigurationNode): Composite {
+            val result = HashMap<String, SokolEntity>()
+            node.childrenMap().forEach { (key, child) ->
                 val blueprint = children[key.toString()]?.let { profile ->
                     deserializeBlueprintByProfile(sokol, profile, child)
                 } ?: child.force()
-                key.toString() to sokol.engine.buildEntity(blueprint)
-            }.toMap().toMutableMap()
-        )
+                result[key.toString()] = sokol.engine.buildEntity(blueprint)
+            }
+
+            children.forEach { (key, profile) ->
+                if (!result.contains(key)) {
+                    result[key] = sokol.engine.buildEntity(sokol.engine.emptyBlueprint(profile))
+                }
+            }
+
+            return Composite(sokol, result)
+        }
 
         override fun readEmpty() = Composite(sokol, HashMap())
     }

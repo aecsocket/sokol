@@ -263,7 +263,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                 set(value) {
                     position.transform = value
                     CraftBulletAPI.executePhysics {
-                        obj.body.transform = value.bullet()
+                        obj.body.transform = (value + Transform(bodyData.centerOfMass)).bullet()
                     }
                 }
         })

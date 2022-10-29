@@ -6,6 +6,8 @@ import com.gitlab.aecsocket.sokol.paper.*
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
+const val ENTITY_SLOT_CHILD_KEY = "_"
+
 data class EntitySlot(val profile: Profile) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("entity_slot")

@@ -131,6 +131,7 @@ class HoldableMobSystem(
     private val mComposite = mappers.componentMapper<Composite>()
     private val mEntitySlot = mappers.componentMapper<EntitySlot>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
+    private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
@@ -154,6 +155,18 @@ class HoldableMobSystem(
             val holdState = holdable.holdState ?: return
             if (holdState.placeState.valid) {
                 sokol.entityHolding.stop(player.alexandria)
+                holdState.attachTo?.let { attachTo ->
+                    holdable.inUse = true
+
+                    sokol.scheduleDelayed {
+                        mob.remove()
+                    }
+
+                    attachTo.useEntity { parentEntity ->
+                        mComposite.get(parentEntity).children[attachTo.key] = entity
+                        parentEntity.call(Composite.TreeMutate)
+                    }
+                }
             }
         }
 
@@ -193,37 +206,47 @@ class HoldableMobSystem(
                 val nHitPath = hitPath.toMutableList()
                 val last = nHitPath.removeLast()
                 val parent = mComposite.child(entity, nHitPath) ?: return@addAction
+                val parentChildren = mComposite.getOr(parent)?.children ?: return@addAction
+                val child = parentChildren[last] ?: return@addAction
+                if (!mAsItem.has(child)) return@addAction
 
+                // TODO some entities shouldn't allow taking children out of them
+                parentChildren.remove(last)
                 entity.call(Composite.TreeMutate)
-                mComposite.getOr(parent)?.children?.remove(last)
+                child
             }
 
             removedEntity?.let {
+                if (!mAsItem.has(removedEntity)) return@addAction
                 removedEntity.call(SokolEvent.Remove)
-                if (!mAsItem.has(entity)) return@addAction
                 val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
                 player.give(item)
             }
         }
     }
 
-    private fun glow(entity: SokolEntity, state: Boolean) {
+    private fun holdState(entity: SokolEntity, state: Boolean) {
         val holdable = mHoldable.get(entity)
+        val collider = mCollider.getOr(entity)
         val player = holdable.holdState?.player ?: return
 
         val glowEvent = MeshesInWorldSystem.Glow(state, setOf(player))
         entity.call(glowEvent)
         mComposite.forward(entity, glowEvent)
+
+        val body = collider?.body?.body
+        if (body is PhysicsRigidBody)
+            body.isKinematic = state
     }
 
     @Subscribe
     fun on(event: StartHold, entity: SokolEntity) {
-        glow(entity, true)
+        holdState(entity, true)
     }
 
     @Subscribe
     fun on(event: StopHold, entity: SokolEntity) {
-        glow(entity, false)
+        holdState(entity, false)
     }
 
     @Subscribe
@@ -270,6 +293,7 @@ class HoldableMobSystem(
                     }
 
                 var placeState = HoldPlaceState.DISALLOW
+                var attachTo: EntityHolding.AttachTo? = null
                 holdState.transform = if (result == null) {
                     if (settings.allowNonSnapPlacing)
                         placeState = HoldPlaceState.ALLOW
@@ -304,6 +328,7 @@ class HoldableMobSystem(
                     fun transform(): Transform {
                         val obj = result.collisionObject as? SokolPhysicsObject ?: return default()
                         val hitEntity = obj.entity
+                        val hitEntitySupplier = mSupplierEntityAccess.getOr(hitEntity) ?: return default()
                         val hitPath = colliderCompositeHitPath(mCollider.getOr(hitEntity), result)
                         val slotEntity = mComposite.child(hitEntity, hitPath) ?: return default()
 
@@ -314,6 +339,11 @@ class HoldableMobSystem(
 
                         return if (entitySlot.profile.accepts) {
                             placeState = HoldPlaceState.ALLOW_ATTACH
+                            attachTo = EntityHolding.AttachTo(ENTITY_SLOT_CHILD_KEY) { entityConsumer ->
+                                hitEntitySupplier.useEntity { newEntity ->
+                                    mComposite.child(newEntity, hitPath)?.let(entityConsumer)
+                                }
+                            }
                             slotPosition.transform
                         } else {
                             placeState = HoldPlaceState.DISALLOW_ATTACH
@@ -324,6 +354,7 @@ class HoldableMobSystem(
                     transform()
                 }
 
+                holdState.attachTo = attachTo
                 if (placeState != holdState.placeState) {
                     holdState.placeState = placeState
                     val glowColorEvent = MeshesInWorldSystem.GlowColor(settings.placeColors[placeState] ?: NamedTextColor.WHITE)
@@ -342,7 +373,9 @@ class HoldableMobSystem(
     @Subscribe
     fun on(event: SokolEvent.Remove, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
+        val holdState = holdable.holdState ?: return
 
+        sokol.entityHolding.stop(holdState.player.alexandria)
         holdable.holdState = null
     }
 

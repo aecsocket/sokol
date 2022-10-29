@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.paper.component.HoldPlaceState
 import com.gitlab.aecsocket.sokol.paper.component.HoldableMobSystem
 import com.jme3.bullet.collision.shapes.CollisionShape
@@ -13,6 +14,11 @@ import java.util.UUID
 class EntityHolding(
     private val sokol: Sokol
 ) : PlayerFeature<EntityHolding.PlayerData> {
+    data class AttachTo(
+        val key: String,
+        val useEntity: ((SokolEntity) -> Unit) -> Unit,
+    )
+
     data class State(
         val player: Player,
         val mobHost: WeakReference<Entity>,
@@ -20,6 +26,7 @@ class EntityHolding(
         var transform: Transform,
 
         var placeState: HoldPlaceState = HoldPlaceState.DISALLOW,
+        var attachTo: AttachTo? = null,
         var frozen: Boolean = false,
         var drawShape: CollisionShape? = null,
     )
