@@ -84,8 +84,12 @@ class EntityHover internal constructor(
             val axPlayer = player.alexandria
 
             sokol.scheduleDelayed {
-                if (axPlayer.entityHolding == null) {
-                    player.alexandria.hoveredEntity?.let { (obj, rayTestResult) ->
+                axPlayer.entityHolding?.mobHost?.get()?.let { mob ->
+                    sokol.useMob(mob) { entity ->
+                        entity.call(event)
+                    }
+                } ?: run {
+                    axPlayer.hoveredEntity?.let { (obj, rayTestResult) ->
                         mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
                             mHovered.set(entity, hovered(event.player, rayTestResult))
                             entity.call(event)

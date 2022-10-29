@@ -134,7 +134,6 @@ class Sokol : BasePlugin(), SokolAPI {
 
             entityResolver.enable()
             entityHoster.enable()
-            entityHolding.enable()
             entityHover.enable()
             space = SokolSpace(engine)
 
@@ -378,6 +377,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<Collider>()
                     .componentType<RigidBody>()
                     .componentType<VehicleBody>()
+                    .componentType<GhostBody>()
                     .componentType<Meshes>()
                     .componentType<MeshesStatic>()
                     .componentType<MeshesItem>()
@@ -397,6 +397,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(Collider.Type)
                 registerComponentType(RigidBody.Type)
                 registerComponentType(VehicleBody.Type)
+                registerComponentType(GhostBody.Type)
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)
                 registerComponentType(MeshesInWorld.Type)

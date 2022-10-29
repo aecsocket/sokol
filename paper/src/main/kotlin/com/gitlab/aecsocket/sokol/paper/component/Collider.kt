@@ -14,6 +14,7 @@ import com.gitlab.aecsocket.sokol.paper.util.asCompositePath
 import com.gitlab.aecsocket.sokol.paper.util.makeCompositePath
 import com.jme3.bullet.collision.shapes.CollisionShape
 import com.jme3.bullet.collision.shapes.CompoundCollisionShape
+import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
 import org.spongepowered.configurate.ConfigurationNode
@@ -113,6 +114,16 @@ object VehicleBody : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 }
 
+object GhostBody : PersistentComponent {
+    override val componentType get() = GhostBody::class
+    override val key = SokolAPI.key("ghost_body")
+    val Type = ComponentType.singletonComponent(key, GhostBody)
+
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+
+    override fun write(node: ConfigurationNode) {}
+}
+
 interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
@@ -160,7 +171,7 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
 }
 
 @All(Collider::class, PositionWrite::class, SupplierIsValid::class)
-@One(RigidBody::class, VehicleBody::class)
+@One(RigidBody::class, VehicleBody::class, GhostBody::class)
 @After(SupplierIsValidTarget::class)
 class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionWrite>()
@@ -168,6 +179,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
     private val mRigidBody = mappers.componentMapper<RigidBody>()
     private val mVehicleBody = mappers.componentMapper<VehicleBody>()
+    private val mGhostBody = mappers.componentMapper<GhostBody>()
 
     private data class FullBodyData(
         val shape: CollisionShape,
@@ -219,15 +231,13 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         CraftBulletAPI.executePhysics {
             body.collisionShape = shape
-            if (body is PhysicsRigidBody) {
-                // when rebuilding the body, we are going to move the center-of-mass
-                // to avoid the physical position in world also being altered, we offset it back
-                // since we write to the position based on the physPosition
-                // TODO fix slight jitter that comes from pos being updated first in another executePhysics
-                // and then this code gets exec'd
-                body.physPosition = body.physPosition + deltaCom.bullet()
-                body.mass = mass
-            }
+            // when rebuilding the body, we are going to move the center-of-mass
+            // to avoid the physical position in world also being altered, we offset it back
+            // since we write to the position based on the physPosition
+            // TODO fix slight jitter that comes from pos being updated first in another executePhysics
+            // and then this code gets exec'd
+            body.physPosition = body.physPosition + deltaCom.bullet()
+            if (body is PhysicsRigidBody) body.mass = mass
         }
 
         bodyData.centerOfMass = centerOfMass
@@ -246,7 +256,6 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         collider.body = Collider.BodyInstance(obj, physSpace)
 
-        val body = obj.body as? PhysicsRigidBody ?: return
         mPosition.set(entity, object : PositionWrite {
             override val world get() = position.world
             override var transform: Transform
@@ -254,7 +263,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                 set(value) {
                     position.transform = value
                     CraftBulletAPI.executePhysics {
-                        body.transform = value.bullet()
+                        obj.body.transform = value.bullet()
                     }
                 }
         })
@@ -275,8 +284,11 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         CraftBulletAPI.executePhysics {
             val typeField =
                 (if (mRigidBody.has(entity)) 0x1 else 0) or
-                (if (mVehicleBody.has(entity)) 0x2 else 0)
+                (if (mVehicleBody.has(entity)) 0x2 else 0) or
+                (if (mGhostBody.has(entity)) 0x4 else 0)
 
+            val physPosition = transform.translation.bullet()
+            val physRotation = transform.rotation.bullet()
             val body = when (typeField) {
                 0x1 -> object : PhysicsRigidBody(shape, mass), SokolPhysicsObject {
                     override val id get() = id
@@ -284,10 +296,12 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                     override var entity = entity
 
                     override fun update(ctx: TrackedPhysicsObject.Context) {
-                        if (!isValid())
-                            ctx.remove()
+                        if (!isValid()) ctx.remove()
                         entity.call(PhysicsUpdate(this))
                     }
+                }.also {
+                    it.physPosition = physPosition
+                    it.physRotation = physRotation
                 }
                 0x2 -> object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
                     override val id get() = id
@@ -295,17 +309,28 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                     override var entity = entity
 
                     override fun update(ctx: TrackedPhysicsObject.Context) {
-                        if (!isValid())
-                            ctx.remove()
+                        if (!isValid()) ctx.remove()
                         entity.call(PhysicsUpdate(this))
                     }
+                }.also {
+                    it.physPosition = physPosition
+                    it.physRotation = physRotation
+                }
+                0x4 -> object : PhysicsGhostObject(shape), SokolPhysicsObject {
+                    override val id get() = id
+                    override val body get() = this
+                    override var entity = entity
+
+                    override fun update(ctx: TrackedPhysicsObject.Context) {
+                        if (!isValid()) ctx.remove()
+                        entity.call(PhysicsUpdate(this))
+                    }
+                }.also {
+                    it.physPosition = physPosition
+                    it.physRotation = physRotation
                 }
                 else -> throw IllegalStateException("Multiple body types defined for collider")
             }
-
-            body.physPosition = transform.translation.bullet()
-            body.physRotation = transform.rotation.bullet()
-            body.collisionShape
 
             physSpace.addCollisionObject(body)
         }
@@ -318,6 +343,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         val collider = mCollider.get(entity)
         val (body, physSpace) = collider.body ?: return
 
+        collider.bodyData = null
         CraftBulletAPI.executePhysics {
             // I hate this, but for some reason the object can already be removed, and it will throw warning
             // So Remove event can be called multiple times??? I don't know
