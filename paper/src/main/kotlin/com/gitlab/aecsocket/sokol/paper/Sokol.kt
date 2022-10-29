@@ -42,7 +42,6 @@ class Sokol : BasePlugin(), SokolAPI {
     data class Settings(
         val enableBstats: Boolean = true,
         val entityHoverDistance: Float = 0f,
-        val entityHolding: EntityHolding.Settings = EntityHolding.Settings(),
     )
 
     private data class Registration(
@@ -172,8 +171,6 @@ class Sokol : BasePlugin(), SokolAPI {
             if (this.settings.enableBstats) {
                 Metrics(this, BSTATS_ID)
             }
-
-            entityHolding.load()
 
             _entityProfiles.clear()
 

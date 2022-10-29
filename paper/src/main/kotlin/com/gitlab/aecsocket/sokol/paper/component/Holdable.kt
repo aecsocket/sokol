@@ -21,10 +21,9 @@ import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
-import org.bukkit.Bukkit
 import org.bukkit.GameMode
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 import java.util.*
@@ -35,7 +34,6 @@ private const val HOLDER_ID = "holder_id"
 
 data class Holdable(
     val profile: Profile,
-    var holdState: EntityHolding.State?,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("holdable")
@@ -46,6 +44,7 @@ data class Holdable(
     override val key get() = Key
 
     var inUse = false
+    var holdState: EntityHolding.State? = null
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
         .setOrClear(HOLDER_ID) { holdState?.player?.uniqueId?.let { makeUUID(it) } }
@@ -57,14 +56,8 @@ data class Holdable(
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val settings: EntityHolding.HoldSettings
-    ) : ComponentProfile {
-        override fun read(tag: NBTTag) = tag.asCompound().run { Holdable(this@Profile,
-            getOr(HOLDER_ID) { Bukkit.getPlayer(asUUID())?.alexandria?.entityHolding }) }
-
-        override fun read(node: ConfigurationNode) = Holdable(this,
-            node.node(HOLDER_ID).get<UUID>()?.let { Bukkit.getPlayer(it)?.alexandria?.entityHolding })
-
-        override fun readEmpty() = Holdable(this, null)
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = Holdable(this)
     }
 }
 
@@ -81,7 +74,6 @@ class HoldableItemSystem(
 
     @Subscribe
     fun on(event: ItemEvent.ClickAsCurrent, entity: SokolEntity) {
-        val holdable = mHoldable.get(entity)
         val item = mItem.get(entity)
         val player = event.player
 
@@ -92,8 +84,10 @@ class HoldableItemSystem(
                 item.item.subtract()
             }
 
-            holdable.holdState = sokol.entityHolding.start(player.alexandria)
-            sokol.entityHoster.hostMob(entity.toBlueprint(), player.eyeLocation)
+            val axPlayer = player.alexandria
+            val mob = sokol.entityHoster.hostMob(entity.toBlueprint(), player.eyeLocation)
+            sokol.entityHolding.start(axPlayer, mob, player.eyeLocation.transform())
+            player.closeInventory()
         }
     }
 }
@@ -106,7 +100,9 @@ class HoldableMobSystem(
     mappers: ComponentIdAccess
 ) : SokolSystem {
     companion object {
-        val Hold = SokolAPI.key("holdable_mob/hold")
+        val HoldStart = SokolAPI.key("holdable_mob/hold_start")
+        val HoldStop = SokolAPI.key("holdable_mob/hold_stop")
+        val HoldToggle = SokolAPI.key("holdable_mob/hold_toggle")
         val Take = SokolAPI.key("holdable_mob/take")
     }
 
@@ -119,28 +115,58 @@ class HoldableMobSystem(
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
+    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val mob = mMob.get(entity).mob
+
+        holdable.holdState = sokol.entityHolding.mobToState[mob.uniqueId]
+    }
+
+    @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
         val position = mPosition.get(entity)
         val mob = mMob.get(entity).mob
 
-        event.addAction(Hold) { (_, player, cancel) ->
+        fun start(player: Player) {
+            sokol.entityHolding.start(player.alexandria, mob, position.transform)
+        }
+
+        fun stop(player: Player) {
+            sokol.entityHolding.stop(player.alexandria)
+        }
+
+        event.addAction(HoldStart) { (_, player, cancel) ->
             if (holdable.inUse) return@addAction
             cancel()
+            start(player)
+        }
 
-            holdable.holdState = sokol.entityHolding.start(player.alexandria, position.transform)
+        event.addAction(HoldStop) { (_, player, cancel) ->
+            if (holdable.inUse) return@addAction
+            cancel()
+            stop(player)
+        }
+
+        event.addAction(HoldToggle) { (_, player, cancel) ->
+            if (holdable.inUse) return@addAction
+            cancel()
+            if (holdable.holdState == null) start(player) else stop(player)
         }
 
         event.addAction(Take) { (_, player, cancel) ->
             if (holdable.inUse) return@addAction
-            val hovered = mHovered.getOr(entity) ?: return@addAction
             val collider = mCollider.getOr(entity) ?: return@addAction
             cancel()
             holdable.inUse = true
 
-            val hitPath = colliderCompositeHitPath(collider, hovered.rayTestResult)
+            // if we're not holding it, we have a `hovered` which tells us which part was taken
+            // else, we take the whole thing
+            val hitPath = mHovered.getOr(entity)?.let { colliderCompositeHitPath(collider, it.rayTestResult) } ?: emptyCompositePath()
             val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
-                mob.remove()
+                sokol.scheduleDelayed {
+                    mob.remove()
+                }
                 entity
             } else {
                 val nHitPath = hitPath.toMutableList()
@@ -200,7 +226,7 @@ class HoldableMobSystem(
                 val result = player.rayTestFrom(snapDistance.toFloat())
                     .firstOrNull {
                         val obj = it.collisionObject
-                        obj !is TrackedPhysicsObject || obj.id != collider?.bodyData?.bodyId
+                        obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
                     }
 
                 holdState.transform = if (result == null) {
