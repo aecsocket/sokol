@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.alexandria.paper.extension.give
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.sokol.core.*
@@ -22,16 +23,17 @@ class HoldableBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
-    fun on(event: BuildParts, entity: SokolEntity) {
+    fun on(event: Build, entity: SokolEntity) {
         val compositeTransform = mCompositeTransform.get(entity)
 
+        val transform = compositeTransform.transform
         val (parts) = entity.call(MeshesSystem.Create(
             ArrayList(),
-            event.rootTransform + compositeTransform.transform
+            event.rootTransform + transform
         ) { setOf(event.player) })
 
-        parts.forEach { (mesh, transform) ->
-            event.parts.add(EntityHolding.Part(mesh, transform))
+        parts.forEach { (mesh, childTransform) ->
+            event.parts.add(EntityHolding.Part(mesh, transform + childTransform))
         }
 
         mComposite.forward(entity, event)
@@ -47,10 +49,10 @@ class HoldableBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
         }*/
     }
 
-    data class BuildParts(
+    data class Build(
         val parts: MutableList<EntityHolding.Part>,
-        val rootTransform: Transform,
         val player: Player,
+        val rootTransform: Transform
     ) : SokolEvent
 }
 
@@ -74,14 +76,15 @@ class HoldableItemSystem(
 
             // todo a proper transform here
             val worldTransform = Transform(player.location.position())
-            val (parts) = entity.call(HoldableBuildSystem.BuildParts(
+            val (parts) = entity.call(HoldableBuildSystem.Build(
                 ArrayList(),
-                worldTransform,
-                player
+                player,
+                worldTransform
             ))
 
             if (parts.isEmpty()) return
 
+            player.closeInventory()
             sokol.entityHolding.enter(player.alexandria, EntityHolding.State(
                 holdable.settings,
                 event.backing.slot,
@@ -107,7 +110,7 @@ class HoldableMobSystem(
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mMob = mappers.componentMapper<HostedByMob>()
     private val mAsItem = mappers.componentMapper<HostableByItem>()
-    private val mLookedAt = mappers.componentMapper<LookedAt>()
+    private val mHovered = mappers.componentMapper<Hovered>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val composites = compositeMapperFor(mappers)
 
@@ -133,40 +136,35 @@ class HoldableMobSystem(
             }*/
 
             if (holdable.inUse) return@addAction
-            val lookedAt = mLookedAt.getOr(entity) ?: return@addAction
+            val lookedAt = mHovered.getOr(entity) ?: return@addAction
             val collider = mCollider.getOr(entity) ?: return@addAction
             val asItem = mAsItem.getOr(entity) ?: return@addAction
+            val compositeMap = collider.body?.compositeMap ?: return@addAction
 
             cancel()
             holdable.inUse = true
 
             val childIdx = lookedAt.rayTestResult.triangleIndex()
             if (childIdx != -1) {
-                collider.body?.compositeMap?.get(childIdx)?.let { hitPath ->
-                    println("finding hit...")
-                    val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
-                        println(" > was root $hitPath")
-                        mob.remove()
-                        entity
-                    } else {
-                        println(" > was $hitPath = ${composites.child(entity, hitPath)}")
-                        val nHitPath = hitPath.toMutableList()
-                        val last = nHitPath.removeLast()
-                        val parent = composites.child(entity, nHitPath) ?: return@addAction
+                val hitPath = if (compositeMap.isEmpty()) emptyCompositePath() else compositeMap[childIdx]
+                val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
+                    mob.remove()
+                    entity
+                } else {
+                    val nHitPath = hitPath.toMutableList()
+                    val last = nHitPath.removeLast()
+                    val parent = composites.child(entity, nHitPath) ?: return@addAction
 
-                        // todo modularize
-                        entity.call(ColliderSystem.Rebuild)
-                        //entity.call(MeshesInWorldSystem.Rebuild)
-                        composites.composite(parent)?.children?.remove(last)?.also { child ->
-                            child.call(SokolEvent.Remove)
-                        }
+                    entity.call(Composite.TreeMutate)
+                    composites.composite(parent)?.children?.remove(last)?.also { child ->
+                        child.call(SokolEvent.Remove)
                     }
+                }
 
-                    removedEntity?.let {
-                        if (!mAsItem.has(entity)) return@addAction
-                        val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
-                        player.inventory.addItem(item)
-                    }
+                removedEntity?.let {
+                    if (!mAsItem.has(entity)) return@addAction
+                    val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
+                    player.give(item)
                 }
             }
         }

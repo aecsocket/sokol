@@ -11,8 +11,6 @@ import com.gitlab.aecsocket.alexandria.core.serializer.InputMapperSerializer
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.Timings
-import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
-import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.EntityBlueprintSerializer
 import com.gitlab.aecsocket.sokol.paper.component.*
@@ -44,7 +42,7 @@ class Sokol : BasePlugin(), SokolAPI {
     @ConfigSerializable
     data class Settings(
         val enableBstats: Boolean = true,
-        val entityTargetDistance: Double = 0.0,
+        val entityTargetDistance: Float = 0f,
     )
 
     private data class Registration(
@@ -81,8 +79,6 @@ class Sokol : BasePlugin(), SokolAPI {
     val entityHolding = EntityHolding(this)
 
     internal val mobsAdded = HashSet<Int>()
-    private lateinit var mSupplierEntityAccess: ComponentMapper<SupplierEntityAccess>
-    private lateinit var mLookedAt: ComponentMapper<LookedAt>
     private val registrations = ArrayList<Registration>()
     private var hasReloaded = false
 
@@ -141,8 +137,6 @@ class Sokol : BasePlugin(), SokolAPI {
 
             entityResolver.enable()
             entityHoster.enable()
-            mSupplierEntityAccess = engine.componentMapper()
-            mLookedAt = engine.componentMapper()
             space = SokolSpace(engine)
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
@@ -312,34 +306,12 @@ class Sokol : BasePlugin(), SokolAPI {
         }
     }
 
-    internal fun handleInput(player: Player, input: Input, cancel: () -> Unit) {
-        val event = PlayerInput(input, player, cancel)
-
-        usePlayerItems(player, false) { entity ->
-            entity.call(event)
-        }
-
-        CraftBulletAPI.executePhysics {
-            player.rayTestFrom(settings.entityTargetDistance.toFloat()).firstOrNull()?.let { result ->
-                val obj = result.collisionObject
-                if (obj is SokolPhysicsObject) {
-                    scheduleDelayed {
-                        mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
-                            mLookedAt.set(entity, lookedAt(player, result))
-                            entity.call(event)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private fun onInput(event: PacketInputListener.Event) {
         val player = event.player
         when (val input = event.input) {
             is Input.Drop -> return
             else -> {
-                handleInput(player, input) { event.cancel() }
+                entityResolver.handleInput(player, input) { event.cancel() }
             }
         }
     }
@@ -390,7 +362,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostedByBlock>()
                     .componentType<HostedByItem>()
                     .componentType<ItemHolder>()
-                    .componentType<LookedAt>()
+                    .componentType<Hovered>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
                     .componentType<SupplierIsValid>()

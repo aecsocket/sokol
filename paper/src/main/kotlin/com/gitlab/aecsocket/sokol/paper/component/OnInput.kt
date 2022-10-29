@@ -73,7 +73,7 @@ class OnInputSystem(mappers: ComponentIdAccess) : SokolSystem {
 class OnInputInstanceSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mOnInputInstance = mappers.componentMapper<OnInputInstance>()
     private val mItem = mappers.componentMapper<HostedByItem>()
-    private val mLookedAt = mappers.componentMapper<LookedAt>()
+    private val mHovered = mappers.componentMapper<Hovered>()
 
     @Subscribe
     fun on(event: PlayerInput, entity: SokolEntity) {
@@ -81,7 +81,7 @@ class OnInputInstanceSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         val tags = HashSet<String>()
         if (mItem.has(entity)) tags.add(OnInput.HOSTED_BY_ITEM)
-        if (mLookedAt.has(entity)) tags.add(OnInput.LOOKED_AT)
+        if (mHovered.has(entity)) tags.add(OnInput.LOOKED_AT)
 
         val actions = inputActionMapperInstance.mapper.getForPlayer(event.input, event.player, tags)
         actions?.forEach { action ->

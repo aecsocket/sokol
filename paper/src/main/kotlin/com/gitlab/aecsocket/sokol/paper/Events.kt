@@ -2,6 +2,8 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.github.retrooper.packetevents.event.PacketSendEvent
 import com.gitlab.aecsocket.alexandria.core.input.Input
+import com.gitlab.aecsocket.craftbullet.core.BlockRigidBody
+import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryClickEvent

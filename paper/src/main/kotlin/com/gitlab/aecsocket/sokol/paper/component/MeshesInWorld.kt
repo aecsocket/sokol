@@ -9,6 +9,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asTransform
 import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.UUID
@@ -60,6 +61,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = mappers.componentMapper<MeshesInWorld>()
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
+    private val mComposite = mappers.componentMapper<Composite>()
 
     private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (Mesh, Transform) -> Unit) {
         meshesInWorld.meshes.forEach { (id, transform) ->
@@ -67,7 +69,8 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         }
     }
 
-    private fun create(entity: SokolEntity, sendToPlayers: Boolean = false) {
+    @Subscribe
+    fun on(event: Create, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
         val position = mPosition.get(entity)
         val supplierTrackedPlayers = mSupplierTrackedPlayers.get(entity)
@@ -82,56 +85,52 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
             getTrackedPlayers,
         ))
 
-        if (sendToPlayers) {
+        if (event.sendToPlayers) {
             parts.forEach { (mesh) ->
                 mesh.spawn(trackedPlayers)
             }
         }
 
         meshesInWorld.meshes = parts.map { MeshesInWorld.MeshEntry(it.mesh.id, it.transform) }
+
+        mComposite.forward(entity, event)
     }
 
-    private fun remove(entity: SokolEntity) {
+    @Subscribe
+    fun on(event: Remove, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        // TODO we need to have composite children store their own meshes
-        // not just consolidate all meshes into the root MIW
-        println(" !! REMOVE > ${meshesInWorld.meshes.map { it.id }}")
         forEachMesh(meshesInWorld) { mesh, _ ->
             AlexandriaAPI.meshes.remove(mesh.id)
         }
+
+        mComposite.forward(entity, event)
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        create(entity, false)
-    }
-
-    @Subscribe
-    fun on(event: MobEvent.Show, entity: SokolEntity) {
+    fun on(event: Show, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
         forEachMesh(meshesInWorld) { mesh, _ ->
             mesh.spawn(event.player)
         }
+
+        mComposite.forward(entity, event)
     }
 
     @Subscribe
-    fun on(event: MobEvent.Hide, entity: SokolEntity) {
+    fun on(event: Hide, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
         forEachMesh(meshesInWorld) { mesh, _ ->
             mesh.remove(event.player)
         }
+
+        mComposite.forward(entity, event)
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        remove(entity)
-    }
-
-    @Subscribe
-    fun on(event: SokolEvent.Update, entity: SokolEntity) {
+    fun on(event: Update, entity: SokolEntity) {
         val position = mPosition.get(entity)
         val meshesInWorld = mMeshesInWorld.get(entity)
 
@@ -139,11 +138,54 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         forEachMesh(meshesInWorld) { mesh, transform ->
             mesh.transform = rootTransform + transform
         }
+
+        mComposite.forward(entity, event)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Add, entity: SokolEntity) {
+        entity.call(Create(false))
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+        entity.call(Remove)
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Show, entity: SokolEntity) {
+        entity.call(Show(event.player))
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Hide, entity: SokolEntity) {
+        entity.call(Hide(event.player))
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Update, entity: SokolEntity) {
+        entity.call(Update)
     }
 
     @Subscribe
     fun on(event: SokolEvent.Reload, entity: SokolEntity) {
-        remove(entity)
-        create(entity, true)
+        entity.call(Remove)
+        entity.call(Create(true))
     }
+
+    data class Create(
+        val sendToPlayers: Boolean
+    ) : SokolEvent
+
+    object Remove : SokolEvent
+
+    data class Show(
+        val player: Player
+    ) : SokolEvent
+
+    data class Hide(
+        val player: Player
+    ) : SokolEvent
+
+    object Update : SokolEvent
 }

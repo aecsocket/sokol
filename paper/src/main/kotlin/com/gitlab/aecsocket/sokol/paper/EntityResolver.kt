@@ -3,6 +3,10 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.ForwardingLogging
 import com.gitlab.aecsocket.alexandria.core.LogAcceptor
 import com.gitlab.aecsocket.alexandria.core.LogLevel
+import com.gitlab.aecsocket.alexandria.core.input.Input
+import com.gitlab.aecsocket.alexandria.paper.extension.scheduleDelayed
+import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
+import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import io.papermc.paper.chunk.system.ChunkSystem
@@ -72,6 +76,8 @@ class EntityResolver internal constructor(
     private lateinit var mMob: ComponentMapper<HostedByMob>
     private lateinit var mItem: ComponentMapper<HostedByItem>
     private lateinit var mItemHolder: ComponentMapper<ItemHolder>
+    private lateinit var mSupplierEntityAccess: ComponentMapper<SupplierEntityAccess>
+    private lateinit var mHovered: ComponentMapper<Hovered>
 
     internal fun enable() {
         mWorld = sokol.engine.componentMapper()
@@ -80,6 +86,30 @@ class EntityResolver internal constructor(
         mMob = sokol.engine.componentMapper()
         mItem = sokol.engine.componentMapper()
         mItemHolder = sokol.engine.componentMapper()
+        mSupplierEntityAccess = sokol.engine.componentMapper()
+        mHovered = sokol.engine.componentMapper()
+    }
+
+    fun handleInput(player: org.bukkit.entity.Player, input: Input, cancel: () -> Unit) {
+        val event = PlayerInput(input, player, cancel)
+
+        sokol.usePlayerItems(player, false) { entity ->
+            entity.call(event)
+        }
+
+        CraftBulletAPI.executePhysics {
+            player.rayTestFrom(sokol.settings.entityTargetDistance).firstOrNull()?.let { result ->
+                val obj = result.collisionObject
+                if (obj is SokolPhysicsObject) {
+                    sokol.scheduleDelayed {
+                        mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
+                            mHovered.set(entity, hovered(player, result))
+                            entity.call(event)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fun resolve(callback: (SokolEntity) -> Unit) {
@@ -201,6 +231,7 @@ class EntityResolver internal constructor(
                 }
                 is Player -> {
                     val player = bukkit as org.bukkit.entity.Player
+                    // items
                     resolveItem(
                         mob.inventoryMenu.carried,
                         ItemHolder.inCursor(player),

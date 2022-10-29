@@ -62,6 +62,8 @@ data class Composite(
         override fun createProfile(node: ConfigurationNode) = Profile(sokol,
             node.force<HashMap<String, EntityProfile>>())
     }
+
+    object TreeMutate : SokolEvent
 }
 
 interface CompositePath : List<String>

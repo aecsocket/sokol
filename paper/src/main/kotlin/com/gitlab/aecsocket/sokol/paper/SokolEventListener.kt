@@ -61,7 +61,7 @@ internal class SokolEventListener(
         val player = event.player
 
         useEntity(event) {
-            sokol.handleInput(player, Input.Drop) { event.isCancelled = true }
+            sokol.entityResolver.handleInput(player, Input.Drop) { event.isCancelled = true }
         }
     }
 

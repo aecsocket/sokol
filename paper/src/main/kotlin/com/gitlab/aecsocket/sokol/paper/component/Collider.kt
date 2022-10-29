@@ -5,10 +5,7 @@ import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.extension.key
-import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
-import com.gitlab.aecsocket.craftbullet.core.addShape
-import com.gitlab.aecsocket.craftbullet.core.physPosition
-import com.gitlab.aecsocket.craftbullet.core.physRotation
+import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.*
@@ -44,7 +41,7 @@ data class Collider(
     data class BodyData(
         val bodyId: UUID,
         var centerOfMass: Vector3,
-        val compositeMap: List<CompositePath>,
+        var compositeMap: List<CompositePath>,
     )
 
     override val componentType get() = Collider::class
@@ -209,15 +206,25 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         val tracked = physSpace.trackedBy(bodyData.bodyId) ?: return
         val body = tracked.body
 
-        val (shape, mass, centerOfMass) = buildBody(entity)
+        val oldCom = bodyData.centerOfMass
+        val (shape, mass, centerOfMass, compositeMap) = buildBody(entity)
+        val deltaCom = centerOfMass - oldCom
 
         CraftBulletAPI.executePhysics {
             body.collisionShape = shape
-            if (body is PhysicsRigidBody)
+            if (body is PhysicsRigidBody) {
+                // when rebuilding the body, we are going to move the center-of-mass
+                // to avoid the physical position in world also being altered, we offset it back
+                // since we write to the position based on the physPosition
+                // TODO fix slight jitter that comes from pos being updated first in another executePhysics
+                // and then this code gets exec'd
+                body.physPosition = body.physPosition + deltaCom.bullet()
                 body.mass = mass
+            }
         }
 
         bodyData.centerOfMass = centerOfMass
+        bodyData.compositeMap = compositeMap
     }
 
     @Subscribe
@@ -274,8 +281,17 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
-        entity.call(Rebuild)
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+        val position = mPosition.get(entity)
+        val collider = mCollider.get(entity)
+
+        collider.body?.let { (bodyId) ->
+            val physSpace = CraftBulletAPI.spaceOf(position.world)
+            CraftBulletAPI.executePhysics {
+                physSpace.removeTracked(bodyId)
+            }
+            collider.body = null
+        }
     }
 
     @Subscribe
@@ -301,17 +317,13 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        val position = mPosition.get(entity)
-        val collider = mCollider.get(entity)
+    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
+        entity.call(Rebuild)
+    }
 
-        collider.body?.let { (bodyId) ->
-            val physSpace = CraftBulletAPI.spaceOf(position.world)
-            CraftBulletAPI.executePhysics {
-                physSpace.removeTracked(bodyId)
-            }
-            collider.body = null
-        }
+    @Subscribe
+    fun on(event: Composite.TreeMutate, entity: SokolEntity) {
+        entity.call(Rebuild)
     }
 
     object Rebuild : SokolEvent

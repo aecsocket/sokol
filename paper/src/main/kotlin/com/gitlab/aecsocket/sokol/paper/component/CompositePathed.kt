@@ -8,7 +8,6 @@ data class CompositePathed(
     override val componentType get() = CompositePathed::class
 }
 
-@All(Composite::class)
 class CompositePathedSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mComposite = mappers.componentMapper<Composite>()
     private val mCompositePathed = mappers.componentMapper<CompositePathed>()
