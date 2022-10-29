@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.core
 
+import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.sokol.core.util.Bits
 import com.gitlab.aecsocket.sokol.core.util.topologicallySorted
 import com.google.common.graph.GraphBuilder
@@ -239,7 +240,7 @@ class SokolEngine internal constructor(
             return event
         }
 
-        override fun toString() = "EntityImpl$components"
+        override fun toString() = "EntityImpl(${if (profile is Keyed) profile.id else "<anonymous>" })$components"
     }
 
     class Builder {

@@ -42,7 +42,6 @@ data class Meshes(
 class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshes = mappers.componentMapper<Meshes>()
     private val mLocalTransform = mappers.componentMapper<LocalTransform>()
-    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {

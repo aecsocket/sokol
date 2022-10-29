@@ -7,6 +7,8 @@ import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryClickEvent
+import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.ItemMeta
 
 interface MobEvent : SokolEvent {
     data class Show(
@@ -25,7 +27,10 @@ interface ItemEvent : SokolEvent {
     // if we want to just make visual changes instead of a full item build
     // (e.g. just change custom model data, instead of building lore + writing persistence...)
     // useful for when we make a mesh of the item
-    object CreateForm : ItemEvent
+    data class CreateForm(
+        val item: ItemStack,
+        val meta: ItemMeta
+    ) : ItemEvent
 
     object Create : ItemEvent
 

@@ -10,7 +10,6 @@ import com.gitlab.aecsocket.sokol.core.extension.asTransform
 import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
-import com.jme3.bullet.collision.PhysicsRayTestResult
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
@@ -138,9 +137,9 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         val position = mPosition.get(entity)
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        val rootTransform = position.transform
+        val entityTransform = position.transform
         forEachMesh(meshesInWorld) { mesh, transform ->
-            mesh.transform = rootTransform + transform
+            mesh.transform = entityTransform + transform
         }
 
         mComposite.forward(entity, event)

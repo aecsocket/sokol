@@ -1,184 +1,108 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.alexandria.core.extension.*
+import com.gitlab.aecsocket.alexandria.core.input.InputMapper
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
-import com.gitlab.aecsocket.craftbullet.core.hitNormal
-import com.gitlab.aecsocket.craftbullet.paper.CraftBullet
-import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
-import com.gitlab.aecsocket.craftbullet.paper.bullet
-import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
-import com.gitlab.aecsocket.sokol.core.SokolEntity
-import com.gitlab.aecsocket.sokol.core.extension.alexandria
-import com.gitlab.aecsocket.sokol.core.extension.bullet
-import com.gitlab.aecsocket.sokol.core.toBlueprint
+import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.component.PositionWrite
+import com.gitlab.aecsocket.sokol.paper.component.SupplierEntityAccess
 import com.jme3.bullet.collision.shapes.CollisionShape
-import org.bukkit.GameMode
 import org.bukkit.entity.Player
-import org.bukkit.event.EventHandler
-import org.bukkit.event.EventPriority
-import org.bukkit.event.Listener
-import org.bukkit.event.inventory.InventoryClickEvent
-import org.bukkit.event.player.PlayerInteractEvent
-import org.bukkit.event.player.PlayerItemHeldEvent
-import org.bukkit.inventory.EquipmentSlot
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import kotlin.math.PI
-import kotlin.math.abs
 
 class EntityHolding(
     private val sokol: Sokol
 ) : PlayerFeature<EntityHolding.PlayerData> {
     @ConfigSerializable
-    data class StateSettings(
+    data class HoldSettings(
         val placeTransform: Transform,
         val holdDistance: Double,
         val snapDistance: Double,
     )
 
-    data class Part(
-        val mesh: Mesh,
-        val transform: Transform,
-    )
-
     data class State(
-        val settings: StateSettings,
-        val slotId: Int,
+        val player: Player,
         var raiseHandLock: PlayerLockInstance,
         var transform: Transform,
-        val parts: List<Part>,
 
         var frozen: Boolean = false,
         var drawShape: CollisionShape? = null,
     )
 
     inner class PlayerData(
-        private val player: AlexandriaPlayer,
         var state: State? = null
-    ) : PlayerFeature.PlayerData {
-        override fun update() {
-            state?.let { state ->
-                val from = player.handle.eyeLocation
-                val direction = from.direction.alexandria()
-                val snapDistance = state.settings.snapDistance
+    ) : PlayerFeature.PlayerData
 
-                CraftBulletAPI.executePhysics {
-                    if (!state.frozen) {
-                        val result = player.handle.rayTestFrom(snapDistance.toFloat()).firstOrNull()
-
-                        state.transform = if (result == null) {
-                            Transform(
-                                (from + direction * state.settings.holdDistance).position(),
-                                from.rotation()
-                            )
-                        } else {
-                            val hitPos = from.position() + direction * (snapDistance * result.hitFraction)
-
-                            // the hit normal is facing from the surface, to the player
-                            // but when holding (non-snap) it's the opposite direction
-                            // so we invert the normal here to face it in the right direction
-                            val dir = -result.hitNormal.alexandria()
-                            val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
-                                // `dir` and `up` are (close to) collinear
-                                val yaw = player.handle.location.yaw.radians.toDouble()
-                                // `rotation` will be facing "away" from the player
-                                quaternionFromTo(Vector3.Forward, dir) *
-                                    Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2*PI).quaternion(EulerOrder.XYZ)
-                            } else {
-                                val v1 = Vector3.Up.cross(dir).normalized
-                                val v2 = dir.cross(v1).normalized
-                                quaternionOfAxes(v1, v2, dir)
-                            }
-
-                            Transform(hitPos, rotation)
-                        } + state.settings.placeTransform
-                    }
-
-                    state.drawShape?.let { drawShape ->
-                        CraftBulletAPI.drawOperationFor(drawShape, state.transform.bullet())
-                            .invoke(CraftBulletAPI.drawableOf(player.handle, CraftBullet.DrawType.SHAPE))
-                    }
-                }
-
-                state.parts.forEach { (mesh, transform) ->
-                    mesh.transform = state.transform + transform
-                }
-            }
-        }
+    enum class InputAction {
+        TAKE,
+        RELEASE
     }
 
-    override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
+    @ConfigSerializable
+    data class Settings(
+        val inputs: InputMapper<List<InputAction>> = InputMapper.builder<List<InputAction>>().build()
+    )
+
+    lateinit var settings: Settings
+        private set
+
+    private lateinit var mSupplierEntityAccess: ComponentMapper<SupplierEntityAccess>
+    private lateinit var mPosition: ComponentMapper<PositionWrite>
+
+    override fun createFor(player: AlexandriaPlayer) = PlayerData()
 
     internal fun enable() {
-        sokol.registerEvents(object : Listener {
-            @EventHandler(priority = EventPriority.HIGH)
-            fun on(event: PlayerInteractEvent) {
-                if (event.hand != EquipmentSlot.HAND) return
-                val player = event.player.alexandria
-                val data = player.featureData(this@EntityHolding)
-                data.state?.let { state ->
-                    if (event.action.isLeftClick) {
-                        exitInternal(player, state)
-                        data.state = null
-                        return
+        mSupplierEntityAccess = sokol.engine.componentMapper()
+        mPosition = sokol.engine.componentMapper()
+
+        sokol.entityResolver.inputHandler { (input, player, cancel) ->
+            val axPlayer = player.alexandria
+            val actions = settings.inputs.getForPlayer(input, player) ?: return@inputHandler
+            for (action in actions) {
+                when (action) {
+                    InputAction.TAKE -> {
+                        cancel()
+                        break
                     }
-
-                    event.isCancelled = true
-                    if (!event.action.isRightClick) return
-
-                    player.handle.inventory.getItem(state.slotId)?.let { slotItem ->
-                        sokol.useItem(slotItem, false) { slotEntity ->
-                            // todo remove item here
-                            if (player.handle.gameMode != GameMode.CREATIVE) {
-                                slotItem.subtract()
-                                if (slotItem.amount == 0) {
-                                    exitInternal(player, state)
-                                    data.state = null
-                                }
-                            }
-
-                            sokol.entityHoster.hostMob(slotEntity.toBlueprint(), player.handle.world, state.transform)
-                        }
+                    InputAction.RELEASE -> {
+                        cancel()
+                        stop(axPlayer)
+                        break
                     }
                 }
             }
-
-            @EventHandler(priority = EventPriority.HIGH)
-            fun on(event: InventoryClickEvent) {
-                val player = (event.whoClicked as? Player ?: return).alexandria
-                player.entityHolding?.let { state ->
-                    val slotId = state.slotId
-                    if (event.slot == slotId || event.hotbarButton == slotId) {
-                        event.isCancelled = true
-                    }
-                }
-            }
-        })
+        }
     }
 
-    private fun exitInternal(player: AlexandriaPlayer, state: State) {
+    internal fun load() {
+        settings = sokol.settings.entityHolding
+    }
+
+    private fun stopInternal(player: AlexandriaPlayer, state: State) {
         player.releaseLock(state.raiseHandLock)
-        state.parts.forEach { (mesh) ->
-            mesh.remove(player.handle)
-        }
     }
 
-    fun enter(player: AlexandriaPlayer, state: State) {
+    fun start(player: AlexandriaPlayer, state: State) {
         val data = player.featureData(this)
-        data.state?.let { exitInternal(player, it) }
+        data.state?.let { stopInternal(player, it) }
         data.state = state
-
-        state.parts.forEach { (mesh) ->
-            mesh.spawn(player.handle)
-            mesh.glowing(true, player.handle)
-        }
     }
 
-    fun exit(player: AlexandriaPlayer) {
+    fun start(player: AlexandriaPlayer, transform: Transform = player.handle.eyeLocation.transform()): State {
+        val state = State(
+            player.handle,
+            player.acquireLock(PlayerLock.RaiseHand),
+            transform,
+        )
+        start(player, state)
+        return state
+    }
+
+    fun stop(player: AlexandriaPlayer) {
         val data = player.featureData(this)
         data.state?.let { state ->
-            exitInternal(player, state)
+            stopInternal(player, state)
             data.state = null
         }
     }

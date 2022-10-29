@@ -30,13 +30,13 @@ class PositionSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         mComposite.forEachChild(entity) { (_, child) ->
             mLocalTransform.getOr(child)?.let {
-                val relativeTransform = it.transform
+                val localTransform = it.transform
 
                 mPosition.set(child, object : PositionRead {
                     override val world get() = position.world
 
                     override val transform: Transform
-                        get() = position.transform + relativeTransform
+                        get() = position.transform + localTransform
                 })
 
                 child.call(Compose)

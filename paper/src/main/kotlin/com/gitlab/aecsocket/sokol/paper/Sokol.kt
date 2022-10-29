@@ -7,7 +7,6 @@ import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.core.keyed.*
-import com.gitlab.aecsocket.alexandria.core.serializer.InputMapperSerializer
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.Timings
@@ -43,6 +42,7 @@ class Sokol : BasePlugin(), SokolAPI {
     data class Settings(
         val enableBstats: Boolean = true,
         val entityHoverDistance: Float = 0f,
+        val entityHolding: EntityHolding.Settings = EntityHolding.Settings(),
     )
 
     private data class Registration(
@@ -96,7 +96,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .register(SokolEntitySerializer)
                     .registerExact(Meshes.PartDefinitionSerializer)
                     .register(CompositePathSerializer)
-                    .register(InputMapperSerializer<List<Key>>())
             },
             onLoad = {
                 addDefaultI18N()
@@ -110,8 +109,6 @@ class Sokol : BasePlugin(), SokolAPI {
             registerListener(SokolPacketListener(this@Sokol))
             registerListener(PacketInputListener(::onInput), PacketListenerPriority.NORMAL)
         }
-
-        entityHolding.enable()
     }
 
     override fun initInternal(): Boolean {
@@ -138,6 +135,7 @@ class Sokol : BasePlugin(), SokolAPI {
 
             entityResolver.enable()
             entityHoster.enable()
+            entityHolding.enable()
             entityHover.enable()
             space = SokolSpace(engine)
 
@@ -174,6 +172,8 @@ class Sokol : BasePlugin(), SokolAPI {
             if (this.settings.enableBstats) {
                 Metrics(this, BSTATS_ID)
             }
+
+            entityHolding.load()
 
             _entityProfiles.clear()
 
@@ -353,11 +353,9 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemNameProfileSystem(it) }
                     .systemFactory { OnInputSystem(it) }
                     .systemFactory { OnInputInstanceSystem(it) }
-                    .systemFactory { HoldableBuildSystem(it) }
                     .systemFactory { HoldableTarget }
                     .systemFactory { HoldableItemSystem(this@Sokol, it) }
                     .systemFactory { HoldableMobSystem(this@Sokol, it) }
-                    .systemFactory { HoldableStaticSystem(it) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
@@ -393,7 +391,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<OnInput>()
                     .componentType<OnInputInstance>()
                     .componentType<Holdable>()
-                    .componentType<HoldableStatic>()
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
@@ -409,7 +406,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(ItemNameStatic.Type)
                 registerComponentType(ItemNameProfile.Type)
                 registerComponentType(OnInput.Type)
-                registerComponentType(HoldableStatic.Type)
+                registerComponentType(Holdable.Type)
             }
         )
     }

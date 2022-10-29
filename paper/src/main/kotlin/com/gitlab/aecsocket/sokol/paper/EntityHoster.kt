@@ -69,7 +69,7 @@ class EntityHoster internal constructor(
     fun hostMob(blueprint: EntityBlueprint, world: World, transform: Transform) = hostMobOr(blueprint, world, transform)
         ?: hostError(HostableByMob.key, "mob")
 
-    private fun hostItemInternal(blueprint: EntityBlueprint, consumer: (SokolEntity, ItemMeta) -> Unit): ItemStack? {
+    fun hostItemOr(blueprint: EntityBlueprint): ItemStack? {
         val hostable = mAsItem.getOr(blueprint) ?: return null
         val item = hostable.profile.descriptor.create()
 
@@ -77,14 +77,9 @@ class EntityHoster internal constructor(
             mItem.set(blueprint, hostedByItem(item, meta))
 
             val entity = sokol.engine.buildEntity(blueprint)
-            consumer(entity, meta)
-        }
-    }
-
-    fun hostItemOr(blueprint: EntityBlueprint): ItemStack? {
-        return hostItemInternal(blueprint) { entity, meta ->
-            entity.call(ItemEvent.CreateForm)
+            entity.call(ItemEvent.CreateForm(item, meta))
             entity.call(ItemEvent.Create)
+
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
     }
@@ -92,12 +87,15 @@ class EntityHoster internal constructor(
     fun hostItem(blueprint: EntityBlueprint) = hostItemOr(blueprint)
         ?: hostError(HostableByItem.Key, "item")
 
-    fun createItemFormOr(blueprint: EntityBlueprint): ItemStack? {
-        return hostItemInternal(blueprint) { entity, _ ->
-            entity.call(ItemEvent.CreateForm)
+    fun createItemFormOr(entity: SokolEntity): ItemStack? {
+        val hostable = mAsItem.getOr(entity) ?: return null
+        val item = hostable.profile.descriptor.create()
+
+        return item.withMeta { meta ->
+            entity.call(ItemEvent.CreateForm(item, meta))
         }
     }
 
-    fun createItemForm(blueprint: EntityBlueprint) = createItemFormOr(blueprint)
+    fun createItemForm(entity: SokolEntity) = createItemFormOr(entity)
         ?: hostError(HostableByItem.Key, "item")
 }

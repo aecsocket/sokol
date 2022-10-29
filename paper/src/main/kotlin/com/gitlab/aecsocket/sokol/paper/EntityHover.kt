@@ -80,11 +80,14 @@ class EntityHover internal constructor(
         mHovered = sokol.engine.componentMapper()
 
         sokol.entityResolver.inputHandler { event ->
+            val player = event.player
             sokol.scheduleDelayed {
-                event.player.alexandria.hoveredEntity?.let { (obj, rayTestResult) ->
-                    mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
-                        mHovered.set(entity, hovered(event.player, rayTestResult))
-                        entity.call(event)
+                if (player.alexandria.entityHolding == null) {
+                    player.alexandria.hoveredEntity?.let { (obj, rayTestResult) ->
+                        mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
+                            mHovered.set(entity, hovered(event.player, rayTestResult))
+                            entity.call(event)
+                        }
                     }
                 }
             }

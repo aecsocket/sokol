@@ -30,7 +30,7 @@ private const val COMPOSITE_MAP = "composite_map"
 data class Collider(
     val profile: Profile,
     var mass: Float?,
-    var body: BodyData?,
+    var bodyData: BodyData?,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider")
@@ -44,14 +44,22 @@ data class Collider(
         var compositeMap: List<CompositePath>,
     )
 
+    data class BodyInstance(
+        val body: SokolPhysicsObject,
+        val physicsSpace: ServerPhysicsSpace
+    )
+
     override val componentType get() = Collider::class
     override val key get() = Key
+
+    lateinit var backingPosition: PositionWrite
+    var body: BodyInstance? = null
 
     fun mass() = mass ?: profile.mass
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
         .setOrClear(MASS) { mass?.let { body -> makeFloat(body) } }
-        .setOrClear(BODY) { body?.let { body -> makeCompound()
+        .setOrClear(BODY) { bodyData?.let { body -> makeCompound()
             .set(ID) { makeUUID(body.bodyId) }
             .set(CENTER_OF_MASS) { makeVector3(body.centerOfMass) }
             .set(COMPOSITE_MAP) { makeList().apply { body.compositeMap.forEach { path -> add { makeCompositePath(path) } } } }
@@ -59,7 +67,7 @@ data class Collider(
 
     override fun write(node: ConfigurationNode) {
         node.node(MASS).set(mass)
-        node.node(BODY).set(body)
+        node.node(BODY).set(bodyData)
     }
 
     @ConfigSerializable
@@ -200,7 +208,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         val position = mPosition.get(entity)
         val collider = mCollider.get(entity)
 
-        val bodyData = collider.body ?: return
+        val bodyData = collider.bodyData ?: return
         val physSpace = CraftBulletAPI.spaceOf(position.world)
         val tracked = physSpace.trackedBy(bodyData.bodyId) ?: return
         val body = tracked.body
@@ -227,9 +235,35 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        val position = mPosition.get(entity)
+    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
         val collider = mCollider.get(entity)
+        val position = mPosition.get(entity)
+        collider.backingPosition = position
+
+        val bodyData = collider.bodyData ?: return
+        val physSpace = CraftBulletAPI.spaceOf(position.world)
+        val obj = physSpace.trackedBy(bodyData.bodyId) as? SokolPhysicsObject ?: return
+
+        collider.body = Collider.BodyInstance(obj, physSpace)
+
+        val body = obj.body as? PhysicsRigidBody ?: return
+        mPosition.set(entity, object : PositionWrite {
+            override val world get() = position.world
+            override var transform: Transform
+                get() = position.transform
+                set(value) {
+                    position.transform = value
+                    CraftBulletAPI.executePhysics {
+                        body.transform = value.bullet()
+                    }
+                }
+        })
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Add, entity: SokolEntity) {
+        val collider = mCollider.get(entity)
+        val position = collider.backingPosition
         val isValid = mSupplierIsValid.get(entity).valid
 
         val (shape, mass, centerOfMass, compositeMap) = buildBody(entity)
@@ -276,43 +310,34 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
             physSpace.addCollisionObject(body)
         }
 
-        collider.body = Collider.BodyData(id, centerOfMass, compositeMap)
+        collider.bodyData = Collider.BodyData(id, centerOfMass, compositeMap)
     }
 
     @Subscribe
     fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        val position = mPosition.get(entity)
         val collider = mCollider.get(entity)
+        val (body, physSpace) = collider.body ?: return
 
-        collider.body?.let { (bodyId) ->
-            val physSpace = CraftBulletAPI.spaceOf(position.world)
-            CraftBulletAPI.executePhysics {
-                physSpace.removeTracked(bodyId)
-            }
-            collider.body = null
+        CraftBulletAPI.executePhysics {
+            // I hate this, but for some reason the object can already be removed, and it will throw warning
+            // So Remove event can be called multiple times??? I don't know
+            physSpace.removeTracked(body.id)
         }
     }
 
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
-        val position = mPosition.get(entity)
         val collider = mCollider.get(entity)
+        val position = collider.backingPosition
+        val bodyData = collider.bodyData ?: return
+        val (tracked) = collider.body ?: return
+        val body = tracked.body
 
-        val bodyData = collider.body ?: return
-        val physSpace = CraftBulletAPI.spaceOf(position.world)
-        physSpace.trackedBy(bodyData.bodyId)?.let { tracked ->
-            if (tracked !is SokolPhysicsObject)
-                throw SystemExecutionException("Collider physics body is of type ${tracked::class}, expected ${SokolPhysicsObject::class}")
-            val body = tracked.body
-
-            tracked.entity = entity
-            position.transform = Transform(
-                body.physPosition.alexandria(),
-                body.physRotation.alexandria(),
-            ) + Transform(-bodyData.centerOfMass)
-        } ?: run {
-            collider.body = null
-        }
+        tracked.entity = entity
+        position.transform = Transform(
+            body.physPosition.alexandria(),
+            body.physRotation.alexandria(),
+        ) + Transform(-bodyData.centerOfMass)
     }
 
     @Subscribe
