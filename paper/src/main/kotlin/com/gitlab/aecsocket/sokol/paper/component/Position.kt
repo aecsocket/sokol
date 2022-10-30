@@ -18,7 +18,10 @@ interface PositionWrite : SokolComponent {
     var transform: Transform
 }
 
+object PositionTarget : SokolSystem
+
 @All(PositionRead::class, Composite::class)
+@Before(PositionTarget::class)
 class PositionSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mComposite = mappers.componentMapper<Composite>()

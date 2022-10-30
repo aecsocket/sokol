@@ -58,12 +58,11 @@ data class MeshesInWorld(
 }
 
 @All(MeshesInWorld::class, Meshes::class, PositionRead::class, SupplierTrackedPlayers::class)
-@After(MeshesSystem::class, PositionSystem::class, SupplierTrackedPlayersTarget::class)
+@After(MeshesSystem::class, PositionTarget::class, SupplierTrackedPlayersTarget::class)
 class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = mappers.componentMapper<MeshesInWorld>()
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
-    private val mCollider = mappers.componentMapper<Collider>()
     private val mComposite = mappers.componentMapper<Composite>()
 
     private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (Mesh, Transform) -> Unit) {
@@ -194,27 +193,6 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         entity.call(Remove)
         entity.call(Create(true))
     }
-
-    /*private fun glow(entity: SokolEntity, state: Boolean, player: Player, childIdx: Int) {
-        val hitPath = colliderCompositeHitPath(mCollider.getOr(entity), childIdx)
-        mComposite.child(entity, hitPath)?.call(Glow(state, setOf(player)))
-    }
-
-    @Subscribe
-    fun on(event: EntityHover.StartHovered, entity: SokolEntity) {
-        glow(entity, true, event.player, event.newTestResult.triangleIndex())
-    }
-
-    @Subscribe
-    fun on(event: EntityHover.ChangeHoverIndex, entity: SokolEntity) {
-        glow(entity, false, event.player, event.oldIndex)
-        glow(entity, true, event.player, event.newIndex)
-    }
-
-    @Subscribe
-    fun on(event: EntityHover.StopHovered, entity: SokolEntity) {
-        glow(entity, false, event.player, event.oldTestResult.triangleIndex())
-    }*/
 
     data class Create(
         val sendToPlayers: Boolean

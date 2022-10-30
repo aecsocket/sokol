@@ -78,7 +78,7 @@ class Sokol : BasePlugin(), SokolAPI {
     val entityHoster = EntityHoster(this)
     val entityHover = EntityHover(this)
     val engineTimings = Timings(60 * 1000)
-    val entityHolding = EntityHolding(this)
+    val entityHolding = EntityHolding()
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -329,13 +329,10 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { CompositePathedSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
                     .systemFactory { RotationSystem(it) }
+                    .systemFactory { PositionTarget }
                     .systemFactory { PositionSystem(it) }
-                    .systemFactory { SupplierIsValidTarget }
-                    .systemFactory { SupplierIsValidBuildSystem(it) }
                     .systemFactory { SupplierTrackedPlayersTarget }
                     .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
-                    .systemFactory { SupplierEntityAccessTarget }
-                    .systemFactory { SupplierEntityAccessBuildSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
                     .systemFactory { ColliderBuildSystem(it) }
@@ -349,9 +346,12 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemNameProfileSystem(it) }
                     .systemFactory { OnInputSystem(it) }
                     .systemFactory { OnInputInstanceSystem(it) }
+                    .systemFactory { TakeableSystem(this@Sokol, it) }
                     .systemFactory { HoldableTarget }
+                    .systemFactory { HoldableSystem(it) }
                     .systemFactory { HoldableItemSystem(this@Sokol, it) }
                     .systemFactory { HoldableMobSystem(this@Sokol, it) }
+                    .systemFactory { HoldableGlowingSystem(it) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
@@ -362,7 +362,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<Hovered>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
-                    .componentType<SupplierIsValid>()
+                    .componentType<Removable>()
                     .componentType<SupplierTrackedPlayers>()
                     .componentType<SupplierEntityAccess>()
                     .componentType<HostableByMob>()
@@ -388,7 +388,9 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<ItemNameProfile>()
                     .componentType<OnInput>()
                     .componentType<OnInputInstance>()
+                    .componentType<Takeable>()
                     .componentType<Holdable>()
+                    .componentType<HoldableGlowing>()
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
@@ -406,7 +408,9 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(ItemNameStatic.Type)
                 registerComponentType(ItemNameProfile.Type)
                 registerComponentType(OnInput.Type)
+                registerComponentType(Takeable.Type)
                 registerComponentType(Holdable.Type)
+                registerComponentType(HoldableGlowing.Type)
             }
         )
     }

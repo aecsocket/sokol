@@ -44,19 +44,17 @@ class EntityHover internal constructor(
                     }
 
                 fun call(obj: SokolPhysicsObject, event: SokolEvent) {
-                    mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
-                        entity.call(event)
-                    }
+                    obj.entity.call(event)
                 }
 
                 hover?.let {
                     if (newHover == null || newHover.obj !== hover.obj) {
-                        call(hover.obj, StopHovered(player.handle, hover.rayTestResult))
+                        call(hover.obj, HoverState(player.handle, false, hover.rayTestResult))
                     }
                 }
                 newHover?.let {
                     if (hover == null || hover.obj !== newHover.obj) {
-                        call(newHover.obj, StartHovered(player.handle, newHover.rayTestResult))
+                        call(newHover.obj, HoverState(player.handle, true, newHover.rayTestResult))
                     } else {
                         val oldIndex = hover.rayTestResult.triangleIndex()
                         val newIndex = newHover.rayTestResult.triangleIndex()
@@ -84,11 +82,8 @@ class EntityHover internal constructor(
             val axPlayer = player.alexandria
 
             sokol.scheduleDelayed {
-                axPlayer.entityHolding?.mobHost?.get()?.let { mob ->
-                    sokol.useMob(mob) { entity ->
-                        entity.call(event)
-                    }
-                } ?: run {
+                // if the player's holding an entity, it gets the event precedence over the hovered
+                axPlayer.entityHolding?.entity?.call(event) ?: run {
                     axPlayer.hoveredEntity?.let { (obj, rayTestResult) ->
                         mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
                             mHovered.set(entity, hovered(event.player, rayTestResult))
@@ -112,20 +107,16 @@ class EntityHover internal constructor(
         }
     }
 
-    data class StartHovered(
+    data class HoverState(
         val player: Player,
-        val newTestResult: PhysicsRayTestResult
+        val state: Boolean,
+        val testResult: PhysicsRayTestResult
     ) : SokolEvent
 
     data class ChangeHoverIndex(
         val player: Player,
         val oldIndex: Int,
         val newIndex: Int
-    ) : SokolEvent
-
-    data class StopHovered(
-        val player: Player,
-        val oldTestResult: PhysicsRayTestResult
     ) : SokolEvent
 }
 

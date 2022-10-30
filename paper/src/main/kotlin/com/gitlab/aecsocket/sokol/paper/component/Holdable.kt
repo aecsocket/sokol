@@ -15,44 +15,15 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.*
-import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
-import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.GameMode
-import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.Setting
 import java.util.*
-import kotlin.collections.ArrayList
 import kotlin.math.PI
 import kotlin.math.abs
-
-private const val HOLDER_ID = "holder_id"
-
-enum class HoldPlaceState(val valid: Boolean) {
-    ALLOW           (true),
-    ALLOW_ATTACH    (true),
-    DISALLOW        (false),
-    DISALLOW_ATTACH (true),
-}
-
-@ConfigSerializable
-data class HoldSettings(
-    val placeTransform: Transform = Transform.Identity,
-    val holdDistance: Double = 0.0,
-    val snapDistance: Double = 0.0,
-    val allowNonSnapPlacing: Boolean = true,
-    val placeColors: Map<HoldPlaceState, NamedTextColor> = emptyMap(),
-)
-
-data class HoldAttachTo(
-    val mob: Entity,
-    val path: CompositePath,
-)
-
 
 data class Holdable(
     val profile: Profile,
@@ -65,25 +36,117 @@ data class Holdable(
     override val componentType get() = Holdable::class
     override val key get() = Key
 
-    var inUse = false
-    var holdState: EntityHolding.State? = null
+    var state: HoldState? = null
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .setOrClear(HOLDER_ID) { holdState?.player?.uniqueId?.let { makeUUID(it) } }
 
-    override fun write(node: ConfigurationNode) {
-        node.node(HOLDER_ID).set(holdState?.player?.uniqueId)
-    }
+    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(
-        @Setting(nodeFromParent = true) val settings: HoldSettings
+        val holdTransform: Transform = Transform.Identity,
+        val holdDistance: Double = 0.0,
+        val snapDistance: Double = 0.0,
+        val allowFreePlace: Boolean = true,
     ) : NonReadingComponentProfile {
+        val fSnapDistance = snapDistance.toFloat()
+
         override fun readEmpty() = Holdable(this)
     }
 }
 
 object HoldableTarget : SokolSystem
+
+@All(Holdable::class, PositionWrite::class, Collider::class)
+@Before(OnInputSystem::class)
+@After(HoldableTarget::class, PositionTarget::class)
+class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mHoldable = mappers.componentMapper<Holdable>()
+    private val mPosition = mappers.componentMapper<PositionWrite>()
+    private val mCollider = mappers.componentMapper<Collider>()
+
+    @Subscribe
+    fun on(event: SokolEvent.Update, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val position = mPosition.get(entity)
+        val collider = mCollider.get(entity)
+        val holdProfile = holdable.profile
+        val holdState = holdable.state ?: return
+        val body = collider.body?.body?.body ?: return
+        val player = holdState.player
+
+        holdState.entity = entity
+
+        position.transform = holdState.transform
+        if (body is PhysicsRigidBody) {
+            CraftBulletAPI.executePhysics {
+                // TODO set velocities so that it moves to the position, rather than just transform
+                body.linearVelocity = Vector3f.ZERO
+                body.angularVelocity = Vector3f.ZERO
+            }
+        }
+
+        holdState.drawShape?.let { drawShape ->
+            val transform = position.transform.bullet()
+            val drawable = CraftBulletAPI.drawableOf(player, CraftBullet.DrawType.SHAPE)
+            CraftBulletAPI.drawPointsShape(drawShape).forEach {
+                drawable.draw(transform.transform(it))
+            }
+        }
+
+        if (holdState.frozen) return
+        val from = player.eyeLocation
+        val direction = from.direction.alexandria()
+
+        CraftBulletAPI.executePhysics {
+            val result = player.rayTestFrom(holdProfile.fSnapDistance)
+                .firstOrNull {
+                    val obj = it.collisionObject
+                    obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
+                }
+
+            var allowPlace = false
+            if (result == null) {
+                if (holdProfile.allowFreePlace)
+                    allowPlace = true
+                holdState.transform = Transform(
+                    (from + direction * holdProfile.holdDistance).position(),
+                    from.rotation()
+                ) + holdProfile.holdTransform
+            } else {
+                allowPlace = true
+                val hitPos = from.position() + direction * (holdProfile.snapDistance * result.hitFraction)
+
+                // the hit normal is facing from the surface, to the player
+                // but when holding (non-snap) it's the opposite direction
+                // so we invert the normal here to face it in the right direction
+                val dir = -result.hitNormal.alexandria()
+                val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
+                    // `dir` and `up` are (close to) collinear
+                    val yaw = player.location.yaw.radians.toDouble()
+                    // `rotation` will be facing "away" from the player
+                    quaternionFromTo(Vector3.Forward, dir) *
+                            Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2 * PI).quaternion(EulerOrder.XYZ)
+                } else {
+                    val v1 = Vector3.Up.cross(dir).normalized
+                    val v2 = dir.cross(v1).normalized
+                    quaternionOfAxes(v1, v2, dir)
+                }
+
+                holdState.transform = Transform(hitPos, rotation) + holdProfile.holdTransform
+            }
+
+            if (allowPlace != holdState.allowPlace) {
+                holdState.allowPlace = allowPlace
+                entity.call(ChangeAllowPlace(allowPlace))
+            }
+        }
+    }
+
+    data class HoldState(val player: Player, val state: Boolean) : SokolEvent
+
+    data class ChangeAllowPlace(val allow: Boolean) : SokolEvent
+}
 
 @All(Holdable::class, HostedByItem::class, HostableByMob::class)
 @After(HoldableTarget::class)
@@ -107,16 +170,96 @@ class HoldableItemSystem(
 
             val axPlayer = player.alexandria
             val mob = sokol.entityHoster.hostMob(entity.toBlueprint(), player.eyeLocation)
-            sokol.entityHolding.start(axPlayer, mob, player.eyeLocation.transform())
+            sokol.entityHolding.stop(axPlayer)
             player.closeInventory()
+            sokol.useMob(mob) { mobEntity ->
+                sokol.entityHolding.start(axPlayer, mobEntity, player.eyeLocation.transform(), mob)
+            }
         }
     }
 }
 
 @All(Holdable::class, HostedByMob::class, PositionWrite::class)
+@Before(HoldableTarget::class, OnInputSystem::class)
+@After(HostedByMobTarget::class)
+class HoldableMobSystem(
+    private val sokol: Sokol,
+    mappers: ComponentIdAccess
+) : SokolSystem {
+    companion object {
+        val HoldStart = SokolAPI.key("holdable_mob/hold_start")
+        val HoldStop = SokolAPI.key("holdable_mob/hold_stop")
+        val HoldToggle = SokolAPI.key("holdable_mob/hold_toggle")
+        val Place = SokolAPI.key("holdable_mob/place")
+        val PlaceToggle = SokolAPI.key("holdable_mob/place_toggle")
+    }
+
+    private val mHoldable = mappers.componentMapper<Holdable>()
+    private val mMob = mappers.componentMapper<HostedByMob>()
+    private val mPosition = mappers.componentMapper<PositionWrite>()
+
+    @Subscribe
+    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val mob = mMob.get(entity).mob
+
+        holdable.state = sokol.entityHolding.heldBy[mob.uniqueId]
+    }
+
+    @Subscribe
+    fun on(event: OnInputSystem.Build, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val mob = mMob.get(entity).mob
+        val position = mPosition.get(entity)
+
+        fun start(player: Player) {
+            sokol.entityHolding.start(player.alexandria, entity, position.transform, mob)
+        }
+
+        fun stop(player: Player) {
+            sokol.entityHolding.stop(player.alexandria)
+        }
+
+        fun place(player: Player) {
+            // TODO if (attach) { doAttach() } else
+            stop(player)
+        }
+
+        event.addAction(HoldStart) { (player, _, cancel) ->
+            cancel()
+            if (holdable.state != null) return@addAction
+            start(player)
+        }
+
+        event.addAction(HoldStop) { (player, _, cancel) ->
+            cancel()
+            if (holdable.state == null) return@addAction
+            stop(player)
+        }
+
+        event.addAction(HoldToggle) { (player, _, cancel) ->
+            cancel()
+            if (holdable.state == null) start(player) else stop(player)
+        }
+
+        event.addAction(Place) { (player, _, cancel) ->
+            cancel()
+            if (holdable.state == null) return@addAction
+            place(player)
+        }
+
+        event.addAction(PlaceToggle) { (player, _, cancel) ->
+            cancel()
+            if (holdable.state == null) start(player) else place(player)
+        }
+    }
+}
+
+/*
+@All(Holdable::class, HostedByMob::class, PositionWrite::class)
 @Before(OnInputSystem::class)
 @After(HoldableTarget::class, HostedByMobTarget::class, ColliderSystem::class)
-class HoldableMobSystem(
+class HoldableMobSystem2(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
 ) : SokolSystem {
@@ -144,7 +287,7 @@ class HoldableMobSystem(
         val holdable = mHoldable.get(entity)
         val mob = mMob.get(entity).mob
 
-        holdable.holdState = sokol.entityHolding.mobToState[mob.uniqueId]
+        holdable.holdState = sokol.entityHolding.heldBy[mob.uniqueId]
     }
 
     @Subscribe
@@ -414,4 +557,4 @@ class HoldableMobSystem(
     object StartHold : SokolEvent
 
     object StopHold : SokolEvent
-}
+}*/

@@ -153,7 +153,7 @@ class SokolEngine internal constructor(
 
     fun buildEntity(blueprint: EntityBlueprint): SokolEntity {
         val entity = EntityImpl(blueprint.profile, blueprint.components.mutableCopy())
-        entity.call(SokolEvent.Populate(blueprint))
+        entity.call(SokolEvent.Populate)
         return entity
     }
 

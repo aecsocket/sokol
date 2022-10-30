@@ -4,9 +4,9 @@ import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
+import com.gitlab.aecsocket.alexandria.paper.extension.scheduleDelayed
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
-import com.gitlab.aecsocket.sokol.paper.writeEntityTagTo
 import org.bukkit.Chunk
 import org.bukkit.World
 import org.bukkit.block.Block
@@ -100,26 +100,22 @@ object HostedByItemFormTarget : SokolSystem
 object HostedByItemTarget : SokolSystem
 
 @All(HostedByMob::class)
-@Before(HostedByMobTarget::class)
+@Before(HostedByMobTarget::class, SupplierTrackedPlayersTarget::class, PositionTarget::class)
 class MobInjectorSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
 ) : SokolSystem {
     private val mMob = mappers.componentMapper<HostedByMob>()
     private val mRotation = mappers.componentMapper<Rotation>()
-    private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
-    private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
     private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
+    private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mPositionWrite = mappers.componentMapper<PositionWrite>()
+    private val mRemovable = mappers.componentMapper<Removable>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
         val mob = mMob.get(entity).mob
-
-        mSupplierIsValid.set(entity, object : SupplierIsValid {
-            override val valid: () -> Boolean get() = { mob.isValid }
-        })
 
         mSupplierTrackedPlayers.set(entity, object : SupplierTrackedPlayers {
             override val trackedPlayers: () -> Set<Player> get() = { mob.trackedPlayers }
@@ -127,8 +123,20 @@ class MobInjectorSystem(
 
         mSupplierEntityAccess.set(entity, object : SupplierEntityAccess {
             override fun useEntity(consumer: (SokolEntity) -> Unit) {
-                consumer(entity)
-                sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
+                sokol.useMob(mob, consumer = consumer)
+            }
+        })
+
+        var removed = false
+        mRemovable.set(entity, object : Removable {
+            override val removed get() = removed || !mob.isValid
+
+            override fun remove() {
+                removed = true
+                entity.call(SokolEvent.Remove)
+                sokol.scheduleDelayed {
+                    mob.remove()
+                }
             }
         })
 

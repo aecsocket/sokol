@@ -5,6 +5,7 @@ import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.destroystokyo.paper.event.server.ServerTickStartEvent
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.input.Input
+import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.sokol.core.PersistenceException
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import org.bukkit.entity.Player
@@ -49,6 +50,9 @@ internal class SokolEventListener(
     fun on(event: EntityRemoveFromWorldEvent) {
         val mob = event.entity
 
+        sokol.entityHolding.heldBy[mob.uniqueId]?.let { state ->
+            sokol.entityHolding.stop(state.player.alexandria)
+        }
         useEntity(event) {
             sokol.useMob(mob) { entity ->
                 entity.call(SokolEvent.Remove)

@@ -23,14 +23,11 @@ data class Composite(
 
     fun child(key: String) = children[key]
 
-    fun attach(key: String, parent: SokolEntity, value: SokolEntity) {
-        children[key] = value
-        parent.call(SokolEvent.Populate)
-        value.call(Attach)
-    }
-
-    fun detach(key: String) {
-        children.remove(key)?.call(Detach)
+    fun detach(entity: SokolEntity, key: String): SokolEntity? {
+        return children.remove(key)?.also { child ->
+            child.call(DetachFrom(key))
+            entity.call(Detach(key, child))
+        }
     }
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound().apply {
@@ -97,9 +94,15 @@ data class Composite(
             node.force<HashMap<String, EntityProfile>>())
     }
 
-    object Attach : SokolEvent
+    sealed interface ParentEvent : SokolEvent
 
-    object Detach : SokolEvent
+    object AttachTo : SokolEvent
+
+    data class DetachFrom(val key: String) : SokolEvent
+
+    data class Attach(val key: String) : ParentEvent
+
+    data class Detach(val key: String, val child: SokolEntity) : ParentEvent
 
     object TreeMutate : SokolEvent
 }

@@ -17,6 +17,7 @@ import com.jme3.bullet.collision.shapes.CompoundCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
+import com.jme3.math.Quaternion
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -170,13 +171,12 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(Collider::class, PositionWrite::class, SupplierIsValid::class)
+@All(Collider::class, PositionWrite::class, Removable::class)
 @One(RigidBody::class, VehicleBody::class, GhostBody::class)
-@After(SupplierIsValidTarget::class)
 class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionWrite>()
     private val mCollider = mappers.componentMapper<Collider>()
-    private val mSupplierIsValid = mappers.componentMapper<SupplierIsValid>()
+    private val mRemovable = mappers.componentMapper<Removable>()
     private val mRigidBody = mappers.componentMapper<RigidBody>()
     private val mVehicleBody = mappers.componentMapper<VehicleBody>()
     private val mGhostBody = mappers.componentMapper<GhostBody>()
@@ -234,9 +234,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
             // when rebuilding the body, we are going to move the center-of-mass
             // to avoid the physical position in world also being altered, we offset it back
             // since we write to the position based on the physPosition
-            // TODO fix slight jitter that comes from pos being updated first in another executePhysics
-            // and then this code gets exec'd
-            body.physPosition = body.physPosition + deltaCom.bullet()
+            body.transform = com.jme3.math.Transform(deltaCom.bullet(), Quaternion.IDENTITY).combineWithParent(body.transform)
             if (body is PhysicsRigidBody) body.mass = mass
         }
 
@@ -273,7 +271,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
         val collider = mCollider.get(entity)
         val position = collider.backingPosition
-        val isValid = mSupplierIsValid.get(entity).valid
+        val removable = mRemovable.get(entity)
 
         val (shape, mass, centerOfMass, compositeMap) = buildBody(entity)
 
@@ -296,7 +294,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                     override var entity = entity
 
                     override fun update(ctx: TrackedPhysicsObject.Context) {
-                        if (!isValid()) ctx.remove()
+                        if (removable.removed) ctx.remove()
                         entity.call(PhysicsUpdate(this))
                     }
                 }.also {
@@ -309,7 +307,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                     override var entity = entity
 
                     override fun update(ctx: TrackedPhysicsObject.Context) {
-                        if (!isValid()) ctx.remove()
+                        if (removable.removed) ctx.remove()
                         entity.call(PhysicsUpdate(this))
                     }
                 }.also {
@@ -322,7 +320,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
                     override var entity = entity
 
                     override fun update(ctx: TrackedPhysicsObject.Context) {
-                        if (!isValid()) ctx.remove()
+                        if (removable.removed) ctx.remove()
                         entity.call(PhysicsUpdate(this))
                     }
                 }.also {
