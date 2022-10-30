@@ -57,15 +57,6 @@ internal class SokolEventListener(
     }
 
     @EventHandler
-    fun on(event: PlayerDropItemEvent) {
-        val player = event.player
-
-        useEntity(event) {
-            sokol.entityResolver.handleInput(PlayerInput(Input.Drop, player) { event.isCancelled = true })
-        }
-    }
-
-    @EventHandler
     fun on(event: InventoryClickEvent) {
         val player = event.whoClicked as? Player ?: return
         val entityEvent = ItemEvent.Click(player, event)

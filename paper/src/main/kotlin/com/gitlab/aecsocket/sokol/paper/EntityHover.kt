@@ -79,7 +79,7 @@ class EntityHover internal constructor(
         mSupplierEntityAccess = sokol.engine.componentMapper()
         mHovered = sokol.engine.componentMapper()
 
-        sokol.entityResolver.inputHandler { event ->
+        sokol.inputHandler { event ->
             val player = event.player
             val axPlayer = player.alexandria
 

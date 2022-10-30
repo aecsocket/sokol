@@ -5,9 +5,7 @@ interface SokolEvent {
         var cancelled: Boolean
     }
 
-    data class Populate(
-        val blueprint: EntityBlueprint
-    ) : SokolEvent
+    object Populate : SokolEvent
 
     object Add : SokolEvent
 

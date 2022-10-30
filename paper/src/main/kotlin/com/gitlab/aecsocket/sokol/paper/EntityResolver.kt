@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.ForwardingLogging
 import com.gitlab.aecsocket.alexandria.core.LogAcceptor
 import com.gitlab.aecsocket.alexandria.core.LogLevel
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import io.papermc.paper.chunk.system.ChunkSystem
@@ -70,8 +71,6 @@ class EntityResolver internal constructor(
     private val _lastStats = HashMap<SokolObjectType, TypeStats>()
     val lastStats: Map<SokolObjectType, TypeStats> get() = _lastStats
 
-    private val inputHandlers = ArrayList<InputHandler>()
-
     private lateinit var mWorld: ComponentMapper<HostedByWorld>
     private lateinit var mChunk: ComponentMapper<HostedByChunk>
     private lateinit var mBlock: ComponentMapper<HostedByBlock>
@@ -87,19 +86,11 @@ class EntityResolver internal constructor(
         mItem = sokol.engine.componentMapper()
         mItemHolder = sokol.engine.componentMapper()
 
-        inputHandler { event ->
+        sokol.inputHandler { event ->
             sokol.usePlayerItems(event.player, false) { entity ->
                 entity.call(event)
             }
         }
-    }
-
-    fun inputHandler(handler: InputHandler) {
-        inputHandlers.add(handler)
-    }
-
-    fun handleInput(event: PlayerInput) {
-        inputHandlers.forEach { it.handle(event) }
     }
 
     fun resolve(callback: (SokolEntity) -> Unit) {

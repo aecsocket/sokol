@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.github.retrooper.packetevents.event.PacketSendEvent
 import com.gitlab.aecsocket.alexandria.core.input.Input
+import com.gitlab.aecsocket.alexandria.paper.InputEvent
 import com.gitlab.aecsocket.craftbullet.core.BlockRigidBody
 import com.gitlab.aecsocket.craftbullet.core.TrackedPhysicsObject
 import com.gitlab.aecsocket.sokol.core.SokolEvent
@@ -53,7 +54,9 @@ interface ItemEvent : SokolEvent {
 }
 
 data class PlayerInput(
-    val input: Input,
     val player: Player,
+    val input: Input,
     val cancel: () -> Unit,
-) : SokolEvent
+) : SokolEvent {
+    constructor(event: InputEvent) : this(event.player, event.input, event.cancel)
+}

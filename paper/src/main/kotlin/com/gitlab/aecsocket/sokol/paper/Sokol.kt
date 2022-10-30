@@ -1,11 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.github.retrooper.packetevents.PacketEvents
-import com.github.retrooper.packetevents.event.PacketListenerPriority
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
-import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.core.keyed.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
@@ -36,6 +34,10 @@ private const val BSTATS_ID = 11870
 
 private lateinit var instance: Sokol
 val SokolAPI get() = instance
+
+fun interface SokolInputHandler {
+    fun handle(event: PlayerInput)
+}
 
 class Sokol : BasePlugin(), SokolAPI {
     @ConfigSerializable
@@ -80,6 +82,7 @@ class Sokol : BasePlugin(), SokolAPI {
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
+    private val inputHandlers = ArrayList<SokolInputHandler>()
     private var hasReloaded = false
 
     override fun onEnable() {
@@ -100,14 +103,17 @@ class Sokol : BasePlugin(), SokolAPI {
                 addDefaultI18N()
             }
         )
+        AlexandriaAPI.inputHandler { event ->
+            val sokolEvent = PlayerInput(event)
+            inputHandlers.forEach { handler ->
+                handler.handle(sokolEvent)
+            }
+        }
 
         registerDefaultConsumer()
 
         registerEvents(SokolEventListener(this))
-        PacketEvents.getAPI().eventManager.apply {
-            registerListener(SokolPacketListener(this@Sokol))
-            registerListener(PacketInputListener(::onInput), PacketListenerPriority.NORMAL)
-        }
+        PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this@Sokol))
     }
 
     override fun initInternal(): Boolean {
@@ -209,6 +215,10 @@ class Sokol : BasePlugin(), SokolAPI {
         registrations.add(Registration(onInit, onPostInit))
     }
 
+    fun inputHandler(handler: SokolInputHandler) {
+        inputHandlers.add(handler)
+    }
+
     override fun entityProfile(id: String) = _entityProfiles[id]
 
     override fun componentType(key: Key) = _componentTypes[key.asString()]
@@ -300,16 +310,6 @@ class Sokol : BasePlugin(), SokolAPI {
                 ) { entity ->
                     consumer(entity)
                 }
-            }
-        }
-    }
-
-    private fun onInput(event: PacketInputListener.Event) {
-        val player = event.player
-        when (val input = event.input) {
-            is Input.Drop -> return
-            else -> {
-                entityResolver.handleInput(PlayerInput(input, player) { event.cancel() })
             }
         }
     }

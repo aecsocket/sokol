@@ -4,10 +4,7 @@ import com.gitlab.aecsocket.alexandria.core.extension.Euler3
 import com.gitlab.aecsocket.alexandria.core.extension.EulerOrder
 import com.gitlab.aecsocket.alexandria.core.extension.quaternion
 import com.gitlab.aecsocket.alexandria.core.extension.radians
-import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.core.physics.Vector3
-import com.gitlab.aecsocket.alexandria.core.physics.quaternionFromTo
-import com.gitlab.aecsocket.alexandria.core.physics.quaternionOfAxes
+import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.*
@@ -23,11 +20,13 @@ import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.GameMode
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.math.PI
 import kotlin.math.abs
 
@@ -48,6 +47,12 @@ data class HoldSettings(
     val allowNonSnapPlacing: Boolean = true,
     val placeColors: Map<HoldPlaceState, NamedTextColor> = emptyMap(),
 )
+
+data class HoldAttachTo(
+    val mob: Entity,
+    val path: CompositePath,
+)
+
 
 data class Holdable(
     val profile: Profile,
@@ -132,6 +137,7 @@ class HoldableMobSystem(
     private val mEntitySlot = mappers.componentMapper<EntitySlot>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
+    private val mCompositePathed = mappers.componentMapper<CompositePathed>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
@@ -159,36 +165,40 @@ class HoldableMobSystem(
                     holdable.inUse = true
 
                     sokol.scheduleDelayed {
+                        sokol.persistence.removeTag(mob.persistentDataContainer, sokol.persistence.entityKey)
                         mob.remove()
                     }
 
-                    attachTo.useEntity { parentEntity ->
-                        mComposite.get(parentEntity).children[attachTo.key] = entity
-                        parentEntity.call(Composite.TreeMutate)
+                    sokol.useMob(attachTo.mob) { attachToEntity ->
+                        val parentEntity = mComposite.child(attachToEntity, attachTo.path) ?: return@useMob
+                        val composite = mComposite.getOr(parentEntity) ?: return@useMob
+
+                        composite.attach(ENTITY_SLOT_CHILD_KEY, parentEntity, entity)
+                        attachToEntity.call(Composite.TreeMutate)
                     }
                 }
             }
         }
 
-        event.addAction(HoldStart) { (_, player, cancel) ->
+        event.addAction(HoldStart) { (player, _, cancel) ->
             if (holdable.inUse) return@addAction
             cancel()
             start(player)
         }
 
-        event.addAction(HoldStop) { (_, player, cancel) ->
+        event.addAction(HoldStop) { (player, _, cancel) ->
             if (holdable.inUse) return@addAction
             cancel()
             stop(player)
         }
 
-        event.addAction(HoldToggle) { (_, player, cancel) ->
+        event.addAction(HoldToggle) { (player, _, cancel) ->
             if (holdable.inUse) return@addAction
             cancel()
             if (holdable.holdState == null) start(player) else stop(player)
         }
 
-        event.addAction(Take) { (_, player, cancel) ->
+        event.addAction(Take) { (player, _, cancel) ->
             if (holdable.inUse) return@addAction
             val collider = mCollider.getOr(entity) ?: return@addAction
             cancel()
@@ -197,7 +207,7 @@ class HoldableMobSystem(
             // if we're not holding it, we have a `hovered` which tells us which part was taken
             // else, we take the whole thing
             val hitPath = mHovered.getOr(entity)?.let { colliderCompositeHitPath(collider, it.rayTestResult) } ?: emptyCompositePath()
-            val removedEntity: SokolEntity? = if (hitPath.isEmpty()) {
+            val removedEntity: SokolEntity = if (hitPath.isEmpty()) {
                 sokol.scheduleDelayed {
                     mob.remove()
                 }
@@ -206,22 +216,20 @@ class HoldableMobSystem(
                 val nHitPath = hitPath.toMutableList()
                 val last = nHitPath.removeLast()
                 val parent = mComposite.child(entity, nHitPath) ?: return@addAction
-                val parentChildren = mComposite.getOr(parent)?.children ?: return@addAction
-                val child = parentChildren[last] ?: return@addAction
+                val parentComposite = mComposite.getOr(parent) ?: return@addAction
+                val child = parentComposite[last] ?: return@addAction
                 if (!mAsItem.has(child)) return@addAction
 
                 // TODO some entities shouldn't allow taking children out of them
-                parentChildren.remove(last)
+                parentComposite.remove(last)
                 entity.call(Composite.TreeMutate)
                 child
             }
 
-            removedEntity?.let {
-                if (!mAsItem.has(removedEntity)) return@addAction
-                removedEntity.call(SokolEvent.Remove)
-                val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
-                player.give(item)
-            }
+            if (!mAsItem.has(removedEntity)) return@addAction
+            removedEntity.call(SokolEvent.Remove)
+            val item = sokol.entityHoster.hostItem(removedEntity.toBlueprint())
+            player.give(item)
         }
     }
 
@@ -284,25 +292,57 @@ class HoldableMobSystem(
         val direction = from.direction.alexandria()
         val snapDistance = settings.snapDistance
 
+        data class SlotBody(
+            val mob: Entity,
+            val entitySlot: EntitySlot,
+            val path: CompositePath,
+            val transform: Transform,
+            val tIn: Double
+        )
+
+        val slotBodies = ArrayList<SlotBody>()
+        val location = player.eyeLocation
+        val ray = Ray(location.position(), location.direction())
+        location.getNearbyEntities(snapDistance, snapDistance, snapDistance).forEach { mob ->
+            sokol.useMob(mob, false) { entity ->
+                fun addBody(entity: SokolEntity) {
+                    val entitySlot = mEntitySlot.getOr(entity) ?: return
+                    val path = mCompositePathed.getOr(entity)?.path ?: return
+                    val transform = mPositionRead.getOr(entity)?.transform ?: return
+                    val collision = testRayShape(transform.invert(ray), entitySlot.profile.shape) ?: return
+
+                    slotBodies.add(SlotBody(mob, entitySlot, path, transform, collision.tIn))
+                }
+
+                fun walk(entity: SokolEntity) {
+                    addBody(entity)
+                    mComposite.forEachChild(entity) { (_, child) ->
+                        walk(child)
+                    }
+                }
+
+                walk(entity)
+            }
+        }
+
+        val slotResult = slotBodies.minByOrNull { it.tIn }
+
         CraftBulletAPI.executePhysics {
             if (!holdState.frozen) {
-                val result = player.rayTestFrom(snapDistance.toFloat())
+                val fSnapDistance = snapDistance.toFloat()
+                val result = player.rayTestFrom(fSnapDistance)
                     .firstOrNull {
                         val obj = it.collisionObject
                         obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
                     }
 
-                var placeState = HoldPlaceState.DISALLOW
-                var attachTo: EntityHolding.AttachTo? = null
-                holdState.transform = if (result == null) {
-                    if (settings.allowNonSnapPlacing)
-                        placeState = HoldPlaceState.ALLOW
-                    Transform(
-                        (from + direction * settings.holdDistance).position(),
-                        from.rotation()
-                    ) + settings.placeTransform
-                } else {
-                    fun default(setState: Boolean = true): Transform {
+                fun setDefaultTransform() {
+                    holdState.transform = if (result == null) {
+                        Transform(
+                            (from + direction * settings.holdDistance).position(),
+                            from.rotation()
+                        ) + settings.placeTransform
+                    } else {
                         val hitPos = from.position() + direction * (snapDistance * result.hitFraction)
 
                         // the hit normal is facing from the surface, to the player
@@ -321,37 +361,26 @@ class HoldableMobSystem(
                             quaternionOfAxes(v1, v2, dir)
                         }
 
-                        if (setState) placeState = HoldPlaceState.ALLOW
-                        return Transform(hitPos, rotation) + settings.placeTransform
+                        Transform(hitPos, rotation) + settings.placeTransform
                     }
+                }
 
-                    fun transform(): Transform {
-                        val obj = result.collisionObject as? SokolPhysicsObject ?: return default()
-                        val hitEntity = obj.entity
-                        val hitEntitySupplier = mSupplierEntityAccess.getOr(hitEntity) ?: return default()
-                        val hitPath = colliderCompositeHitPath(mCollider.getOr(hitEntity), result)
-                        val slotEntity = mComposite.child(hitEntity, hitPath) ?: return default()
-
-                        val entitySlot = mEntitySlot.getOr(slotEntity) ?: return default()
-                        val composite = mComposite.getOr(slotEntity) ?: return default()
-                        val slotPosition = mPositionRead.getOr(slotEntity) ?: return default()
-                        if (composite.children.isNotEmpty()) return default()
-
-                        return if (entitySlot.profile.accepts) {
-                            placeState = HoldPlaceState.ALLOW_ATTACH
-                            attachTo = EntityHolding.AttachTo(ENTITY_SLOT_CHILD_KEY) { entityConsumer ->
-                                hitEntitySupplier.useEntity { newEntity ->
-                                    mComposite.child(newEntity, hitPath)?.let(entityConsumer)
-                                }
-                            }
-                            slotPosition.transform
-                        } else {
-                            placeState = HoldPlaceState.DISALLOW_ATTACH
-                            default(false)
-                        }
+                var placeState = HoldPlaceState.DISALLOW
+                var attachTo: HoldAttachTo? = null
+                if (slotResult != null && (result == null || slotResult.tIn < result.hitFraction * fSnapDistance)) {
+                    if (slotResult.entitySlot.profile.accepts) {
+                        placeState = HoldPlaceState.ALLOW_ATTACH
+                        holdState.transform = slotResult.transform
+                        attachTo = HoldAttachTo(slotResult.mob, slotResult.path)
+                    } else {
+                        placeState = HoldPlaceState.DISALLOW_ATTACH
+                        setDefaultTransform()
                     }
-
-                    transform()
+                } else {
+                    if (result != null || settings.allowNonSnapPlacing) {
+                        placeState = HoldPlaceState.ALLOW
+                    }
+                    setDefaultTransform()
                 }
 
                 holdState.attachTo = attachTo
@@ -364,8 +393,11 @@ class HoldableMobSystem(
             }
 
             holdState.drawShape?.let { drawShape ->
-                CraftBulletAPI.drawOperationFor(drawShape, position.transform.bullet())
-                    .invoke(CraftBulletAPI.drawableOf(player, CraftBullet.DrawType.SHAPE))
+                val transform = position.transform.bullet()
+                val drawable = CraftBulletAPI.drawableOf(player, CraftBullet.DrawType.SHAPE)
+                CraftBulletAPI.drawPointsShape(drawShape).forEach {
+                    drawable.draw(transform.transform(it))
+                }
             }
         }
     }

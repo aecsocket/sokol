@@ -24,6 +24,10 @@ class PaperSokolPersistence internal constructor(
         )
     }
 
+    fun removeTag(pdc: PersistentDataContainer, key: Key) {
+        (pdc as CraftPersistentDataContainer).raw.remove(key.toString())
+    }
+
     fun writeTagTo(tag: CompoundNBTTag, key: Key, pdc: PersistentDataContainer) {
         (pdc as CraftPersistentDataContainer).raw[key.toString()] = (tag as PaperCompoundTag).backing
     }

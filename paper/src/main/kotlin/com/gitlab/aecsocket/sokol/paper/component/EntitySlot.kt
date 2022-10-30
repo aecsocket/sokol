@@ -1,5 +1,7 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.physics.EmptyShape
+import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
@@ -23,7 +25,8 @@ data class EntitySlot(val profile: Profile) : PersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        val accepts: Boolean
+        val shape: Shape = EmptyShape,
+        val accepts: Boolean = true,
     ) : NonReadingComponentProfile {
         override fun readEmpty() = EntitySlot(this)
     }
