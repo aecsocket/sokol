@@ -5,6 +5,8 @@ import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
+import com.gitlab.aecsocket.sokol.paper.HoldAttach
+import com.gitlab.aecsocket.sokol.paper.HoldPlaceState
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.jme3.bullet.collision.shapes.SphereCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
@@ -33,6 +35,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mComposite = mappers.componentMapper<Composite>()
     private val mCompositePathed = mappers.componentMapper<CompositePathed>()
+    private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
 
     @Subscribe
     fun on(event: HoldableSystem.ComputeState, entity: SokolEntity) {
@@ -50,6 +53,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
             val entity: SokolEntity,
             val path: CompositePath,
             val transform: Transform,
+            val accepts: Boolean,
             val tIn: Double,
         )
 
@@ -70,7 +74,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
                     val compositePath = mCompositePathed.getOr(entity)?.path ?: return
 
                     testRayShape(slotTransform.invert(ray), entitySlot.profile.shape)?.let { collision ->
-                        slotBodies.add(SlotBody(entity, compositePath, slotTransform, collision.tIn))
+                        slotBodies.add(SlotBody(entity, compositePath, slotTransform, entitySlot.profile.accepts, collision.tIn))
                     }
                 }
 
@@ -87,15 +91,33 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
         physSpace.removeCollisionObject(ghost)
 
         val slotResult = slotBodies.minByOrNull { it.tIn } ?: return
-        event.transform = slotResult.transform
+        if (slotResult.accepts) {
+            event.placing = HoldPlaceState.ALLOW_ATTACH
+            holdState.transform = slotResult.transform
+            holdState.attachTo = HoldAttach(slotResult.entity, slotResult.path)
+        } else {
+            event.placing = HoldPlaceState.DISALLOW_ATTACH
+        }
     }
 
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
+        val holdState = holdable.state ?: return
 
-        event.addAction(Attach) { (player, _, cancel) ->
-            false
+        event.addAction(Attach) { (_, _, cancel) ->
+            holdState.attachTo?.let { attachTo ->
+                cancel()
+                mSupplierEntityAccess.getOr(attachTo.entity)?.useEntity { rootEntity ->
+                    val parentEntity = mComposite.child(rootEntity, attachTo.path) ?: return@useEntity
+                    val parentComposite = mComposite.getOr(parentEntity) ?: return@useEntity
+                    val entitySlot = mEntitySlot.getOr(parentEntity) ?: return@useEntity
+                    if (!entitySlot.profile.accepts) return@useEntity
+
+                    parentComposite.attach(parentEntity, ENTITY_SLOT_CHILD_KEY, entity)
+                }
+                true
+            } ?: false
         }
     }
 }

@@ -106,15 +106,15 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
                 }
 
             val transform: Transform
-            val allowPlace: Boolean
+            val placing: HoldPlaceState
             if (result == null) {
-                allowPlace = holdProfile.allowFreePlace
+                placing = if (holdProfile.allowFreePlace) HoldPlaceState.ALLOW else HoldPlaceState.DISALLOW
                 transform = Transform(
                     (from + direction * holdProfile.holdDistance).position(),
                     from.rotation()
                 ) + holdProfile.holdTransform
             } else {
-                allowPlace = true
+                placing = HoldPlaceState.ALLOW
                 val hitPos = from.position() + direction * (holdProfile.snapDistance * result.hitFraction)
 
                 // the hit normal is facing from the surface, to the player
@@ -135,22 +135,23 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
 
                 transform = Transform(hitPos, rotation) + holdProfile.holdTransform
             }
+            holdState.transform = transform
+            holdState.attachTo = null
 
-            val (nTransform, nAllowPlace) = entity.call(ComputeState(transform, allowPlace))
+            val (nPlacing) = entity.call(ComputeState(placing))
 
-            holdState.transform = nTransform
-            if (nAllowPlace != holdState.allowPlace) {
-                holdState.allowPlace = nAllowPlace
-                entity.call(ChangeAllowPlace(nAllowPlace))
+            if (nPlacing != holdState.placing) {
+                holdState.placing = nPlacing
+                entity.call(ChangePlacing(nPlacing))
             }
         }
     }
 
-    data class HoldState(val player: Player, val state: Boolean) : SokolEvent
+    data class ChangeHoldState(val player: Player, val state: Boolean) : SokolEvent
 
-    data class ChangeAllowPlace(val allow: Boolean) : SokolEvent
+    data class ChangePlacing(val placing: HoldPlaceState) : SokolEvent
 
-    data class ComputeState(var transform: Transform, var allowPlace: Boolean) : SokolEvent
+    data class ComputeState(var placing: HoldPlaceState) : SokolEvent
 }
 
 @All(Holdable::class, HostedByItem::class, HostableByMob::class)
@@ -225,7 +226,7 @@ class HoldableMobSystem(
         event.addAction(HoldStop) { (player, _, cancel) ->
             cancel()
             if (holdState == null) return@addAction false
-            if (holdState.allowPlace) sokol.entityHolding.stop(player.alexandria)
+            if (holdState.placing.valid) sokol.entityHolding.stop(player.alexandria)
             true
         }
     }

@@ -2,11 +2,12 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.HoldPlaceState
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import net.kyori.adventure.text.format.NamedTextColor
-import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Setting
 
 data class HoldableGlowing(
     val profile: Profile,
@@ -25,8 +26,7 @@ data class HoldableGlowing(
 
     @ConfigSerializable
     data class Profile(
-        val allow: NamedTextColor = NamedTextColor.WHITE,
-        val disallow: NamedTextColor = NamedTextColor.WHITE,
+        @Setting(nodeFromParent = true) val colors: Map<HoldPlaceState, NamedTextColor>
     ) : NonReadingComponentProfile {
         override fun readEmpty() = HoldableGlowing(this)
     }
@@ -39,25 +39,21 @@ class HoldableGlowingSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
-    fun on(event: HoldableSystem.ChangeAllowPlace, entity: SokolEntity) {
+    fun on(event: HoldableSystem.ChangePlacing, entity: SokolEntity) {
         val holdableGlowing = mHoldableGlowing.get(entity).profile
 
-        val glowColorEvent = MeshesInWorldSystem.GlowColor(if (event.allow) holdableGlowing.allow else holdableGlowing.disallow)
+        val glowColor = holdableGlowing.colors[event.placing] ?: NamedTextColor.WHITE
+        val glowColorEvent = MeshesInWorldSystem.GlowColor(glowColor)
         entity.call(glowColorEvent)
         mComposite.forward(entity, glowColorEvent)
     }
 
     @Subscribe
-    fun on(event: HoldableSystem.HoldState, entity: SokolEntity) {
-        val holdableGlowing = mHoldableGlowing.get(entity).profile
-
+    fun on(event: HoldableSystem.ChangeHoldState, entity: SokolEntity) {
         val glowEvent = MeshesInWorldSystem.Glow(event.state, setOf(event.player))
-        val glowColorEvent = MeshesInWorldSystem.GlowColor(holdableGlowing.allow)
         entity.call(glowEvent)
-        entity.call(glowColorEvent)
         mComposite.forEachChild(entity) { (_, child) ->
             child.call(glowEvent)
-            child.call(glowColorEvent)
         }
     }
 }

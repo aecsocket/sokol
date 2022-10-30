@@ -23,6 +23,14 @@ data class Composite(
 
     fun child(key: String) = children[key]
 
+    fun attach(entity: SokolEntity, key: String, value: SokolEntity) {
+        if (children.contains(key))
+            throw IllegalStateException("Entity already exists in slot $key")
+        children[key] = value
+        value.call(AttachTo(key))
+        entity.call(Attach(key, value))
+    }
+
     fun detach(entity: SokolEntity, key: String): SokolEntity? {
         return children.remove(key)?.also { child ->
             child.call(DetachFrom(key))
@@ -96,11 +104,11 @@ data class Composite(
 
     sealed interface ParentEvent : SokolEvent
 
-    object AttachTo : SokolEvent
+    data class AttachTo(val key: String) : SokolEvent
 
     data class DetachFrom(val key: String) : SokolEvent
 
-    data class Attach(val key: String) : ParentEvent
+    data class Attach(val key: String, val child: SokolEntity) : ParentEvent
 
     data class Detach(val key: String, val child: SokolEntity) : ParentEvent
 

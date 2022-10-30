@@ -3,12 +3,25 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.sokol.core.SokolEntity
+import com.gitlab.aecsocket.sokol.paper.component.CompositePath
 import com.gitlab.aecsocket.sokol.paper.component.HoldableSystem
 import com.jme3.bullet.collision.shapes.CollisionShape
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import java.lang.ref.WeakReference
 import java.util.UUID
+
+enum class HoldPlaceState(val valid: Boolean) {
+    ALLOW           (true),
+    DISALLOW        (false),
+    ALLOW_ATTACH    (true),
+    DISALLOW_ATTACH (true)
+}
+
+data class HoldAttach(
+    val entity: SokolEntity,
+    val path: CompositePath,
+)
 
 data class HoldState(
     val player: Player,
@@ -17,7 +30,8 @@ data class HoldState(
     var transform: Transform,
     var mob: WeakReference<Entity>?,
 
-    var allowPlace: Boolean = false,
+    var placing: HoldPlaceState = HoldPlaceState.DISALLOW,
+    var attachTo: HoldAttach? = null,
     var frozen: Boolean = false,
     var drawShape: CollisionShape? = null,
 )
@@ -38,7 +52,7 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
     private fun stopInternal(player: AlexandriaPlayer, state: HoldState, releaseLock: Boolean = true) {
-        state.entity.call(HoldableSystem.HoldState(player.handle, false))
+        state.entity.call(HoldableSystem.ChangeHoldState(player.handle, false))
         state.mob?.get()?.let { _heldBy.remove(it.uniqueId) }
 
         if (releaseLock) {
@@ -52,7 +66,8 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
         data.state = state
 
         state.mob?.get()?.let { _heldBy[it.uniqueId] = state }
-        state.entity.call(HoldableSystem.HoldState(player.handle, true))
+        state.entity.call(HoldableSystem.ChangeHoldState(player.handle, true))
+        state.entity.call(HoldableSystem.ChangePlacing(state.placing))
     }
 
     fun start(player: AlexandriaPlayer, entity: SokolEntity, transform: Transform, mob: Entity?): HoldState {
