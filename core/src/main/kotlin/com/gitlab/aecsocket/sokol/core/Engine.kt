@@ -91,9 +91,9 @@ data class EntityFilter(
 )
 
 fun ComponentIdAccess.entityFilter(
-    all: Iterable<KClass<out SokolComponent>>,
-    one: Iterable<KClass<out SokolComponent>>,
-    none: Iterable<KClass<out SokolComponent>>,
+    all: Iterable<KClass<out SokolComponent>> = emptySet(),
+    one: Iterable<KClass<out SokolComponent>> = emptySet(),
+    none: Iterable<KClass<out SokolComponent>> = emptySet(),
 ): EntityFilter {
     fun bitsOf(set: Iterable<KClass<out SokolComponent>>) = Bits(countComponentIds()).apply {
         set.forEach { set(componentId(it)) }
@@ -150,6 +150,10 @@ class SokolEngine internal constructor(
     fun applies(filter: EntityFilter, archetype: Bits) = archetype.containsAll(filter.all)
         && (filter.one.isEmpty() || filter.one.intersects(archetype))
         && !filter.none.intersects(archetype)
+
+    fun applies(filter: EntityFilter, components: ComponentMap) = applies(filter, components.archetype())
+
+    fun applies(filter: EntityFilter, holder: ComponentMapHolder) = applies(filter, holder.components)
 
     fun buildEntity(blueprint: EntityBlueprint): SokolEntity {
         val entity = EntityImpl(blueprint.profile, blueprint.components.mutableCopy())

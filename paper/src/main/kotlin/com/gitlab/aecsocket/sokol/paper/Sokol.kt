@@ -344,7 +344,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemNameSystem(it) }
                     .systemFactory { ItemNameStaticSystem(it) }
                     .systemFactory { ItemNameProfileSystem(it) }
-                    .systemFactory { OnInputSystem(it) }
+                    .systemFactory { OnInputSystem(this@Sokol, it) }
                     .systemFactory { OnInputInstanceSystem(it) }
                     .systemFactory { TakeableSystem(this@Sokol, it) }
                     .systemFactory { HoldableTarget }
@@ -352,6 +352,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HoldableItemSystem(this@Sokol, it) }
                     .systemFactory { HoldableMobSystem(this@Sokol, it) }
                     .systemFactory { HoldableGlowingSystem(it) }
+                    .systemFactory { AttachableSystem(it) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
@@ -391,6 +392,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<Takeable>()
                     .componentType<Holdable>()
                     .componentType<HoldableGlowing>()
+                    .componentType<Attachable>()
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
@@ -407,10 +409,11 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(MeshesInWorld.Type)
                 registerComponentType(ItemNameStatic.Type)
                 registerComponentType(ItemNameProfile.Type)
-                registerComponentType(OnInput.Type)
+                registerComponentType(OnInput.Type(this@Sokol))
                 registerComponentType(Takeable.Type)
                 registerComponentType(Holdable.Type)
                 registerComponentType(HoldableGlowing.Type)
+                registerComponentType(Attachable.Type)
             }
         )
     }

@@ -105,11 +105,11 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
                     obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
                 }
 
-            var allowPlace = false
+            val transform: Transform
+            val allowPlace: Boolean
             if (result == null) {
-                if (holdProfile.allowFreePlace)
-                    allowPlace = true
-                holdState.transform = Transform(
+                allowPlace = holdProfile.allowFreePlace
+                transform = Transform(
                     (from + direction * holdProfile.holdDistance).position(),
                     from.rotation()
                 ) + holdProfile.holdTransform
@@ -133,12 +133,15 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
                     quaternionOfAxes(v1, v2, dir)
                 }
 
-                holdState.transform = Transform(hitPos, rotation) + holdProfile.holdTransform
+                transform = Transform(hitPos, rotation) + holdProfile.holdTransform
             }
 
-            if (allowPlace != holdState.allowPlace) {
-                holdState.allowPlace = allowPlace
-                entity.call(ChangeAllowPlace(allowPlace))
+            val (nTransform, nAllowPlace) = entity.call(ComputeState(transform, allowPlace))
+
+            holdState.transform = nTransform
+            if (nAllowPlace != holdState.allowPlace) {
+                holdState.allowPlace = nAllowPlace
+                entity.call(ChangeAllowPlace(nAllowPlace))
             }
         }
     }
@@ -146,6 +149,8 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
     data class HoldState(val player: Player, val state: Boolean) : SokolEvent
 
     data class ChangeAllowPlace(val allow: Boolean) : SokolEvent
+
+    data class ComputeState(var transform: Transform, var allowPlace: Boolean) : SokolEvent
 }
 
 @All(Holdable::class, HostedByItem::class, HostableByMob::class)
@@ -189,9 +194,6 @@ class HoldableMobSystem(
     companion object {
         val HoldStart = SokolAPI.key("holdable_mob/hold_start")
         val HoldStop = SokolAPI.key("holdable_mob/hold_stop")
-        val HoldToggle = SokolAPI.key("holdable_mob/hold_toggle")
-        val Place = SokolAPI.key("holdable_mob/place")
-        val PlaceToggle = SokolAPI.key("holdable_mob/place_toggle")
     }
 
     private val mHoldable = mappers.componentMapper<Holdable>()
@@ -211,46 +213,20 @@ class HoldableMobSystem(
         val holdable = mHoldable.get(entity)
         val mob = mMob.get(entity).mob
         val position = mPosition.get(entity)
-
-        fun start(player: Player) {
-            sokol.entityHolding.start(player.alexandria, entity, position.transform, mob)
-        }
-
-        fun stop(player: Player) {
-            sokol.entityHolding.stop(player.alexandria)
-        }
-
-        fun place(player: Player) {
-            // TODO if (attach) { doAttach() } else
-            stop(player)
-        }
+        val holdState = holdable.state
 
         event.addAction(HoldStart) { (player, _, cancel) ->
             cancel()
-            if (holdable.state != null) return@addAction
-            start(player)
+            if (holdState != null) return@addAction false
+            sokol.entityHolding.start(player.alexandria, entity, position.transform, mob)
+            true
         }
 
         event.addAction(HoldStop) { (player, _, cancel) ->
             cancel()
-            if (holdable.state == null) return@addAction
-            stop(player)
-        }
-
-        event.addAction(HoldToggle) { (player, _, cancel) ->
-            cancel()
-            if (holdable.state == null) start(player) else stop(player)
-        }
-
-        event.addAction(Place) { (player, _, cancel) ->
-            cancel()
-            if (holdable.state == null) return@addAction
-            place(player)
-        }
-
-        event.addAction(PlaceToggle) { (player, _, cancel) ->
-            cancel()
-            if (holdable.state == null) start(player) else place(player)
+            if (holdState == null) return@addAction false
+            if (holdState.allowPlace) sokol.entityHolding.stop(player.alexandria)
+            true
         }
     }
 }

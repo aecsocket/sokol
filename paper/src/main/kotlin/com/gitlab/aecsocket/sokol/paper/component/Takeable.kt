@@ -45,17 +45,17 @@ class TakeableSystem(
             } ?: emptyCompositePath()
 
             val hitEntity: SokolEntity = if (hitPath.isEmpty()) {
-                val removable = mRemovable.getOr(entity) ?: return@addAction
-                if (!mAsItem.has(entity)) return@addAction
+                val removable = mRemovable.getOr(entity) ?: return@addAction true
+                if (!mAsItem.has(entity)) return@addAction true
                 removable.remove()
                 entity
             } else {
                 val parentPath = hitPath.toMutableList()
                 val childKey = parentPath.removeLast()
-                val parent = mComposite.child(entity, parentPath) ?: return@addAction
+                val parent = mComposite.child(entity, parentPath) ?: return@addAction true
                 val parentComposite = mComposite.get(parent)
-                val child = parentComposite.child(childKey) ?: return@addAction
-                if (!mAsItem.has(child)) return@addAction
+                val child = parentComposite.child(childKey) ?: return@addAction true
+                if (!mAsItem.has(child)) return@addAction true
 
                 child.call(SokolEvent.Remove)
                 parentComposite.detach(parent, childKey)!!.also {
@@ -65,6 +65,7 @@ class TakeableSystem(
 
             val item = sokol.entityHoster.hostItem(hitEntity.toBlueprint())
             player.give(item)
+            true
         }
     }
 }
