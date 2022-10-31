@@ -8,16 +8,28 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderHitPath
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.*
 
-object Takeable : PersistentComponent {
+data class Takeable(val profile: Profile) : PersistentComponent {
+    companion object {
+        val Key = SokolAPI.key("takeable")
+        val Type = ComponentType.deserializing<Profile>(Key)
+    }
+
     override val componentType get() = Takeable::class
-    override val key = SokolAPI.key("takeable")
-    val Type = ComponentType.singletonComponent(key, Takeable)
+    override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
 
     override fun write(node: ConfigurationNode) {}
+
+    @ConfigSerializable
+    data class Profile(
+        val onlyRoot: Boolean = false,
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = Takeable(this)
+    }
 }
 
 @All(Takeable::class)
@@ -29,6 +41,7 @@ class TakeableSystem(
         val TakeAsItem = SokolAPI.key("takeable/take_as_item")
     }
 
+    private val mTakeable = mappers.componentMapper<Takeable>()
     private val mHovered = mappers.componentMapper<Hovered>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mComposite = mappers.componentMapper<Composite>()
@@ -37,10 +50,13 @@ class TakeableSystem(
 
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
+        val takeable = mTakeable.get(entity).profile
+
         event.addAction(TakeAsItem) { (player, _, cancel) ->
             cancel()
 
-            val hitPath = mHovered.getOr(entity)?.let {
+            val hitPath = if (takeable.onlyRoot) emptyCompositePath()
+            else mHovered.getOr(entity)?.let {
                 colliderHitPath(mCollider.getOr(entity), it.rayTestResult)
             } ?: emptyCompositePath()
 

@@ -87,7 +87,7 @@ class MeshesInWorldForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: SokolEvent.Reload, entity: SokolEntity) {
         mComposite.forwardAll(entity, MeshesInWorldSystem.Remove)
-        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(false))
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(true))
     }
 }
 

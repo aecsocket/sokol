@@ -1,7 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.sokol.core.*
+import org.bukkit.Location
 import org.bukkit.World
 
 interface PositionRead : SokolComponent {
