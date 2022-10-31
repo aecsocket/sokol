@@ -208,7 +208,7 @@ internal class SokolCommand(
 
     fun holdingFreeze(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val player = sender as Player
-        val holding = player.alexandria.entityHolding ?: error(i18n.safe("error.not_holding"))
+        val holding = player.alexandria.heldEntity ?: error(i18n.safe("error.not_holding"))
         val enable = ctx.value("enable") { !holding.frozen }
 
         holding.frozen = enable
@@ -217,7 +217,7 @@ internal class SokolCommand(
 
     fun holdingShape(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val player = sender as Player
-        val holding = player.alexandria.entityHolding ?: error(i18n.safe("error.not_holding"))
+        val holding = player.alexandria.heldEntity ?: error(i18n.safe("error.not_holding"))
         val shape = try {
             var node = ctx.get<ConfigurationNode>("config")
             // hocon serializers only accepts map nodes as root

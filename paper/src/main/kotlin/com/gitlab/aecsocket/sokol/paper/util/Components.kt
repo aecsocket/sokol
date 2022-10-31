@@ -3,7 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.util
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.PhysicsRayTestResult
 
-fun colliderCompositeHitPath(collider: Collider?, childIdx: Int): CompositePath {
+fun colliderHitPath(collider: Collider?, childIdx: Int): CompositePath {
     return if (childIdx == -1) emptyCompositePath()
     else {
         collider?.bodyData?.compositeMap?.let { compositeMap ->
@@ -13,6 +13,6 @@ fun colliderCompositeHitPath(collider: Collider?, childIdx: Int): CompositePath 
     }
 }
 
-fun colliderCompositeHitPath(collider: Collider?, rayTestResult: PhysicsRayTestResult) =
-    colliderCompositeHitPath(collider, rayTestResult.triangleIndex())
+fun colliderHitPath(collider: Collider?, rayTestResult: PhysicsRayTestResult) =
+    colliderHitPath(collider, rayTestResult.triangleIndex())
 

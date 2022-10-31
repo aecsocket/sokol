@@ -18,7 +18,6 @@ import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
 import org.bukkit.GameMode
-import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.*
@@ -146,8 +145,6 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
             }
         }
     }
-
-    data class ChangeHoldState(val player: Player, val state: Boolean) : SokolEvent
 
     data class ChangePlacing(val placing: HoldPlaceState) : SokolEvent
 

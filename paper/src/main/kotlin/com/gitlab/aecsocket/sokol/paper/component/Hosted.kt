@@ -133,8 +133,8 @@ class MobInjectorSystem(
 
             override fun remove() {
                 removed = true
-                entity.call(SokolEvent.Remove)
                 sokol.scheduleDelayed {
+                    sokol.persistence.removeTag(mob.persistentDataContainer, sokol.persistence.entityKey)
                     mob.remove()
                 }
             }

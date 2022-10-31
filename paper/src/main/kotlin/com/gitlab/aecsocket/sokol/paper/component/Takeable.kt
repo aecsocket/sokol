@@ -6,7 +6,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
+import com.gitlab.aecsocket.sokol.paper.util.colliderHitPath
 import org.spongepowered.configurate.ConfigurationNode
 import java.util.*
 
@@ -41,7 +41,7 @@ class TakeableSystem(
             cancel()
 
             val hitPath = mHovered.getOr(entity)?.let {
-                colliderCompositeHitPath(mCollider.getOr(entity), it.rayTestResult)
+                colliderHitPath(mCollider.getOr(entity), it.rayTestResult)
             } ?: emptyCompositePath()
 
             val hitEntity: SokolEntity = if (hitPath.isEmpty()) {
@@ -57,12 +57,12 @@ class TakeableSystem(
                 val child = parentComposite.child(childKey) ?: return@addAction true
                 if (!mAsItem.has(child)) return@addAction true
 
-                child.call(SokolEvent.Remove)
                 parentComposite.detach(parent, childKey)!!.also {
                     entity.call(Composite.TreeMutate)
                 }
             }
 
+            hitEntity.call(SokolEvent.Remove)
             val item = sokol.entityHoster.hostItem(hitEntity.toBlueprint())
             player.give(item)
             true

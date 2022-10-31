@@ -32,6 +32,8 @@ class EntityHover internal constructor(
         var hover: HoverData? = null
     ) : PlayerFeature.PlayerData {
         override fun update() {
+            if (player.heldEntity != null) return
+
             CraftBulletAPI.executePhysics {
                 val hover = hover
                 val newHover: HoverData? = player.handle
@@ -83,7 +85,7 @@ class EntityHover internal constructor(
 
             sokol.scheduleDelayed {
                 // if the player's holding an entity, it gets the event precedence over the hovered
-                axPlayer.entityHolding?.entity?.call(event) ?: run {
+                axPlayer.heldEntity?.entity?.call(event) ?: run {
                     axPlayer.hoveredEntity?.let { (obj, rayTestResult) ->
                         mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
                             mHovered.set(entity, hovered(event.player, rayTestResult))
@@ -109,7 +111,7 @@ class EntityHover internal constructor(
 
     data class HoverState(
         val player: Player,
-        val state: Boolean,
+        val hovered: Boolean,
         val testResult: PhysicsRayTestResult
     ) : SokolEvent
 

@@ -336,8 +336,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         collider.bodyData = Collider.BodyData(id, centerOfMass, compositeMap)
     }
 
-    @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+    private fun remove(entity: SokolEntity) {
         val collider = mCollider.get(entity)
         val (body, physSpace) = collider.body ?: return
 
@@ -347,6 +346,16 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
             // So Remove event can be called multiple times??? I don't know
             physSpace.removeTracked(body.id)
         }
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Reset, entity: SokolEntity) {
+        remove(entity)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+        remove(entity)
     }
 
     @Subscribe

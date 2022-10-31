@@ -22,7 +22,7 @@ object Attachable : PersistentComponent {
     override fun write(node: ConfigurationNode) {}
 }
 
-@All(Attachable::class, Holdable::class, Collider::class)
+@All(Attachable::class, Holdable::class, Collider::class, Removable::class)
 @Before(OnInputSystem::class)
 class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
     companion object {
@@ -31,6 +31,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mCollider = mappers.componentMapper<Collider>()
+    private val mRemovable = mappers.componentMapper<Removable>()
     private val mEntitySlot = mappers.componentMapper<EntitySlot>()
     private val mPosition = mappers.componentMapper<PositionRead>()
     private val mComposite = mappers.componentMapper<Composite>()
@@ -71,10 +72,12 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
                 fun act(entity: SokolEntity) {
                     val entitySlot = mEntitySlot.getOr(entity) ?: return
                     val slotTransform = mPosition.getOr(entity)?.transform ?: return
+                    val composite = mComposite.getOr(entity) ?: return
                     val compositePath = mCompositePathed.getOr(entity)?.path ?: return
+                    if (composite.children().isNotEmpty()) return
 
                     testRayShape(slotTransform.invert(ray), entitySlot.profile.shape)?.let { collision ->
-                        slotBodies.add(SlotBody(entity, compositePath, slotTransform, entitySlot.profile.accepts, collision.tIn))
+                        slotBodies.add(SlotBody(testEntity, compositePath, slotTransform, entitySlot.profile.accepts, collision.tIn))
                     }
                 }
 
@@ -103,6 +106,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
+        val removable = mRemovable.get(entity)
         val holdState = holdable.state ?: return
 
         event.addAction(Attach) { (_, _, cancel) ->
@@ -114,7 +118,11 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
                     val entitySlot = mEntitySlot.getOr(parentEntity) ?: return@useEntity
                     if (!entitySlot.profile.accepts) return@useEntity
 
+                    entity.call(SokolEvent.Reset)
+                    removable.remove()
                     parentComposite.attach(parentEntity, ENTITY_SLOT_CHILD_KEY, entity)
+                    rootEntity.call(SokolEvent.Populate)
+                    rootEntity.call(Composite.TreeMutate)
                 }
                 true
             } ?: false

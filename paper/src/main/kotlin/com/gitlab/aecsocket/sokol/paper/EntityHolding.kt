@@ -3,8 +3,8 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.sokol.core.SokolEntity
+import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.paper.component.CompositePath
-import com.gitlab.aecsocket.sokol.paper.component.HoldableSystem
 import com.jme3.bullet.collision.shapes.CollisionShape
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -52,7 +52,7 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
     private fun stopInternal(player: AlexandriaPlayer, state: HoldState, releaseLock: Boolean = true) {
-        state.entity.call(HoldableSystem.ChangeHoldState(player.handle, false))
+        state.entity.call(ChangeHoldState(player.handle, state, false))
         state.mob?.get()?.let { _heldBy.remove(it.uniqueId) }
 
         if (releaseLock) {
@@ -66,8 +66,7 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
         data.state = state
 
         state.mob?.get()?.let { _heldBy[it.uniqueId] = state }
-        state.entity.call(HoldableSystem.ChangeHoldState(player.handle, true))
-        state.entity.call(HoldableSystem.ChangePlacing(state.placing))
+        state.entity.call(ChangeHoldState(player.handle, state, true))
     }
 
     fun start(player: AlexandriaPlayer, entity: SokolEntity, transform: Transform, mob: Entity?): HoldState {
@@ -89,7 +88,13 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
             data.state = null
         }
     }
+
+    data class ChangeHoldState(
+        val player: Player,
+        val state: HoldState,
+        val holding: Boolean
+    ) : SokolEvent
 }
 
-val AlexandriaPlayer.entityHolding: HoldState?
+val AlexandriaPlayer.heldEntity: HoldState?
     get() = featureData(SokolAPI.entityHolding).state

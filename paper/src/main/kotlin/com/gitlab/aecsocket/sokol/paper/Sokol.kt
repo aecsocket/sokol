@@ -346,12 +346,14 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemNameProfileSystem(it) }
                     .systemFactory { OnInputSystem(this@Sokol, it) }
                     .systemFactory { OnInputInstanceSystem(it) }
+                    .systemFactory { HoverGlowSystem(it) }
+                    .systemFactory { HoverGlowCallerSystem(it) }
                     .systemFactory { TakeableSystem(this@Sokol, it) }
                     .systemFactory { HoldableTarget }
                     .systemFactory { HoldableSystem(it) }
                     .systemFactory { HoldableItemSystem(this@Sokol, it) }
                     .systemFactory { HoldableMobSystem(this@Sokol, it) }
-                    .systemFactory { HoldableGlowingSystem(it) }
+                    .systemFactory { HoldableGlowSystem(it) }
                     .systemFactory { AttachableSystem(it) }
 
                     .componentType<HostedByWorld>()
@@ -389,9 +391,10 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<ItemNameProfile>()
                     .componentType<OnInput>()
                     .componentType<OnInputInstance>()
+                    .componentType<HoverGlow>()
                     .componentType<Takeable>()
                     .componentType<Holdable>()
-                    .componentType<HoldableGlowing>()
+                    .componentType<HoldableGlow>()
                     .componentType<Attachable>()
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
@@ -410,9 +413,10 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(ItemNameStatic.Type)
                 registerComponentType(ItemNameProfile.Type)
                 registerComponentType(OnInput.Type(this@Sokol))
+                registerComponentType(HoverGlow.Type)
                 registerComponentType(Takeable.Type)
                 registerComponentType(Holdable.Type)
-                registerComponentType(HoldableGlowing.Type)
+                registerComponentType(HoldableGlow.Type)
                 registerComponentType(Attachable.Type)
             }
         )

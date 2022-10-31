@@ -40,10 +40,19 @@ data class Rotation(
 class RotationSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mRotation = mappers.componentMapper<Rotation>()
 
-    @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+    private fun remove(entity: SokolEntity) {
         val rotation = mRotation.get(entity)
 
         rotation.rotation = Quaternion.Identity
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Reset, entity: SokolEntity) {
+        remove(entity)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+        remove(entity)
     }
 }

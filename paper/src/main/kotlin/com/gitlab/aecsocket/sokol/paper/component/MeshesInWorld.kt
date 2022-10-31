@@ -9,7 +9,6 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asTransform
 import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
-import com.gitlab.aecsocket.sokol.paper.util.colliderCompositeHitPath
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
@@ -193,6 +192,9 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         entity.call(Remove)
         entity.call(Create(true))
     }
+
+    @Subscribe
+    fun on(event: )
 
     data class Create(
         val sendToPlayers: Boolean

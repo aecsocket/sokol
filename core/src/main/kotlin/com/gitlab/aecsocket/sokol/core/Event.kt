@@ -11,6 +11,8 @@ interface SokolEvent {
 
     object Update : SokolEvent
 
+    object Reset : SokolEvent
+
     object Remove : SokolEvent
 
     object Reload : SokolEvent
