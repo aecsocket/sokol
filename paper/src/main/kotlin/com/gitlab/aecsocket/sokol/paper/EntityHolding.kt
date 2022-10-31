@@ -34,6 +34,7 @@ data class HoldState(
     var attachTo: HoldAttach? = null,
     var frozen: Boolean = false,
     var drawShape: CollisionShape? = null,
+    var drawSlotShapes: Boolean = false,
 )
 
 class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerData> {

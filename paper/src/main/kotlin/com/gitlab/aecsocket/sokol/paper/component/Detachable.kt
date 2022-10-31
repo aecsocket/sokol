@@ -54,9 +54,8 @@ class DetachableSystem(mappers: ComponentIdAccess) : SokolSystem {
         val detachable = mDetachable.get(entity)
         val holdable = mHoldable.get(entity)
 
+        /*event.addAction(Detach) { (_, _, cancel) ->
 
-//        event.addAction(Detach) { (_, _, cancel) ->
-//
-//        }
+        }*/
     }
 }

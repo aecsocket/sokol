@@ -62,17 +62,23 @@ internal class SokolCommand(
         val holding = root
             .literal("holding", desc("Tools for manipulating the current held item."))
         manager.command(holding
-            .literal("freeze", desc("Freezes the held item in place."))
+            .literal("freeze", desc("Freeze the held item in place."))
             .argument(BooleanArgument.optional("enable"), desc("If the item should be frozen."))
             .permission(perm("holding.freeze"))
             .senderType(Player::class.java)
             .handler { handle(it, ::holdingFreeze) })
         manager.command(holding
-            .literal("shape", desc("Draws the shape from a config on the held item."))
+            .literal("shape", desc("Draw the shape from a config on the held item."))
             .argument(ConfigurationNodeArgument("config", { AlexandriaAPI.configLoader().buildAndLoadString(it) }), desc("The configuration node."))
             .permission(perm("holding.shape"))
             .senderType(Player::class.java)
             .handler { handle(it, ::holdingShape) })
+        manager.command(holding
+            .literal("slot-shapes", desc("Draw the shapes of all slots on the held item."))
+            .argument(BooleanArgument.optional("enable"), desc("If the slots should be drawn."))
+            .permission(perm("holding.slot-shapes"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::holdingSlotShapes) })
 
         val state = root
             .literal("state", desc("Access the state of an entity in the world."))
@@ -232,6 +238,15 @@ internal class SokolCommand(
         CraftBulletAPI.executePhysics {
             holding.drawShape = collisionOf(shape)
         }
+    }
+
+    fun holdingSlotShapes(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val player = sender as Player
+        val holding = player.alexandria.heldEntity ?: error(i18n.safe("error.not_holding"))
+        val enable = ctx.value("enable") { !holding.drawSlotShapes }
+
+        holding.drawSlotShapes = enable
+        plugin.sendMessage(sender, i18n.csafe("holding.slot_shapes.${if (enable) "enable" else "disable"}"))
     }
 
     fun stateRead(

@@ -13,12 +13,16 @@ interface PositionRead : SokolComponent {
     val transform: Transform
 }
 
+fun PositionRead.location() = transform.translation.location(world)
+
 interface PositionWrite : SokolComponent {
     override val componentType get() = PositionWrite::class
 
     val world: World
     var transform: Transform
 }
+
+fun PositionWrite.location() = transform.translation.location(world)
 
 object PositionTarget : SokolSystem
 

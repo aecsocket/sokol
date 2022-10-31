@@ -1,6 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.*
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
+import com.gitlab.aecsocket.alexandria.paper.SoundEngineEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.sokol.core.*
@@ -11,29 +13,43 @@ import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.jme3.bullet.collision.shapes.SphereCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-object Attachable : PersistentComponent {
+data class Attachable(val profile: Profile) : PersistentComponent {
+    companion object {
+        val Key = SokolAPI.key("attachable")
+        val Type = ComponentType.deserializing<Profile>(Key)
+    }
+
     override val componentType get() = Attachable::class
-    override val key = SokolAPI.key("attachable")
-    val Type = ComponentType.singletonComponent(key, Attachable)
+    override val key get() = Key
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
 
     override fun write(node: ConfigurationNode) {}
+
+    @ConfigSerializable
+    data class Profile(
+        val soundAttach: SoundEngineEffect = SoundEngineEffect.Empty,
+    ) : NonReadingComponentProfile {
+        override fun readEmpty() = Attachable(this)
+    }
 }
 
-@All(Attachable::class, Holdable::class, Collider::class, Removable::class)
+@All(Attachable::class, Holdable::class, Collider::class, CompositeTransform::class, Removable::class, PositionRead::class)
 @Before(OnInputSystem::class)
 class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
     companion object {
         val Attach = SokolAPI.key("attachable/attach")
     }
 
+    private val mAttachable = mappers.componentMapper<Attachable>()
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mCollider = mappers.componentMapper<Collider>()
+    private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
     private val mRemovable = mappers.componentMapper<Removable>()
-    private val mEntitySlot = mappers.componentMapper<EntitySlot>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
+    private val mEntitySlot = mappers.componentMapper<EntitySlot>()
     private val mComposite = mappers.componentMapper<Composite>()
     private val mCompositeChild = mappers.componentMapper<CompositeChild>()
     private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
@@ -42,6 +58,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: HoldableSystem.ComputeState, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
         val collider = mCollider.get(entity)
+        val compositeTransform = mCompositeTransform.get(entity)
         val holdProfile = holdable.profile
         val holdState = holdable.state ?: return
         val (_, physSpace) = collider.body ?: return
@@ -96,7 +113,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
         val slotResult = slotBodies.minByOrNull { it.tIn } ?: return
         if (slotResult.accepts) {
             event.placing = HoldPlaceState.ALLOW_ATTACH
-            holdState.transform = slotResult.transform
+            holdState.transform = slotResult.transform + compositeTransform.transform
             holdState.attachTo = HoldAttach(slotResult.entity, slotResult.path)
         } else {
             event.placing = HoldPlaceState.DISALLOW_ATTACH
@@ -105,8 +122,10 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
+        val attachable = mAttachable.get(entity).profile
         val holdable = mHoldable.get(entity)
         val removable = mRemovable.get(entity)
+        val positionRead = mPositionRead.get(entity)
         val holdState = holdable.state ?: return
 
         event.addAction(Attach) { (_, _, cancel) ->
@@ -118,6 +137,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
                     val entitySlot = mEntitySlot.getOr(parentEntity) ?: return@useEntity
                     if (!entitySlot.profile.accepts) return@useEntity
 
+                    AlexandriaAPI.soundEngine.play(positionRead.location(), attachable.soundAttach)
                     entity.call(SokolEvent.Reset)
                     removable.remove()
                     parentComposite.attach(ENTITY_SLOT_CHILD_KEY, entity)

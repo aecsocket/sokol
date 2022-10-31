@@ -27,12 +27,13 @@ data class Takeable(val profile: Profile) : PersistentComponent {
     @ConfigSerializable
     data class Profile(
         val onlyRoot: Boolean = false,
+        val soundTake: SoundEngineEffect = SoundEngineEffect.Empty,
     ) : NonReadingComponentProfile {
         override fun readEmpty() = Takeable(this)
     }
 }
 
-@All(Takeable::class)
+@All(Takeable::class, PositionRead::class)
 class TakeableSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
@@ -42,6 +43,7 @@ class TakeableSystem(
     }
 
     private val mTakeable = mappers.componentMapper<Takeable>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mHovered = mappers.componentMapper<Hovered>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mComposite = mappers.componentMapper<Composite>()
@@ -51,6 +53,7 @@ class TakeableSystem(
     @Subscribe
     fun on(event: OnInputSystem.Build, entity: SokolEntity) {
         val takeable = mTakeable.get(entity).profile
+        val positionRead = mPositionRead.get(entity)
 
         event.addAction(TakeAsItem) { (player, _, cancel) ->
             cancel()
@@ -78,6 +81,7 @@ class TakeableSystem(
                 }
             }
 
+            AlexandriaAPI.soundEngine.play(positionRead.location(), takeable.soundTake)
             hitEntity.call(SokolEvent.Remove)
             val item = sokol.entityHoster.hostItem(hitEntity.toBlueprint())
             player.give(item)
