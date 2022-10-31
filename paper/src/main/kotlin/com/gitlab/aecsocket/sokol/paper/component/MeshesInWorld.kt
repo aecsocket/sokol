@@ -56,13 +56,46 @@ data class MeshesInWorld(
     }
 }
 
-@All(MeshesInWorld::class, Meshes::class, PositionRead::class, SupplierTrackedPlayers::class)
-@After(MeshesSystem::class, PositionTarget::class, SupplierTrackedPlayersTarget::class)
+class MeshesInWorldForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mComposite = mappers.componentMapper<Composite>()
+
+    @Subscribe
+    fun on(event: SokolEvent.Add, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(false))
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Remove)
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Show, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Show(event.player))
+    }
+
+    @Subscribe
+    fun on(event: MobEvent.Hide, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Hide(event.player))
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Update, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Update)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Remove)
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(false))
+    }
+}
+
+@All(MeshesInWorld::class, PositionRead::class, SupplierTrackedPlayers::class)
 class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = mappers.componentMapper<MeshesInWorld>()
-    private val mPosition = mappers.componentMapper<PositionRead>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
-    private val mComposite = mappers.componentMapper<Composite>()
 
     private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (Mesh, Transform) -> Unit) {
         meshesInWorld.meshes.forEach { (id, transform) ->
@@ -73,7 +106,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
-        val position = mPosition.get(entity)
+        val position = mPositionRead.get(entity)
         val supplierTrackedPlayers = mSupplierTrackedPlayers.get(entity)
 
         val getTrackedPlayers = supplierTrackedPlayers.trackedPlayers
@@ -93,8 +126,6 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         }
 
         meshesInWorld.meshes = parts.map { MeshesInWorld.MeshEntry(it.mesh.id, it.transform) }
-
-        mComposite.forward(entity, event)
     }
 
     @Subscribe
@@ -105,8 +136,6 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
             AlexandriaAPI.meshes.remove(mesh.id)
         }
         meshesInWorld.meshes = emptyList()
-
-        mComposite.forward(entity, event)
     }
 
     @Subscribe
@@ -116,8 +145,6 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         forEachMesh(meshesInWorld) { mesh, _ ->
             mesh.spawn(event.player)
         }
-
-        mComposite.forward(entity, event)
     }
 
     @Subscribe
@@ -127,25 +154,21 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         forEachMesh(meshesInWorld) { mesh, _ ->
             mesh.remove(event.player)
         }
-
-        mComposite.forward(entity, event)
     }
 
     @Subscribe
     fun on(event: Update, entity: SokolEntity) {
-        val position = mPosition.get(entity)
         val meshesInWorld = mMeshesInWorld.get(entity)
+        val positionRead = mPositionRead.get(entity)
 
-        val entityTransform = position.transform
-        forEachMesh(meshesInWorld) { mesh, transform ->
-            mesh.transform = entityTransform + transform
+        val transform = positionRead.transform
+        forEachMesh(meshesInWorld) { mesh, meshTransform ->
+            mesh.transform = transform + meshTransform
         }
-
-        mComposite.forward(entity, event)
     }
 
     @Subscribe
-    fun on(event: Glow, entity: SokolEntity) {
+    fun on(event: Glowing, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
         forEachMesh(meshesInWorld) { mesh, _ ->
@@ -154,7 +177,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: GlowColor, entity: SokolEntity) {
+    fun on(event: GlowingColor, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
         forEachMesh(meshesInWorld) { mesh, _ ->
@@ -163,38 +186,15 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: SokolEvent.Add, entity: SokolEntity) {
-        entity.call(Create(false))
-    }
+    fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
+        if (!event.fresh) return
+        val supplierTrackedPlayers = mSupplierTrackedPlayers.getOr(event.parent)?.trackedPlayers ?: return
+        val meshesInWorld = mMeshesInWorld.get(entity)
 
-    @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        entity.call(Remove)
+        forEachMesh(meshesInWorld) { mesh, _ ->
+            mesh.updateTrackedPlayers(supplierTrackedPlayers)
+        }
     }
-
-    @Subscribe
-    fun on(event: MobEvent.Show, entity: SokolEntity) {
-        entity.call(Show(event.player))
-    }
-
-    @Subscribe
-    fun on(event: MobEvent.Hide, entity: SokolEntity) {
-        entity.call(Hide(event.player))
-    }
-
-    @Subscribe
-    fun on(event: SokolEvent.Update, entity: SokolEntity) {
-        entity.call(Update)
-    }
-
-    @Subscribe
-    fun on(event: SokolEvent.Reload, entity: SokolEntity) {
-        entity.call(Remove)
-        entity.call(Create(true))
-    }
-
-    @Subscribe
-    fun on(event: )
 
     data class Create(
         val sendToPlayers: Boolean
@@ -212,12 +212,12 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     object Update : SokolEvent
 
-    data class Glow(
+    data class Glowing(
         val state: Boolean,
         val players: Iterable<Player>
     ) : SokolEvent
 
-    data class GlowColor(
+    data class GlowingColor(
         val color: NamedTextColor
     ) : SokolEvent
 }

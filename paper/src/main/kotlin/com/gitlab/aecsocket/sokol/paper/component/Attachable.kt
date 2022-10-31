@@ -33,9 +33,9 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mCollider = mappers.componentMapper<Collider>()
     private val mRemovable = mappers.componentMapper<Removable>()
     private val mEntitySlot = mappers.componentMapper<EntitySlot>()
-    private val mPosition = mappers.componentMapper<PositionRead>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mComposite = mappers.componentMapper<Composite>()
-    private val mCompositePathed = mappers.componentMapper<CompositePathed>()
+    private val mCompositeChild = mappers.componentMapper<CompositeChild>()
     private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
 
     @Subscribe
@@ -71,9 +71,9 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
 
                 fun act(entity: SokolEntity) {
                     val entitySlot = mEntitySlot.getOr(entity) ?: return
-                    val slotTransform = mPosition.getOr(entity)?.transform ?: return
+                    val slotTransform = mPositionRead.getOr(entity)?.transform ?: return
                     val composite = mComposite.getOr(entity) ?: return
-                    val compositePath = mCompositePathed.getOr(entity)?.path ?: return
+                    val compositePath = mCompositeChild.getOr(entity)?.path ?: return
                     if (composite.children().isNotEmpty()) return
 
                     testRayShape(slotTransform.invert(ray), entitySlot.profile.shape)?.let { collision ->
@@ -120,9 +120,9 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
 
                     entity.call(SokolEvent.Reset)
                     removable.remove()
-                    parentComposite.attach(parentEntity, ENTITY_SLOT_CHILD_KEY, entity)
-                    rootEntity.call(SokolEvent.Populate)
-                    rootEntity.call(Composite.TreeMutate)
+                    parentComposite.attach(ENTITY_SLOT_CHILD_KEY, entity)
+                    entity.call(CompositeSystem.AttachTo(ENTITY_SLOT_CHILD_KEY, parentEntity, true))
+                    rootEntity.call(CompositeSystem.TreeMutate)
                 }
                 true
             } ?: false

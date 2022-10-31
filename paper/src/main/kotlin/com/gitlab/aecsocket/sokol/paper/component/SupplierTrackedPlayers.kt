@@ -11,26 +11,13 @@ interface SupplierTrackedPlayers : SokolComponent {
 
 object SupplierTrackedPlayersTarget : SokolSystem
 
-@All(SupplierTrackedPlayers::class, Composite::class)
 @Before(SupplierTrackedPlayersTarget::class)
 class SupplierTrackedPlayersBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
-    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
-    fun on(event: Compose, entity: SokolEntity) {
-        val supplierTrackedPlayers = mSupplierTrackedPlayers.get(entity)
-
-        mComposite.forEachChild(entity) { (_, child) ->
-            mSupplierTrackedPlayers.set(child, supplierTrackedPlayers)
-            child.call(Compose)
-        }
+    fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
+        val parentSupplier = mSupplierTrackedPlayers.getOr(event.parent) ?: return
+        mSupplierTrackedPlayers.set(entity, parentSupplier)
     }
-
-    @Subscribe
-    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        entity.call(Compose)
-    }
-
-    object Compose : SokolEvent
 }

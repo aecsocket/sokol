@@ -23,19 +23,14 @@ data class Composite(
 
     fun child(key: String) = children[key]
 
-    fun attach(entity: SokolEntity, key: String, value: SokolEntity) {
+    fun attach(key: String, value: SokolEntity) {
         if (children.contains(key))
             throw IllegalStateException("Entity already exists in slot $key")
         children[key] = value
-        value.call(AttachTo(key))
-        entity.call(Attach(key, value))
     }
 
-    fun detach(entity: SokolEntity, key: String): SokolEntity? {
-        return children.remove(key)?.also { child ->
-            child.call(DetachFrom(key))
-            entity.call(Detach(key, child))
-        }
+    fun detach(key: String): SokolEntity? {
+        return children.remove(key)
     }
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound().apply {
@@ -101,16 +96,43 @@ data class Composite(
         override fun createProfile(node: ConfigurationNode) = Profile(sokol,
             node.force<HashMap<String, EntityProfile>>())
     }
+}
 
-    sealed interface ParentEvent : SokolEvent
+data class CompositeChild(
+    val key: String,
+    val parent: SokolEntity,
+    val path: CompositePath,
+) : SokolComponent {
+    override val componentType get() = CompositeChild::class
+}
 
-    data class AttachTo(val key: String) : SokolEvent
+class CompositeSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mComposite = mappers.componentMapper<Composite>()
+    private val mCompositeChild = mappers.componentMapper<CompositeChild>()
 
-    data class DetachFrom(val key: String) : SokolEvent
+    @Subscribe
+    fun on(event: AttachTo, entity: SokolEntity) {
+        val path = compositePathOf(
+            (mCompositeChild.getOr(event.parent)?.path ?: emptyCompositePath()) + event.key
+        )
+        mCompositeChild.set(entity, CompositeChild(event.key, event.parent, path))
+        mComposite.forEachChild(entity) { (key, child) ->
+            child.call(AttachTo(key, entity, event.fresh))
+        }
+    }
 
-    data class Attach(val key: String, val child: SokolEntity) : ParentEvent
+    @Subscribe
+    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
+        mComposite.forEachChild(entity) { (key, child) ->
+            child.call(AttachTo(key, entity, false))
+        }
+    }
 
-    data class Detach(val key: String, val child: SokolEntity) : ParentEvent
+    data class AttachTo(
+        val key: String,
+        val parent: SokolEntity,
+        val fresh: Boolean,
+    ) : SokolEvent
 
     object TreeMutate : SokolEvent
 }
@@ -194,8 +216,21 @@ fun ComponentMapper<Composite>.forEachChild(entity: SokolEntity, action: (Map.En
     getOr(entity)?.children()?.forEach(action)
 }
 
+fun ComponentMapper<Composite>.forAllEntities(entity: SokolEntity, action: (SokolEntity) -> Unit) {
+    action(entity)
+    forEachChild(entity) { (_, child) ->
+        forAllEntities(child, action)
+    }
+}
+
 fun ComponentMapper<Composite>.forward(entity: SokolEntity, event: SokolEvent) {
     forEachChild(entity) { (_, child) ->
         child.call(event)
+    }
+}
+
+fun ComponentMapper<Composite>.forwardAll(entity: SokolEntity, event: SokolEvent) {
+    forAllEntities(entity) { target ->
+        target.call(event)
     }
 }

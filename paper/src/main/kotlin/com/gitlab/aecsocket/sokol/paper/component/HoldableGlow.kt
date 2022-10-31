@@ -43,9 +43,8 @@ class HoldableGlowSystem(mappers: ComponentIdAccess) : SokolSystem {
         val holdableGlowing = mHoldableGlow.get(entity).profile
 
         val glowColor = holdableGlowing.colors[event.placing] ?: NamedTextColor.WHITE
-        val glowColorEvent = MeshesInWorldSystem.GlowColor(glowColor)
-        entity.call(glowColorEvent)
-        mComposite.forward(entity, glowColorEvent)
+        val glowColorEvent = MeshesInWorldSystem.GlowingColor(glowColor)
+        mComposite.forwardAll(entity, glowColorEvent)
     }
 
     @Subscribe
@@ -53,15 +52,13 @@ class HoldableGlowSystem(mappers: ComponentIdAccess) : SokolSystem {
         val holdableGlowing = mHoldableGlow.get(entity).profile
         val holdState = event.state
 
-        val glowEvent = MeshesInWorldSystem.Glow(event.holding, setOf(event.player))
         val glowColor = holdableGlowing.colors[holdState.placing] ?: NamedTextColor.WHITE
-        val glowColorEvent = MeshesInWorldSystem.GlowColor(glowColor)
 
-        entity.call(glowEvent)
-        entity.call(glowColorEvent)
-        mComposite.forEachChild(entity) { (_, child) ->
-            child.call(glowEvent)
-            child.call(glowColorEvent)
+        val glowEvent = MeshesInWorldSystem.Glowing(event.holding, setOf(event.player))
+        val glowColorEvent = MeshesInWorldSystem.GlowingColor(glowColor)
+        mComposite.forAllEntities(entity) { target ->
+            target.call(glowEvent)
+            target.call(glowColorEvent)
         }
     }
 }

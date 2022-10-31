@@ -20,37 +20,19 @@ interface PositionWrite : SokolComponent {
 
 object PositionTarget : SokolSystem
 
-@All(PositionRead::class, Composite::class)
 @Before(PositionTarget::class)
 class PositionSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPosition = mappers.componentMapper<PositionRead>()
-    private val mComposite = mappers.componentMapper<Composite>()
     private val mLocalTransform = mappers.componentMapper<LocalTransform>()
 
     @Subscribe
-    fun on(event: Compose, entity: SokolEntity) {
-        val position = mPosition.get(entity)
-
-        mComposite.forEachChild(entity) { (_, child) ->
-            mLocalTransform.getOr(child)?.let {
-                val localTransform = it.transform
-
-                mPosition.set(child, object : PositionRead {
-                    override val world get() = position.world
-
-                    override val transform: Transform
-                        get() = position.transform + localTransform
-                })
-
-                child.call(Compose)
-            }
-        }
+    fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
+        val parentPosition = mPosition.getOr(event.parent) ?: return
+        val localTransform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
+        mPosition.set(entity, object : PositionRead {
+            override val world get() = parentPosition.world
+            override val transform: Transform
+                get() = parentPosition.transform + localTransform
+        })
     }
-
-    @Subscribe
-    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        entity.call(Compose)
-    }
-
-    object Compose : SokolEvent
 }

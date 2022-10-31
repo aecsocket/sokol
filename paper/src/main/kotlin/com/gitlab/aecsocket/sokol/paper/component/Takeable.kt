@@ -57,8 +57,8 @@ class TakeableSystem(
                 val child = parentComposite.child(childKey) ?: return@addAction true
                 if (!mAsItem.has(child)) return@addAction true
 
-                parentComposite.detach(parent, childKey)!!.also {
-                    entity.call(Composite.TreeMutate)
+                parentComposite.detach(childKey)!!.also {
+                    entity.call(CompositeSystem.TreeMutate)
                 }
             }
 

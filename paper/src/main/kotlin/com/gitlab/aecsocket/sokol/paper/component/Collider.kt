@@ -129,25 +129,25 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
 
-@All(Collider::class, CompositeTransform::class, CompositePathed::class)
-@After(CompositeTransformSystem::class, CompositePathedSystem::class)
-class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
+@All(Collider::class, CompositeTransform::class)
+@After(CompositeTransformSystem::class)
+class ColliderForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mCollider = mappers.componentMapper<Collider>()
     private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
-    private val mCompositePath = mappers.componentMapper<CompositePathed>()
+    private val mCompositeChild = mappers.componentMapper<CompositeChild>()
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: BuildBody, entity: SokolEntity) {
         val collider = mCollider.get(entity)
         val compositeTransform = mCompositeTransform.get(entity)
-        val compositePath = mCompositePath.get(entity)
+        val compositePath = mCompositeChild.getOr(entity)?.path ?: emptyCompositePath()
 
         event.addBody(
             collisionOf(collider.profile.shape),
             compositeTransform.transform,
             collider.mass(),
-            compositePath.path,
+            compositePath,
         )
 
         mComposite.forward(entity, event)
@@ -173,8 +173,9 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
 
 @All(Collider::class, PositionWrite::class, Removable::class)
 @One(RigidBody::class, VehicleBody::class, GhostBody::class)
+@None(CompositeChild::class)
 class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mPosition = mappers.componentMapper<PositionWrite>()
+    private val mPositionWrite = mappers.componentMapper<PositionWrite>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mRemovable = mappers.componentMapper<Removable>()
     private val mRigidBody = mappers.componentMapper<RigidBody>()
@@ -189,7 +190,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     )
 
     private fun buildBody(entity: SokolEntity): FullBodyData {
-        val (parts) = entity.call(ColliderBuildSystem.BuildBody())
+        val (parts) = entity.call(ColliderForwardSystem.BuildBody())
 
         val totalMass = parts.map { it.mass }.sum()
         var centerOfMass = Vector3.Zero
@@ -217,7 +218,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Rebuild, entity: SokolEntity) {
-        val position = mPosition.get(entity)
+        val position = mPositionWrite.get(entity)
         val collider = mCollider.get(entity)
 
         val bodyData = collider.bodyData ?: return
@@ -245,7 +246,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
         val collider = mCollider.get(entity)
-        val position = mPosition.get(entity)
+        val position = mPositionWrite.get(entity)
         collider.backingPosition = position
 
         val bodyData = collider.bodyData ?: return
@@ -254,7 +255,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         collider.body = Collider.BodyInstance(obj, physSpace)
 
-        mPosition.set(entity, object : PositionWrite {
+        mPositionWrite.set(entity, object : PositionWrite {
             override val world get() = position.world
             override var transform: Transform
                 get() = position.transform
@@ -379,7 +380,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: Composite.TreeMutate, entity: SokolEntity) {
+    fun on(event: CompositeSystem.TreeMutate, entity: SokolEntity) {
         entity.call(Rebuild)
     }
 

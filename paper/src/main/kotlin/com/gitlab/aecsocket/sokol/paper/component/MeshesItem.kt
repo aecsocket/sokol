@@ -4,8 +4,6 @@ import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import org.bukkit.Material
-import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
@@ -44,15 +42,13 @@ class MeshesItemSystem(
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val itemMeshes = mMeshesItem.get(entity)
+        val meshesItem = mMeshesItem.get(entity)
 
-        val blueprint = entity.toBlueprint()
-        mMeshesItem.remove(blueprint) // so that when building the entity, we don't recursively listen to Populate
         val item = sokol.entityHoster.createItemForm(entity)
 
         mMeshes.set(entity, Meshes(
             listOf(Meshes.PartDefinition(item)),
-            itemMeshes.profile.interpolated
+            meshesItem.profile.interpolated
         ))
     }
 }

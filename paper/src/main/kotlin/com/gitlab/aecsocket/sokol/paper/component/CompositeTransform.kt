@@ -9,29 +9,22 @@ data class CompositeTransform(
     override val componentType get() = CompositeTransform::class
 }
 
-@All(LocalTransform::class)
 @After(LocalTransformTarget::class)
+@Before(CompositeSystem::class)
 class CompositeTransformSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mLocalTransform = mappers.componentMapper<LocalTransform>()
     private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
-    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
-    fun on(event: Compose, entity: SokolEntity) {
-        val localTransform = mLocalTransform.get(entity)
-
-        val transform = event.transform + localTransform.transform
-        mCompositeTransform.set(entity, CompositeTransform(transform))
-
-        mComposite.forward(entity, Compose(transform))
+    fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
+        val parentTransform = mCompositeTransform.getOr(event.parent)?.transform ?: return
+        val compositeTransform = parentTransform + (mLocalTransform.getOr(entity)?.transform ?: Transform.Identity)
+        mCompositeTransform.set(entity, CompositeTransform(compositeTransform))
     }
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        entity.call(Compose(Transform.Identity))
+        val transform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
+        mCompositeTransform.set(entity, CompositeTransform(transform))
     }
-
-    data class Compose(
-        val transform: Transform
-    ) : SokolEvent
 }
