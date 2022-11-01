@@ -223,14 +223,16 @@ fun ComponentMapper<Composite>.forAllEntities(entity: SokolEntity, action: (Soko
     }
 }
 
-fun ComponentMapper<Composite>.forward(entity: SokolEntity, event: SokolEvent) {
+fun <E : SokolEvent> ComponentMapper<Composite>.forward(entity: SokolEntity, event: E): E {
     forEachChild(entity) { (_, child) ->
         child.call(event)
     }
+    return event
 }
 
-fun ComponentMapper<Composite>.forwardAll(entity: SokolEntity, event: SokolEvent) {
+fun <E : SokolEvent> ComponentMapper<Composite>.forwardAll(entity: SokolEntity, event: E): E {
     forAllEntities(entity) { target ->
         target.call(event)
     }
+    return event
 }

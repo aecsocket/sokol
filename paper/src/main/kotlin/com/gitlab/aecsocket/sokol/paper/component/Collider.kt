@@ -130,15 +130,13 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
 }
 
 @All(Collider::class, CompositeTransform::class)
-@After(CompositeTransformSystem::class)
-class ColliderForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
+class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mCollider = mappers.componentMapper<Collider>()
     private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
     private val mCompositeChild = mappers.componentMapper<CompositeChild>()
-    private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
-    fun on(event: BuildBody, entity: SokolEntity) {
+    fun on(event: ColliderSystem.BuildBody, entity: SokolEntity) {
         val collider = mCollider.get(entity)
         val compositeTransform = mCompositeTransform.get(entity)
         val compositePath = mCompositeChild.getOr(entity)?.path ?: emptyCompositePath()
@@ -149,25 +147,6 @@ class ColliderForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
             collider.mass(),
             compositePath,
         )
-
-        mComposite.forward(entity, event)
-    }
-
-    data class BodyData(
-        val path: CompositePath,
-        val shape: CollisionShape,
-        val transform: Transform,
-        val mass: Float,
-    )
-
-    data class BuildBody(
-        val bodies: MutableList<BodyData> = ArrayList()
-    ) : SokolEvent {
-        fun addBody(shape: CollisionShape, transform: Transform, mass: Float, path: CompositePath) {
-            if (mass < 0)
-                throw IllegalArgumentException("Cannot have negative mass")
-            bodies.add(BodyData(path, shape, transform, mass))
-        }
     }
 }
 
@@ -181,6 +160,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mRigidBody = mappers.componentMapper<RigidBody>()
     private val mVehicleBody = mappers.componentMapper<VehicleBody>()
     private val mGhostBody = mappers.componentMapper<GhostBody>()
+    private val mComposite = mappers.componentMapper<Composite>()
 
     private data class FullBodyData(
         val shape: CollisionShape,
@@ -190,7 +170,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     )
 
     private fun buildBody(entity: SokolEntity): FullBodyData {
-        val (parts) = entity.call(ColliderForwardSystem.BuildBody())
+        val (parts) = mComposite.forwardAll(entity, BuildBody())
 
         val totalMass = parts.map { it.mass }.sum()
         var centerOfMass = Vector3.Zero
@@ -384,7 +364,26 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         entity.call(Rebuild)
     }
 
+
+    data class PartData(
+        val path: CompositePath,
+        val shape: CollisionShape,
+        val transform: Transform,
+        val mass: Float,
+    )
+
+
     object Rebuild : SokolEvent
+
+    data class BuildBody(
+        val bodies: MutableList<PartData> = ArrayList()
+    ) : SokolEvent {
+        fun addBody(shape: CollisionShape, transform: Transform, mass: Float, path: CompositePath) {
+            if (mass < 0)
+                throw IllegalArgumentException("Cannot have negative mass")
+            bodies.add(PartData(path, shape, transform, mass))
+        }
+    }
 
     // NB: modifying component data during this will not persist
     // use SupplierEntityAccess instead

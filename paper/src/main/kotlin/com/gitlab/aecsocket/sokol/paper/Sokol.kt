@@ -326,7 +326,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HostedByItemTarget }
                     .systemFactory { MobInjectorSystem(this@Sokol, it) }
                     .systemFactory { CompositeSystem(it) }
-                    .systemFactory { ForwardingSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
                     .systemFactory { RotationSystem(it) }
                     .systemFactory { PositionTarget }
@@ -335,7 +334,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
-                    .systemFactory { ColliderForwardSystem(it) }
+                    .systemFactory { ColliderBuildSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { MeshesSystem(it) }
                     .systemFactory { MeshesInWorldForwardSystem(it) }
@@ -373,7 +372,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
                     .componentType<CompositeChild>()
-                    .componentType<Forwarding>()
                     .componentType<LocalTransform>()
                     .componentType<LocalTransformStatic>()
                     .componentType<CompositeTransform>()
@@ -400,7 +398,6 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
-                registerComponentType(Forwarding.Type)
                 registerComponentType(LocalTransformStatic.Type)
                 registerComponentType(EntitySlot.Type)
                 registerComponentType(Rotation.Type)

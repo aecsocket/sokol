@@ -53,7 +53,7 @@ data class MeshesInWorld(
         .set(TRANSFORM) { makeTransform(transform) }
 
     override fun write(node: ConfigurationNode) {
-        node.node(MESHES).set(meshEntries)
+        node.node(MESHES).setList(MeshEntry::class.java, meshEntries)
         node.node(TRANSFORM).set(transform)
     }
 
