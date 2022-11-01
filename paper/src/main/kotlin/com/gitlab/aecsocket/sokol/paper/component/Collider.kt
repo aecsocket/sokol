@@ -60,11 +60,11 @@ data class Collider(
     fun mass() = mass ?: profile.mass
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .setOrClear(MASS) { mass?.let { body -> makeFloat(body) } }
+        .setOrClear(MASS) { mass?.let { mass -> makeFloat(mass) } }
         .setOrClear(BODY) { bodyData?.let { body -> makeCompound()
             .set(ID) { makeUUID(body.bodyId) }
             .set(CENTER_OF_MASS) { makeVector3(body.centerOfMass) }
-            .set(COMPOSITE_MAP) { makeList().apply { body.compositeMap.forEach { path -> add { makeCompositePath(path) } } } }
+            .setList(COMPOSITE_MAP, body.compositeMap) { path -> makeCompositePath(path) }
         } }
 
     override fun write(node: ConfigurationNode) {
@@ -77,13 +77,13 @@ data class Collider(
         @Required val shape: Shape,
         val mass: Float = 1f
     ) : ComponentProfile {
-        override fun read(tag: NBTTag) = tag.asCompound().run { Collider(this@Profile,
-            getOr(MASS) { asFloat() },
-            getOr(BODY) { asCompound().run { BodyData(
-                get(ID) { asUUID() },
-                get(CENTER_OF_MASS) { asVector3() },
-                get(COMPOSITE_MAP) { asList().map { it.asCompositePath() } }
-            ) } }
+        override fun read(tag: NBTTag) = tag.asCompound { compound -> Collider(this,
+            compound.getOr(MASS) { asFloat() },
+            compound.getCompoundOr(BODY) { body -> BodyData(
+                body.get(ID) { asUUID() },
+                body.get(CENTER_OF_MASS) { asVector3() },
+                body.getList(COMPOSITE_MAP).map { it.asCompositePath() },
+            ) }
         ) }
 
         override fun read(node: ConfigurationNode) = Collider(this,

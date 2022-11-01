@@ -16,6 +16,7 @@ import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.collision.PhysicsCollisionObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
 import org.bukkit.GameMode

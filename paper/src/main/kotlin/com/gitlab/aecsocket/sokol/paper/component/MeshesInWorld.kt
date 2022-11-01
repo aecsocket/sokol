@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.core.extension.force
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.Mesh
@@ -12,14 +11,18 @@ import com.gitlab.aecsocket.sokol.paper.*
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
+import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
 
+private const val MESHES = "meshes"
 private const val ID = "id"
 private const val TRANSFORM = "transform"
 
 data class MeshesInWorld(
-    var meshes: List<MeshEntry>,
+    var meshEntries: List<MeshEntry>,
+    var transform: Transform,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("meshes_in_world")
@@ -29,35 +32,61 @@ data class MeshesInWorld(
     override val componentType get() = MeshesInWorld::class
     override val key get() = Key
 
+    var meshes: List<MeshEntryInstance>? = null
+
     @ConfigSerializable
     data class MeshEntry(
-        val id: UUID,
+        @Required val id: UUID,
+        val transform: Transform = Transform.Identity,
+    )
+
+    data class MeshEntryInstance(
+        val mesh: Mesh,
         val transform: Transform,
     )
 
-    override fun write(ctx: NBTTagContext) = ctx.makeList().apply { meshes.forEach { add { makeCompound()
-        .set(ID) { makeUUID(it.id) }
-        .set(TRANSFORM) { makeTransform(it.transform) }
-    } } }
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+        .setList(MESHES, meshEntries) { mesh -> makeCompound()
+            .set(ID) { makeUUID(mesh.id) }
+            .set(TRANSFORM) { makeTransform(mesh.transform) }
+        }
+        .set(TRANSFORM) { makeTransform(transform) }
 
     override fun write(node: ConfigurationNode) {
-        node.setList(MeshEntry::class.java, meshes)
+        node.node(MESHES).set(meshEntries)
+        node.node(TRANSFORM).set(transform)
     }
 
     object Profile : ComponentProfile {
-        override fun read(tag: NBTTag) = MeshesInWorld(tag.asList().map { it.asCompound().run { MeshEntry(
-            get(ID) { asUUID() },
-            get(TRANSFORM) { asTransform() }
-        ) } })
+        override fun read(tag: NBTTag) = tag.asCompound { compound -> MeshesInWorld(
+            compound.getList(MESHES).mapCompound { mesh -> MeshEntry(
+                mesh.get(ID) { asUUID() },
+                mesh.get(TRANSFORM) { asTransform() }
+            ) },
+            compound.get(TRANSFORM) { asTransform() }
+        ) }
 
-        override fun read(node: ConfigurationNode) = MeshesInWorld(node.force<ArrayList<MeshEntry>>())
+        override fun read(node: ConfigurationNode) = MeshesInWorld(
+            node.node(MESHES).get { ArrayList() },
+            node.node(TRANSFORM).get { Transform.Identity },
+        )
 
-        override fun readEmpty() = MeshesInWorld(emptyList())
+        override fun readEmpty() = MeshesInWorld(emptyList(), Transform.Identity)
     }
 }
 
 class MeshesInWorldForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mComposite = mappers.componentMapper<Composite>()
+
+    @Subscribe
+    fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
+        entity.call(MeshesInWorldSystem.Populate)
+    }
+
+    @Subscribe
+    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
+        entity.call(MeshesInWorldSystem.Populate)
+    }
 
     @Subscribe
     fun on(event: SokolEvent.Add, entity: SokolEntity) {
@@ -97,9 +126,18 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
 
-    private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (Mesh, Transform) -> Unit) {
-        meshesInWorld.meshes.forEach { (id, transform) ->
-            AlexandriaAPI.meshes[id]?.let { action(it, transform) }
+    private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (MeshesInWorld.MeshEntryInstance) -> Unit) {
+        meshesInWorld.meshes?.forEach(action)
+    }
+
+    @Subscribe
+    fun on(event: Populate, entity: SokolEntity) {
+        val meshesInWorld = mMeshesInWorld.get(entity)
+
+        meshesInWorld.meshes = meshesInWorld.meshEntries.mapNotNull {
+            AlexandriaAPI.meshes[it.id]?.let { mesh ->
+                MeshesInWorld.MeshEntryInstance(mesh, it.transform)
+            }
         }
     }
 
@@ -125,24 +163,24 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
             }
         }
 
-        meshesInWorld.meshes = parts.map { MeshesInWorld.MeshEntry(it.mesh.id, it.transform) }
+        meshesInWorld.meshEntries = parts.map { MeshesInWorld.MeshEntry(it.mesh.id, it.transform) }
     }
 
     @Subscribe
     fun on(event: Remove, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        forEachMesh(meshesInWorld) { mesh, _ ->
+        forEachMesh(meshesInWorld) { (mesh) ->
             AlexandriaAPI.meshes.remove(mesh.id)
         }
-        meshesInWorld.meshes = emptyList()
+        meshesInWorld.meshEntries = emptyList()
     }
 
     @Subscribe
     fun on(event: Show, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        forEachMesh(meshesInWorld) { mesh, _ ->
+        forEachMesh(meshesInWorld) { (mesh) ->
             mesh.spawn(event.player)
         }
     }
@@ -151,7 +189,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: Hide, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        forEachMesh(meshesInWorld) { mesh, _ ->
+        forEachMesh(meshesInWorld) { (mesh) ->
             mesh.remove(event.player)
         }
     }
@@ -161,8 +199,8 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         val meshesInWorld = mMeshesInWorld.get(entity)
         val positionRead = mPositionRead.get(entity)
 
-        val transform = positionRead.transform
-        forEachMesh(meshesInWorld) { mesh, meshTransform ->
+        val transform = positionRead.transform + meshesInWorld.transform
+        forEachMesh(meshesInWorld) { (mesh, meshTransform) ->
             mesh.transform = transform + meshTransform
         }
     }
@@ -171,7 +209,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: Glowing, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        forEachMesh(meshesInWorld) { mesh, _ ->
+        forEachMesh(meshesInWorld) { (mesh) ->
             mesh.glowing(event.state, event.players)
         }
     }
@@ -180,7 +218,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: GlowingColor, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        forEachMesh(meshesInWorld) { mesh, _ ->
+        forEachMesh(meshesInWorld) { (mesh) ->
             mesh.glowingColor = event.color
         }
     }
@@ -191,10 +229,12 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         val supplierTrackedPlayers = mSupplierTrackedPlayers.getOr(event.parent)?.trackedPlayers ?: return
         val meshesInWorld = mMeshesInWorld.get(entity)
 
-        forEachMesh(meshesInWorld) { mesh, _ ->
+        forEachMesh(meshesInWorld) { (mesh) ->
             mesh.updateTrackedPlayers(supplierTrackedPlayers)
         }
     }
+
+    object Populate : SokolEvent
 
     data class Create(
         val sendToPlayers: Boolean

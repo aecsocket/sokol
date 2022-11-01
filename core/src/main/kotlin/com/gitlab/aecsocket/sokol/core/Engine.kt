@@ -136,7 +136,7 @@ class SokolEngine internal constructor(
         }
 
     private fun makeComponents(profile: EntityProfile) = profile.componentProfiles.map { (_, profile) ->
-        profile.read(BasicConfigurationNode.root())
+        profile.readEmpty()
     }
 
     fun emptyBlueprint(profile: EntityProfile): EntityBlueprint {

@@ -223,3 +223,30 @@ interface ListNBTTag : CollectionNBTTag, Iterable<NBTTag> {
         fun removeAt(index: Int): Mutable
     }
 }
+
+fun <R> NBTTag.asCompound(mapper: (CompoundNBTTag) -> R) = asCompound().run(mapper)
+
+fun <R> CompoundNBTTag.getCompound(key: String, mapper: (CompoundNBTTag) -> R) = get(key) { asCompound().run(mapper) }
+
+fun <R> CompoundNBTTag.getCompoundOr(key: String, mapper: (CompoundNBTTag) -> R?) = getOr(key) { asCompound().run(mapper) }
+
+fun <R> Iterable<NBTTag>.mapCompound(mapper: (CompoundNBTTag) -> R) = map { mapper(it.asCompound()) }
+
+fun <V> ListNBTTag.Mutable.from(
+    values: Iterable<V>,
+    mapper: NBTTagContext.(V) -> NBTTag?
+): ListNBTTag.Mutable {
+    values.forEach {
+        mapper(it)?.let(this::add)
+    }
+    return this
+}
+
+fun <V> CompoundNBTTag.Mutable.setList(
+    key: String,
+    values: Iterable<V>,
+    mapper: NBTTagContext.(V) -> NBTTag?
+): CompoundNBTTag.Mutable {
+    set(key) { makeList().from(values, mapper) }
+    return this
+}
