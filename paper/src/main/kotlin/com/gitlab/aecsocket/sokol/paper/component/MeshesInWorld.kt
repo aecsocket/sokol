@@ -75,6 +75,8 @@ data class MeshesInWorld(
     }
 }
 
+// only run this if we have an actual presence in the world
+@All(PositionRead::class)
 @After(MeshesInWorldSystem::class)
 class MeshesInWorldForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mComposite = mappers.componentMapper<Composite>()

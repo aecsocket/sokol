@@ -4,7 +4,6 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.sokol.core.util.Bits
 import com.gitlab.aecsocket.sokol.core.util.topologicallySorted
 import com.google.common.graph.GraphBuilder
-import org.spongepowered.configurate.BasicConfigurationNode
 import java.lang.invoke.MethodHandles
 import java.util.*
 import kotlin.collections.ArrayList
@@ -122,7 +121,7 @@ class SokolEngine internal constructor(
     internal data class SystemDefinition(
         val system: SokolSystem,
         val filter: EntityFilter,
-        val eventListeners: Map<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>,
+        val eventListeners: Map<Class<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>,
     )
 
     fun systems() = systems.map { it.system }
@@ -206,42 +205,22 @@ class SokolEngine internal constructor(
         }
     }
 
-    data class SystemExecutionResult(
-        val system: SokolSystem,
-        val executed: Boolean,
-    )
-
-    data class EventCallResult(
-        val event: SokolEvent,
-        val systems: List<SystemExecutionResult>
-    )
-
-    inner class EntityImpl(
+    private inner class EntityImpl(
         override val profile: EntityProfile,
         override val components: MutableComponentMap
     ) : SokolEntity {
-        // TODO this should probably be a toggle because it can be intensive?
-        // or another class which doesn't do logging
-        val callResults = ArrayList<EventCallResult>()
-
         override fun <E : SokolEvent> call(event: E): E {
-            val eventType = event::class
-            val systemResults = ArrayList<SystemExecutionResult>()
-            val callResult = EventCallResult(event, systemResults)
+            val eventType = event::class.java
             systems.forEach { system ->
                 if (applies(system.filter, components.archetype())) {
-                    systemResults.add(SystemExecutionResult(system.system, true))
                     system.eventListeners.forEach { (listenedType, listener) ->
-                        // use java isAssignableFrom here for performance, benchmarked
-                        if (listenedType.java.isAssignableFrom(eventType.java)) {
+                        // use java isAssignableFrom here for performance
+                        if (listenedType.isAssignableFrom(eventType)) {
                             listener(event, this)
                         }
                     }
-                } else {
-                    systemResults.add(SystemExecutionResult(system.system, false))
                 }
             }
-            callResults.add(callResult)
             return event
         }
 
@@ -295,7 +274,7 @@ class SokolEngine internal constructor(
                 val before = systemType.findAnnotation<Before>()?.types?.toSet() ?: emptySet()
                 val after = systemType.findAnnotation<After>()?.types?.toSet() ?: emptySet()
 
-                val eventListeners = HashMap<KClass<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>()
+                val eventListeners = HashMap<Class<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>()
                 systemType.functions.forEach { function ->
                     if (function.hasAnnotation<Subscribe>()) {
                         val funcName = function.name
@@ -311,7 +290,7 @@ class SokolEngine internal constructor(
                             error("Event type must extend ${SokolEvent::class}")
 
                         @Suppress("UNCHECKED_CAST")
-                        val eventClass = eventType.classifier as? KClass<out SokolEvent>
+                        val eventClass = (eventType.classifier as? KClass<out SokolEvent>)?.java
                             ?: error("Event type $eventType is not instance of ${KClass::class}")
 
                         if (eventListeners.contains(eventClass))
