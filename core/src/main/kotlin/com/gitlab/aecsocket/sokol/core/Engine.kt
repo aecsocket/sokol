@@ -149,7 +149,7 @@ class SokolEngine internal constructor(
 
     fun applies(filter: EntityFilter, archetype: Bits) = archetype.containsAll(filter.all)
         && (filter.one.isEmpty() || filter.one.intersects(archetype))
-        && !filter.none.intersects(archetype)
+        && (filter.none.isEmpty() || !filter.none.intersects(archetype))
 
     fun applies(filter: EntityFilter, components: ComponentMap) = applies(filter, components.archetype())
 
@@ -231,8 +231,9 @@ class SokolEngine internal constructor(
             systems.forEach { system ->
                 if (applies(system.filter, components.archetype())) {
                     systemResults.add(SystemExecutionResult(system.system, true))
-                    system.eventListeners.forEach { (type, listener) ->
-                        if (eventType.isSubclassOf(type)) {
+                    system.eventListeners.forEach { (listenedType, listener) ->
+                        // use java isAssignableFrom here for performance, benchmarked
+                        if (listenedType.java.isAssignableFrom(eventType.java)) {
                             listener(event, this)
                         }
                     }

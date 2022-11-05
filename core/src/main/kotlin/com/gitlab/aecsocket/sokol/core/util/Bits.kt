@@ -2,12 +2,16 @@ package com.gitlab.aecsocket.sokol.core.util
 
 import kotlin.math.min
 
-class Bits private constructor(private var words: LongArray) : Iterable<Boolean> {
-    constructor(capacity: Int = 64) : this(longArrayOf(0)) {
+class Bits private constructor(
+    private var words: LongArray,
+    // more of an "is definitely empty"
+    private var isEmpty: Boolean
+) : Iterable<Boolean> {
+    constructor(capacity: Int = 64) : this(longArrayOf(0), true) {
         ensureCapacity(capacity)
     }
 
-    constructor(bits: Bits) : this(bits.words.clone())
+    constructor(bits: Bits) : this(bits.words.clone(), bits.isEmpty)
 
     val size: Int get() {
         val bits = words
@@ -20,6 +24,7 @@ class Bits private constructor(private var words: LongArray) : Iterable<Boolean>
     }
 
     operator fun get(index: Int): Boolean {
+        if (isEmpty) return false
         val word = index shr 6
         return word < words.size && (words[word] and (1L shl index)) != 0L
     }
@@ -31,6 +36,7 @@ class Bits private constructor(private var words: LongArray) : Iterable<Boolean>
     }
 
     fun set(index: Int) {
+        isEmpty = false
         val word = index shr 6
         ensureCapacity(word)
         words[word] = words[word] or (1L shl index)
@@ -43,15 +49,20 @@ class Bits private constructor(private var words: LongArray) : Iterable<Boolean>
     }
 
     operator fun set(index: Int, value: Boolean) {
-        if (value) set(index)
+        if (value) {
+            isEmpty = false
+            set(index)
+        }
         else clear(index)
     }
 
     fun clear() {
+        isEmpty = true
         words.fill(0)
     }
 
     fun isEmpty(): Boolean {
+        if (isEmpty) return true
         words.forEach { word ->
             if (word != 0L) return false
         }
@@ -61,6 +72,7 @@ class Bits private constructor(private var words: LongArray) : Iterable<Boolean>
     fun isNotEmpty() = !isEmpty()
 
     fun containsAll(other: Bits): Boolean {
+        if (other.isEmpty) return true
         val bits = words
         val otherBits = other.words
         val bitsSize = bits.size
@@ -78,6 +90,7 @@ class Bits private constructor(private var words: LongArray) : Iterable<Boolean>
     }
 
     fun intersects(other: Bits): Boolean {
+        if (isEmpty || other.isEmpty) return false
         val bits = words
         val otherBits = other.words
         repeat(min(bits.size, otherBits.size)) {
