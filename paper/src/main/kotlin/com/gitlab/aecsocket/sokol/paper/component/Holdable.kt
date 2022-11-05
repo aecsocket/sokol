@@ -75,18 +75,26 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
         val positionWrite = mPositionWrite.get(entity)
+        val collider = mCollider.get(entity)
         val holdProfile = holdable.profile
+        val body = collider.body?.body?.body ?: return
 
         AlexandriaAPI.soundEngine.play(
             positionWrite.location(),
             if (event.holding) holdProfile.soundHoldStart else holdProfile.soundHoldStop
         )
+
+        if (event.holding) {
+            body.removeCollideWithGroup(PhysicsCollisionObject.COLLISION_GROUP_01)
+        } else {
+            body.addCollideWithGroup(PhysicsCollisionObject.COLLISION_GROUP_01)
+        }
     }
 
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
-        val position = mPositionWrite.get(entity)
+        val positionWrite = mPositionWrite.get(entity)
         val collider = mCollider.get(entity)
         val holdProfile = holdable.profile
         val holdState = holdable.state ?: return
@@ -95,7 +103,7 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         holdState.entity = entity
 
-        position.transform = holdState.transform
+        positionWrite.transform = holdState.transform
         if (body is PhysicsRigidBody) {
             CraftBulletAPI.executePhysics {
                 // TODO set velocities so that it moves to the position, rather than just transform
@@ -105,7 +113,7 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
         }
 
         holdState.drawShape?.let { drawShape ->
-            val transform = position.transform.bullet()
+            val transform = positionWrite.transform.bullet()
             val drawable = CraftBulletAPI.drawableOf(player, CraftBullet.DrawType.SHAPE)
             CraftBulletAPI.drawPointsShape(drawShape).forEach {
                 drawable.draw(transform.transform(it))

@@ -130,6 +130,7 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
 }
 
 @All(Collider::class, CompositeTransform::class)
+@After(CompositeTransformSystem::class)
 class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mCollider = mappers.componentMapper<Collider>()
     private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
@@ -138,12 +139,12 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: ColliderSystem.BuildBody, entity: SokolEntity) {
         val collider = mCollider.get(entity)
-        val compositeTransform = mCompositeTransform.get(entity)
+        val compositeTransform = mCompositeTransform.get(entity).transform
         val compositePath = mCompositeChild.getOr(entity)?.path ?: emptyCompositePath()
 
         event.addBody(
             collisionOf(collider.profile.shape),
-            compositeTransform.transform,
+            compositeTransform,
             collider.mass(),
             compositePath,
         )
@@ -153,6 +154,7 @@ class ColliderBuildSystem(mappers: ComponentIdAccess) : SokolSystem {
 @All(Collider::class, PositionWrite::class, Removable::class)
 @One(RigidBody::class, VehicleBody::class, GhostBody::class)
 @None(CompositeChild::class)
+@After(PositionTarget::class)
 class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mPositionWrite = mappers.componentMapper<PositionWrite>()
     private val mCollider = mappers.componentMapper<Collider>()
@@ -181,11 +183,12 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
 
         val compoundShape = CompoundCollisionShape()
         val compositeMap = ArrayList<CompositePath>()
+        val comTransform = Transform(-centerOfMass)
         parts.forEach { (path, shape, transform) ->
             val newTransform = Transform(
-                transform.translation - centerOfMass,
+                transform.translation,
                 transform.rotation
-            )
+            ) + comTransform
 
             val added = compoundShape.addShape(shape, newTransform.bullet())
             repeat(added) {

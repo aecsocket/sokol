@@ -326,14 +326,13 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HostedByItemTarget }
                     .systemFactory { MobInjectorSystem(this@Sokol, it) }
                     .systemFactory { CompositeSystem(it) }
-                    .systemFactory { CompositeTransformSystem(it) }
                     .systemFactory { RotationSystem(it) }
                     .systemFactory { PositionTarget }
                     .systemFactory { PositionSystem(it) }
                     .systemFactory { SupplierTrackedPlayersTarget }
                     .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
-                    .systemFactory { LocalTransformTarget }
-                    .systemFactory { LocalTransformStaticSystem(it) }
+                    .systemFactory { CompositeTransformSystem(it) }
+                    .systemFactory { PositionSystem(it) }
                     .systemFactory { ColliderBuildSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { MeshesSystem(it) }
@@ -372,8 +371,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HostableByItem>()
                     .componentType<Composite>()
                     .componentType<CompositeChild>()
-                    .componentType<LocalTransform>()
-                    .componentType<LocalTransformStatic>()
+                    .componentType<AsChildTransform>()
                     .componentType<CompositeTransform>()
                     .componentType<EntitySlot>()
                     .componentType<Rotation>()
@@ -398,7 +396,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
-                registerComponentType(LocalTransformStatic.Type)
+                registerComponentType(AsChildTransform.Type)
                 registerComponentType(EntitySlot.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(Collider.Type)

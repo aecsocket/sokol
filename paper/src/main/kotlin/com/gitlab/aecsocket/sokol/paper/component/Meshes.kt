@@ -37,27 +37,24 @@ data class Meshes(
     }
 }
 
-@All(Meshes::class, LocalTransform::class)
-@After(LocalTransformTarget::class)
+@All(Meshes::class)
 class MeshesSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshes = mappers.componentMapper<Meshes>()
-    private val mLocalTransform = mappers.componentMapper<LocalTransform>()
+    private val mCompositeTransform = mappers.componentMapper<CompositeTransform>()
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
         val meshes = mMeshes.get(entity)
-        val localTransform = mLocalTransform.get(entity)
 
-        val transform = localTransform.transform
         val parts = meshes.parts.map { definition ->
             PartEntry(
                 AlexandriaAPI.meshes.create(
                     definition.item,
-                    event.transform + transform + definition.transform,
+                    event.transform + definition.transform,
                     event.getTrackedPlayers,
                     meshes.interpolated
                 ),
-                transform,
+                definition.transform,
                 definition,
             )
         }

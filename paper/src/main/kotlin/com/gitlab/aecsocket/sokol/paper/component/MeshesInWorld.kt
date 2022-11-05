@@ -75,6 +75,7 @@ data class MeshesInWorld(
     }
 }
 
+@After(MeshesInWorldSystem::class)
 class MeshesInWorldForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mComposite = mappers.componentMapper<Composite>()
 
@@ -121,6 +122,7 @@ class MeshesInWorldForwardSystem(mappers: ComponentIdAccess) : SokolSystem {
 }
 
 @All(MeshesInWorld::class, PositionRead::class, SupplierTrackedPlayers::class)
+@After(PositionTarget::class, SupplierTrackedPlayersTarget::class)
 class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = mappers.componentMapper<MeshesInWorld>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
@@ -144,13 +146,13 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
-        val position = mPositionRead.get(entity)
+        val positionRead = mPositionRead.get(entity)
         val supplierTrackedPlayers = mSupplierTrackedPlayers.get(entity)
 
         val getTrackedPlayers = supplierTrackedPlayers.trackedPlayers
         val trackedPlayers = getTrackedPlayers()
 
-        val transform = position.transform
+        val transform = positionRead.transform
         val (parts) = entity.call(MeshesSystem.Create(
             ArrayList(),
             transform,

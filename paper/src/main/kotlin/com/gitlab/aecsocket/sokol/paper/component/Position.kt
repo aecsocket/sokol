@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.sokol.core.*
 import org.bukkit.Location
 import org.bukkit.World
+import kotlin.reflect.KClass
 
 interface PositionRead : SokolComponent {
     override val componentType get() = PositionRead::class
@@ -28,17 +29,17 @@ object PositionTarget : SokolSystem
 
 @Before(PositionTarget::class)
 class PositionSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mPosition = mappers.componentMapper<PositionRead>()
-    private val mLocalTransform = mappers.componentMapper<LocalTransform>()
+    private val mAsChildTransform = mappers.componentMapper<AsChildTransform>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
 
     @Subscribe
     fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
-        val parentPosition = mPosition.getOr(event.parent) ?: return
-        val localTransform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
-        mPosition.set(entity, object : PositionRead {
+        val parentPosition = mPositionRead.getOr(event.parent) ?: return
+        val asChildTransform = mAsChildTransform.getOr(entity)?.profile?.transform ?: Transform.Identity
+        mPositionRead.set(entity, object : PositionRead {
             override val world get() = parentPosition.world
             override val transform: Transform
-                get() = parentPosition.transform + localTransform
+                get() = parentPosition.transform + asChildTransform
         })
     }
 }

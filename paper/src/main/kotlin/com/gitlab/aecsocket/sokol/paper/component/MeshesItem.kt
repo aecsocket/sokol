@@ -42,13 +42,13 @@ class MeshesItemSystem(
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val meshesItem = mMeshesItem.get(entity)
+        val meshesItem = mMeshesItem.get(entity).profile
 
         val item = sokol.entityHoster.createItemForm(entity)
 
         mMeshes.set(entity, Meshes(
-            listOf(Meshes.PartDefinition(item)),
-            meshesItem.profile.interpolated
+            listOf(Meshes.PartDefinition(item, meshesItem.transform)),
+            meshesItem.interpolated
         ))
     }
 }
