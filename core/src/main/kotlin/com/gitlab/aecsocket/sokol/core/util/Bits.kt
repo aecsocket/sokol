@@ -8,7 +8,7 @@ class Bits private constructor(
     private var isEmpty: Boolean
 ) : Iterable<Boolean> {
     constructor(capacity: Int = 64) : this(longArrayOf(0), true) {
-        ensureCapacity(capacity)
+        ensureCapacity(capacity / 64)
     }
 
     constructor(bits: Bits) : this(bits.words.clone(), bits.isEmpty)

@@ -220,7 +220,6 @@ class SokolEngine internal constructor(
     ) : SokolEntity {
         override fun <E : SokolEvent> call(event: E): E {
             val eventType = event::class.java
-            val archetype = components.archetype()
             listenersForEvent.computeIfAbsent(eventType) {
                 systems.mapNotNull {
                     val listeners = it.listeners
@@ -230,7 +229,8 @@ class SokolEngine internal constructor(
                     else ListenerDefinition(it.filter, listeners)
                 }
             }.forEach { (filter, listeners) ->
-                if (applies(filter, archetype)) {
+                // always check against the archetype() here since it can change between listener invokes
+                if (applies(filter, components.archetype())) {
                     listeners.forEach { it(event, this) }
                 }
             }
