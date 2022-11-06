@@ -1,15 +1,11 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
-import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderHitPath
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import java.util.*
 
 data class Takeable(val profile: Profile) : MarkerPersistentComponent {
     companion object {

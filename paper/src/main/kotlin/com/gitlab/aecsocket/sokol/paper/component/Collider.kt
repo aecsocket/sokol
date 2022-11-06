@@ -39,11 +39,12 @@ data class Collider(
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
+    // immutable class to watch for any changes with Delta delegate
     @ConfigSerializable
     data class BodyData(
         val bodyId: UUID,
-        var centerOfMass: Vector3,
-        var compositeMap: List<CompositePath>,
+        val centerOfMass: Vector3,
+        val compositeMap: List<CompositePath>,
     )
 
     data class BodyInstance(
@@ -117,19 +118,19 @@ data class Collider(
 object RigidBody : MarkerPersistentComponent {
     override val componentType get() = RigidBody::class
     override val key = SokolAPI.key("rigid_body")
-    val Type = ComponentType.singletonComponent(key, RigidBody)
+    val Type = ComponentType.singletonComponent(key, this)
 }
 
 object VehicleBody : MarkerPersistentComponent {
     override val componentType get() = VehicleBody::class
     override val key = SokolAPI.key("vehicle_body")
-    val Type = ComponentType.singletonComponent(key, VehicleBody)
+    val Type = ComponentType.singletonComponent(key, this)
 }
 
 object GhostBody : MarkerPersistentComponent {
     override val componentType get() = GhostBody::class
     override val key = SokolAPI.key("ghost_body")
-    val Type = ComponentType.singletonComponent(key, GhostBody)
+    val Type = ComponentType.singletonComponent(key, this)
 }
 
 interface SokolPhysicsObject : TrackedPhysicsObject {
@@ -185,7 +186,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
         var centerOfMass = Vector3.Zero
         parts.forEach { (_, _, transform, mass) ->
             val portionOfTotal = mass / totalMass
-            centerOfMass += transform.translation * portionOfTotal.toDouble()
+            //centerOfMass += transform.translation * portionOfTotal.toDouble()
         }
 
         val compoundShape = CompoundCollisionShape()
@@ -229,8 +230,7 @@ class ColliderSystem(mappers: ComponentIdAccess) : SokolSystem {
             if (body is PhysicsRigidBody) body.mass = mass
         }
 
-        bodyData.centerOfMass = centerOfMass
-        bodyData.compositeMap = compositeMap
+        collider.bodyData = Collider.BodyData(bodyData.bodyId, centerOfMass, compositeMap)
     }
 
     @Subscribe

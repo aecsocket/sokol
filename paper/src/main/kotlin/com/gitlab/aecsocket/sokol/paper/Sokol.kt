@@ -98,6 +98,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .register(SokolEntitySerializer)
                     .registerExact(Meshes.PartDefinitionSerializer)
                     .register(CompositePathSerializer)
+                    .register(DeltaSerializer)
             },
             onLoad = {
                 addDefaultI18N()

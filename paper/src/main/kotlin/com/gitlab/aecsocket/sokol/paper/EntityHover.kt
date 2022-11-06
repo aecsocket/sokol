@@ -84,7 +84,12 @@ class EntityHover internal constructor(
             val axPlayer = player.alexandria
 
             // if the player's holding an entity, it gets the event precedence over the hovered
-            axPlayer.heldEntity?.entity?.call(event) ?: run {
+            axPlayer.heldEntity?.entity?.let {
+                /*mSupplierEntityAccess.getOr(it)?.useEntity { entity ->
+                    entity.call(event)
+                }*/
+                it.call(event)
+            } ?: run {
                 axPlayer.hoveredEntity?.let { (obj, rayTestResult) ->
                     mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
                         mHovered.set(entity, hovered(event.player, rayTestResult))

@@ -28,5 +28,5 @@ data class HostableByItem(val profile: Profile) : MarkerPersistentComponent {
 object HostableByMob : MarkerPersistentComponent {
     override val componentType get() = HostableByMob::class
     override val key = SokolAPI.key("hostable_by_mob")
-    val Type = ComponentType.singletonComponent(key, HostableByMob)
+    val Type = ComponentType.singletonComponent(key, this)
 }

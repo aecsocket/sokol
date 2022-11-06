@@ -35,7 +35,7 @@ data class Rotation(
     }
 
     override fun write(node: ConfigurationNode) {
-        if (rotation != Quaternion.Identity) node.set(rotation)
+        node.set(rotation)
     }
 
     object Profile : ComponentProfile {

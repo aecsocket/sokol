@@ -18,12 +18,15 @@ data class Composite(
     override val componentType get() = Composite::class
     override val key get() = Key
 
-    override var dirty = false
-        private set
+    // even though this composite's children might not change,
+    // the child state might
+    override val dirty get() = true
 
     fun children(): Map<String, SokolEntity> = children
         .mapNotNull { (key, delta) -> delta.value?.let { key to it } }
         .associate { it }
+
+    operator fun contains(key: String) = children[key]?.value != null
 
     fun child(key: String) = children[key]?.value
 
@@ -31,15 +34,14 @@ data class Composite(
         if (children.contains(key))
             throw IllegalStateException("Entity already exists in slot $key")
         children[key] = Delta(value, true)
-        dirty = true
     }
 
     fun detach(key: String): SokolEntity? {
         return children[key]?.let { delta ->
-            dirty = true
+            val old = delta.value
             delta.value = null
             delta.dirty()
-            delta.value
+            old
         }
     }
 
@@ -52,15 +54,18 @@ data class Composite(
     override fun writeDelta(tag: NBTTag): NBTTag {
         val compound = tag.asCompound()
         children.forEach { (key, delta) ->
-            delta.ifDirty { child ->
+            val child = delta.value
+            if (delta.dirty) {
                 child?.let {
-                    compound[key]?.let { childTag ->
-                        sokol.persistence.writeEntityDeltas(child, childTag.asCompound())
-                    } ?: run {
-                        compound[key] = sokol.persistence.writeEntity(child)
-                    }
+                    compound.set(key) { sokol.persistence.writeEntity(child) }
                 } ?: run {
                     compound.remove(key)
+                }
+            } else {
+                child?.let {
+                    compound[key]?.let {
+                        sokol.persistence.writeEntityDeltas(child, it.asCompound())
+                    }
                 }
             }
         }
@@ -69,7 +74,7 @@ data class Composite(
 
     override fun write(node: ConfigurationNode) {
         children.forEach { (key, entity) ->
-            node.node(key).set(entity)
+            entity.value?.let { node.node(key).set(it) }
         }
     }
 

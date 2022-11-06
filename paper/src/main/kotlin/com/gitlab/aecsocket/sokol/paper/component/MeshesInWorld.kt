@@ -81,7 +81,7 @@ data class MeshesInWorld(
                 mesh.get(ID) { asUUID() },
                 mesh.get(TRANSFORM) { asTransform() }
             ) } },
-            compound.get(TRANSFORM) { asTransform() }
+            compound.getOr(TRANSFORM) { asTransform() } ?: Transform.Identity
         ) }
 
         override fun read(node: ConfigurationNode) = MeshesInWorld(

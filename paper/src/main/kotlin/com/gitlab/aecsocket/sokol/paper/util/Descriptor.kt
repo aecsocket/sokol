@@ -5,6 +5,7 @@ import org.bukkit.Material
 import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.Damageable
+import org.bukkit.inventory.meta.ItemMeta
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
@@ -16,12 +17,18 @@ data class ItemDescriptor(
     val unbreakable: Boolean = false,
     val flags: List<String> = emptyList(),
 ) {
+    fun applyTo(item: ItemStack, meta: ItemMeta) {
+        item.type = material
+        (meta as? Damageable)?.damage = damage
+        meta.setCustomModelData(modelData)
+        meta.isUnbreakable = unbreakable
+        meta.addItemFlags(*flags.map { ItemFlag.valueOf(it) }.toTypedArray())
+    }
+
     fun create(): ItemStack {
-        return ItemStack(material).withMeta { meta ->
-            (meta as? Damageable)?.damage = damage
-            meta.setCustomModelData(modelData)
-            meta.isUnbreakable = unbreakable
-            meta.addItemFlags(*flags.map { ItemFlag.valueOf(it) }.toTypedArray())
+        val item = ItemStack(material)
+        return item.withMeta { meta ->
+            applyTo(item, meta)
         }
     }
 }
