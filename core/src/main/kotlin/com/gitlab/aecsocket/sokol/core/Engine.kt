@@ -114,6 +114,8 @@ open class AbstractComponentIdAccess(
         ?: throw IllegalArgumentException("Component type $type is not registered")
 }
 
+typealias SokolEventListener = (SokolEvent, SokolEntity) -> Unit
+
 class SokolEngine internal constructor(
     private val systems: List<SystemDefinition>,
     componentIds: Map<KClass<out SokolComponent>, Int>
@@ -121,8 +123,15 @@ class SokolEngine internal constructor(
     internal data class SystemDefinition(
         val system: SokolSystem,
         val filter: EntityFilter,
-        val eventListeners: Map<Class<out SokolEvent>, (SokolEvent, SokolEntity) -> Unit>,
+        val listeners: Map<Class<out SokolEvent>, SokolEventListener>,
     )
+
+    internal data class ListenerDefinition(
+        val filter: EntityFilter,
+        val listeners: List<SokolEventListener>
+    )
+
+    private val listenersForEvent = HashMap<Class<out SokolEvent>, List<ListenerDefinition>>()
 
     fun systems() = systems.map { it.system }
 
@@ -211,14 +220,18 @@ class SokolEngine internal constructor(
     ) : SokolEntity {
         override fun <E : SokolEvent> call(event: E): E {
             val eventType = event::class.java
-            systems.forEach { system ->
-                if (applies(system.filter, components.archetype())) {
-                    system.eventListeners.forEach { (listenedType, listener) ->
-                        // use java isAssignableFrom here for performance
-                        if (listenedType.isAssignableFrom(eventType)) {
-                            listener(event, this)
-                        }
-                    }
+            val archetype = components.archetype()
+            listenersForEvent.computeIfAbsent(eventType) {
+                systems.mapNotNull {
+                    val listeners = it.listeners
+                        .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
+                        .map { (_, listener) -> listener }
+                    if (listeners.isEmpty()) null
+                    else ListenerDefinition(it.filter, listeners)
+                }
+            }.forEach { (filter, listeners) ->
+                if (applies(filter, archetype)) {
+                    listeners.forEach { it(event, this) }
                 }
             }
             return event

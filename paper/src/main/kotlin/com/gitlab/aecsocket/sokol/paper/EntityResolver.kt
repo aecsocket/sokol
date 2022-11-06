@@ -138,6 +138,10 @@ class EntityResolver internal constructor(
 
                 // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
                 // how to implement this? idfk
+
+                // TODO implement component deltas system, which actually write only what changed
+                // TODO bitmask to determine whether entities even need to have Update called on them
+
                 try {
                     sokol.persistence.writeEntity(entity, wrappedTag)
                 } catch (ex: Exception) {
