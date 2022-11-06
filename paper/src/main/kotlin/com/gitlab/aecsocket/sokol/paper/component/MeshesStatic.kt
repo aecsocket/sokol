@@ -9,9 +9,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
-data class MeshesStatic(
-    val profile: Profile,
-) : PersistentComponent {
+data class MeshesStatic(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("meshes_static")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -19,10 +17,6 @@ data class MeshesStatic(
 
     override val componentType get() = MeshesStatic::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

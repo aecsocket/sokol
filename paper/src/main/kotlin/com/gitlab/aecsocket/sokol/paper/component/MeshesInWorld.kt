@@ -21,8 +21,8 @@ private const val ID = "id"
 private const val TRANSFORM = "transform"
 
 data class MeshesInWorld(
-    var meshEntries: List<MeshEntry>,
-    var transform: Transform,
+    private val dMeshEntries: Delta<List<MeshEntry>>,
+    private val dTransform: Delta<Transform>,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("meshes_in_world")
@@ -31,6 +31,16 @@ data class MeshesInWorld(
 
     override val componentType get() = MeshesInWorld::class
     override val key get() = Key
+
+    override val dirty get() = dMeshEntries.dirty || dTransform.dirty
+
+    constructor(
+        meshEntries: List<MeshEntry>,
+        transform: Transform
+    ) : this(Delta(meshEntries), Delta(transform))
+
+    var meshEntries by dMeshEntries
+    var transform by dTransform
 
     var meshes: List<MeshEntryInstance>? = null
 
@@ -45,12 +55,20 @@ data class MeshesInWorld(
         val transform: Transform,
     )
 
+    private fun NBTTagContext.makeMesh(mesh: MeshEntry) = makeCompound()
+        .set(ID) { makeUUID(mesh.id) }
+        .set(TRANSFORM) { makeTransform(mesh.transform) }
+
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .setList(MESHES, meshEntries) { mesh -> makeCompound()
-            .set(ID) { makeUUID(mesh.id) }
-            .set(TRANSFORM) { makeTransform(mesh.transform) }
-        }
+        .setList(MESHES, meshEntries) { mesh -> makeMesh(mesh) }
         .set(TRANSFORM) { makeTransform(transform) }
+
+    override fun writeDelta(tag: NBTTag): NBTTag {
+        val compound = tag.asCompound()
+        dMeshEntries.ifDirty { compound.setList(MESHES, it) { mesh -> makeMesh(mesh) } }
+        dTransform.ifDirty { compound.set(TRANSFORM) { makeTransform(it) } }
+        return tag
+    }
 
     override fun write(node: ConfigurationNode) {
         node.node(MESHES).setList(MeshEntry::class.java, meshEntries)
@@ -59,10 +77,10 @@ data class MeshesInWorld(
 
     object Profile : ComponentProfile {
         override fun read(tag: NBTTag) = tag.asCompound { compound -> MeshesInWorld(
-            compound.getList(MESHES).mapCompound { mesh -> MeshEntry(
+            compound.getList(MESHES) { asCompound { mesh -> MeshEntry(
                 mesh.get(ID) { asUUID() },
                 mesh.get(TRANSFORM) { asTransform() }
-            ) },
+            ) } },
             compound.get(TRANSFORM) { asTransform() }
         ) }
 

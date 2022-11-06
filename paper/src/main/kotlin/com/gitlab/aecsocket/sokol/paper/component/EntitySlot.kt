@@ -10,7 +10,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 const val ENTITY_SLOT_CHILD_KEY = "_"
 
-data class EntitySlot(val profile: Profile) : PersistentComponent {
+data class EntitySlot(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("entity_slot")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -19,9 +19,6 @@ data class EntitySlot(val profile: Profile) : PersistentComponent {
     override val componentType get() = EntitySlot::class
     override val key get() = Key
 
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

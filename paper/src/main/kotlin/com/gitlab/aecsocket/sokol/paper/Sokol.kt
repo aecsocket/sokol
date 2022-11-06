@@ -237,9 +237,7 @@ class Sokol : BasePlugin(), SokolAPI {
             consumer(entity)
 
             if (write) {
-                // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
-                // how to implement this? idfk
-                persistence.writeEntity(entity, tag)
+                persistence.writeEntityDeltas(entity, tag)
             }
             return true
         }

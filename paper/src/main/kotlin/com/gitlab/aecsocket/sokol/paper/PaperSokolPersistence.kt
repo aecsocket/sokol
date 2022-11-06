@@ -12,13 +12,13 @@ class PaperSokolPersistence internal constructor(
 ) : SokolPersistence(sokol) {
     val entityKey = sokol.key("entity")
 
-    override fun newTag(): CompoundNBTTag.Mutable = PaperCompoundTag(CompoundTag())
+    override fun tagContext(): CompoundNBTTag = PaperCompoundTag(CompoundTag())
 
-    fun getTag(pdc: PersistentDataContainer, key: Key): CompoundNBTTag.Mutable? {
+    fun getTag(pdc: PersistentDataContainer, key: Key): CompoundNBTTag? {
         return (pdc as CraftPersistentDataContainer).raw[key.toString()]?.let { PaperCompoundTag(it as CompoundTag) }
     }
 
-    fun forceTag(pdc: PersistentDataContainer, key: Key): CompoundNBTTag.Mutable {
+    fun forceTag(pdc: PersistentDataContainer, key: Key): CompoundNBTTag {
         return PaperCompoundTag(
             (pdc as CraftPersistentDataContainer).raw.computeIfAbsent(key.toString()) { CompoundTag() } as CompoundTag
         )

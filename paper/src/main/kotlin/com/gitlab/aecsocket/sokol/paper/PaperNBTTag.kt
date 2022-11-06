@@ -65,7 +65,7 @@ data class PaperStringTag(override val backing: StringTag) : PaperNBTTag(backing
     override val string: String get() = backing.asString
 }
 
-data class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(backing), CompoundNBTTag.Mutable {
+data class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(backing), CompoundNBTTag {
     override val size get() = backing.size()
     override val keys: Set<String> get() = backing.allKeys
     override val map get() = backing.tags
@@ -78,16 +78,6 @@ data class PaperCompoundTag(override val backing: CompoundTag) : PaperNBTTag(bac
 
     override fun set(key: String, tag: NBTTag): PaperCompoundTag {
         backing.tags[key] = tag.backing
-        return this
-    }
-
-    override fun set(key: String, tagCreator: NBTTag.() -> NBTTag): PaperCompoundTag {
-        backing.tags[key] = tagCreator(this).backing
-        return this
-    }
-
-    override fun setOrClear(key: String, tagCreator: NBTTag.() -> NBTTag?): PaperCompoundTag {
-        tagCreator(this)?.let { set(key, it) } ?: remove(key)
         return this
     }
 
@@ -160,7 +150,7 @@ data class PaperByteArrayTag(override val backing: ByteArrayTag) : PaperNBTTag(b
     override fun asDoubleIterable() = doubleArray.asIterable()
 }
 
-data class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), ListNBTTag.Mutable {
+data class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), ListNBTTag {
     override val size get() = backing.size
 
     override fun get(index: Int) = paperTagOf(backing[index])
@@ -170,18 +160,8 @@ data class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), L
         return this
     }
 
-    override fun set(index: Int, tagCreator: NBTTag.() -> NBTTag): PaperListTag {
-        backing[index] = tagCreator(this).backing
-        return this
-    }
-
     override fun add(index: Int, tag: NBTTag): PaperListTag {
         backing.add(index, tag.backing)
-        return this
-    }
-
-    override fun add(index: Int, tagCreator: NBTTag.() -> NBTTag): PaperListTag {
-        backing.add(index, tagCreator(this).backing)
         return this
     }
 
@@ -190,23 +170,13 @@ data class PaperListTag(override val backing: ListTag) : PaperNBTTag(backing), L
         return this
     }
 
-    override fun addOr(tag: NBTTag?): PaperListTag {
-        tag?.let { backing.add(it.backing) }
-        return this
-    }
-
-    override fun add(tagCreator: NBTTag.() -> NBTTag): PaperListTag {
-        backing.add(tagCreator(this).backing)
-        return this
-    }
-
-    override fun addOr(tagCreator: NBTTag.() -> NBTTag?): PaperListTag {
-        tagCreator(this)?.let { backing.add(it.backing) }
-        return this
-    }
-
     override fun removeAt(index: Int): PaperListTag {
         backing.removeAt(index)
+        return this
+    }
+
+    override fun clear(): ListNBTTag {
+        backing.clear()
         return this
     }
 
@@ -222,6 +192,6 @@ fun paperTagOf(nms: Tag): PaperNBTTag {
         is LongArrayTag -> PaperLongArrayTag(nms)
         is ByteArrayTag -> PaperByteArrayTag(nms)
         is ListTag -> PaperListTag(nms)
-        else -> throw IllegalArgumentException("Invalid tag type ${nms.javaClass}")
+        else -> throw IllegalArgumentException("Invalid tag type ${nms::class}")
     }
 }

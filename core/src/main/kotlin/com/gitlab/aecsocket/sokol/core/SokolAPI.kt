@@ -18,9 +18,9 @@ class PersistenceException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
 
 abstract class SokolPersistence(private val sokol: SokolAPI) {
-    abstract fun newTag(): CompoundNBTTag.Mutable
+    abstract fun tagContext(): NBTTagContext
 
-    fun readBlueprintByProfile(entityProfile: EntityProfile, tag: CompoundNBTTag): EntityBlueprint {
+    fun readBlueprintByProfile(tag: CompoundNBTTag, entityProfile: EntityProfile): EntityBlueprint {
         val components = entityProfile.componentProfiles.map { (key, profile) ->
             try {
                 tag[key.asString()]?.let { profile.read(it) } ?: profile.readEmpty()
@@ -36,19 +36,29 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
     }
 
     fun readBlueprint(tag: CompoundNBTTag): EntityBlueprint {
-        val profileId = try {
-            tag.get(PROFILE) { asString() }
-        } catch (ex: IllegalStateException) {
-            throw PersistenceException(cause = ex)
-        }
-
+        val profileId = tag.get(PROFILE) { asString() }
         val entityProfile = sokol.entityProfile(profileId)
             ?: throw PersistenceException("Invalid entity profile '$profileId'")
 
-        return readBlueprintByProfile(entityProfile, tag)
+        return readBlueprintByProfile(tag, entityProfile)
     }
 
-    private fun writeComponentMap(map: ComponentMap, tag: CompoundNBTTag.Mutable) {
+    private fun writeComponentDeltas(map: ComponentMap, tag: CompoundNBTTag) {
+        map.all().forEach { component ->
+            if (component is PersistentComponent && component.dirty) {
+                try {
+                    val sKey = component.key.asString()
+                    tag[sKey]?.let { component.writeDelta(it) } ?: run {
+                        tag.set(sKey, component::write)
+                    }
+                } catch (ex: PersistenceException) {
+                    throw PersistenceException("Could not write component ${component.key}", ex)
+                }
+            }
+        }
+    }
+
+    private fun writeComponents(map: ComponentMap, tag: CompoundNBTTag) {
         map.all().forEach { component ->
             if (component is PersistentComponent) {
                 try {
@@ -60,21 +70,26 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
         }
     }
 
-    private fun writeProfile(profile: EntityProfile, tag: CompoundNBTTag.Mutable) {
+    fun writeEntityDeltas(entity: SokolEntity, tag: CompoundNBTTag = tagContext().makeCompound()): CompoundNBTTag {
+        writeComponentDeltas(entity.components, tag)
+        return tag
+    }
+
+    private fun writeProfile(profile: EntityProfile, tag: CompoundNBTTag) {
         if (profile is Keyed) {
             tag.set(PROFILE) { makeString(profile.id) }
         }
     }
 
-    fun writeBlueprint(blueprint: EntityBlueprint, tag: CompoundNBTTag.Mutable = newTag()): CompoundNBTTag.Mutable {
+    fun writeBlueprint(blueprint: EntityBlueprint, tag: CompoundNBTTag = tagContext().makeCompound()): CompoundNBTTag {
         writeProfile(blueprint.profile, tag)
-        writeComponentMap(blueprint.components, tag)
+        writeComponents(blueprint.components, tag)
         return tag
     }
 
-    fun writeEntity(entity: SokolEntity, tag: CompoundNBTTag.Mutable = newTag()): CompoundNBTTag.Mutable {
+    fun writeEntity(entity: SokolEntity, tag: CompoundNBTTag = tagContext().makeCompound()): CompoundNBTTag {
         writeProfile(entity.profile, tag)
-        writeComponentMap(entity.components, tag)
+        writeComponents(entity.components, tag)
         return tag
     }
 }

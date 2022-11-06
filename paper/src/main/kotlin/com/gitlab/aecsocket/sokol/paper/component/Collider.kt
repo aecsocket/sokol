@@ -31,8 +31,8 @@ private const val COMPOSITE_MAP = "composite_map"
 
 data class Collider(
     val profile: Profile,
-    var mass: Float?,
-    var bodyData: BodyData?,
+    private val dMass: Delta<Float?>,
+    private val dBodyData: Delta<BodyData?>,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider")
@@ -54,18 +54,37 @@ data class Collider(
     override val componentType get() = Collider::class
     override val key get() = Key
 
+    override val dirty get() = dMass.dirty || dBodyData.dirty
+
+    constructor(
+        profile: Profile,
+        mass: Float?,
+        bodyData: BodyData?
+    ) : this(profile, Delta(mass), Delta(bodyData))
+
+    var mass by dMass
+    var bodyData by dBodyData
+
     lateinit var backingPosition: PositionWrite
     var body: BodyInstance? = null
 
     fun mass() = mass ?: profile.mass
 
+    private fun NBTTagContext.makeBody(body: BodyData) = makeCompound()
+        .set(ID) { makeUUID(body.bodyId) }
+        .set(CENTER_OF_MASS) { makeVector3(body.centerOfMass) }
+        .setList(COMPOSITE_MAP, body.compositeMap) { path -> makeCompositePath(path) }
+
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-        .setOrClear(MASS) { mass?.let { mass -> makeFloat(mass) } }
-        .setOrClear(BODY) { bodyData?.let { body -> makeCompound()
-            .set(ID) { makeUUID(body.bodyId) }
-            .set(CENTER_OF_MASS) { makeVector3(body.centerOfMass) }
-            .setList(COMPOSITE_MAP, body.compositeMap) { path -> makeCompositePath(path) }
-        } }
+        .setOrClear(MASS) { mass?.let { makeFloat(it) } }
+        .setOrClear(BODY) { bodyData?.let { makeBody(it) } }
+
+    override fun writeDelta(tag: NBTTag): NBTTag {
+        val compound = tag.asCompound()
+        dMass.ifDirty { compound.setOrClear(MASS) { it?.let { makeFloat(it) } } }
+        dBodyData.ifDirty { compound.setOrClear(BODY) { it?.let { makeBody(it) } } }
+        return tag
+    }
 
     override fun write(node: ConfigurationNode) {
         node.node(MASS).set(mass)
@@ -82,7 +101,7 @@ data class Collider(
             compound.getCompoundOr(BODY) { body -> BodyData(
                 body.get(ID) { asUUID() },
                 body.get(CENTER_OF_MASS) { asVector3() },
-                body.getList(COMPOSITE_MAP).map { it.asCompositePath() },
+                body.getList(COMPOSITE_MAP) { asCompositePath() },
             ) }
         ) }
 
@@ -95,34 +114,22 @@ data class Collider(
     }
 }
 
-object RigidBody : PersistentComponent {
+object RigidBody : MarkerPersistentComponent {
     override val componentType get() = RigidBody::class
     override val key = SokolAPI.key("rigid_body")
     val Type = ComponentType.singletonComponent(key, RigidBody)
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 }
 
-object VehicleBody : PersistentComponent {
+object VehicleBody : MarkerPersistentComponent {
     override val componentType get() = VehicleBody::class
     override val key = SokolAPI.key("vehicle_body")
     val Type = ComponentType.singletonComponent(key, VehicleBody)
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 }
 
-object GhostBody : PersistentComponent {
+object GhostBody : MarkerPersistentComponent {
     override val componentType get() = GhostBody::class
     override val key = SokolAPI.key("ghost_body")
     val Type = ComponentType.singletonComponent(key, GhostBody)
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 }
 
 interface SokolPhysicsObject : TrackedPhysicsObject {

@@ -15,10 +15,23 @@ interface SokolComponent {
 
 interface PersistentComponent : SokolComponent {
     val key: Key
+    val dirty: Boolean
 
     fun write(ctx: NBTTagContext): NBTTag
 
+    fun writeDelta(tag: NBTTag): NBTTag
+
     fun write(node: ConfigurationNode)
+}
+
+interface MarkerPersistentComponent : PersistentComponent {
+    override val dirty get() = false
+
+    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+
+    override fun writeDelta(tag: NBTTag) = tag
+
+    override fun write(node: ConfigurationNode) {}
 }
 
 interface ComponentProfile {

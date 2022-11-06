@@ -12,7 +12,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class HoverGlow(
     val profile: Profile,
-) : PersistentComponent {
+) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("hover_glow")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -20,10 +20,6 @@ data class HoverGlow(
 
     override val componentType get() = HoverGlow::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

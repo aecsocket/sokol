@@ -11,7 +11,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.*
 
-data class Takeable(val profile: Profile) : PersistentComponent {
+data class Takeable(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("takeable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -19,10 +19,6 @@ data class Takeable(val profile: Profile) : PersistentComponent {
 
     override val componentType get() = Takeable::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

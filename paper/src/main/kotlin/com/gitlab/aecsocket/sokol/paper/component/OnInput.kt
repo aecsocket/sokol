@@ -26,17 +26,13 @@ data class OnInputInstance(
     override val componentType get() = OnInputInstance::class
 }
 
-data class OnInput(val profile: Profile) : PersistentComponent {
+data class OnInput(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("on_input")
     }
 
     override val componentType get() = OnInput::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class InputActionSettings(

@@ -7,7 +7,7 @@ import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class ItemNameProfile(val profile: Profile) : PersistentComponent {
+data class ItemNameProfile(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("item_name_profile")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -15,10 +15,6 @@ data class ItemNameProfile(val profile: Profile) : PersistentComponent {
 
     override val componentType get() = ItemNameProfile::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

@@ -8,7 +8,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class HostableByItem(val profile: Profile) : PersistentComponent {
+data class HostableByItem(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("hostable_by_item")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -16,10 +16,6 @@ data class HostableByItem(val profile: Profile) : PersistentComponent {
 
     override val componentType get() = HostableByItem::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(
@@ -29,12 +25,8 @@ data class HostableByItem(val profile: Profile) : PersistentComponent {
     }
 }
 
-object HostableByMob : PersistentComponent {
+object HostableByMob : MarkerPersistentComponent {
     override val componentType get() = HostableByMob::class
     override val key = SokolAPI.key("hostable_by_mob")
     val Type = ComponentType.singletonComponent(key, HostableByMob)
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 }

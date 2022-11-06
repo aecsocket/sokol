@@ -10,7 +10,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 
 data class Rotation(
-    var rotation: Quaternion = Quaternion.Identity
+    private val dRotation: Delta<Quaternion>
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("rotation")
@@ -20,7 +20,19 @@ data class Rotation(
     override val componentType get() = Rotation::class
     override val key get() = Key
 
+    override val dirty get() = dRotation.dirty
+
+    constructor(
+        rotation: Quaternion = Quaternion.Identity
+    ) : this(Delta(rotation))
+
+    var rotation by dRotation
+
     override fun write(ctx: NBTTagContext) = ctx.makeQuaternion(rotation)
+
+    override fun writeDelta(tag: NBTTag): NBTTag {
+        return dRotation.ifDirty { tag.makeQuaternion(it) } ?: tag
+    }
 
     override fun write(node: ConfigurationNode) {
         if (rotation != Quaternion.Identity) node.set(rotation)

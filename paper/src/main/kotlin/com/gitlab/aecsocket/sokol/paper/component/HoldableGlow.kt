@@ -10,9 +10,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class HoldableGlow(
-    val profile: Profile,
-) : PersistentComponent {
+data class HoldableGlow(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("holdable_glow")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -20,10 +18,6 @@ data class HoldableGlow(
 
     override val componentType get() = HoldableGlow::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

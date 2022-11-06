@@ -26,9 +26,7 @@ import java.util.*
 import kotlin.math.PI
 import kotlin.math.abs
 
-data class Holdable(
-    val profile: Profile,
-) : PersistentComponent {
+data class Holdable(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("holdable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -38,10 +36,6 @@ data class Holdable(
     override val key get() = Key
 
     var state: HoldState? = null
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

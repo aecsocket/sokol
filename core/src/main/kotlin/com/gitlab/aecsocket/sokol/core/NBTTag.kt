@@ -12,13 +12,13 @@ interface NBTTagContext {
     fun makeDouble(value: Double): NumericNBTTag
     fun makeString(value: String): StringNBTTag
     fun makeUUID(value: UUID): UUIDNBTTag
-    fun makeCompound(): CompoundNBTTag.Mutable
+    fun makeCompound(): CompoundNBTTag
     fun makeIntArray(values: IntArray): IntArrayNBTTag
     fun makeLongArray(values: LongArray): LongArrayNBTTag
     fun makeByteArray(values: ByteArray): ByteArrayNBTTag
     fun makeFloatArray(values: FloatArray): FloatArrayNBTTag
     fun makeDoubleArray(values: DoubleArray): DoubleArrayNBTTag
-    fun makeList(): ListNBTTag.Mutable
+    fun makeList(): ListNBTTag
 }
 
 private fun NBTTag.wrongType(expected: String): Nothing {
@@ -57,6 +57,8 @@ interface NBTTag : NBTTagContext {
     fun asDoubleArray() = (this as? DoubleArrayNBTTag)?.doubleArray ?: wrongType(TYPE_DOUBLE_ARRAY)
     fun asList() = this as? ListNBTTag ?: wrongType(TYPE_LIST)
 }
+
+fun <R> NBTTag.asCompound(mapper: (CompoundNBTTag) -> R) = asCompound().run(mapper)
 
 interface BooleanNBTTag : NBTTag {
     override val typeName get() = TYPE_BOOLEAN
@@ -98,38 +100,47 @@ interface CompoundNBTTag : NBTTag, Iterable<Pair<String, NBTTag>> {
 
     operator fun get(key: String): NBTTag?
 
-    fun <R> get(key: String, mapper: NBTTag.() -> R): R {
-        val tag = get(key) ?: throw PersistenceException("Requires key '$key'")
-        return try {
-            mapper(tag)
-        } catch (ex: PersistenceException) {
-            throw PersistenceException("Invalid key '$key': ${ex.message}")
-        }
+    operator fun set(key: String, tag: NBTTag): CompoundNBTTag
+
+    fun remove(key: String): CompoundNBTTag
+
+    fun clear(): CompoundNBTTag
+}
+
+fun <R> CompoundNBTTag.get(key: String, mapper: NBTTag.() -> R): R {
+    return getOr(key, mapper) ?: throw PersistenceException("Requires key '$key'")
+}
+
+fun <R> CompoundNBTTag.getOr(key: String, mapper: NBTTag.() -> R): R? {
+    val tag = get(key) ?: return null
+    return try {
+        mapper(tag)
+    } catch (ex: PersistenceException) {
+        throw PersistenceException("Invalid value for '$key': ${ex.message}")
     }
+}
 
-    fun <R> getOr(key: String, mapper: NBTTag.() -> R?): R? {
-        return get(key)?.let { tag ->
-            try {
-                mapper(tag)
-            } catch (ex: IllegalStateException) {
-                null
-            }
-        }
-    }
+fun <E> CompoundNBTTag.getList(key: String, mapper: NBTTag.() -> E): List<E> {
+    return getOr(key) { asList() }?.map(mapper) ?: emptyList()
+}
 
-    fun getList(key: String): Iterable<NBTTag> = getOr(key) { asList() } ?: emptySet()
+fun <R> CompoundNBTTag.getCompound(key: String, mapper: (CompoundNBTTag) -> R) = get(key) { asCompound().run(mapper) }
 
-    interface Mutable : CompoundNBTTag {
-        operator fun set(key: String, tag: NBTTag): Mutable
+fun <R> CompoundNBTTag.getCompoundOr(key: String, mapper: (CompoundNBTTag) -> R) = getOr(key) { asCompound().run(mapper) }
 
-        fun set(key: String, tagCreator: NBTTag.() -> NBTTag): Mutable
+fun CompoundNBTTag.set(key: String, factory: NBTTagContext.() -> NBTTag): CompoundNBTTag {
+    set(key, factory(this))
+    return this
+}
 
-        fun setOrClear(key: String, tagCreator: NBTTag.() -> NBTTag?): Mutable
+fun CompoundNBTTag.setOrClear(key: String, factory: NBTTagContext.() -> NBTTag?): CompoundNBTTag {
+    factory(this)?.let { set(key, it) } ?: remove(key)
+    return this
+}
 
-        fun remove(key: String): Mutable
-
-        fun clear(): Mutable
-    }
+fun <E> CompoundNBTTag.setList(key: String, values: Collection<E>, mapper: NBTTagContext.(E) -> NBTTag): CompoundNBTTag {
+    set(key) { makeList().from(values, mapper) }
+    return this
 }
 
 interface CollectionNBTTag : NBTTag {
@@ -193,60 +204,43 @@ interface ListNBTTag : CollectionNBTTag, Iterable<NBTTag> {
 
     operator fun get(index: Int): NBTTag
 
-    fun <R> get(index: Int, mapper: NBTTag.() -> R): R {
-        if (index >= size)
-            throw PersistenceException("Requires element at $index, list only has $size")
-        return try {
-            mapper(get(index))
-        } catch (ex: PersistenceException) {
-            throw PersistenceException("Invalid element at $index: ${ex.message}")
-        }
-    }
+    operator fun set(index: Int, value: NBTTag): ListNBTTag
 
-    interface Mutable : ListNBTTag, CollectionNBTTag {
-        operator fun set(index: Int, value: NBTTag): Mutable
+    fun add(index: Int, tag: NBTTag): ListNBTTag
 
-        fun set(index: Int, tagCreator: NBTTag.() -> NBTTag): Mutable
+    fun add(tag: NBTTag): ListNBTTag
 
-        fun add(index: Int, tag: NBTTag): Mutable
+    fun removeAt(index: Int): ListNBTTag
 
-        fun add(index: Int, tagCreator: NBTTag.() -> NBTTag): Mutable
+    fun clear(): ListNBTTag
+}
 
-        fun add(tag: NBTTag): Mutable
-
-        fun addOr(tag: NBTTag?): Mutable
-
-        fun add(tagCreator: NBTTag.() -> NBTTag): Mutable
-
-        fun addOr(tagCreator: NBTTag.() -> NBTTag?): Mutable
-
-        fun removeAt(index: Int): Mutable
+fun <R> ListNBTTag.get(index: Int, mapper: NBTTag.() -> R): R {
+    if (index >= size)
+        throw PersistenceException("Out of bounds index $index for size $size")
+    return try {
+        mapper(get(index))
+    } catch (ex: PersistenceException) {
+        throw PersistenceException("Invalid value at $index: ${ex.message}")
     }
 }
 
-fun <R> NBTTag.asCompound(mapper: (CompoundNBTTag) -> R) = asCompound().run(mapper)
-
-fun <R> CompoundNBTTag.getCompound(key: String, mapper: (CompoundNBTTag) -> R) = get(key) { asCompound().run(mapper) }
-
-fun <R> CompoundNBTTag.getCompoundOr(key: String, mapper: (CompoundNBTTag) -> R?) = getOr(key) { asCompound().run(mapper) }
-
-fun <R> Iterable<NBTTag>.mapCompound(mapper: (CompoundNBTTag) -> R) = map { mapper(it.asCompound()) }
-
-fun <V> ListNBTTag.Mutable.from(
-    values: Iterable<V>,
-    mapper: NBTTagContext.(V) -> NBTTag?
-): ListNBTTag.Mutable {
-    values.forEach {
-        mapper(it)?.let(this::add)
-    }
+fun ListNBTTag.set(index: Int, factory: NBTTagContext.() -> NBTTag): ListNBTTag {
+    set(index, factory(this))
     return this
 }
 
-fun <V> CompoundNBTTag.Mutable.setList(
-    key: String,
-    values: Iterable<V>,
-    mapper: NBTTagContext.(V) -> NBTTag?
-): CompoundNBTTag.Mutable {
-    set(key) { makeList().from(values, mapper) }
+fun ListNBTTag.add(index: Int, factory: NBTTagContext.() -> NBTTag): ListNBTTag {
+    add(index, factory(this))
+    return this
+}
+
+fun ListNBTTag.add(factory: NBTTagContext.() -> NBTTag): ListNBTTag {
+    add(factory(this))
+    return this
+}
+
+fun <E> ListNBTTag.from(values: Iterable<E>, mapper: NBTTagContext.(E) -> NBTTag): ListNBTTag {
+    values.forEach { add(mapper(it)) }
     return this
 }

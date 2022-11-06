@@ -15,7 +15,7 @@ import com.jme3.bullet.objects.PhysicsGhostObject
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class Attachable(val profile: Profile) : PersistentComponent {
+data class Attachable(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("attachable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -23,10 +23,6 @@ data class Attachable(val profile: Profile) : PersistentComponent {
 
     override val componentType get() = Attachable::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(

@@ -4,13 +4,12 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import com.gitlab.aecsocket.sokol.paper.util.makeEntity
 import org.spongepowered.configurate.ConfigurationNode
 import kotlin.collections.HashMap
 
 data class Composite(
     private val sokol: Sokol,
-    private val children: MutableMap<String, SokolEntity>,
+    private val children: MutableMap<String, Delta<SokolEntity?>>,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("composite")
@@ -19,24 +18,53 @@ data class Composite(
     override val componentType get() = Composite::class
     override val key get() = Key
 
-    fun children(): Map<String, SokolEntity> = children
+    override var dirty = false
+        private set
 
-    fun child(key: String) = children[key]
+    fun children(): Map<String, SokolEntity> = children
+        .mapNotNull { (key, delta) -> delta.value?.let { key to it } }
+        .associate { it }
+
+    fun child(key: String) = children[key]?.value
 
     fun attach(key: String, value: SokolEntity) {
         if (children.contains(key))
             throw IllegalStateException("Entity already exists in slot $key")
-        children[key] = value
+        children[key] = Delta(value, true)
+        dirty = true
     }
 
     fun detach(key: String): SokolEntity? {
-        return children.remove(key)
+        return children[key]?.let { delta ->
+            dirty = true
+            delta.value = null
+            delta.dirty()
+            delta.value
+        }
     }
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound().apply {
-        children.forEach { (key, entity) ->
-            set(key) { makeEntity(sokol, entity) }
+        children.forEach { (key, delta) ->
+            delta.value?.let { set(key) { sokol.persistence.writeEntity(it) } }
         }
+    }
+
+    override fun writeDelta(tag: NBTTag): NBTTag {
+        val compound = tag.asCompound()
+        children.forEach { (key, delta) ->
+            delta.ifDirty { child ->
+                child?.let {
+                    compound[key]?.let { childTag ->
+                        sokol.persistence.writeEntityDeltas(child, childTag.asCompound())
+                    } ?: run {
+                        compound[key] = sokol.persistence.writeEntity(child)
+                    }
+                } ?: run {
+                    compound.remove(key)
+                }
+            }
+        }
+        return tag
     }
 
     override fun write(node: ConfigurationNode) {
@@ -52,17 +80,17 @@ data class Composite(
         override fun read(tag: NBTTag): Composite {
             val compound = tag.asCompound()
 
-            val result = HashMap<String, SokolEntity>()
+            val result = HashMap<String, Delta<SokolEntity?>>()
             compound.forEach { (key, child) ->
                 val blueprint = children[key]?.let { profile ->
-                    sokol.persistence.readBlueprintByProfile(profile, child.asCompound())
+                    sokol.persistence.readBlueprintByProfile(child.asCompound(), profile)
                 } ?: sokol.persistence.readBlueprint(child.asCompound())
-                result[key] = sokol.engine.buildEntity(blueprint)
+                result[key] = Delta(sokol.engine.buildEntity(blueprint))
             }
 
             children.forEach { (key, profile) ->
                 if (!result.contains(key)) {
-                    result[key] = sokol.engine.buildEntity(sokol.engine.emptyBlueprint(profile))
+                    result[key] = Delta(sokol.engine.buildEntity(sokol.engine.emptyBlueprint(profile)))
                 }
             }
 
@@ -70,17 +98,17 @@ data class Composite(
         }
 
         override fun read(node: ConfigurationNode): Composite {
-            val result = HashMap<String, SokolEntity>()
+            val result = HashMap<String, Delta<SokolEntity?>>()
             node.childrenMap().forEach { (key, child) ->
                 val blueprint = children[key.toString()]?.let { profile ->
                     deserializeBlueprintByProfile(sokol, profile, child)
                 } ?: child.force()
-                result[key.toString()] = sokol.engine.buildEntity(blueprint)
+                result[key.toString()] = Delta(sokol.engine.buildEntity(blueprint))
             }
 
             children.forEach { (key, profile) ->
                 if (!result.contains(key)) {
-                    result[key] = sokol.engine.buildEntity(sokol.engine.emptyBlueprint(profile))
+                    result[key] = Delta(sokol.engine.buildEntity(sokol.engine.emptyBlueprint(profile)))
                 }
             }
 

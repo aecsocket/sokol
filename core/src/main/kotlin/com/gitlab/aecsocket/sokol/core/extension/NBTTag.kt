@@ -3,9 +3,7 @@ package com.gitlab.aecsocket.sokol.core.extension
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.core.physics.Vector3
-import com.gitlab.aecsocket.sokol.core.CompoundNBTTag
-import com.gitlab.aecsocket.sokol.core.NBTTag
-import com.gitlab.aecsocket.sokol.core.NBTTagContext
+import com.gitlab.aecsocket.sokol.core.*
 
 fun NBTTagContext.makeVector3(value: Vector3) = makeDoubleArray(doubleArrayOf(value.x, value.y, value.z))
 

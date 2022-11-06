@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.ForwardingLogging
 import com.gitlab.aecsocket.alexandria.core.LogAcceptor
 import com.gitlab.aecsocket.alexandria.core.LogLevel
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import io.papermc.paper.chunk.system.ChunkSystem
@@ -136,14 +135,12 @@ class EntityResolver internal constructor(
                     throw EntityResolutionException("Could not run callback", ex)
                 }
 
-                // TODO high priority: only reserialize components into the tag if it's actually changed (been dirtied)
-                // how to implement this? idfk
-
-                // TODO implement component deltas system, which actually write only what changed
+                // DONE implement component deltas system, which actually write only what changed
                 // TODO bitmask to determine whether entities even need to have Update called on them
+                // TODO entity update calls can be batched to have components be close together in memory
 
                 try {
-                    sokol.persistence.writeEntity(entity, wrappedTag)
+                    sokol.persistence.writeEntityDeltas(entity, wrappedTag)
                 } catch (ex: Exception) {
                     throw EntityResolutionException("Could not write entity to tag", ex)
                 }

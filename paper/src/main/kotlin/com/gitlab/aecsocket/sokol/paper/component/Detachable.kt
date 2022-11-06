@@ -14,7 +14,7 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
-data class Detachable(val profile: Profile) : PersistentComponent {
+data class Detachable(val profile: Profile) : MarkerPersistentComponent {
     companion object {
         val Key = SokolAPI.key("detachable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -22,10 +22,6 @@ data class Detachable(val profile: Profile) : PersistentComponent {
 
     override val componentType get() = Detachable::class
     override val key get() = Key
-
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
-
-    override fun write(node: ConfigurationNode) {}
 
     @ConfigSerializable
     data class Profile(
