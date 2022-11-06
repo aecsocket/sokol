@@ -216,7 +216,9 @@ class HoldableItemSystem(
             }
 
             val axPlayer = player.alexandria
-            val mob = sokol.entityHoster.hostMob(entity.toBlueprint(), player.eyeLocation)
+            val blueprint = entity.toBlueprint()
+            mItem.remove(blueprint)
+            val mob = sokol.entityHoster.hostMob(blueprint, player.eyeLocation)
             sokol.entityHolding.stop(axPlayer)
             player.closeInventory()
             sokol.useMob(mob) { mobEntity ->

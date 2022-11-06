@@ -85,10 +85,9 @@ class EntityHover internal constructor(
 
             // if the player's holding an entity, it gets the event precedence over the hovered
             axPlayer.heldEntity?.entity?.let {
-                /*mSupplierEntityAccess.getOr(it)?.useEntity { entity ->
+                mSupplierEntityAccess.getOr(it)?.useEntity { entity ->
                     entity.call(event)
-                }*/
-                it.call(event)
+                }
             } ?: run {
                 axPlayer.hoveredEntity?.let { (obj, rayTestResult) ->
                     mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->

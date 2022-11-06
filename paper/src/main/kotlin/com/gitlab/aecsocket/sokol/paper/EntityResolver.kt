@@ -86,7 +86,8 @@ class EntityResolver internal constructor(
         mItemHolder = sokol.engine.componentMapper()
 
         sokol.inputHandler { event ->
-            sokol.usePlayerItems(event.player, false) { entity ->
+            // even though we're off-main, we still write here
+            sokol.usePlayerItems(event.player) { entity ->
                 entity.call(event)
             }
         }
