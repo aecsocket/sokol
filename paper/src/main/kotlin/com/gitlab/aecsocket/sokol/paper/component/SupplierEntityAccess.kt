@@ -5,5 +5,13 @@ import com.gitlab.aecsocket.sokol.core.*
 interface SupplierEntityAccess : SokolComponent {
     override val componentType get() = SupplierEntityAccess::class
 
-    fun useEntity(consumer: (SokolEntity) -> Unit)
+    fun useEntity(builder: (EntityBlueprint) -> Unit = {}, consumer: (SokolEntity) -> Unit)
+}
+
+fun ComponentMapper<SupplierEntityAccess>.apply(
+    entity: SokolEntity,
+    builder: (EntityBlueprint) -> Unit = {},
+    consumer: (SokolEntity) -> Unit
+) {
+    getOr(entity)?.useEntity(builder, consumer)
 }

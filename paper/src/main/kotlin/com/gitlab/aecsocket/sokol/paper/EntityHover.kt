@@ -5,14 +5,10 @@ import com.gitlab.aecsocket.alexandria.paper.PlayerFeature
 import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.bukkitPlayers
 import com.gitlab.aecsocket.alexandria.paper.extension.registerEvents
-import com.gitlab.aecsocket.alexandria.paper.extension.scheduleDelayed
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.component.Hovered
-import com.gitlab.aecsocket.sokol.paper.component.SokolPhysicsObject
-import com.gitlab.aecsocket.sokol.paper.component.SupplierEntityAccess
-import com.gitlab.aecsocket.sokol.paper.component.hovered
+import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.PhysicsRayTestResult
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -85,13 +81,14 @@ class EntityHover internal constructor(
 
             // if the player's holding an entity, it gets the event precedence over the hovered
             axPlayer.heldEntity?.entity?.let {
-                mSupplierEntityAccess.getOr(it)?.useEntity { entity ->
+                mSupplierEntityAccess.apply(it) { entity ->
                     entity.call(event)
                 }
             } ?: run {
                 axPlayer.hoveredEntity?.let { (obj, rayTestResult) ->
-                    mSupplierEntityAccess.getOr(obj.entity)?.useEntity { entity ->
-                        mHovered.set(entity, hovered(event.player, rayTestResult))
+                    mSupplierEntityAccess.apply(obj.entity, { blueprint ->
+                        mHovered.set(blueprint, hovered(event.player, rayTestResult))
+                    }) { entity ->
                         entity.call(event)
                     }
                 }

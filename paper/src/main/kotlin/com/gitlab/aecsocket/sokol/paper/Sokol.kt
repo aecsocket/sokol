@@ -78,7 +78,7 @@ class Sokol : BasePlugin(), SokolAPI {
     val entityHoster = EntityHoster(this)
     val entityHover = EntityHover(this)
     val engineTimings = Timings(60 * 1000)
-    val entityHolding = EntityHolding()
+    val entityHolding = EntityHolding(this)
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -142,6 +142,7 @@ class Sokol : BasePlugin(), SokolAPI {
             entityResolver.enable()
             entityHoster.enable()
             entityHover.enable()
+            entityHolding.enable()
             space = SokolSpace(engine)
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
@@ -331,6 +332,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { SupplierTrackedPlayersTarget }
                     .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
                     .systemFactory { CompositeTransformSystem(it) }
+                    .systemFactory { AsChildTransformForwardSystem(it) }
+                    .systemFactory { AsChildTransformSystem(it) }
                     .systemFactory { PositionSystem(it) }
                     .systemFactory { ColliderBuildSystem(it) }
                     .systemFactory { ColliderSystem(it) }
@@ -348,12 +351,15 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HoverGlowCallerSystem(it) }
                     .systemFactory { TakeableSystem(this@Sokol, it) }
                     .systemFactory { HoldableTarget }
-                    .systemFactory { HoldableSystem(it) }
+                    .systemFactory { HoldableSystem(this@Sokol, it) }
                     .systemFactory { HoldableMovementSystem(it) }
                     .systemFactory { HoldableItemSystem(this@Sokol, it) }
                     .systemFactory { HoldableMobSystem(this@Sokol, it) }
                     .systemFactory { HoldableGlowSystem(it) }
                     .systemFactory { AttachableSystem(it) }
+                    .systemFactory { DetachableForwardSystem(it) }
+                    .systemFactory { DetachableSystem(this@Sokol, it) }
+                    .systemFactory { DetachableHoldingSystem(this@Sokol, it) }
 
                     .componentType<HostedByWorld>()
                     .componentType<HostedByChunk>()
@@ -393,6 +399,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<Holdable>()
                     .componentType<HoldableGlow>()
                     .componentType<Attachable>()
+                    .componentType<Detachable>()
                 registerComponentType(HostableByMob.Type)
                 registerComponentType(HostableByItem.Type)
                 registerComponentType(Composite.Type(this@Sokol))
@@ -414,6 +421,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(Holdable.Type)
                 registerComponentType(HoldableGlow.Type)
                 registerComponentType(Attachable.Type)
+                registerComponentType(Detachable.Type)
             }
         )
     }

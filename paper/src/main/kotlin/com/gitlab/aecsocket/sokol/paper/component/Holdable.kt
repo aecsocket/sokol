@@ -20,7 +20,6 @@ import com.jme3.bullet.collision.PhysicsCollisionObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
 import org.bukkit.GameMode
-import org.bukkit.Particle
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.*
 import kotlin.math.PI
@@ -57,11 +56,21 @@ object HoldableTarget : SokolSystem
 @All(Holdable::class, PositionRead::class)
 @Before(OnInputSystem::class)
 @After(HoldableTarget::class, PositionTarget::class)
-class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
+class HoldableSystem(
+    private val sokol: Sokol,
+    mappers: ComponentIdAccess
+) : SokolSystem {
+    companion object {
+        val MoveStart = SokolAPI.key("holdable/move_start")
+        val RotateStart = SokolAPI.key("holdable/rotate_start")
+        val Stop = SokolAPI.key("holdable/stop")
+    }
+
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mEntitySlot = mappers.componentMapper<EntitySlot>()
+    private val mMob = mappers.componentMapper<HostedByMob>()
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
@@ -129,6 +138,40 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
         entity.call(Update)
     }
 
+    @Subscribe
+    fun on(event: OnInputSystem.Build, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val positionRead = mPositionRead.get(entity)
+        val mob = mMob.getOr(entity)?.mob
+        val holdState = holdable.state
+
+        event.addAction(MoveStart) { (player, _, cancel) ->
+            cancel()
+            if (holdState != null) return@addAction false
+            sokol.entityHolding.start(player.alexandria, entity, MovingHoldOperation(positionRead.transform), mob)
+            true
+        }
+
+        event.addAction(RotateStart) { (player, _, cancel) ->
+            cancel()
+            if (holdState != null) return@addAction false
+
+            val planeNormal = (positionRead.transform.rotation * holdable.profile.holdTransform.rotation.inverse) * Vector3.Forward
+            sokol.entityHolding.start(player.alexandria, entity, RotatingHoldOperation(
+                positionRead.transform.rotation,
+                planeNormal,
+            ), mob)
+            true
+        }
+
+        event.addAction(Stop) { (player, _, cancel) ->
+            cancel()
+            if (holdState == null) return@addAction false
+            if (holdState.operation.canRelease) sokol.entityHolding.stop(player.alexandria)
+            true
+        }
+    }
+
     object Update : SokolEvent
 }
 
@@ -145,10 +188,11 @@ data class HoldAttach(
 )
 
 class MovingHoldOperation(
-    var transform: Transform,
-    var placing: MovingPlaceState = MovingPlaceState.DISALLOW,
-    var attachTo: HoldAttach? = null
+    var transform: Transform
 ) : HoldOperation {
+    var placing: MovingPlaceState = MovingPlaceState.DISALLOW
+    var attachTo: HoldAttach? = null
+
     override val canRelease get() = placing.canRelease
 }
 
@@ -261,8 +305,6 @@ class HoldableMovementSystem(mappers: ComponentIdAccess) : SokolSystem {
                     testRayPlane(ray, plane)?.let { (tIn) ->
                         val pointAt = position + direction * tIn
 
-                        player.spawnParticle(Particle.WATER_BUBBLE, pointAt.location(player.world), 0)
-
                         // make the mob look at that point
                         // TODO this doesn't work for verticals because a component of the quaternion is lost
                         holdOp.rotation = quaternionLooking((pointAt - planeOrigin).normalized, Vector3.Up)
@@ -312,22 +354,15 @@ class HoldableItemSystem(
     }
 }
 
-@All(Holdable::class, HostedByMob::class, PositionWrite::class)
+@All(Holdable::class, HostedByMob::class)
 @Before(HoldableTarget::class, OnInputSystem::class)
 @After(HostedByMobTarget::class)
 class HoldableMobSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
 ) : SokolSystem {
-    companion object {
-        val MoveStart = SokolAPI.key("holdable_mob/move_start")
-        val RotateStart = SokolAPI.key("holdable_mob/rotate_start")
-        val Stop = SokolAPI.key("holdable_mob/stop")
-    }
-
     private val mHoldable = mappers.componentMapper<Holdable>()
     private val mMob = mappers.componentMapper<HostedByMob>()
-    private val mPosition = mappers.componentMapper<PositionWrite>()
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
@@ -335,45 +370,5 @@ class HoldableMobSystem(
         val mob = mMob.get(entity).mob
 
         holdable.state = sokol.entityHolding.heldBy[mob.uniqueId]
-    }
-
-    @Subscribe
-    fun on(event: OnInputSystem.Build, entity: SokolEntity) {
-        val holdable = mHoldable.get(entity)
-        val mob = mMob.get(entity).mob
-        val position = mPosition.get(entity)
-        val holdState = holdable.state
-
-        event.addAction(MoveStart) { (player, _, cancel) ->
-            cancel()
-            if (holdState != null) return@addAction false
-            sokol.entityHolding.start(player.alexandria, entity, MovingHoldOperation(position.transform), mob)
-            true
-        }
-
-        event.addAction(RotateStart) { (player, _, cancel) ->
-            cancel()
-            if (holdState != null) return@addAction false
-            val planeNormal = (position.transform.rotation * holdable.profile.holdTransform.rotation.inverse) * Vector3.Forward
-
-            val po = position.transform.translation.location(player.world)
-            repeat(10) {
-                val f = it / 10.0
-                player.spawnParticle(Particle.BUBBLE_POP, po + (planeNormal * f), 0)
-            }
-
-            sokol.entityHolding.start(player.alexandria, entity, RotatingHoldOperation(
-                position.transform.rotation,
-                planeNormal,
-            ), mob)
-            true
-        }
-
-        event.addAction(Stop) { (player, _, cancel) ->
-            cancel()
-            if (holdState == null) return@addAction false
-            if (holdState.operation.canRelease) sokol.entityHolding.stop(player.alexandria)
-            true
-        }
     }
 }

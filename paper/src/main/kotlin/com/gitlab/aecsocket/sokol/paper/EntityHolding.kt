@@ -1,8 +1,12 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.sokol.core.ComponentMapper
 import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.core.SokolEvent
+import com.gitlab.aecsocket.sokol.core.componentMapper
+import com.gitlab.aecsocket.sokol.paper.component.SupplierEntityAccess
+import com.gitlab.aecsocket.sokol.paper.component.apply
 import com.jme3.bullet.collision.shapes.CollisionShape
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
@@ -25,7 +29,9 @@ interface HoldOperation {
     val canRelease: Boolean
 }
 
-class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerData> {
+class EntityHolding internal constructor(
+    private val sokol: Sokol
+) : PlayerFeature<EntityHolding.PlayerData> {
     inner class PlayerData(
         val player: AlexandriaPlayer,
         var state: HoldState? = null
@@ -38,10 +44,18 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
     private val _heldBy = HashMap<UUID, HoldState>()
     val heldBy: Map<UUID, HoldState> get() = _heldBy
 
+    private lateinit var mSupplierEntityAccess: ComponentMapper<SupplierEntityAccess>
+
+    internal fun enable() {
+        mSupplierEntityAccess = sokol.engine.componentMapper()
+    }
+
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
     private fun stopInternal(player: AlexandriaPlayer, state: HoldState, releaseLock: Boolean = true) {
-        state.entity.call(ChangeHoldState(player.handle, state, false))
+        mSupplierEntityAccess.apply(state.entity) { entity ->
+            entity.call(ChangeHoldState(player.handle, state, false))
+        }
         state.mob?.get()?.let { _heldBy.remove(it.uniqueId) }
 
         if (releaseLock) {
@@ -55,7 +69,9 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
         data.state = state
 
         state.mob?.get()?.let { _heldBy[it.uniqueId] = state }
-        state.entity.call(ChangeHoldState(player.handle, state, true))
+        mSupplierEntityAccess.apply(state.entity) { entity ->
+            entity.call(ChangeHoldState(player.handle, state, true))
+        }
     }
 
     fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation, mob: Entity?): HoldState {

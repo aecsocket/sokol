@@ -233,7 +233,7 @@ class SokolEngine internal constructor(
                 if (applies(filter, components.archetype())) {
                     listeners.forEach { it(event, this) }
                 }
-            }
+              }
             return event
         }
 
@@ -316,7 +316,7 @@ class SokolEngine internal constructor(
                             error("Could not make method handle", ex)
                         }.bindTo(system)
 
-                        eventListeners[eventClass] = { event, entity -> handle.invoke(event, entity) }
+                         eventListeners[eventClass] = { event, entity -> handle.invoke(event, entity) }
                     }
                 }
 

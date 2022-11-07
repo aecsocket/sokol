@@ -35,7 +35,7 @@ class PositionSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: CompositeSystem.AttachTo, entity: SokolEntity) {
         val parentPosition = mPositionRead.getOr(event.parent) ?: return
-        val asChildTransform = mAsChildTransform.getOr(entity)?.profile?.transform ?: Transform.Identity
+        val asChildTransform = mAsChildTransform.getOr(entity)?.fullTransform() ?: Transform.Identity
         mPositionRead.set(entity, object : PositionRead {
             override val world get() = parentPosition.world
             override val transform: Transform

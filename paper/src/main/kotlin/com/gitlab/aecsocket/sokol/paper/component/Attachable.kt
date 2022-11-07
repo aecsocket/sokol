@@ -136,7 +136,7 @@ class AttachableSystem(mappers: ComponentIdAccess) : SokolSystem {
                     entity.call(SokolEvent.Reset)
                     removable.remove()
                     parentComposite.attach(ENTITY_SLOT_CHILD_KEY, entity)
-                    entity.call(CompositeSystem.AttachTo(ENTITY_SLOT_CHILD_KEY, parentEntity, true))
+                    entity.call(CompositeSystem.AttachTo(ENTITY_SLOT_CHILD_KEY, parentEntity, rootEntity, true))
                     rootEntity.call(CompositeSystem.TreeMutate)
                 }
                 true

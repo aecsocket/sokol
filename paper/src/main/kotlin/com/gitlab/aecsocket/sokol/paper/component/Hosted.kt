@@ -122,8 +122,8 @@ class MobInjectorSystem(
         })
 
         mSupplierEntityAccess.set(entity, object : SupplierEntityAccess {
-            override fun useEntity(consumer: (SokolEntity) -> Unit) {
-                sokol.useMob(mob, consumer = consumer)
+            override fun useEntity(builder: (EntityBlueprint) -> Unit, consumer: (SokolEntity) -> Unit) {
+                sokol.useMob(mob, builder = builder, consumer = consumer)
             }
         })
 

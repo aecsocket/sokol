@@ -22,7 +22,6 @@ private const val TRANSFORM = "transform"
 
 data class MeshesInWorld(
     private val dMeshEntries: Delta<List<MeshEntry>>,
-    private val dTransform: Delta<Transform>,
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("meshes_in_world")
@@ -32,17 +31,15 @@ data class MeshesInWorld(
     override val componentType get() = MeshesInWorld::class
     override val key get() = Key
 
-    override val dirty get() = dMeshEntries.dirty || dTransform.dirty
+    override val dirty get() = dMeshEntries.dirty
 
     constructor(
-        meshEntries: List<MeshEntry>,
-        transform: Transform
-    ) : this(Delta(meshEntries), Delta(transform))
+        meshEntries: List<MeshEntry>
+    ) : this(Delta(meshEntries))
 
     var meshEntries by dMeshEntries
-    var transform by dTransform
 
-    var meshes: List<MeshEntryInstance>? = null
+    lateinit var meshes: List<MeshEntryInstance>
 
     @ConfigSerializable
     data class MeshEntry(
@@ -61,18 +58,15 @@ data class MeshesInWorld(
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
         .setList(MESHES, meshEntries) { mesh -> makeMesh(mesh) }
-        .set(TRANSFORM) { makeTransform(transform) }
 
     override fun writeDelta(tag: NBTTag): NBTTag {
         val compound = tag.asCompound()
         dMeshEntries.ifDirty { compound.setList(MESHES, it) { mesh -> makeMesh(mesh) } }
-        dTransform.ifDirty { compound.set(TRANSFORM) { makeTransform(it) } }
         return tag
     }
 
     override fun write(node: ConfigurationNode) {
         node.node(MESHES).setList(MeshEntry::class.java, meshEntries)
-        node.node(TRANSFORM).set(transform)
     }
 
     object Profile : ComponentProfile {
@@ -80,16 +74,14 @@ data class MeshesInWorld(
             compound.getList(MESHES) { asCompound { mesh -> MeshEntry(
                 mesh.get(ID) { asUUID() },
                 mesh.get(TRANSFORM) { asTransform() }
-            ) } },
-            compound.getOr(TRANSFORM) { asTransform() } ?: Transform.Identity
+            ) } }
         ) }
 
         override fun read(node: ConfigurationNode) = MeshesInWorld(
-            node.node(MESHES).get { ArrayList() },
-            node.node(TRANSFORM).get { Transform.Identity },
+            node.node(MESHES).get { ArrayList() }
         )
 
-        override fun readEmpty() = MeshesInWorld(emptyList(), Transform.Identity)
+        override fun readEmpty() = MeshesInWorld(emptyList())
     }
 }
 
@@ -149,7 +141,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
 
     private fun forEachMesh(meshesInWorld: MeshesInWorld, action: (MeshesInWorld.MeshEntryInstance) -> Unit) {
-        meshesInWorld.meshes?.forEach(action)
+        meshesInWorld.meshes.forEach(action)
     }
 
     @Subscribe
@@ -168,6 +160,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         val meshesInWorld = mMeshesInWorld.get(entity)
         val positionRead = mPositionRead.get(entity)
         val supplierTrackedPlayers = mSupplierTrackedPlayers.get(entity)
+        if (meshesInWorld.meshes.isNotEmpty()) return
 
         val getTrackedPlayers = supplierTrackedPlayers.trackedPlayers
         val trackedPlayers = getTrackedPlayers()
@@ -221,7 +214,7 @@ class MeshesInWorldSystem(mappers: ComponentIdAccess) : SokolSystem {
         val meshesInWorld = mMeshesInWorld.get(entity)
         val positionRead = mPositionRead.get(entity)
 
-        val transform = positionRead.transform + meshesInWorld.transform
+        val transform = positionRead.transform
         forEachMesh(meshesInWorld) { (mesh, meshTransform) ->
             mesh.transform = transform + meshTransform
         }

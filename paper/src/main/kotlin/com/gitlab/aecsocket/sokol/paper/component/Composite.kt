@@ -134,6 +134,7 @@ data class Composite(
 data class CompositeChild(
     val key: String,
     val parent: SokolEntity,
+    val root: SokolEntity,
     val path: CompositePath,
 ) : SokolComponent {
     override val componentType get() = CompositeChild::class
@@ -148,22 +149,23 @@ class CompositeSystem(mappers: ComponentIdAccess) : SokolSystem {
         val path = compositePathOf(
             (mCompositeChild.getOr(event.parent)?.path ?: emptyCompositePath()) + event.key
         )
-        mCompositeChild.set(entity, CompositeChild(event.key, event.parent, path))
+        mCompositeChild.set(entity, CompositeChild(event.key, event.parent, event.root, path))
         mComposite.forEachChild(entity) { (key, child) ->
-            child.call(AttachTo(key, entity, event.fresh))
+            child.call(AttachTo(key, entity, event.root, event.fresh))
         }
     }
 
     @Subscribe
     fun on(event: SokolEvent.Populate, entity: SokolEntity) {
         mComposite.forEachChild(entity) { (key, child) ->
-            child.call(AttachTo(key, entity, false))
+            child.call(AttachTo(key, entity, entity, false))
         }
     }
 
     data class AttachTo(
         val key: String,
         val parent: SokolEntity,
+        val root: SokolEntity,
         val fresh: Boolean,
     ) : SokolEvent
 
@@ -194,6 +196,9 @@ private object EmptyCompositePath : CompositePath {
     override fun iterator() = EmptyListIterator
     override fun subList(fromIndex: Int, toIndex: Int) = emptyList<String>()
     override fun toString() = "[]"
+    override fun equals(other: Any?): Boolean {
+        return other is CompositePath && other.isEmpty()
+    }
 }
 
 private class CompositePathImpl(private val path: List<String>) : CompositePath {
@@ -209,6 +214,14 @@ private class CompositePathImpl(private val path: List<String>) : CompositePath 
     override fun iterator() = path.iterator()
     override fun subList(fromIndex: Int, toIndex: Int) = path.subList(fromIndex, toIndex)
     override fun toString() = path.toString()
+
+    override fun equals(other: Any?): Boolean {
+        return other is CompositePathImpl && other.path == path
+    }
+
+    override fun hashCode(): Int {
+        return path.hashCode()
+    }
 }
 
 fun emptyCompositePath(): CompositePath = EmptyCompositePath
@@ -251,10 +264,10 @@ fun ComponentMapper<Composite>.forEachChild(entity: SokolEntity, action: (Map.En
 
 fun ComponentMapper<Composite>.forAllEntities(entity: SokolEntity, action: (SokolEntity) -> Unit) {
     action(entity)
-    forEachChild(entity) { (_, child) ->
+     forEachChild(entity) { (_, child) ->
         forAllEntities(child, action)
-    }
-}
+     }
+ }
 
 fun <E : SokolEvent> ComponentMapper<Composite>.forward(entity: SokolEntity, event: E): E {
     forEachChild(entity) { (_, child) ->
