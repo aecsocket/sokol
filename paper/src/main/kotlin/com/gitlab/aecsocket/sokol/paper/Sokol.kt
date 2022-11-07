@@ -349,6 +349,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { TakeableSystem(this@Sokol, it) }
                     .systemFactory { HoldableTarget }
                     .systemFactory { HoldableSystem(it) }
+                    .systemFactory { HoldableMovementSystem(it) }
                     .systemFactory { HoldableItemSystem(this@Sokol, it) }
                     .systemFactory { HoldableMobSystem(this@Sokol, it) }
                     .systemFactory { HoldableGlowSystem(it) }

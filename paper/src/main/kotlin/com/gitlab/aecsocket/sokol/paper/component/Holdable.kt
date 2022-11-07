@@ -20,7 +20,7 @@ import com.jme3.bullet.collision.PhysicsCollisionObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Vector3f
 import org.bukkit.GameMode
-import org.spongepowered.configurate.ConfigurationNode
+import org.bukkit.Particle
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import java.util.*
 import kotlin.math.PI
@@ -54,30 +54,30 @@ data class Holdable(val profile: Profile) : MarkerPersistentComponent {
 
 object HoldableTarget : SokolSystem
 
-@All(Holdable::class, PositionWrite::class, Collider::class)
+@All(Holdable::class, PositionRead::class)
 @Before(OnInputSystem::class)
 @After(HoldableTarget::class, PositionTarget::class)
 class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
     private val mHoldable = mappers.componentMapper<Holdable>()
-    private val mPositionWrite = mappers.componentMapper<PositionWrite>()
+    private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mCollider = mappers.componentMapper<Collider>()
     private val mEntitySlot = mappers.componentMapper<EntitySlot>()
-    private val mPositionRead = mappers.componentMapper<PositionRead>()
     private val mComposite = mappers.componentMapper<Composite>()
 
     @Subscribe
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
-        val positionWrite = mPositionWrite.get(entity)
+        val positionRead = mPositionRead.get(entity)
         val collider = mCollider.get(entity)
         val holdProfile = holdable.profile
         val body = collider.body?.body?.body ?: return
 
         AlexandriaAPI.soundEngine.play(
-            positionWrite.location(),
+            positionRead.location(),
             if (event.holding) holdProfile.soundHoldStart else holdProfile.soundHoldStop
         )
 
+        // todo this doesn't work
         if (event.holding) {
             body.removeCollideWithGroup(PhysicsCollisionObject.COLLISION_GROUP_01)
         } else {
@@ -88,26 +88,14 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: SokolEvent.Update, entity: SokolEntity) {
         val holdable = mHoldable.get(entity)
-        val positionWrite = mPositionWrite.get(entity)
-        val collider = mCollider.get(entity)
-        val holdProfile = holdable.profile
+        val positionRead = mPositionRead.get(entity)
         val holdState = holdable.state ?: return
-        val body = collider.body?.body?.body ?: return
         val player = holdState.player
 
         holdState.entity = entity
 
-        positionWrite.transform = holdState.transform
-        if (body is PhysicsRigidBody) {
-            CraftBulletAPI.executePhysics {
-                // TODO set velocities so that it moves to the position, rather than just transform
-                body.linearVelocity = Vector3f.ZERO
-                body.angularVelocity = Vector3f.ZERO
-            }
-        }
-
         holdState.drawShape?.let { drawShape ->
-            val transform = positionWrite.transform.bullet()
+            val transform = positionRead.transform.bullet()
             val drawable = CraftBulletAPI.drawableOf(player, CraftBullet.DrawType.SHAPE)
             CraftBulletAPI.drawPointsShape(drawShape).forEach {
                 drawable.draw(transform.transform(it))
@@ -138,61 +126,157 @@ class HoldableSystem(mappers: ComponentIdAccess) : SokolSystem {
         }
 
         if (holdState.frozen) return
-        val from = player.eyeLocation
-        val direction = from.direction.alexandria()
+        entity.call(Update)
+    }
 
-        CraftBulletAPI.executePhysics {
-            val result = player.rayTestFrom(holdProfile.fSnapDistance)
-                .firstOrNull {
-                    val obj = it.collisionObject
-                    obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
+    object Update : SokolEvent
+}
+
+enum class MovingPlaceState(val canRelease: Boolean) {
+    ALLOW           (true),
+    DISALLOW        (false),
+    ALLOW_ATTACH    (true),
+    DISALLOW_ATTACH (true)
+}
+
+data class HoldAttach(
+    val entity: SokolEntity,
+    val path: CompositePath,
+)
+
+class MovingHoldOperation(
+    var transform: Transform,
+    var placing: MovingPlaceState = MovingPlaceState.DISALLOW,
+    var attachTo: HoldAttach? = null
+) : HoldOperation {
+    override val canRelease get() = placing.canRelease
+}
+
+class RotatingHoldOperation(
+    var rotation: Quaternion,
+    val planeNormal: Vector3,
+) : HoldOperation {
+    override val canRelease get() = true
+}
+
+@All(Holdable::class, PositionWrite::class, Collider::class)
+@After(HoldableTarget::class, PositionTarget::class)
+class HoldableMovementSystem(mappers: ComponentIdAccess) : SokolSystem {
+    private val mHoldable = mappers.componentMapper<Holdable>()
+    private val mPositionWrite = mappers.componentMapper<PositionWrite>()
+    private val mCollider = mappers.componentMapper<Collider>()
+
+    @Subscribe
+    fun on(event: HoldableSystem.Update, entity: SokolEntity) {
+        val holdable = mHoldable.get(entity)
+        val positionWrite = mPositionWrite.get(entity)
+        val collider = mCollider.get(entity)
+        val holdProfile = holdable.profile
+        val holdState = holdable.state ?: return
+        val body = collider.body?.body?.body ?: return
+        val player = holdState.player
+
+        when (val holdOp = holdState.operation) {
+            is MovingHoldOperation -> {
+                positionWrite.transform = holdOp.transform
+                val oldPlacing = holdOp.placing
+
+                val from = player.eyeLocation
+                val direction = from.direction.alexandria()
+
+                CraftBulletAPI.executePhysics {
+                    if (body is PhysicsRigidBody) {
+                        // TODO set velocities so that it moves to the position, rather than just transform
+                        body.linearVelocity = Vector3f.ZERO
+                        body.angularVelocity = Vector3f.ZERO
+                    }
+
+                    val result = player.rayTestFrom(holdProfile.fSnapDistance)
+                        .firstOrNull {
+                            val obj = it.collisionObject
+                            obj !is TrackedPhysicsObject || obj.id != collider.bodyData?.bodyId
+                        }
+
+                    val transform: Transform
+                    if (result == null) {
+                        holdOp.placing = if (holdProfile.allowFreePlace) MovingPlaceState.ALLOW else MovingPlaceState.DISALLOW
+                        transform = Transform(
+                            (from + direction * holdProfile.holdDistance).position(),
+                            from.rotation()
+                        ) + holdProfile.holdTransform
+                    } else {
+                        holdOp.placing = MovingPlaceState.ALLOW
+                        val hitPos = from.position() + direction * (holdProfile.snapDistance * result.hitFraction)
+
+                        // the hit normal is facing from the surface, to the player
+                        // but when holding (non-snap) it's the opposite direction
+                        // so we invert the normal here to face it in the right direction
+                        val dir = -result.hitNormal.alexandria()
+                        val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
+                            // `dir` and `up` are (close to) collinear
+                            val yaw = player.location.yaw.radians.toDouble()
+                            // `rotation` will be facing "away" from the player
+                            quaternionFromTo(Vector3.Forward, dir) *
+                                    Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2 * PI).quaternion(EulerOrder.XYZ)
+                        } else {
+                            val v1 = Vector3.Up.cross(dir).normalized
+                            val v2 = dir.cross(v1).normalized
+                            quaternionOfAxes(v1, v2, dir)
+                        }
+
+                        transform = Transform(hitPos, rotation) + holdProfile.holdTransform
+                    }
+                    holdOp.transform = transform
+                    holdOp.attachTo = null
+
+                    entity.call(UpdatePosition)
+
+                    if (holdOp.placing != oldPlacing) {
+                        entity.call(ChangeMovingPlaceState(oldPlacing))
+                    }
                 }
-
-            val transform: Transform
-            val placing: HoldPlaceState
-            if (result == null) {
-                placing = if (holdProfile.allowFreePlace) HoldPlaceState.ALLOW else HoldPlaceState.DISALLOW
-                transform = Transform(
-                    (from + direction * holdProfile.holdDistance).position(),
-                    from.rotation()
-                ) + holdProfile.holdTransform
-            } else {
-                placing = HoldPlaceState.ALLOW
-                val hitPos = from.position() + direction * (holdProfile.snapDistance * result.hitFraction)
-
-                // the hit normal is facing from the surface, to the player
-                // but when holding (non-snap) it's the opposite direction
-                // so we invert the normal here to face it in the right direction
-                val dir = -result.hitNormal.alexandria()
-                val rotation = if (abs(dir.dot(Vector3.Up)) > 0.99) {
-                    // `dir` and `up` are (close to) collinear
-                    val yaw = player.location.yaw.radians.toDouble()
-                    // `rotation` will be facing "away" from the player
-                    quaternionFromTo(Vector3.Forward, dir) *
-                            Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2 * PI).quaternion(EulerOrder.XYZ)
-                } else {
-                    val v1 = Vector3.Up.cross(dir).normalized
-                    val v2 = dir.cross(v1).normalized
-                    quaternionOfAxes(v1, v2, dir)
-                }
-
-                transform = Transform(hitPos, rotation) + holdProfile.holdTransform
             }
-            holdState.transform = transform
-            holdState.attachTo = null
+            is RotatingHoldOperation -> {
+                val transform = positionWrite.transform.copy(rotation = holdOp.rotation)
+                positionWrite.transform = transform
 
-            val (nPlacing) = entity.call(ComputeState(placing))
+                CraftBulletAPI.executePhysics {
+                    if (body is PhysicsRigidBody) {
+                        // TODO set velocities so that it moves to the position, rather than just transform
+                        body.linearVelocity = Vector3f.ZERO
+                        body.angularVelocity = Vector3f.ZERO
+                    }
 
-            if (nPlacing != holdState.placing) {
-                holdState.placing = nPlacing
-                entity.call(ChangePlacing(nPlacing))
+                    // form a plane facing "up" from the mob
+                    // e.g. if it's on a surface, this is the normal of the surface
+                    val plane = PlaneShape(holdOp.planeNormal)
+                    val planeOrigin = transform.translation
+                    // find the intersection between where the player's looking and this plane
+                    val location = player.eyeLocation
+                    val position = location.position()
+                    val direction = location.direction()
+                    val ray = Ray(position - planeOrigin, direction)
+
+                    // this could only have no intersection if the ray and plane are parallel
+                    testRayPlane(ray, plane)?.let { (tIn) ->
+                        val pointAt = position + direction * tIn
+
+                        player.spawnParticle(Particle.WATER_BUBBLE, pointAt.location(player.world), 0)
+
+                        // make the mob look at that point
+                        // TODO this doesn't work for verticals because a component of the quaternion is lost
+                        holdOp.rotation = quaternionLooking((pointAt - planeOrigin).normalized, Vector3.Up)
+                    }
+                }
             }
         }
     }
 
-    data class ChangePlacing(val placing: HoldPlaceState) : SokolEvent
+    object UpdatePosition : SokolEvent
 
-    data class ComputeState(var placing: HoldPlaceState) : SokolEvent
+    data class ChangeMovingPlaceState(
+        val old: MovingPlaceState
+    ) : SokolEvent
 }
 
 @All(Holdable::class, HostedByItem::class, HostableByMob::class)
@@ -222,7 +306,7 @@ class HoldableItemSystem(
             sokol.entityHolding.stop(axPlayer)
             player.closeInventory()
             sokol.useMob(mob) { mobEntity ->
-                sokol.entityHolding.start(axPlayer, mobEntity, player.eyeLocation.transform(), mob)
+                sokol.entityHolding.start(axPlayer, mobEntity, MovingHoldOperation(player.eyeLocation.transform()), mob)
             }
         }
     }
@@ -236,8 +320,9 @@ class HoldableMobSystem(
     mappers: ComponentIdAccess
 ) : SokolSystem {
     companion object {
-        val HoldStart = SokolAPI.key("holdable_mob/hold_start")
-        val HoldStop = SokolAPI.key("holdable_mob/hold_stop")
+        val MoveStart = SokolAPI.key("holdable_mob/move_start")
+        val RotateStart = SokolAPI.key("holdable_mob/rotate_start")
+        val Stop = SokolAPI.key("holdable_mob/stop")
     }
 
     private val mHoldable = mappers.componentMapper<Holdable>()
@@ -259,17 +344,35 @@ class HoldableMobSystem(
         val position = mPosition.get(entity)
         val holdState = holdable.state
 
-        event.addAction(HoldStart) { (player, _, cancel) ->
+        event.addAction(MoveStart) { (player, _, cancel) ->
             cancel()
             if (holdState != null) return@addAction false
-            sokol.entityHolding.start(player.alexandria, entity, position.transform, mob)
+            sokol.entityHolding.start(player.alexandria, entity, MovingHoldOperation(position.transform), mob)
             true
         }
 
-        event.addAction(HoldStop) { (player, _, cancel) ->
+        event.addAction(RotateStart) { (player, _, cancel) ->
+            cancel()
+            if (holdState != null) return@addAction false
+            val planeNormal = (position.transform.rotation * holdable.profile.holdTransform.rotation.inverse) * Vector3.Forward
+
+            val po = position.transform.translation.location(player.world)
+            repeat(10) {
+                val f = it / 10.0
+                player.spawnParticle(Particle.BUBBLE_POP, po + (planeNormal * f), 0)
+            }
+
+            sokol.entityHolding.start(player.alexandria, entity, RotatingHoldOperation(
+                position.transform.rotation,
+                planeNormal,
+            ), mob)
+            true
+        }
+
+        event.addAction(Stop) { (player, _, cancel) ->
             cancel()
             if (holdState == null) return@addAction false
-            if (holdState.placing.valid) sokol.entityHolding.stop(player.alexandria)
+            if (holdState.operation.canRelease) sokol.entityHolding.stop(player.alexandria)
             true
         }
     }

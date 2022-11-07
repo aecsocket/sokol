@@ -2,15 +2,8 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
-import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.extension.bullet
-import com.gitlab.aecsocket.sokol.paper.HoldAttach
-import com.gitlab.aecsocket.sokol.paper.HoldPlaceState
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
-import com.jme3.bullet.collision.shapes.SphereCollisionShape
-import com.jme3.bullet.objects.PhysicsGhostObject
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 

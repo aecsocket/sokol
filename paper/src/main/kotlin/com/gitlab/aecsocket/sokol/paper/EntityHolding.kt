@@ -1,41 +1,29 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.sokol.core.SokolEntity
 import com.gitlab.aecsocket.sokol.core.SokolEvent
-import com.gitlab.aecsocket.sokol.paper.component.CompositePath
 import com.jme3.bullet.collision.shapes.CollisionShape
 import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import java.lang.ref.WeakReference
 import java.util.UUID
 
-enum class HoldPlaceState(val valid: Boolean) {
-    ALLOW           (true),
-    DISALLOW        (false),
-    ALLOW_ATTACH    (true),
-    DISALLOW_ATTACH (true)
-}
-
-data class HoldAttach(
-    val entity: SokolEntity,
-    val path: CompositePath,
-)
-
-data class HoldState(
+class HoldState(
     val player: Player,
     var entity: SokolEntity,
-    val raiseHandLock: PlayerLockInstance,
-    var transform: Transform,
+    val operation: HoldOperation,
     var mob: WeakReference<Entity>?,
+    val raiseHandLock: PlayerLockInstance,
+) {
+    var frozen: Boolean = false
+    var drawShape: CollisionShape? = null
+    var drawSlotShapes: Boolean = false
+}
 
-    var placing: HoldPlaceState = HoldPlaceState.DISALLOW,
-    var attachTo: HoldAttach? = null,
-    var frozen: Boolean = false,
-    var drawShape: CollisionShape? = null,
-    var drawSlotShapes: Boolean = false,
-)
+interface HoldOperation {
+    val canRelease: Boolean
+}
 
 class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerData> {
     inner class PlayerData(
@@ -70,13 +58,13 @@ class EntityHolding internal constructor() : PlayerFeature<EntityHolding.PlayerD
         state.entity.call(ChangeHoldState(player.handle, state, true))
     }
 
-    fun start(player: AlexandriaPlayer, entity: SokolEntity, transform: Transform, mob: Entity?): HoldState {
+    fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation, mob: Entity?): HoldState {
         val state = HoldState(
             player.handle,
             entity,
+            operation,
+            mob?.let { WeakReference(it) },
             player.acquireLock(PlayerLock.RaiseHand),
-            transform,
-            WeakReference(mob),
         )
         start(player, state)
         return state
