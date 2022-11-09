@@ -5,9 +5,7 @@ import kotlin.math.max
 // adapted from https://github.com/junkdog/artemis-odb/blob/develop/artemis-core/artemis/src/main/java/com/artemis/utils/Bag.java
 
 interface Bag<E> : Collection<E> {
-    operator fun get(index: Int): E
-
-    fun getOr(index: Int): E?
+    operator fun get(index: Int): E?
 }
 
 interface MutableBag<E> : Bag<E>, MutableCollection<E> {
@@ -40,9 +38,7 @@ private class BagImpl<E>(
         return true
     }
 
-    override fun get(index: Int) = data[index]!!
-
-    override fun getOr(index: Int) = if (index >= data.size) null else data[index]
+    override fun get(index: Int) = if (index >= data.size) null else data[index]
 
     private fun grow(newCapacity: Int) {
         data = data.copyOf(newCapacity)
