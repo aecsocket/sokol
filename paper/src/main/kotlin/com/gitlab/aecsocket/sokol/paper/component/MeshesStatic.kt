@@ -1,15 +1,13 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
-data class MeshesStatic(val profile: Profile) : MarkerPersistentComponent {
+data class MeshesStatic(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("meshes_static")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -23,7 +21,7 @@ data class MeshesStatic(val profile: Profile) : MarkerPersistentComponent {
         @Required val parts: List<Meshes.PartDefinition>,
         val transform: Transform = Transform.Identity,
         val interpolated: Boolean = true,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = MeshesStatic(this)
     }
 }

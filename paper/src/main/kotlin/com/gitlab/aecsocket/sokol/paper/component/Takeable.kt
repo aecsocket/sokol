@@ -7,7 +7,7 @@ import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.colliderHitPath
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class Takeable(val profile: Profile) : MarkerPersistentComponent {
+data class Takeable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("takeable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -20,7 +20,7 @@ data class Takeable(val profile: Profile) : MarkerPersistentComponent {
     data class Profile(
         val onlyRoot: Boolean = false,
         val soundTake: SoundEngineEffect = SoundEngineEffect.Empty,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = Takeable(this)
     }
 }

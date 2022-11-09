@@ -6,7 +6,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class MeshesItem(val profile: Profile) : MarkerPersistentComponent {
+data class MeshesItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("meshes_item")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -19,7 +19,7 @@ data class MeshesItem(val profile: Profile) : MarkerPersistentComponent {
     data class Profile(
         val transform: Transform = Transform.Identity,
         val interpolated: Boolean = true,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = MeshesItem(this)
     }
 }

@@ -115,19 +115,19 @@ data class Collider(
     }
 }
 
-object RigidBody : MarkerPersistentComponent {
+object RigidBody : SimplePersistentComponent {
     override val componentType get() = RigidBody::class
     override val key = SokolAPI.key("rigid_body")
     val Type = ComponentType.singletonComponent(key, this)
 }
 
-object VehicleBody : MarkerPersistentComponent {
+object VehicleBody : SimplePersistentComponent {
     override val componentType get() = VehicleBody::class
     override val key = SokolAPI.key("vehicle_body")
     val Type = ComponentType.singletonComponent(key, this)
 }
 
-object GhostBody : MarkerPersistentComponent {
+object GhostBody : SimplePersistentComponent {
     override val componentType get() = GhostBody::class
     override val key = SokolAPI.key("ghost_body")
     val Type = ComponentType.singletonComponent(key, this)

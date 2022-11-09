@@ -4,11 +4,10 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class HostableByItem(val profile: Profile) : MarkerPersistentComponent {
+data class HostableByItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hostable_by_item")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -20,12 +19,12 @@ data class HostableByItem(val profile: Profile) : MarkerPersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val descriptor: ItemDescriptor,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = HostableByItem(this)
     }
 }
 
-object HostableByMob : MarkerPersistentComponent {
+object HostableByMob : SimplePersistentComponent {
     override val componentType get() = HostableByMob::class
     override val key = SokolAPI.key("hostable_by_mob")
     val Type = ComponentType.singletonComponent(key, this)

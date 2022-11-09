@@ -4,10 +4,9 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class ItemNameProfile(val profile: Profile) : MarkerPersistentComponent {
+data class ItemNameProfile(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("item_name_profile")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -20,7 +19,7 @@ data class ItemNameProfile(val profile: Profile) : MarkerPersistentComponent {
     data class Profile(
         val prefix: String = "",
         val suffix: String = ""
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = ItemNameProfile(this)
     }
 }

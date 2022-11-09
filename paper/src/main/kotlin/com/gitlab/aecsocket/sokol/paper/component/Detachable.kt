@@ -13,11 +13,10 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.util.colliderHitPath
 import net.kyori.adventure.key.Key
-import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
-data class Detachable(val profile: Profile) : MarkerPersistentComponent {
+data class Detachable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("detachable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -32,7 +31,7 @@ data class Detachable(val profile: Profile) : MarkerPersistentComponent {
         @Required val detachStop: Double,
         @Required val detachAt: Double,
         val soundDetach: SoundEngineEffect = SoundEngineEffect.Empty,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         val normAxis = axis.normalized
 
         override fun readEmpty() = Detachable(this)

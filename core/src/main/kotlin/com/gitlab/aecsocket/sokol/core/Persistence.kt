@@ -1,17 +1,8 @@
 package com.gitlab.aecsocket.sokol.core
 
 import com.gitlab.aecsocket.glossa.core.force
-import com.gitlab.aecsocket.sokol.core.util.Bits
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
-import kotlin.reflect.KClass
-
-class ComponentPersistenceException(messsage: String? = null, cause: Throwable? = null)
-    : RuntimeException(messsage, cause)
-
-interface SokolComponent {
-    val componentType: KClass<out SokolComponent>
-}
 
 interface PersistentComponent : SokolComponent {
     val key: Key
@@ -24,7 +15,7 @@ interface PersistentComponent : SokolComponent {
     fun write(node: ConfigurationNode)
 }
 
-interface MarkerPersistentComponent : PersistentComponent {
+interface SimplePersistentComponent : PersistentComponent {
     override val dirty get() = false
 
     override fun write(ctx: NBTTagContext) = ctx.makeCompound()
@@ -42,7 +33,7 @@ interface ComponentProfile {
     fun readEmpty(): PersistentComponent
 }
 
-fun interface NonReadingComponentProfile : ComponentProfile {
+fun interface SimpleComponentProfile : ComponentProfile {
     override fun read(tag: NBTTag) = readEmpty()
 
     override fun read(node: ConfigurationNode) = readEmpty()
@@ -57,13 +48,7 @@ interface ComponentType {
         fun singletonComponent(key: Key, component: PersistentComponent) = object : ComponentType {
             override val key get() = key
 
-            override fun createProfile(node: ConfigurationNode) = object : ComponentProfile {
-                override fun read(tag: NBTTag) = component
-
-                override fun read(node: ConfigurationNode) = component
-
-                override fun readEmpty() = component
-            }
+            override fun createProfile(node: ConfigurationNode) = SimpleComponentProfile { component }
         }
 
         fun singletonProfile(key: Key, profile: ComponentProfile) = object : ComponentType {
@@ -83,37 +68,3 @@ interface ComponentType {
         }
     }
 }
-
-interface ComponentMap {
-    fun archetype(): Bits
-
-    fun all(): Collection<SokolComponent>
-
-    fun has(id: Int): Boolean
-
-    fun has(type: KClass<out SokolComponent>): Boolean
-
-    fun get(id: Int): SokolComponent?
-
-    fun <C : SokolComponent> get(type: KClass<out C>): C?
-
-    fun mutableCopy(): MutableComponentMap
-}
-
-inline fun <reified C : SokolComponent> ComponentMap.has() = has(C::class)
-
-inline fun <reified C : SokolComponent> ComponentMap.get() = get(C::class)
-
-interface MutableComponentMap : ComponentMap {
-    fun set(id: Int, component: SokolComponent)
-
-    fun set(component: SokolComponent)
-
-    fun removeById(id: Int)
-
-    fun removeByType(type: KClass<out SokolComponent>)
-}
-
-inline fun <reified C : SokolComponent> MutableComponentMap.removeByType() = removeByType(C::class)
-
-fun MutableComponentMap.removeByType(component: SokolComponent) = removeByType(component.componentType)

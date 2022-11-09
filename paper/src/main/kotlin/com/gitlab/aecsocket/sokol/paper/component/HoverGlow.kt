@@ -7,12 +7,11 @@ import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.util.colliderHitPath
 import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.entity.Player
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class HoverGlow(
     val profile: Profile,
-) : MarkerPersistentComponent {
+) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hover_glow")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -24,7 +23,7 @@ data class HoverGlow(
     @ConfigSerializable
     data class Profile(
         val color: NamedTextColor = NamedTextColor.WHITE,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = HoverGlow(this)
     }
 }

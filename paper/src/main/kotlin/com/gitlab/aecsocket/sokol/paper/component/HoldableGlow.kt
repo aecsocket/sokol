@@ -8,7 +8,7 @@ import net.kyori.adventure.text.format.NamedTextColor
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
-data class HoldableGlow(val profile: Profile) : MarkerPersistentComponent {
+data class HoldableGlow(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("holdable_glow")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -20,7 +20,7 @@ data class HoldableGlow(val profile: Profile) : MarkerPersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val colors: Map<MovingPlaceState, NamedTextColor>
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = HoldableGlow(this)
     }
 }

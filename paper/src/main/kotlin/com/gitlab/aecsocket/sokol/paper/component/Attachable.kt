@@ -12,7 +12,7 @@ import com.jme3.bullet.collision.shapes.SphereCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class Attachable(val profile: Profile) : MarkerPersistentComponent {
+data class Attachable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("attachable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -24,7 +24,7 @@ data class Attachable(val profile: Profile) : MarkerPersistentComponent {
     @ConfigSerializable
     data class Profile(
         val soundAttach: SoundEngineEffect = SoundEngineEffect.Empty,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = Attachable(this)
     }
 }

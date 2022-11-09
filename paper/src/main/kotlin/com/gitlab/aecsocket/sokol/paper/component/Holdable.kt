@@ -25,7 +25,7 @@ import java.util.*
 import kotlin.math.PI
 import kotlin.math.abs
 
-data class Holdable(val profile: Profile) : MarkerPersistentComponent {
+data class Holdable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("holdable")
         val Type = ComponentType.deserializing<Profile>(Key)
@@ -44,7 +44,7 @@ data class Holdable(val profile: Profile) : MarkerPersistentComponent {
         val allowFreePlace: Boolean = true,
         val soundHoldStart: SoundEngineEffect = SoundEngineEffect.Empty,
         val soundHoldStop: SoundEngineEffect = SoundEngineEffect.Empty,
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         val fSnapDistance = snapDistance.toFloat()
 
         override fun readEmpty() = Holdable(this)

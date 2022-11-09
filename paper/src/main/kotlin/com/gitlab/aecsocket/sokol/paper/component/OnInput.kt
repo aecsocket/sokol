@@ -26,7 +26,7 @@ data class OnInputInstance(
     override val componentType get() = OnInputInstance::class
 }
 
-data class OnInput(val profile: Profile) : MarkerPersistentComponent {
+data class OnInput(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("on_input")
     }
@@ -49,7 +49,7 @@ data class OnInput(val profile: Profile) : MarkerPersistentComponent {
 
     data class Profile(
         val mapper: InputMapper<List<InputActionSettingsInstance>>
-    ) : NonReadingComponentProfile {
+    ) : SimpleComponentProfile {
         override fun readEmpty() = OnInput(this)
     }
 
