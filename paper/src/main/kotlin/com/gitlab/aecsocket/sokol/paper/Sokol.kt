@@ -88,6 +88,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .registerExact(ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
+                    .registerExact(MeshesStatic.MeshDefinitionSerializer)
                     .register(EntitySerializer(this@Sokol))
                     .register(DeltaSerializer)
             },
@@ -230,18 +231,27 @@ class Sokol : BasePlugin(), SokolAPI {
         registerConsumer(
             onInit = {
                 engine
-                    .systemFactory { IsWorld.Target }
-                    .systemFactory { IsChunk.Target }
-                    .systemFactory { IsMob.Target }
-                    .systemFactory { IsBlock.Target }
-                    .systemFactory { IsItem.Target }
-                    .systemFactory { IsItem.FormTarget }
+                    .systemFactory { IsWorldTarget }
+                    .systemFactory { IsChunkTarget }
+                    .systemFactory { IsMobTarget }
+                    .systemFactory { IsBlockTarget }
+                    .systemFactory { IsItemFormTarget }
+                    .systemFactory { IsItemTarget }
                     .systemFactory { PersistenceSystem(this@Sokol, it) }
                     .systemFactory { BlockPersistSystem(it) }
                     .systemFactory { ItemPersistSystem(this@Sokol, it) }
                     .systemFactory { ItemTagPersistSystem(it) }
                     .systemFactory { CompositeSystem(it) }
-                    .systemFactory { ItemTestSystem(it) }
+                    .systemFactory { PositionTarget }
+                    .systemFactory { VelocityTarget }
+                    .systemFactory { PlayerTrackedTarget }
+                    .systemFactory { MobConstructorSystem(it) }
+                    .systemFactory { ParticleEffectSpawnerSystem(it) }
+                    .systemFactory { MeshesTarget }
+                    .systemFactory { MeshesStaticSystem(it) }
+                    .systemFactory { MeshesItemSystem(this@Sokol, it) }
+                    .systemFactory { MeshesInWorldSystem(it) }
+                    .systemFactory { MeshesInWorldMobSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -256,12 +266,23 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<AsItem>()
                     .componentType<IsRoot>()
                     .componentType<IsChild>()
+                    .componentType<PositionRead>()
+                    .componentType<PositionWrite>()
+                    .componentType<VelocityRead>()
+                    .componentType<PlayerTracked>()
                     .componentType<Rotation>()
-                    .componentType<ItemTest>()
+                    .componentType<ParticleEffectSpawner>()
+                    .componentType<Meshes>()
+                    .componentType<MeshesStatic>()
+                    .componentType<MeshesItem>()
+                    .componentType<MeshesInWorld>()
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(Rotation.Type)
-                registerComponentType(ItemTest.Type)
+                registerComponentType(ParticleEffectSpawner.Type)
+                registerComponentType(MeshesStatic.Type)
+                registerComponentType(MeshesItem.Type)
+                registerComponentType(MeshesInWorld.Type)
             }
         )
     }

@@ -4,6 +4,7 @@ import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.glossa.core.force
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
+import kotlin.reflect.KClass
 
 interface PersistentComponent : SokolComponent {
     val key: Key
@@ -27,6 +28,8 @@ interface SimplePersistentComponent : PersistentComponent {
 }
 
 interface ComponentProfile {
+    val componentType: KClass<out SokolComponent>
+
     fun read(space: SokolSpaceAccess, tag: NBTTag): PersistentComponent
 
     fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode): PersistentComponent
@@ -34,7 +37,7 @@ interface ComponentProfile {
     fun createEmpty(): PersistentComponent
 }
 
-fun interface SimpleComponentProfile : ComponentProfile {
+interface SimpleComponentProfile : ComponentProfile {
     override fun read(space: SokolSpaceAccess, tag: NBTTag) = createEmpty()
 
     override fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode) = createEmpty()
@@ -66,7 +69,11 @@ interface ComponentType {
         fun singletonComponent(key: Key, component: PersistentComponent) = object : ComponentType {
             override val key get() = key
 
-            override fun createProfile(node: ConfigurationNode) = SimpleComponentProfile { component }
+            override fun createProfile(node: ConfigurationNode) = object : SimpleComponentProfile {
+                override val componentType get() = component.componentType
+
+                override fun createEmpty() = component
+            }
         }
 
         fun singletonProfile(key: Key, profile: ComponentProfile) = object : ComponentType {
@@ -103,4 +110,10 @@ class PersistenceSystem(
         val inTag = mInTag.get(entity)
         sokol.persistence.writeEntityDelta(entity, inTag.tag)
     }
+}
+
+fun ComponentIdAccess.blueprintOf(entity: SokolEntity): EntityBlueprint {
+    return EntityBlueprint(entity.flags, entity.allComponents().map { component ->
+        mapper(component.componentType) to ComponentFactory { component }
+    })
 }

@@ -11,6 +11,7 @@ import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeParser
 import com.gitlab.aecsocket.alexandria.core.command.RegistryElementArgument
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.glossa.core.force
+import com.gitlab.aecsocket.sokol.core.KeyedEntityBlueprint
 import com.gitlab.aecsocket.sokol.core.KeyedEntityProfile
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.serialize.SerializationException
@@ -29,7 +30,6 @@ class KeyedEntityProfileArgument<C : Any>(
     }
 }
 
-/*
 class KeyedEntityBlueprintParser<C : Any>(
     private val sokol: Sokol
 ) : ArgumentParser<C, KeyedEntityBlueprint> {
@@ -51,7 +51,7 @@ class KeyedEntityBlueprintParser<C : Any>(
                 }
             } catch (ex: ConfigurateException) {
                 sokol.entityProfile(input)?.let { profile ->
-                    ArgumentParseResult.success(sokol.engine.emptyKeyedBlueprint(profile))
+                    ArgumentParseResult.success(sokol.persistence.emptyKeyedBlueprint(profile))
                 } ?: ArgumentParseResult.failure(ex)
             }
         } ?: ArgumentParseResult.failure(NoInputProvidedException(
@@ -73,4 +73,3 @@ class KeyedEntityBlueprintArgument<C : Any>(
     defaultValue: String = "",
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
 ) : CommandArgument<C, KeyedEntityBlueprint>(required, name, KeyedEntityBlueprintParser(sokol), defaultValue, KeyedEntityBlueprint::class.java, suggestionsProvider, description)
-*/

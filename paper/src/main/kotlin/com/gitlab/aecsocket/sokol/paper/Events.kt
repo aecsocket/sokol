@@ -5,7 +5,6 @@ import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.paper.InputEvent
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.core.SokolSpace
-import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.inventory.ItemStack
@@ -25,12 +24,12 @@ data class PlayerInputEvent(
     constructor(event: InputEvent) : this(event.player, event.input, event.cancel)
 }
 
-object AddToWorldEvent : SokolEvent
-
-object RemoveFromWorldEvent : SokolEvent
-
 interface MobEvent : SokolEvent {
-    data class Create(val mob: Entity) : SokolEvent
+    object Spawn : SokolEvent
+
+    object AddToWorld : SokolEvent
+
+    object RemoveFromWorld : SokolEvent
 
     data class Show(
         val player: Player,
@@ -44,19 +43,13 @@ interface MobEvent : SokolEvent {
 }
 
 interface ItemEvent : SokolEvent {
-    // as an alternative to listening to SokolEvent.Add,
+    // as an alternative to listening to Create,
     // if we want to just make visual changes instead of a full item build
     // (e.g. just change custom model data, instead of building lore + writing persistence...)
     // useful for when we make a mesh of the item
-    data class CreateForm(
-        val item: ItemStack,
-        val meta: ItemMeta
-    ) : ItemEvent
+    object CreateForm : ItemEvent
 
-    data class Create(
-        val item: ItemStack,
-        val meta: ItemMeta
-    ) : ItemEvent
+    object Create : ItemEvent
 
     open class Click(
         val player: Player,

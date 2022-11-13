@@ -31,39 +31,69 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
 
     abstract fun tagContext(): NBTTagContext
 
-    private fun setProfile(entity: SokolEntity, profile: EntityProfile) {
-        if (profile is Keyed) {
-            mProfiled.set(entity, Profiled(profile.id))
-        }
+    private fun componentsOf(profile: EntityProfile) = profile.components.map { (_, profile) ->
+        sokol.engine.mapper(profile.componentType) to ComponentFactory { profile.createEmpty() }
     }
 
-    fun readEmptyProfile(profile: EntityProfile, space: SokolSpaceAccess, flags: Int = 0): SokolEntity {
-        val components = profile.components.map { (_, profile) -> profile.createEmpty() }
-        val entity = space.createEntity(flags, components)
-        setProfile(entity, profile)
-        return entity
+    fun emptyBlueprint(profile: EntityProfile, flags: Int = 0): EntityBlueprint {
+        return EntityBlueprint(flags, componentsOf(profile))
     }
 
-    fun readProfileEntities(tag: CompoundNBTTag, profile: EntityProfile, space: SokolSpaceAccess) {
+    fun emptyKeyedBlueprint(profile: KeyedEntityProfile, flags: Int = 0): KeyedEntityBlueprint {
+        return KeyedEntityBlueprint(profile.id, flags, componentsOf(profile))
+            .with(mProfiled) { Profiled(profile.id) }
+    }
+
+    fun readProfileBlueprint(tag: CompoundNBTTag, profile: EntityProfile): EntityBlueprint {
         val flags = tag.getOr(FLAGS) { asInt() } ?: 0
-        val components = profile.components.map { (key, profile) ->
-            try {
-                tag[key.asString()]?.let { profile.read(space, it) } ?: profile.createEmpty()
-            } catch (ex: PersistenceException) {
+        val components: List<Pair<ComponentMapper<*>, ComponentFactory<*>>> = profile.components.map { (key, profile) ->
+            val mapper = sokol.engine.mapper(profile.componentType)
+            mapper to try {
+                tag[key.asString()]?.let { config -> ComponentFactory { profile.read(it, config) } }
+                    ?: ComponentFactory { profile.createEmpty() }
+            } catch (ex: SerializationException) {
                 throw PersistenceException("Could not read component $key", ex)
             }
         }
 
-        val entity = space.createEntity(flags, components)
-        setProfile(entity, profile)
+        return if (profile is Keyed) KeyedEntityBlueprint(profile.id, flags, components)
+            .with(mProfiled) { Profiled(profile.id) }
+        else EntityBlueprint(flags, components)
     }
 
-    fun readEntities(tag: CompoundNBTTag, space: SokolSpaceAccess) {
+    fun readBlueprint(tag: CompoundNBTTag): EntityBlueprint {
         val profileId = tag.get(PROFILE) { asString() }
         val entityProfile = sokol.entityProfile(profileId)
             ?: throw PersistenceException("Invalid entity profile '$profileId'")
 
-        readProfileEntities(tag, entityProfile, space)
+        return readProfileBlueprint(tag, entityProfile)
+    }
+
+    fun deserializeProfileBlueprint(node: ConfigurationNode, profile: EntityProfile): EntityBlueprint {
+        val flags = node.node(FLAGS).get { 0 }
+        val components: List<Pair<ComponentMapper<*>, ComponentFactory<*>>> = profile.components.map { (key, profile) ->
+            val mapper = sokol.engine.mapper(profile.componentType)
+            val config = node.node(key.asString())
+
+            mapper to try {
+                if (config.empty()) ComponentFactory { profile.createEmpty() }
+                else ComponentFactory { profile.deserialize(it, config) }
+            } catch (ex: SerializationException) {
+                throw SerializationException(config, SokolEntity::class.java, "Could not read component $key", ex)
+            }
+        }
+
+        return if (profile is Keyed) KeyedEntityBlueprint(profile.id, flags, components)
+            .with(mProfiled) { Profiled(profile.id) }
+        else EntityBlueprint(flags, components)
+    }
+
+    fun deserializeBlueprint(node: ConfigurationNode): EntityBlueprint {
+        val profileId = node.node(PROFILE).force<String>()
+        val entityProfile = sokol.entityProfile(profileId)
+            ?: throw PersistenceException("Invalid entity profile '$profileId'")
+
+        return deserializeProfileBlueprint(node, entityProfile)
     }
 
     fun writeEntity(entity: SokolEntity, tag: CompoundNBTTag = tagContext().makeCompound()): CompoundNBTTag {
@@ -96,28 +126,6 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
             }
         }
         return tag
-    }
-
-    fun deserializeProfileEntities(node: ConfigurationNode, profile: EntityProfile, space: SokolSpace) {
-        val flags = node.node(FLAGS).get { 0 }
-        val components = profile.components.map { (key, profile) ->
-            val config = node.node(key.asString())
-            try {
-                if (config.empty()) profile.createEmpty() else profile.deserialize(space, config)
-            } catch (ex: SerializationException) {
-                throw SerializationException(config, SokolEntity::class.java, "Could not read component $key", ex)
-            }
-        }
-
-        space.createEntity(flags, components)
-    }
-
-    fun deserializeEntities(node: ConfigurationNode, space: SokolSpace) {
-        val profileId = node.node(PROFILE).force<String>()
-        val entityProfile = sokol.entityProfile(profileId)
-            ?: throw PersistenceException("Invalid entity profile '$profileId'")
-
-        deserializeProfileEntities(node, entityProfile, space)
     }
 
     fun serializeEntity(entity: SokolEntity, node: ConfigurationNode) {

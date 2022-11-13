@@ -1,7 +1,12 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.extension.TPS
+import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.paper.extension.alexandria
+import com.gitlab.aecsocket.alexandria.paper.extension.location
+import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.PaperCompoundTag
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import net.minecraft.nbt.CompoundTag
 import org.bukkit.Chunk
@@ -14,29 +19,27 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
 data class IsWorld(val world: World) : SokolComponent {
-    object Target : SokolSystem
-
     override val componentType get() = IsWorld::class
 }
 
-data class IsChunk(val chunk: Chunk) : SokolComponent {
-    object Target : SokolSystem
+object IsWorldTarget : SokolSystem
 
+data class IsChunk(val chunk: Chunk) : SokolComponent {
     override val componentType get() = IsChunk::class
 }
 
-data class IsMob(val mob: Entity) : SokolComponent {
-    object Target : SokolSystem
+object IsChunkTarget : SokolSystem
 
+data class IsMob(val mob: Entity) : SokolComponent {
     override val componentType get() = IsMob::class
 }
+
+object IsMobTarget : SokolSystem
 
 data class IsBlock(
     val block: Block,
     internal val getState: () -> BlockState
 ) : SokolComponent {
-    object Target : SokolSystem
-
     override val componentType get() = IsBlock::class
 
     internal var dirty = false
@@ -54,14 +57,12 @@ data class IsBlock(
     override fun toString() = "IsBlock(block=$block)"
 }
 
+object IsBlockTarget : SokolSystem
+
 data class IsItem(
     private val getItem: () -> ItemStack,
     private val getMeta: () -> ItemMeta
 ) : SokolComponent {
-    object Target : SokolSystem
-
-    object FormTarget : SokolSystem
-
     override val componentType get() = IsItem::class
 
     internal var dirty = false
@@ -79,6 +80,10 @@ data class IsItem(
 
     override fun toString() = "IsItem(item=$item)"
 }
+
+object IsItemTarget : SokolSystem
+
+object IsItemFormTarget : SokolSystem
 
 data class InItemTag(val nmsTag: CompoundTag) : SokolComponent {
     override val componentType get() = InItemTag::class
@@ -134,46 +139,22 @@ class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
 
 }
 
-/*
 @All(IsMob::class)
-@Before(IsMob.Target::class, SupplierTrackedPlayersTarget::class, PositionTarget::class)
-class MobInjectorSystem(
-    private val sokol: Sokol,
-    mappers: ComponentIdAccess
-) : SokolSystem {
-    private val mMob = mappers.componentMapper<IsMob>()
-    private val mRotation = mappers.componentMapper<Rotation>()
-    private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
-    private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
-    private val mPositionRead = mappers.componentMapper<PositionRead>()
-    private val mPositionWrite = mappers.componentMapper<PositionWrite>()
-    private val mRemovable = mappers.componentMapper<Removable>()
+@Before(IsMobTarget::class, PlayerTrackedTarget::class, PositionTarget::class)
+class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mIsMob = ids.mapper<IsMob>()
+    private val mPlayerTracked = ids.mapper<PlayerTracked>()
+    private val mRotation = ids.mapper<Rotation>()
+    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionWrite = ids.mapper<PositionWrite>()
+    private val mVelocityRead = ids.mapper<VelocityRead>()
 
     @Subscribe
-    fun on(event: SokolEvent.Populate, entity: SokolEntity) {
-        val mob = mMob.get(entity).mob
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        val mob = mIsMob.get(entity).mob
 
-        mSupplierTrackedPlayers.set(entity, object : SupplierTrackedPlayers {
-            override val trackedPlayers: () -> Set<Player> get() = { mob.trackedPlayers }
-        })
-
-        mSupplierEntityAccess.set(entity, object : SupplierEntityAccess {
-            override fun useEntity(builder: (EntityBlueprint) -> Unit, consumer: (SokolEntity) -> Unit) {
-                sokol.useMob(mob, builder = builder, consumer = consumer)
-            }
-        })
-
-        var removed = false
-        mRemovable.set(entity, object : Removable {
-            override val removed get() = removed || !mob.isValid
-
-            override fun remove() {
-                removed = true
-                sokol.scheduleDelayed {
-                    sokol.persistence.removeTag(mob.persistentDataContainer, sokol.persistence.entityKey)
-                    mob.remove()
-                }
-            }
+        mPlayerTracked.set(entity, object : PlayerTracked {
+            override fun trackedPlayers() = mob.trackedPlayers
         })
 
         val rotation = mRotation.getOr(entity)
@@ -181,21 +162,23 @@ class MobInjectorSystem(
 
         mPositionRead.set(entity, object : PositionRead {
             override val world get() = mob.world
-
             override val transform get() = transform
         })
 
         mPositionWrite.set(entity, object : PositionWrite {
             override val world get() = mob.world
-
             @Suppress("UnstableApiUsage")
             override var transform: Transform
                 get() = transform
                 set(value) {
                     transform = value
-                    rotation?.rotation = value.rotation
+                    rotation?.rotation = transform.rotation
                     mob.teleport(value.translation.location(world), true)
                 }
         })
+
+        mVelocityRead.set(entity, object : VelocityRead {
+            override val linear get() = mob.velocity.alexandria() * TPS.toDouble()
+        })
     }
-}*/
+}

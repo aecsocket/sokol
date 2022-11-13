@@ -1,18 +1,19 @@
 package com.gitlab.aecsocket.sokol.paper
 
 import cloud.commandframework.arguments.standard.IntegerArgument
+import cloud.commandframework.bukkit.parsers.location.LocationArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import com.gitlab.aecsocket.alexandria.core.extension.value
 import com.gitlab.aecsocket.alexandria.paper.BaseCommand
 import com.gitlab.aecsocket.alexandria.paper.Context
 import com.gitlab.aecsocket.alexandria.paper.desc
+import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.glossa.core.I18N
-import com.gitlab.aecsocket.sokol.core.ComponentMapper
-import com.gitlab.aecsocket.sokol.core.KeyedEntityProfile
-import com.gitlab.aecsocket.sokol.core.mapper
+import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
+import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
 
@@ -23,13 +24,30 @@ internal class SokolCommand(
 ) : BaseCommand(plugin) {
     init {
         manager.command(root
+            .literal("stats", desc("Shows info on how the plugin is running."))
+            .permission(perm("stats"))
+            .handler { handle(it, ::stats) })
+        manager.command(root
+            .literal("systems", desc("Shows registered system information."))
+            .permission(perm("systems"))
+            .handler { handle(it, ::systems) })
+
+        manager.command(root
             .literal("give", desc("Gives an entity item to a player."))
             .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1), desc("Amount of items to give."))
-            .argument(KeyedEntityProfileArgument(plugin, "entity"), desc("Entity to give."))
+            .argument(KeyedEntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to give."))
             .permission(perm("give"))
             .handler { handle(it, ::give) })
+        manager.command(root
+            .literal("summon", desc("Summons an entity mob."))
+            .argument(LocationArgument.of("location"), desc("Where to spawn the mob."))
+            .argument(IntegerArgument.newBuilder<CommandSender>("amount")
+                .withMin(1), desc("Amount of mobs to spawn."))
+            .argument(KeyedEntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to spawn."))
+            .permission(perm("summon"))
+            .handler { handle(it, ::summon) })
     }
 
     private lateinit var mItemHolder: ComponentMapper<ItemHolder>
@@ -38,30 +56,89 @@ internal class SokolCommand(
         mItemHolder = plugin.engine.mapper()
     }
 
+    fun stats(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        fun sendTimings(baseTimings: Timings, headerKey: String) {
+            plugin.sendMessage(sender, i18n.csafe(headerKey) {
+                icu("time_last", baseTimings.allEntries().lastOrNull() ?: "?")
+            })
+
+            TIMING_INTERVALS.forEach { interval ->
+                val intervalMs = interval * 1000L
+                val timings = baseTimings.lastEntries(intervalMs)
+                plugin.sendMessage(sender, i18n.csafe("stats.timing") {
+                    icu("interval_ms", intervalMs)
+                    icu("interval_sec", intervalMs / 1000.0)
+                    icu("time_avg", timings.average())
+                    icu("time_min", timings.min())
+                    icu("time_max", timings.max())
+                })
+            }
+        }
+
+        sendTimings(plugin.timings, "stats.timings")
+
+        plugin.sendMessage(sender, i18n.csafe("stats.object_types"))
+
+        plugin.resolver.lastStats.forEach { (type, stats) ->
+            val (candidates, updated) = stats
+            val percent = updated.toDouble() / candidates
+            plugin.sendMessage(sender, i18n.csafe("stats.object_type") {
+                icu("type", type.key)
+                icu("candidates", candidates)
+                icu("updated", updated)
+                icu("percent", percent)
+            })
+        }
+    }
+
+    fun systems(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val systemTypes = plugin.engine.systems()
+            .mapNotNull { it::class.simpleName }
+
+        plugin.sendMessage(sender, i18n.csafe("systems.header"))
+        systemTypes.forEachIndexed { idx, type ->
+            plugin.sendMessage(sender, i18n.csafe("systems.line") {
+                icu("index", idx + 1)
+                icu("type", type)
+            })
+        }
+    }
+
     fun give(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val targets = ctx.players("targets", sender, i18n)
         val amount = ctx.value("amount") { 1 }
-        val profile = ctx.get<KeyedEntityProfile>("entity")
+        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
 
         targets.forEach { target ->
-            val space = plugin.engine.emptySpace()
-            val entity = plugin.persistence.readEmptyProfile(profile, space)
-            mItemHolder.set(entity, ItemHolder.byMob(target))
-            val item = plugin.hoster.hostItem(entity, space)
+            val targetBlueprint = blueprint.with(mItemHolder) { ItemHolder.byMob(target) }
+            val item = plugin.hoster.hostItem(targetBlueprint)
             item.amount = amount
             target.inventory.addItem(item)
         }
 
-        val space = plugin.engine.emptySpace()
-        val entity = plugin.persistence.readEmptyProfile(profile, space)
-        if (sender is Player) {
-            mItemHolder.set(entity, ItemHolder.byMob(sender))
-        }
-        val item = plugin.hoster.hostItem(entity, space)
+        val targetBlueprint = if (sender is Player) {
+            blueprint.with(mItemHolder) { ItemHolder.byMob(sender) }
+        } else blueprint
+        val item = plugin.hoster.hostItem(targetBlueprint)
 
         plugin.sendMessage(sender, i18n.csafe("give") {
             subst("item", item.displayName())
             subst("target", if (targets.size == 1) targets.first().name() else text(targets.size))
+            icu("amount", amount)
+        })
+    }
+
+    fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val location = ctx.get<Location>("location")
+        val amount = ctx.value("amount") { 1 }
+        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
+
+        repeat(amount) {
+            plugin.hoster.hostMob(blueprint, location)
+        }
+
+        plugin.sendMessage(sender, i18n.csafe("summon") {
+            subst("id", text(blueprint.id))
             icu("amount", amount)
         })
     }

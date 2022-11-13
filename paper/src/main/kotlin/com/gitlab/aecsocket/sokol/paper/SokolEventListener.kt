@@ -33,15 +33,15 @@ internal class SokolEventListener(
     fun on(event: EntityAddToWorldEvent) {
         val mob = event.entity
         if (sokol.mobsAdded.remove(mob.entityId)) {
-            // if we've already called Add on this newly-spawned mob...
+            // if we've already called Create on this newly-spawned mob...
             return
         }
 
         tryEvent(event) {
             sokol.useSpace { space ->
-                sokol.resolver.readMob(mob, space)
+                sokol.resolver.readMob(mob)?.createIn(space)
                 space.construct()
-                space.call(AddToWorldEvent)
+                space.call(MobEvent.AddToWorld)
             }
         }
     }
@@ -52,9 +52,9 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             sokol.useSpace { space ->
-                sokol.resolver.readMob(mob, space)
+                sokol.resolver.readMob(mob)?.createIn(space)
                 space.construct()
-                space.call(RemoveFromWorldEvent)
+                space.call(MobEvent.RemoveFromWorld)
             }
         }
     }
@@ -65,14 +65,14 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             sokol.useSpace { space ->
-                sokol.resolver.readPlayerItems(player, space)
+                sokol.resolver.readPlayerItems(player).createAllIn(space)
                 space.construct()
                 space.call(ItemEvent.Click(player, event))
             }
 
             event.currentItem?.let {
                 sokol.useSpace { space ->
-                    sokol.resolver.readItem(it, space)
+                    sokol.resolver.readItem(it)?.createIn(space)
                     space.construct()
                     space.call(ItemEvent.ClickAsCurrent(player, event))
                 }
@@ -80,7 +80,7 @@ internal class SokolEventListener(
 
             event.cursor?.let {
                 sokol.useSpace { space ->
-                    sokol.resolver.readItem(it, space)
+                    sokol.resolver.readItem(it)?.createIn(space)
                     space.construct()
                     space.call(ItemEvent.ClickAsCursor(player, event))
                 }

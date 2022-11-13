@@ -37,6 +37,8 @@ data class AsItem(val profile: Profile) : SimplePersistentComponent {
     data class Profile(
         @Setting(nodeFromParent = true) val item: ItemDescriptor
     ) : SimpleComponentProfile {
+        override val componentType get() = AsItem::class
+
         override fun createEmpty() = AsItem(this)
     }
 }

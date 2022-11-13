@@ -40,6 +40,8 @@ data class Rotation(
     }
 
     object Profile : ComponentProfile {
+        override val componentType get() = Rotation::class
+
         override fun read(space: SokolSpaceAccess, tag: NBTTag) = Rotation(tag.asQuaternion(), tag)
 
         override fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode) = Rotation(node.get { Quaternion.Identity })

@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.core
 import com.gitlab.aecsocket.sokol.core.util.*
 import com.google.common.graph.GraphBuilder
 import java.lang.invoke.MethodHandles
-import kotlin.math.pow
 import kotlin.reflect.KClass
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.javaMethod
@@ -13,8 +12,6 @@ interface SokolComponent {
 }
 
 interface SokolEntity {
-    val engine: SokolEngine
-
     val entityId: Int
 
     var flags: Int
@@ -30,6 +27,8 @@ interface SokolEntity {
     fun setComponent(componentId: Int, component: SokolComponent)
 
     fun removeComponent(componentId: Int)
+
+    fun <E : SokolEvent> callSingle(event: E): E
 }
 
 fun SokolEntity.hasFlag(flag: Int) = flags and flag != 0
@@ -261,7 +260,7 @@ class SokolSpace internal constructor(
         return entity
     }
 
-    fun <E : SokolEvent> call(event: E): E {
+    private fun callInternal(event: SokolEvent, entities: Iterable<SokolEntity>) {
         val eventType = event::class.java
 
         val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
@@ -286,7 +285,10 @@ class SokolSpace internal constructor(
                 }
             }
         }
+    }
 
+    fun <E : SokolEvent> call(event: E): E {
+        callInternal(event, entities)
         return event
     }
 
@@ -298,8 +300,6 @@ class SokolSpace internal constructor(
         override var flags: Int,
         override var archetype: Bits
     ) : SokolEntity {
-        override val engine get() = this@SokolSpace.engine
-
         override fun allComponents() = archetype.mapIndexedNotNull { componentId, value ->
             if (value) components[componentId][entityId] else null
         }
@@ -316,6 +316,11 @@ class SokolSpace internal constructor(
         override fun removeComponent(componentId: Int) {
             components[componentId][entityId] = null
             archetype.clear(componentId)
+        }
+
+        override fun <E : SokolEvent> callSingle(event: E): E {
+            callInternal(event, setOf(this))
+            return event
         }
 
         override fun toString() = "Entity[${allComponents().joinToString { it.componentType.simpleName ?: it.componentType.toString() }}]"
@@ -345,6 +350,8 @@ class SokolEngine internal constructor(
     internal val systemsForEvent = HashMap<Class<out SokolEvent>, List<EventSystem>>()
 
     override fun countComponentTypes() = componentIds.size
+
+    fun systems() = systems.map { it.system }
 
     override fun idOfOr(type: KClass<out SokolComponent>) = componentIds[type]
 

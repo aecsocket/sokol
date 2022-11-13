@@ -6,9 +6,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.withMeta
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.gitlab.aecsocket.sokol.paper.util.spawnMarkerMob
-import net.kyori.adventure.key.Key
 import org.bukkit.Location
-import org.bukkit.Material
 import org.bukkit.World
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
@@ -19,44 +17,57 @@ class EntityHoster internal constructor(
     private lateinit var mAsMob: ComponentMapper<AsMob>
     private lateinit var mAsItem: ComponentMapper<AsItem>
     private lateinit var mRotation: ComponentMapper<Rotation>
+    private lateinit var mIsMob: ComponentMapper<IsMob>
+    private lateinit var mIsItem: ComponentMapper<IsItem>
 
     internal fun enable() {
         mAsMob = sokol.engine.mapper()
         mAsItem = sokol.engine.mapper()
         mRotation = sokol.engine.mapper()
+        mIsMob = sokol.engine.mapper()
+        mIsItem = sokol.engine.mapper()
     }
 
-    private fun hostError(key: Key, type: String): Nothing {
-        throw IllegalArgumentException("Blueprint must have component $key to be hosted as $type")
-    }
-
-    fun hostMob(entity: SokolEntity, space: SokolSpace, location: Location): Entity {
+    fun hostMob(blueprint: EntityBlueprint, location: Location): Entity {
+        val space = sokol.engine.emptySpace()
+        val entity = blueprint.createIn(space)
         return spawnMarkerMob(location) { mob ->
-            space.call(MobEvent.Create(mob))
+            mIsMob.set(entity, IsMob(mob))
+            space.construct()
+            space.call(MobEvent.Spawn)
             sokol.mobsAdded.add(mob.entityId)
             sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
         }
     }
 
-    fun hostMob(entity: SokolEntity, space: SokolSpace, world: World, transform: Transform): Entity {
+    fun hostMob(blueprint: EntityBlueprint, world: World, transform: Transform): Entity {
         val location = transform.translation.location(world)
-        mRotation.set(entity, Rotation(transform.rotation))
-        return hostMob(entity, space, location)
+        return hostMob(blueprint.with(mRotation) { Rotation(transform.rotation) }, location)
     }
 
-    fun hostItem(entity: SokolEntity, space: SokolSpace): ItemStack {
+    fun hostItem(blueprint: EntityBlueprint): ItemStack {
+        val space = sokol.engine.emptySpace()
+        val entity = blueprint.createIn(space)
+
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
-            space.call(ItemEvent.CreateForm(item, meta))
-            space.call(ItemEvent.Create(item, meta))
+            mIsItem.set(entity, IsItem({ item }, { meta }))
+            space.construct()
+            space.call(ItemEvent.CreateForm)
+            space.call(ItemEvent.Create)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
     }
 
-    fun createItemForm(entity: SokolEntity, space: SokolSpace): ItemStack {
+    fun createItemForm(blueprint: EntityBlueprint): ItemStack {
+        val space = sokol.engine.emptySpace()
+        val entity = blueprint.createIn(space)
+
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
-            space.call(ItemEvent.CreateForm(item, meta))
+            mIsItem.set(entity, IsItem({ item }, { meta }))
+            space.construct()
+            space.call(ItemEvent.CreateForm)
         }
     }
 }

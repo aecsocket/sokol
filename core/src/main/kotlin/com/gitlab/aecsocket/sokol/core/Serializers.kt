@@ -51,3 +51,11 @@ class EntitySerializer(private val sokol: SokolAPI) : TypeSerializer<SokolEntity
         throw UnsupportedOperationException()
     }
 }
+
+class KeyedBlueprintSerializer(private val sokol: SokolAPI) : TypeSerializer<KeyedEntityBlueprint> {
+    override fun serialize(type: Type, obj: KeyedEntityBlueprint?, node: ConfigurationNode) {}
+
+    override fun deserialize(type: Type, node: ConfigurationNode): KeyedEntityBlueprint {
+        TODO("Not yet implemented")
+    }
+}
