@@ -52,10 +52,14 @@ class EntitySerializer(private val sokol: SokolAPI) : TypeSerializer<SokolEntity
     }
 }
 
+class BlueprintSerializer(private val sokol: SokolAPI) : TypeSerializer<EntityBlueprint> {
+    override fun serialize(type: Type, obj: EntityBlueprint?, node: ConfigurationNode) {}
+
+    override fun deserialize(type: Type, node: ConfigurationNode) = sokol.persistence.deserializeBlueprint(node)
+}
+
 class KeyedBlueprintSerializer(private val sokol: SokolAPI) : TypeSerializer<KeyedEntityBlueprint> {
     override fun serialize(type: Type, obj: KeyedEntityBlueprint?, node: ConfigurationNode) {}
 
-    override fun deserialize(type: Type, node: ConfigurationNode): KeyedEntityBlueprint {
-        TODO("Not yet implemented")
-    }
+    override fun deserialize(type: Type, node: ConfigurationNode) = sokol.persistence.deserializeBlueprint(node)
 }

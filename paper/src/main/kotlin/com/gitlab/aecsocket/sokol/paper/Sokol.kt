@@ -90,6 +90,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .registerExact(KeyedEntityProfileSerializer)
                     .registerExact(MeshesStatic.MeshDefinitionSerializer)
                     .register(EntitySerializer(this@Sokol))
+                    .register(KeyedBlueprintSerializer(this@Sokol))
+                    .register(BlueprintSerializer(this@Sokol))
                     .register(DeltaSerializer)
             },
             onLoad = {
@@ -266,6 +268,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<AsItem>()
                     .componentType<IsRoot>()
                     .componentType<IsChild>()
+                    .componentType<ContainerMap>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
                     .componentType<VelocityRead>()
@@ -278,6 +281,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<MeshesInWorld>()
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
+                registerComponentType(ContainerMap.Type(this@Sokol))
                 registerComponentType(Rotation.Type)
                 registerComponentType(ParticleEffectSpawner.Type)
                 registerComponentType(MeshesStatic.Type)

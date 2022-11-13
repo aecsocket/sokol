@@ -30,17 +30,17 @@ interface SimplePersistentComponent : PersistentComponent {
 interface ComponentProfile {
     val componentType: KClass<out SokolComponent>
 
-    fun read(space: SokolSpaceAccess, tag: NBTTag): PersistentComponent
+    fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent
 
-    fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode): PersistentComponent
+    fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent
 
-    fun createEmpty(): PersistentComponent
+    fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent
 }
 
 interface SimpleComponentProfile : ComponentProfile {
-    override fun read(space: SokolSpaceAccess, tag: NBTTag) = createEmpty()
+    override fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpaceAccess) = createEmpty(entity, space)
 
-    override fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode) = createEmpty()
+    override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess) = createEmpty(entity, space)
 }
 
 open class EntityProfile(
@@ -72,7 +72,7 @@ interface ComponentType {
             override fun createProfile(node: ConfigurationNode) = object : SimpleComponentProfile {
                 override val componentType get() = component.componentType
 
-                override fun createEmpty() = component
+                override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = component
             }
         }
 

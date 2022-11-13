@@ -206,14 +206,6 @@ interface SokolSpaceAccess {
     fun withEntityFunction(function: (SokolEntity) -> Unit): SokolSpaceAccess
 }
 
-fun SokolSpaceAccess.createEntity(flags: Int, components: Iterable<SokolComponent>): SokolEntity {
-    val entity = createEntity(flags)
-    components.forEach { component ->
-        entity.setComponent(engine.idOf(component.componentType), component)
-    }
-    return entity
-}
-
 internal class WrappedSokolSpace(
     private val backing: SokolSpaceAccess,
     private val function: (SokolEntity) -> Unit
@@ -236,6 +228,8 @@ class SokolSpace internal constructor(
     private val entities = emptyBag<SokolEntity>(capacity)
     private val freeIds = IntDeque()
     private var nextId = 0
+
+    private val mComposite = engine.mapper<Composite>()
 
     private fun nextId() = if (freeIds.isEmpty()) nextId++ else freeIds.popFirst()
 
@@ -263,8 +257,8 @@ class SokolSpace internal constructor(
     private fun callInternal(event: SokolEvent, entities: Iterable<SokolEntity>) {
         val eventType = event::class.java
 
+        // find all listeners for this event
         val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
-            // find all listeners for this event
             engine.systems.mapNotNull {
                 val listeners = it.listeners
                     .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
@@ -279,10 +273,17 @@ class SokolSpace internal constructor(
             if (!system.system.processing) return@forEach
 
             val filter = system.filter
-            entities.forEach { entity ->
-                if (filter.matches(entity.archetype)) {
-                    listeners.forEach { it(event, entity) }
+            entities.forEach { root ->
+                fun callOn(target: SokolEntity) {
+                    if (filter.matches(target.archetype)) {
+                        listeners.forEach { it(event, target) }
+                    }
+
+                    // call on children of this entity as well
+                    mComposite.getOr(target)?.forEach { callOn(it) }
                 }
+
+                callOn(root)
             }
         }
     }

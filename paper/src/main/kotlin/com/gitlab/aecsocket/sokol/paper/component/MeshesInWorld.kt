@@ -54,14 +54,18 @@ data class MeshesInWorld(
     object Profile : ComponentProfile {
         override val componentType get() = MeshesInWorld::class
 
-        override fun read(space: SokolSpaceAccess, tag: NBTTag) = MeshesInWorld(tag.asList().mapNotNull { it.asCompound { mesh ->
+        override fun read(
+            tag: NBTTag,
+            entity: SokolEntity,
+            space: SokolSpaceAccess
+        ) = MeshesInWorld(tag.asList().mapNotNull { it.asCompound { mesh ->
             AlexandriaAPI.meshes[mesh.get(ID) { asUUID() }]?.let { inst -> MeshEntry(
                 inst,
                 mesh.get(TRANSFORM) { asTransform() }
             ) }
         } })
 
-        override fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode) = MeshesInWorld(
+        override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess) = MeshesInWorld(
             node.childrenList().mapNotNull { mesh ->
                 AlexandriaAPI.meshes[mesh.node(ID).force()]?.let { inst -> MeshEntry(
                     inst,
@@ -70,7 +74,7 @@ data class MeshesInWorld(
             }
         )
 
-        override fun createEmpty() = MeshesInWorld(emptyList())
+        override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = MeshesInWorld(emptyList())
     }
 }
 

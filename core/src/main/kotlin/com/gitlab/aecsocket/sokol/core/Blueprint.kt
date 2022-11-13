@@ -3,7 +3,9 @@ package com.gitlab.aecsocket.sokol.core
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 
 fun interface ComponentFactory<C : SokolComponent> {
-    fun create(space: SokolSpaceAccess): C
+    data class Context(val entity: SokolEntity, val space: SokolSpaceAccess)
+
+    fun create(ctx: Context): C
 }
 
 open class EntityBlueprint(
@@ -17,7 +19,7 @@ open class EntityBlueprint(
         val entity = space.createEntity(flags)
 
         fun <C : SokolComponent> set(mapper: ComponentMapper<*>, factory: ComponentFactory<C>) {
-            val component = factory.create(space)
+            val component = factory.create(ComponentFactory.Context(entity, space))
             @Suppress("UNCHECKED_CAST")
             (mapper as ComponentMapper<C>).set(entity, component)
         }

@@ -49,7 +49,7 @@ internal class SokolPacketListener(
                 val mob = mobById(player.world, packet.entityId) ?: return
                 tryPacket(event) {
                     sokol.useSpace { space ->
-                        sokol.resolver.readMob(mob)?.createIn(space)
+                        sokol.resolver.readMob(mob, space)
                         space.construct()
                         space.call(MobEvent.Show(player, event))
                     }
@@ -61,7 +61,7 @@ internal class SokolPacketListener(
                     if (mob == null) return@forEach
                     tryPacket(event) {
                         sokol.useSpace { space ->
-                            sokol.resolver.readMob(mob)?.createIn(space)
+                            sokol.resolver.readMob(mob, space)
                             space.construct()
                             space.call(MobEvent.Hide(player, event))
                         }
