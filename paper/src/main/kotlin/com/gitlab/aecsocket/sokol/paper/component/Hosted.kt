@@ -1,111 +1,147 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
-import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.paper.extension.location
-import com.gitlab.aecsocket.alexandria.paper.extension.position
-import com.gitlab.aecsocket.alexandria.paper.extension.scheduleDelayed
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.PaperCompoundTag
 import com.gitlab.aecsocket.sokol.paper.Sokol
+import net.minecraft.nbt.CompoundTag
 import org.bukkit.Chunk
 import org.bukkit.World
 import org.bukkit.block.Block
 import org.bukkit.block.BlockState
+import org.bukkit.craftbukkit.v1_19_R1.inventory.CraftItemStack
 import org.bukkit.entity.Entity
-import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 
-interface HostedByWorld : SokolComponent {
-    override val componentType get() = HostedByWorld::class
+data class IsWorld(val world: World) : SokolComponent {
+    object Target : SokolSystem
 
-    val world: World
+    override val componentType get() = IsWorld::class
 }
 
-interface HostedByChunk : SokolComponent {
-    override val componentType get() = HostedByChunk::class
+data class IsChunk(val chunk: Chunk) : SokolComponent {
+    object Target : SokolSystem
 
-    val chunk: Chunk
+    override val componentType get() = IsChunk::class
 }
 
-interface HostedByMob : SokolComponent {
-    override val componentType get() = HostedByMob::class
+data class IsMob(val mob: Entity) : SokolComponent {
+    object Target : SokolSystem
 
-    val mob: Entity
+    override val componentType get() = IsMob::class
 }
 
-interface HostedByBlock : SokolComponent {
-    override val componentType get() = HostedByBlock::class
+data class IsBlock(
+    val block: Block,
+    internal val getState: () -> BlockState
+) : SokolComponent {
+    object Target : SokolSystem
 
-    val block: Block
+    override val componentType get() = IsBlock::class
 
-    fun <R> readState(action: (BlockState) -> R): R
+    internal var dirty = false
+    internal val state by lazy(getState)
 
-    fun writeState(action: (BlockState) -> Unit)
+    fun <R> readState(action: (BlockState) -> R): R {
+        return action(state)
+    }
+
+    fun writeState(action: (BlockState) -> Unit) {
+        action(state)
+        dirty = true
+    }
+
+    override fun toString() = "IsBlock(block=$block)"
 }
 
-interface HostedByItem : SokolComponent {
-    override val componentType get() = HostedByItem::class
+data class IsItem(
+    private val getItem: () -> ItemStack,
+    private val getMeta: () -> ItemMeta
+) : SokolComponent {
+    object Target : SokolSystem
 
-    val item: ItemStack
+    object FormTarget : SokolSystem
 
-    fun <R> readMeta(action: (ItemMeta) -> R): R
+    override val componentType get() = IsItem::class
 
-    fun writeMeta(action: (ItemMeta) -> Unit)
-}
+    internal var dirty = false
+    val item by lazy(getItem)
+    internal val meta by lazy(getMeta)
 
-fun hostedByWorld(world: World) = object : HostedByWorld {
-    override val world get() = world
-
-    override fun toString() = "HostedByWorld(${world.name})"
-}
-
-fun hostedByChunk(chunk: Chunk) = object : HostedByChunk {
-    override val chunk get() = chunk
-
-    override fun toString() = "HostedByChunk(${chunk.world.name}: ${chunk.x}, ${chunk.z})"
-}
-
-fun hostedByMob(mob: Entity) = object : HostedByMob {
-    override val mob get() = mob
-
-    override fun toString() = "HostedByMob($mob)"
-}
-
-fun hostedByItem(item: ItemStack, meta: ItemMeta) = object : HostedByItem {
-    override val item get() = item
-
-    override fun <R> readMeta(action: (ItemMeta) -> R): R {
+    fun <R> readMeta(action: (ItemMeta) -> R): R {
         return action(meta)
     }
 
-    override fun writeMeta(action: (ItemMeta) -> Unit) {
+    fun writeMeta(action: (ItemMeta) -> Unit) {
         action(meta)
+        dirty = true
     }
 
-    override fun toString() = "HostedByItem($item)"
+    override fun toString() = "IsItem(item=$item)"
 }
 
-object HostedByWorldTarget : SokolSystem
+data class InItemTag(val nmsTag: CompoundTag) : SokolComponent {
+    override val componentType get() = InItemTag::class
+}
 
-object HostedByChunkTarget : SokolSystem
+@All(IsBlock::class, IsRoot::class)
+class BlockPersistSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mIsBlock = ids.mapper<IsBlock>()
 
-object HostedByMobTarget : SokolSystem
+    @Subscribe
+    fun on(event: WriteEvent, entity: SokolEntity) {
+        val isBlock = mIsBlock.get(entity)
+        if (!isBlock.dirty) return
 
-object HostedByBlockTarget : SokolSystem
+        isBlock.state.update()
+    }
+}
 
-object HostedByItemFormTarget : SokolSystem
+@All(IsItem::class, InTag::class, IsRoot::class)
+class ItemPersistSystem(
+    private val sokol: Sokol,
+    ids: ComponentIdAccess
+) : SokolSystem {
+    private val mIsItem = ids.mapper<IsItem>()
+    private val mInTag = ids.mapper<InTag>()
 
-@After(HostedByItemFormTarget::class)
-object HostedByItemTarget : SokolSystem
+    @Subscribe
+    fun on(event: WriteEvent, entity: SokolEntity) {
+        val isItem = mIsItem.get(entity)
+        val inTag = mInTag.get(entity)
+        if (!isItem.dirty) return
 
-@All(HostedByMob::class)
-@Before(HostedByMobTarget::class, SupplierTrackedPlayersTarget::class, PositionTarget::class)
+        val meta = isItem.meta
+        sokol.persistence.writeTagTo(inTag.tag, sokol.persistence.entityKey, meta.persistentDataContainer)
+        isItem.item.itemMeta = isItem.meta
+    }
+}
+
+@All(IsItem::class, InItemTag::class, IsRoot::class)
+@After(ItemPersistSystem::class)
+class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mIsItem = ids.mapper<IsItem>()
+    private val mInItemTag = ids.mapper<InItemTag>()
+
+    @Subscribe
+    fun on(event: WriteEvent, entity: SokolEntity) {
+        val isItem = mIsItem.get(entity)
+        val inItemTag = mInItemTag.get(entity)
+        if (!isItem.dirty) return
+
+        (isItem.item as CraftItemStack).handle.save(inItemTag.nmsTag)
+    }
+
+}
+
+/*
+@All(IsMob::class)
+@Before(IsMob.Target::class, SupplierTrackedPlayersTarget::class, PositionTarget::class)
 class MobInjectorSystem(
     private val sokol: Sokol,
     mappers: ComponentIdAccess
 ) : SokolSystem {
-    private val mMob = mappers.componentMapper<HostedByMob>()
+    private val mMob = mappers.componentMapper<IsMob>()
     private val mRotation = mappers.componentMapper<Rotation>()
     private val mSupplierEntityAccess = mappers.componentMapper<SupplierEntityAccess>()
     private val mSupplierTrackedPlayers = mappers.componentMapper<SupplierTrackedPlayers>()
@@ -162,4 +198,4 @@ class MobInjectorSystem(
                 }
         })
     }
-}
+}*/

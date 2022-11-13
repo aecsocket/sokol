@@ -10,7 +10,8 @@ import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 
 data class Rotation(
-    private val dRotation: Delta<Quaternion>
+    val dRotation: Delta<Quaternion>,
+    val tag: NBTTag?
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("rotation")
@@ -21,12 +22,12 @@ data class Rotation(
     override val key get() = Key
 
     override val dirty get() = dRotation.dirty
+    var rotation by dRotation
 
     constructor(
-        rotation: Quaternion = Quaternion.Identity
-    ) : this(Delta(rotation))
-
-    var rotation by dRotation
+        rotation: Quaternion,
+        tag: NBTTag? = null
+    ) : this(Delta(rotation), tag)
 
     override fun write(ctx: NBTTagContext) = ctx.makeQuaternion(rotation)
 
@@ -34,36 +35,15 @@ data class Rotation(
         return dRotation.ifDirty { tag.makeQuaternion(it) } ?: tag
     }
 
-    override fun write(node: ConfigurationNode) {
+    override fun serialize(node: ConfigurationNode) {
         node.set(rotation)
     }
 
     object Profile : ComponentProfile {
-        override fun read(tag: NBTTag) = Rotation(tag.asQuaternion())
+        override fun read(space: SokolSpaceAccess, tag: NBTTag) = Rotation(tag.asQuaternion(), tag)
 
-        override fun read(node: ConfigurationNode) = Rotation(node.get { Quaternion.Identity })
+        override fun deserialize(space: SokolSpaceAccess, node: ConfigurationNode) = Rotation(node.get { Quaternion.Identity })
 
-        override fun readEmpty() = Rotation(Quaternion.Identity)
-    }
-}
-
-@All(Rotation::class)
-class RotationSystem(mappers: ComponentIdAccess) : SokolSystem {
-    private val mRotation = mappers.componentMapper<Rotation>()
-
-    private fun remove(entity: SokolEntity) {
-        val rotation = mRotation.get(entity)
-
-        rotation.rotation = Quaternion.Identity
-    }
-
-    @Subscribe
-    fun on(event: SokolEvent.Reset, entity: SokolEntity) {
-        remove(entity)
-    }
-
-    @Subscribe
-    fun on(event: SokolEvent.Remove, entity: SokolEntity) {
-        remove(entity)
+        override fun createEmpty() = Rotation(Quaternion.Identity)
     }
 }

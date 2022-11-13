@@ -7,7 +7,7 @@ import org.bukkit.entity.Entity
 import org.bukkit.entity.EntityType
 import org.bukkit.event.entity.CreatureSpawnEvent
 
-fun spawnMarkerEntity(location: Location, consumer: (ArmorStand) -> Unit = {}): Entity {
+fun spawnMarkerMob(location: Location, consumer: (ArmorStand) -> Unit = {}): Entity {
     return location.world.spawnEntity(
         location, EntityType.ARMOR_STAND, CreatureSpawnEvent.SpawnReason.CUSTOM
     ) { mob -> (mob as ArmorStand).apply {

@@ -4,17 +4,32 @@ import cloud.commandframework.ArgumentDescription
 import cloud.commandframework.arguments.CommandArgument
 import cloud.commandframework.arguments.parser.ArgumentParseResult
 import cloud.commandframework.arguments.parser.ArgumentParser
+import cloud.commandframework.captions.Caption
 import cloud.commandframework.context.CommandContext
 import cloud.commandframework.exceptions.parsing.NoInputProvidedException
 import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeParser
+import com.gitlab.aecsocket.alexandria.core.command.RegistryElementArgument
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.glossa.core.force
-import com.gitlab.aecsocket.sokol.core.EntityBlueprint
-import com.gitlab.aecsocket.sokol.core.KeyedEntityBlueprint
+import com.gitlab.aecsocket.sokol.core.KeyedEntityProfile
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.serialize.SerializationException
 import java.util.*
 
+class KeyedEntityProfileArgument<C : Any>(
+    sokol: Sokol,
+    name: String,
+    description: ArgumentDescription = ArgumentDescription.of(""),
+    required: Boolean = true,
+    defaultValue: String = "",
+    suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
+) : RegistryElementArgument<C, KeyedEntityProfile>(name, sokol.entityProfiles, ARGUMENT_PARSE_FAILURE_ENTITY_PROFILE, KeyedEntityProfile::class.java, description, required, defaultValue, suggestionsProvider) {
+    companion object {
+        val ARGUMENT_PARSE_FAILURE_ENTITY_PROFILE = Caption.of("argument.parse.failure.entity_profile")
+    }
+}
+
+/*
 class KeyedEntityBlueprintParser<C : Any>(
     private val sokol: Sokol
 ) : ArgumentParser<C, KeyedEntityBlueprint> {
@@ -58,3 +73,4 @@ class KeyedEntityBlueprintArgument<C : Any>(
     defaultValue: String = "",
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
 ) : CommandArgument<C, KeyedEntityBlueprint>(required, name, KeyedEntityBlueprintParser(sokol), defaultValue, KeyedEntityBlueprint::class.java, suggestionsProvider, description)
+*/

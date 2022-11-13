@@ -9,16 +9,11 @@ import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.EntityBlueprintSerializer
 import com.gitlab.aecsocket.sokol.paper.component.*
-import com.gitlab.aecsocket.sokol.paper.component.Meshes
 import net.kyori.adventure.key.Key
 import org.bstats.bukkit.Metrics
 import org.bukkit.entity.Entity
-import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
-import org.bukkit.persistence.PersistentDataContainer
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
@@ -36,7 +31,7 @@ private lateinit var instance: Sokol
 val SokolAPI get() = instance
 
 fun interface SokolInputHandler {
-    fun handle(event: PlayerInput)
+    fun handle(event: PlayerInputEvent)
 }
 
 class Sokol : BasePlugin(), SokolAPI {
@@ -63,6 +58,7 @@ class Sokol : BasePlugin(), SokolAPI {
         instance = this
     }
 
+    private lateinit var command: SokolCommand
     lateinit var settings: Settings private set
     override lateinit var engine: SokolEngine private set
     lateinit var space: SokolSpace private set
@@ -74,11 +70,9 @@ class Sokol : BasePlugin(), SokolAPI {
     val entityProfiles: Registry<KeyedEntityProfile> get() = _entityProfiles
 
     override val persistence = PaperSokolPersistence(this)
-    val entityResolver = EntityResolver(this)
-    val entityHoster = EntityHoster(this)
-    val entityHover = EntityHover(this)
-    val engineTimings = Timings(60 * 1000)
-    val entityHolding = EntityHolding(this)
+    val resolver = EntityResolver(this)
+    val hoster = EntityHoster(this)
+    val timings = Timings(60 * 1000)
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -87,17 +81,14 @@ class Sokol : BasePlugin(), SokolAPI {
 
     override fun onEnable() {
         super.onEnable()
-        SokolCommand(this)
+        command = SokolCommand(this)
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
                     .registerExact(ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
-                    .register(EntityBlueprintSerializer(this@Sokol))
-                    .register(SokolEntitySerializer)
-                    .registerExact(Meshes.PartDefinitionSerializer)
-                    .register(CompositePathSerializer)
+                    .register(EntitySerializer(this@Sokol))
                     .register(DeltaSerializer)
             },
             onLoad = {
@@ -105,7 +96,7 @@ class Sokol : BasePlugin(), SokolAPI {
             }
         )
         AlexandriaAPI.inputHandler { event ->
-            val sokolEvent = PlayerInput(event)
+            val sokolEvent = PlayerInputEvent(event)
             inputHandlers.forEach { handler ->
                 handler.handle(sokolEvent)
             }
@@ -139,11 +130,11 @@ class Sokol : BasePlugin(), SokolAPI {
                 return false
             }
 
-            entityResolver.enable()
-            entityHoster.enable()
-            entityHover.enable()
-            entityHolding.enable()
-            space = SokolSpace(engine)
+            command.enable()
+            persistence.enable()
+            resolver.enable()
+            hoster.enable()
+            space = engine.emptySpace()
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
 
@@ -151,11 +142,13 @@ class Sokol : BasePlugin(), SokolAPI {
             registrations.forEach { it.onPostInit(postInitCtx) }
 
             scheduleRepeating {
-                engineTimings.time {
-                    entityResolver.resolve {
+                timings.time {
+                    resolver.resolve {
+                        it.construct()
                         if (hasReloaded)
-                            it.call(SokolEvent.Reload)
-                        it.call(SokolEvent.Update)
+                            it.call(ReloadEvent)
+                        it.update()
+                        it.write()
                     }
                     hasReloaded = false
                 }
@@ -225,92 +218,11 @@ class Sokol : BasePlugin(), SokolAPI {
 
     override fun componentType(key: Key) = _componentTypes[key.asString()]
 
-    fun usePDC(
-        pdc: PersistentDataContainer,
-        write: Boolean = true,
-        builder: (EntityBlueprint) -> Unit,
-        consumer: (SokolEntity) -> Unit,
-    ): Boolean {
-        persistence.getTag(pdc, persistence.entityKey)?.let { tag ->
-            val blueprint = persistence.readBlueprint(tag)
-            builder(blueprint)
-
-            val entity = engine.buildEntity(blueprint)
-            consumer(entity)
-
-            if (write) {
-                persistence.writeEntityDeltas(entity, tag)
-            }
-            return true
-        }
-        return false
-    }
-
-    fun useMob(
-        mob: Entity,
-        write: Boolean = true,
-        builder: (EntityBlueprint) -> Unit = {},
-        consumer: (SokolEntity) -> Unit,
-    ): Boolean {
-        return usePDC(mob.persistentDataContainer, write,
-            { blueprint ->
-                blueprint.components.set(hostedByMob(mob))
-                builder(blueprint)
-            },
-            consumer
-        )
-    }
-
-    fun useItem(
-        item: ItemStack,
-        write: Boolean = true,
-        builder: (EntityBlueprint) -> Unit = {},
-        consumer: (SokolEntity) -> Unit,
-    ): Boolean {
-        if (!item.hasItemMeta()) return false
-        val meta = item.itemMeta
-        var dirty = false
-        return usePDC(meta.persistentDataContainer, write,
-            { blueprint ->
-                blueprint.components.set(object : HostedByItem {
-                    override val item get() = item
-
-                    override fun <R> readMeta(action: (ItemMeta) -> R): R {
-                        return action(meta)
-                    }
-
-                    override fun writeMeta(action: (ItemMeta) -> Unit) {
-                        action(meta)
-                        dirty = true
-                    }
-
-                    override fun toString() = "HostedByItem($item)"
-                })
-                builder(blueprint)
-            }
-        ) { entity ->
-            consumer(entity)
-            if (write && dirty) {
-                item.itemMeta = meta
-            }
-        }
-    }
-
-    fun usePlayerItems(
-        player: Player,
-        write: Boolean = true,
-        consumer: (SokolEntity) -> Unit
-    ) {
-        player.inventory.forEachIndexed { idx, stack ->
-            stack?.let {
-                useItem(stack, write,
-                    { blueprint ->
-                        blueprint.components.set(ItemHolder.byPlayer(player, idx))
-                    }
-                ) { entity ->
-                    consumer(entity)
-                }
-            }
+    fun useSpace(capacity: Int = 64, write: Boolean = true, consumer: (SokolSpace) -> Unit) {
+        val space = engine.emptySpace(capacity)
+        consumer(space)
+        if (write) {
+            space.write()
         }
     }
 
@@ -318,110 +230,38 @@ class Sokol : BasePlugin(), SokolAPI {
         registerConsumer(
             onInit = {
                 engine
-                    .systemFactory { HostedByWorldTarget }
-                    .systemFactory { HostedByChunkTarget }
-                    .systemFactory { HostedByMobTarget }
-                    .systemFactory { HostedByBlockTarget }
-                    .systemFactory { HostedByItemFormTarget }
-                    .systemFactory { HostedByItemTarget }
-                    .systemFactory { MobInjectorSystem(this@Sokol, it) }
+                    .systemFactory { IsWorld.Target }
+                    .systemFactory { IsChunk.Target }
+                    .systemFactory { IsMob.Target }
+                    .systemFactory { IsBlock.Target }
+                    .systemFactory { IsItem.Target }
+                    .systemFactory { IsItem.FormTarget }
+                    .systemFactory { PersistenceSystem(this@Sokol, it) }
+                    .systemFactory { BlockPersistSystem(it) }
+                    .systemFactory { ItemPersistSystem(this@Sokol, it) }
+                    .systemFactory { ItemTagPersistSystem(it) }
                     .systemFactory { CompositeSystem(it) }
-                    .systemFactory { RotationSystem(it) }
-                    .systemFactory { PositionTarget }
-                    .systemFactory { PositionSystem(it) }
-                    .systemFactory { SupplierTrackedPlayersTarget }
-                    .systemFactory { SupplierTrackedPlayersBuildSystem(it) }
-                    .systemFactory { CompositeTransformSystem(it) }
-                    .systemFactory { AsChildTransformForwardSystem(it) }
-                    .systemFactory { AsChildTransformSystem(it) }
-                    .systemFactory { PositionSystem(it) }
-                    .systemFactory { ColliderBuildSystem(it) }
-                    .systemFactory { ColliderSystem(it) }
-                    .systemFactory { MeshesSystem(it) }
-                    .systemFactory { MeshesInWorldForwardSystem(it) }
-                    .systemFactory { MeshesInWorldSystem(it) }
-                    .systemFactory { MeshesStaticSystem(it) }
-                    .systemFactory { MeshesItemSystem(this@Sokol, it) }
-                    .systemFactory { ItemNameSystem(it) }
-                    .systemFactory { ItemNameStaticSystem(it) }
-                    .systemFactory { ItemNameProfileSystem(it) }
-                    .systemFactory { OnInputSystem(this@Sokol, it) }
-                    .systemFactory { OnInputInstanceSystem(it) }
-                    .systemFactory { HoverGlowSystem(it) }
-                    .systemFactory { HoverGlowCallerSystem(it) }
-                    .systemFactory { TakeableSystem(this@Sokol, it) }
-                    .systemFactory { HoldableTarget }
-                    .systemFactory { HoldableSystem(this@Sokol, it) }
-                    .systemFactory { HoldableMovementSystem(it) }
-                    .systemFactory { HoldableItemSystem(this@Sokol, it) }
-                    .systemFactory { HoldableMobSystem(this@Sokol, it) }
-                    .systemFactory { HoldableGlowSystem(it) }
-                    .systemFactory { AttachableSystem(it) }
-                    .systemFactory { DetachableForwardSystem(it) }
-                    .systemFactory { DetachableSystem(this@Sokol, it) }
-                    .systemFactory { DetachableHoldingSystem(this@Sokol, it) }
+                    .systemFactory { ItemTestSystem(it) }
 
-                    .componentType<HostedByWorld>()
-                    .componentType<HostedByChunk>()
-                    .componentType<HostedByMob>()
-                    .componentType<HostedByBlock>()
-                    .componentType<HostedByItem>()
+                    .componentType<Profiled>()
+                    .componentType<InTag>()
+                    .componentType<IsWorld>()
+                    .componentType<IsChunk>()
+                    .componentType<IsMob>()
+                    .componentType<IsBlock>()
+                    .componentType<IsItem>()
                     .componentType<ItemHolder>()
-                    .componentType<Hovered>()
-                    .componentType<PositionRead>()
-                    .componentType<PositionWrite>()
-                    .componentType<Removable>()
-                    .componentType<SupplierTrackedPlayers>()
-                    .componentType<SupplierEntityAccess>()
-                    .componentType<HostableByMob>()
-                    .componentType<HostableByItem>()
-                    .componentType<Composite>()
-                    .componentType<CompositeChild>()
-                    .componentType<AsChildTransform>()
-                    .componentType<CompositeTransform>()
-                    .componentType<EntitySlot>()
+                    .componentType<InItemTag>()
+                    .componentType<AsMob>()
+                    .componentType<AsItem>()
+                    .componentType<IsRoot>()
+                    .componentType<IsChild>()
                     .componentType<Rotation>()
-                    .componentType<Collider>()
-                    .componentType<RigidBody>()
-                    .componentType<VehicleBody>()
-                    .componentType<GhostBody>()
-                    .componentType<Meshes>()
-                    .componentType<MeshesStatic>()
-                    .componentType<MeshesItem>()
-                    .componentType<MeshesInWorld>()
-                    .componentType<ItemName>()
-                    .componentType<ItemNameStatic>()
-                    .componentType<ItemNameProfile>()
-                    .componentType<OnInput>()
-                    .componentType<OnInputInstance>()
-                    .componentType<HoverGlow>()
-                    .componentType<Takeable>()
-                    .componentType<Holdable>()
-                    .componentType<HoldableGlow>()
-                    .componentType<Attachable>()
-                    .componentType<Detachable>()
-                registerComponentType(HostableByMob.Type)
-                registerComponentType(HostableByItem.Type)
-                registerComponentType(Composite.Type(this@Sokol))
-                registerComponentType(AsChildTransform.Type)
-                registerComponentType(EntitySlot.Type)
+                    .componentType<ItemTest>()
+                registerComponentType(AsMob.Type)
+                registerComponentType(AsItem.Type)
                 registerComponentType(Rotation.Type)
-                registerComponentType(Collider.Type)
-                registerComponentType(RigidBody.Type)
-                registerComponentType(VehicleBody.Type)
-                registerComponentType(GhostBody.Type)
-                registerComponentType(MeshesStatic.Type)
-                registerComponentType(MeshesItem.Type)
-                registerComponentType(MeshesInWorld.Type)
-                registerComponentType(ItemNameStatic.Type)
-                registerComponentType(ItemNameProfile.Type)
-                registerComponentType(OnInput.Type(this@Sokol))
-                registerComponentType(HoverGlow.Type)
-                registerComponentType(Takeable.Type)
-                registerComponentType(Holdable.Type)
-                registerComponentType(HoldableGlow.Type)
-                registerComponentType(Attachable.Type)
-                registerComponentType(Detachable.Type)
+                registerComponentType(ItemTest.Type)
             }
         )
     }

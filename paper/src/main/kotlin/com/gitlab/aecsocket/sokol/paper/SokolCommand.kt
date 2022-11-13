@@ -1,32 +1,20 @@
 package com.gitlab.aecsocket.sokol.paper
 
-import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
-import cloud.commandframework.bukkit.parsers.location.LocationArgument
-import cloud.commandframework.bukkit.parsers.selector.MultipleEntitySelectorArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
-import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeArgument
-import com.gitlab.aecsocket.alexandria.core.extension.*
-import com.gitlab.aecsocket.alexandria.core.physics.Shape
-import com.gitlab.aecsocket.alexandria.paper.*
-import com.gitlab.aecsocket.alexandria.paper.command.PlayerInventorySlotArgument
-import com.gitlab.aecsocket.craftbullet.core.Timings
-import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
+import com.gitlab.aecsocket.alexandria.core.extension.value
+import com.gitlab.aecsocket.alexandria.paper.BaseCommand
+import com.gitlab.aecsocket.alexandria.paper.Context
+import com.gitlab.aecsocket.alexandria.paper.desc
 import com.gitlab.aecsocket.glossa.core.I18N
-import com.gitlab.aecsocket.glossa.core.force
-import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.extension.collisionOf
+import com.gitlab.aecsocket.sokol.core.ComponentMapper
+import com.gitlab.aecsocket.sokol.core.KeyedEntityProfile
+import com.gitlab.aecsocket.sokol.core.mapper
 import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
-import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
-import net.kyori.adventure.text.JoinConfiguration
-import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.inventory.EquipmentSlot
-import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.serialize.SerializationException
 
 private val TIMING_INTERVALS = listOf(5, 30, 60)
 
@@ -34,6 +22,51 @@ internal class SokolCommand(
     override val plugin: Sokol
 ) : BaseCommand(plugin) {
     init {
+        manager.command(root
+            .literal("give", desc("Gives an entity item to a player."))
+            .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
+            .argument(IntegerArgument.newBuilder<CommandSender>("amount")
+                .withMin(1), desc("Amount of items to give."))
+            .argument(KeyedEntityProfileArgument(plugin, "entity"), desc("Entity to give."))
+            .permission(perm("give"))
+            .handler { handle(it, ::give) })
+    }
+
+    private lateinit var mItemHolder: ComponentMapper<ItemHolder>
+
+    internal fun enable() {
+        mItemHolder = plugin.engine.mapper()
+    }
+
+    fun give(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val targets = ctx.players("targets", sender, i18n)
+        val amount = ctx.value("amount") { 1 }
+        val profile = ctx.get<KeyedEntityProfile>("entity")
+
+        targets.forEach { target ->
+            val space = plugin.engine.emptySpace()
+            val entity = plugin.persistence.readEmptyProfile(profile, space)
+            mItemHolder.set(entity, ItemHolder.byMob(target))
+            val item = plugin.hoster.hostItem(entity, space)
+            item.amount = amount
+            target.inventory.addItem(item)
+        }
+
+        val space = plugin.engine.emptySpace()
+        val entity = plugin.persistence.readEmptyProfile(profile, space)
+        if (sender is Player) {
+            mItemHolder.set(entity, ItemHolder.byMob(sender))
+        }
+        val item = plugin.hoster.hostItem(entity, space)
+
+        plugin.sendMessage(sender, i18n.csafe("give") {
+            subst("item", item.displayName())
+            subst("target", if (targets.size == 1) targets.first().name() else text(targets.size))
+            icu("amount", amount)
+        })
+    }
+
+    /*init {
         manager.command(root
             .literal("stats", desc("Show stats for the object resolver."))
             .permission(perm("stats"))
@@ -142,7 +175,7 @@ internal class SokolCommand(
 
         plugin.sendMessage(sender, i18n.csafe("stats.object_types"))
 
-        plugin.entityResolver.lastStats.forEach { (type, stats) ->
+        plugin.resolver.lastStats.forEach { (type, stats) ->
             val (candidates, updated) = stats
             val percent = updated.toDouble() / candidates
             plugin.sendMessage(sender, i18n.csafe("stats.object_type") {
@@ -172,20 +205,20 @@ internal class SokolCommand(
         val amount = ctx.value("amount") { 1 }
         val blueprint = ctx.get<EntityBlueprint>("blueprint")
 
-        if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Item))
+        if (!plugin.hoster.canHost(blueprint, SokolObjectType.Item))
             error(i18n.safe("error.cannot_host"))
 
         targets.forEach { target ->
             val newBlueprint = blueprint.copyOf()
             newBlueprint.components.set(ItemHolder.byMob(target))
-            val item = plugin.entityHoster.hostItem(newBlueprint)
+            val item = plugin.hoster.hostItem(newBlueprint)
             item.amount = amount
             target.inventory.addItem(item)
         }
 
         if (sender is Player)
             blueprint.components.set(ItemHolder.byMob(sender))
-        val item = plugin.entityHoster.hostItem(blueprint)
+        val item = plugin.hoster.hostItem(blueprint)
 
         plugin.sendMessage(sender, i18n.csafe("give") {
             subst("item", item.displayName())
@@ -199,11 +232,11 @@ internal class SokolCommand(
         val amount = ctx.value("amount") { 1 }
         val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
 
-        if (!plugin.entityHoster.canHost(blueprint, SokolObjectType.Mob))
+        if (!plugin.hoster.canHost(blueprint, SokolObjectType.Mob))
             error(i18n.safe("error.cannot_host"))
 
         repeat(amount) {
-            plugin.entityHoster.hostMob(blueprint, location)
+            plugin.hoster.hostMob(blueprint, location)
         }
 
         plugin.sendMessage(sender, i18n.csafe("summon") {
@@ -383,5 +416,5 @@ internal class SokolCommand(
 
     fun compositeReadItem(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         // todo
-    }
+    }*/
 }

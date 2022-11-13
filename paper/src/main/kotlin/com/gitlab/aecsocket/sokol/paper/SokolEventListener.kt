@@ -4,44 +4,44 @@ import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.destroystokyo.paper.event.server.ServerTickStartEvent
 import com.gitlab.aecsocket.alexandria.core.LogLevel
-import com.gitlab.aecsocket.alexandria.core.input.Input
-import com.gitlab.aecsocket.alexandria.paper.alexandria
-import com.gitlab.aecsocket.sokol.core.PersistenceException
-import com.gitlab.aecsocket.sokol.core.SokolEvent
+import com.gitlab.aecsocket.sokol.core.*
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.inventory.InventoryClickEvent
-import org.bukkit.event.player.PlayerDropItemEvent
 
 internal class SokolEventListener(
     private val sokol: Sokol
 ) : Listener {
-    private fun useEntity(event: Event, action: () -> Unit) {
+    private fun tryEvent(event: Event, block: () -> Unit) {
         try {
-            action()
-        } catch (ex: PersistenceException) {
+            return block()
+        } catch (ex: Exception) {
             sokol.log.line(LogLevel.Warning, ex) { "Could not handle event ${event::class}" }
         }
     }
 
     @EventHandler
     fun on(event: ServerTickStartEvent) {
-        sokol.space.update()
+        tryEvent(event) {
+            sokol.space.update()
+        }
     }
 
     @EventHandler
     fun on(event: EntityAddToWorldEvent) {
         val mob = event.entity
         if (sokol.mobsAdded.remove(mob.entityId)) {
-            // if we've already called SokolEvent.Add on this newly-spawned mob...
+            // if we've already called Add on this newly-spawned mob...
             return
         }
 
-        useEntity(event) {
-            sokol.useMob(mob) { entity ->
-                entity.call(SokolEvent.Add)
+        tryEvent(event) {
+            sokol.useSpace { space ->
+                sokol.resolver.readMob(mob, space)
+                space.construct()
+                space.call(AddToWorldEvent)
             }
         }
     }
@@ -50,12 +50,11 @@ internal class SokolEventListener(
     fun on(event: EntityRemoveFromWorldEvent) {
         val mob = event.entity
 
-        sokol.entityHolding.heldBy[mob.uniqueId]?.let { state ->
-            sokol.entityHolding.stop(state.player.alexandria)
-        }
-        useEntity(event) {
-            sokol.useMob(mob) { entity ->
-                entity.call(SokolEvent.Remove)
+        tryEvent(event) {
+            sokol.useSpace { space ->
+                sokol.resolver.readMob(mob, space)
+                space.construct()
+                space.call(RemoveFromWorldEvent)
             }
         }
     }
@@ -63,22 +62,27 @@ internal class SokolEventListener(
     @EventHandler
     fun on(event: InventoryClickEvent) {
         val player = event.whoClicked as? Player ?: return
-        val entityEvent = ItemEvent.Click(player, event)
 
-        useEntity(event) {
-            sokol.usePlayerItems(player) { entity ->
-                entity.call(entityEvent)
+        tryEvent(event) {
+            sokol.useSpace { space ->
+                sokol.resolver.readPlayerItems(player, space)
+                space.construct()
+                space.call(ItemEvent.Click(player, event))
             }
 
             event.currentItem?.let {
-                sokol.useItem(it) { entity ->
-                    entity.call(ItemEvent.ClickAsCurrent(player, event))
+                sokol.useSpace { space ->
+                    sokol.resolver.readItem(it, space)
+                    space.construct()
+                    space.call(ItemEvent.ClickAsCurrent(player, event))
                 }
             }
 
             event.cursor?.let {
-                sokol.useItem(it) { entity ->
-                    entity.call(ItemEvent.ClickAsCursor(player, event))
+                sokol.useSpace { space ->
+                    sokol.resolver.readItem(it, space)
+                    space.construct()
+                    space.call(ItemEvent.ClickAsCursor(player, event))
                 }
             }
         }

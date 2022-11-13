@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.core
 import com.gitlab.aecsocket.sokol.core.util.*
 import com.google.common.graph.GraphBuilder
 import java.lang.invoke.MethodHandles
+import kotlin.math.pow
 import kotlin.reflect.KClass
 import kotlin.reflect.full.*
 import kotlin.reflect.jvm.javaMethod
@@ -12,6 +13,8 @@ interface SokolComponent {
 }
 
 interface SokolEntity {
+    val engine: SokolEngine
+
     val entityId: Int
 
     var flags: Int
@@ -51,10 +54,15 @@ interface ComponentIdAccess {
     fun countComponentTypes(): Int
 
     fun idOfOr(type: KClass<out SokolComponent>): Int?
+
+    fun typeByOr(id: Int): KClass<out SokolComponent>?
 }
 
 fun ComponentIdAccess.idOf(type: KClass<out SokolComponent>) = idOfOr(type)
     ?: throw IllegalArgumentException("Component type ${type.simpleName ?: type} is not registered")
+
+fun ComponentIdAccess.typeBy(id: Int) = typeByOr(id)
+    ?: throw IllegalArgumentException("Component ID $id does not map to a type")
 
 inline fun <reified C : SokolComponent> ComponentIdAccess.idOf() = idOf(C::class)
 
@@ -144,6 +152,17 @@ fun ComponentIdAccess.filter() = object : ArchetypeFilterBuilder {
     override fun build() = filter(all, one, none)
 }
 
+class ComponentTypeSet(val types: Iterable<KClass<out SokolComponent>>) {
+    override fun toString() = "[${types.joinToString { it.simpleName ?: it.toString() }}]"
+}
+
+fun ComponentIdAccess.idsToTypes(ids: Bits): ComponentTypeSet {
+    val types = ids.mapIndexedNotNull { idx, value ->
+        if (value) typeBy(idx) else null
+    }
+    return ComponentTypeSet(types)
+}
+
 interface SokolSystem {
     val processing: Boolean get() = true
 }
@@ -166,70 +185,53 @@ annotation class After(vararg val types: KClass<out SokolSystem>)
 @Target(AnnotationTarget.FUNCTION)
 annotation class Subscribe
 
-interface SokolEvent {
-    // when the entity is created from scratch
-    object Construct : SokolEvent
+interface SokolEvent
 
-    // when the entity is about to be persisted
-    object Destruct : SokolEvent
-}
+object ConstructEvent : SokolEvent
 
 private typealias EventListener = (SokolEvent, SokolEntity) -> Unit
 
-interface SokolSpace {
-    fun <E : SokolEvent> call(event: E): E
+interface SokolSpaceAccess {
+    val engine: SokolEngine
+
+    val size: Int
+
+    fun allEntities(): Bag<SokolEntity>
+
+    fun getEntity(entityId: Int): SokolEntity?
+
+    fun createEntity(flags: Int = 0): SokolEntity
+
+    fun removeEntity(entityId: Int): SokolEntity
+
+    fun withEntityFunction(function: (SokolEntity) -> Unit): SokolSpaceAccess
 }
 
-private fun <E : SokolEvent> callInternal(engine: SokolEngine, entities: Iterable<SokolEntity>, event: E): E {
-    val eventType = event::class.java
+fun SokolSpaceAccess.createEntity(flags: Int, components: Iterable<SokolComponent>): SokolEntity {
+    val entity = createEntity(flags)
+    components.forEach { component ->
+        entity.setComponent(engine.idOf(component.componentType), component)
+    }
+    return entity
+}
 
-    val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
-        // find all listeners for this event
-        engine.systems.mapNotNull {
-            val listeners = it.listeners
-                .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
-                .map { (_, listener) -> listener }
-            if (listeners.isEmpty()) null
-            else SokolEngine.EventSystem(it, listeners)
-        }
+internal class WrappedSokolSpace(
+    private val backing: SokolSpaceAccess,
+    private val function: (SokolEntity) -> Unit
+) : SokolSpaceAccess by backing {
+    override fun createEntity(flags: Int): SokolEntity {
+        val entity = backing.createEntity(flags)
+        function(entity)
+        return entity
     }
 
-    // process all systems
-    systems.forEach { (system, listeners) ->
-        if (!system.system.processing) return@forEach
-
-        val filter = system.filter
-        entities.forEach { entity ->
-            if (filter.matches(entity.archetype)) {
-                listeners.forEach { it(event, entity) }
-            }
-        }
-    }
-
-    return event
+    override fun withEntityFunction(function: (SokolEntity) -> Unit) = WrappedSokolSpace(this, function)
 }
 
-/*
-examples of spaces:
-- a space for all worlds, chunks, mobs and tile entities
-    this is because all their tag writes are independent
-- a space for all items inside a shulker box
-    once all writes for the held items are done, the shulker box can be written to
-- a space for all items inside a chest
-    same as shulker box but the chest block state can be written to
- */
-
-class TransientSpace internal constructor(
-    private val engine: SokolEngine,
-    private val entities: Iterable<SokolEntity>
-) : SokolSpace {
-    override fun <E : SokolEvent> call(event: E) = callInternal(engine, entities, event)
-}
-
-class ComponentSpace internal constructor(
-    private val engine: SokolEngine,
+class SokolSpace internal constructor(
+    override val engine: SokolEngine,
     capacity: Int
-) : SokolSpace {
+) : SokolSpaceAccess {
     private val nComponentTypes = engine.countComponentTypes()
     private val components = Array<MutableBag<SokolComponent?>>(nComponentTypes) { emptyBag(capacity) }
     private val entities = emptyBag<SokolEntity>(capacity)
@@ -238,18 +240,20 @@ class ComponentSpace internal constructor(
 
     private fun nextId() = if (freeIds.isEmpty()) nextId++ else freeIds.popFirst()
 
-    fun allEntities(): Bag<SokolEntity> = entities
+    override val size get() = entities.size
 
-    fun getEntity(entityId: Int) = entities[entityId]
+    override fun allEntities(): Bag<SokolEntity> = entities
 
-    fun createEntity(flags: Int = 0): SokolEntity {
+    override fun getEntity(entityId: Int) = entities[entityId]
+
+    override fun createEntity(flags: Int): SokolEntity {
         val entityId = nextId()
         val entity = EntityImpl(entityId, flags, Bits(nComponentTypes))
         entities[entityId] = entity
         return entity
     }
 
-    fun removeEntity(entityId: Int): SokolEntity {
+    override fun removeEntity(entityId: Int): SokolEntity {
         val entity = entities.removeAt(entityId)
         components.forEach { bag ->
             bag.removeAt(entityId)
@@ -257,13 +261,45 @@ class ComponentSpace internal constructor(
         return entity
     }
 
-    override fun <E : SokolEvent> call(event: E) = callInternal(engine, entities, event)
+    fun <E : SokolEvent> call(event: E): E {
+        val eventType = event::class.java
+
+        val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
+            // find all listeners for this event
+            engine.systems.mapNotNull {
+                val listeners = it.listeners
+                    .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
+                    .map { (_, listener) -> listener }
+                if (listeners.isEmpty()) null
+                else SokolEngine.EventSystem(it, listeners)
+            }
+        }
+
+        // process all systems
+        systems.forEach { (system, listeners) ->
+            if (!system.system.processing) return@forEach
+
+            val filter = system.filter
+            entities.forEach { entity ->
+                if (filter.matches(entity.archetype)) {
+                    listeners.forEach { it(event, entity) }
+                }
+            }
+        }
+
+        return event
+    }
+
+    override fun withEntityFunction(function: (SokolEntity) -> Unit): SokolSpaceAccess =
+        WrappedSokolSpace(this, function)
 
     private inner class EntityImpl(
         override val entityId: Int,
         override var flags: Int,
         override var archetype: Bits
     ) : SokolEntity {
+        override val engine get() = this@SokolSpace.engine
+
         override fun allComponents() = archetype.mapIndexedNotNull { componentId, value ->
             if (value) components[componentId][entityId] else null
         }
@@ -286,10 +322,13 @@ class ComponentSpace internal constructor(
     }
 }
 
+fun SokolSpace.construct() = call(ConstructEvent)
+
 private typealias SystemFactory = (ComponentIdAccess) -> SokolSystem
 
 class SokolEngine internal constructor(
     private val componentIds: Map<KClass<out SokolComponent>, Int>,
+    private val idToType: Array<KClass<out SokolComponent>>,
     internal val systems: List<SystemDefinition>,
 ) : ComponentIdAccess {
     internal data class SystemDefinition(
@@ -309,9 +348,9 @@ class SokolEngine internal constructor(
 
     override fun idOfOr(type: KClass<out SokolComponent>) = componentIds[type]
 
-    fun emptySpace(capacity: Int = 64) = ComponentSpace(this, capacity)
+    override fun typeByOr(id: Int) = idToType[id]
 
-    fun transientSpace(entities: Iterable<SokolEntity>) = TransientSpace(this, entities)
+    fun emptySpace(capacity: Int = 64) = SokolSpace(this, capacity)
 
     class Builder {
         private val componentTypes = ArrayList<KClass<out SokolComponent>>()
@@ -330,12 +369,18 @@ class SokolEngine internal constructor(
             return this
         }
 
+        fun countComponentTypes() = componentTypes.size
+
+        fun countSystemFactories() = systemFactories.size
+
         @Suppress("UnstableApiUsage")
         fun build(): SokolEngine {
             val componentIds = componentTypes.mapIndexed { idx, type -> type to idx }.associate { it }
+            val idToType = componentIds.map { (type) -> type }.toTypedArray()
             val idAccess = object : ComponentIdAccess {
                 override fun countComponentTypes() = componentIds.size
                 override fun idOfOr(type: KClass<out SokolComponent>) = componentIds[type]
+                override fun typeByOr(id: Int) = idToType[id]
             }
 
             data class SystemData(
@@ -416,7 +461,7 @@ class SokolEngine internal constructor(
                 }
             }
 
-            return SokolEngine(componentIds, systemGraph.topologicallySorted().toList())
+            return SokolEngine(componentIds, idToType, systemGraph.topologicallySorted().toList())
         }
     }
 }

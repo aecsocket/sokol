@@ -6,6 +6,7 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.sokol.core.PersistenceException
+import com.gitlab.aecsocket.sokol.core.construct
 import org.bukkit.World
 import org.bukkit.craftbukkit.v1_19_R1.CraftWorld
 import org.bukkit.entity.Entity
@@ -32,35 +33,37 @@ internal class SokolPacketListener(
         return mob
     }
 
-    override fun onPacketSend(event: PacketSendEvent) {
-        fun useEntity(action: () -> Unit) {
-            try {
-                action()
-            } catch (ex: PersistenceException) {
-                sokol.log.line(LogLevel.Warning, ex) { "Could not handle packet type ${event.packetType}" }
-            }
+    private fun tryPacket(event: ProtocolPacketEvent<*>, block: () -> Unit) {
+        try {
+            block()
+        } catch (ex: PersistenceException) {
+            sokol.log.line(LogLevel.Warning, ex) { "Could not handle packet type ${event.packetType}" }
         }
+    }
 
+    override fun onPacketSend(event: PacketSendEvent) {
         val player = event.player as? Player ?: return
         when (event.packetType) {
             PacketType.Play.Server.SPAWN_ENTITY -> {
                 val packet = WrapperPlayServerSpawnEntity(event)
-                mobById(player.world, packet.entityId)?.let { mob ->
-                    useEntity {
-                        sokol.useMob(mob) { entity ->
-                            entity.call(MobEvent.Show(player, event))
-                        }
+                val mob = mobById(player.world, packet.entityId) ?: return
+                tryPacket(event) {
+                    sokol.useSpace { space ->
+                        sokol.resolver.readMob(mob, space)
+                        space.construct()
+                        space.call(MobEvent.Show(player, event))
                     }
                 }
             }
             PacketType.Play.Server.DESTROY_ENTITIES -> {
                 val packet = WrapperPlayServerDestroyEntities(event)
                 packet.entityIds.map { mobById(player.world, it) }.forEach { mob ->
-                    mob?.let {
-                        useEntity {
-                            sokol.useMob(mob) { entity ->
-                                entity.call(MobEvent.Hide(player, event))
-                            }
+                    if (mob == null) return@forEach
+                    tryPacket(event) {
+                        sokol.useSpace { space ->
+                            sokol.resolver.readMob(mob, space)
+                            space.construct()
+                            space.call(MobEvent.Hide(player, event))
                         }
                     }
                 }
