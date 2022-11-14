@@ -54,24 +54,26 @@ data class MeshesInWorld(
     object Profile : ComponentProfile {
         override val componentType get() = MeshesInWorld::class
 
-        override fun read(tag: NBTTag) = ComponentBlueprint {
-            MeshesInWorld(tag.asList().mapNotNull { it.asCompound { mesh ->
+        override fun read(tag: NBTTag): ComponentBlueprint<MeshesInWorld> {
+            val meshes = tag.asList().mapNotNull { it.asCompound { mesh ->
                 AlexandriaAPI.meshes[mesh.get(ID) { asUUID() }]?.let { inst -> MeshEntry(
                     inst,
                     mesh.get(TRANSFORM) { asTransform() }
                 ) }
-            } })
+            } }
+
+            return ComponentBlueprint { MeshesInWorld(meshes) }
         }
 
-        override fun deserialize(node: ConfigurationNode) = ComponentBlueprint {
-            MeshesInWorld(
-                node.childrenList().mapNotNull { mesh ->
-                    AlexandriaAPI.meshes[mesh.node(ID).force()]?.let { inst -> MeshEntry(
-                        inst,
-                        mesh.node(TRANSFORM).get { Transform.Identity }
-                    ) }
-                }
-            )
+        override fun deserialize(node: ConfigurationNode): ComponentBlueprint<MeshesInWorld> {
+            val meshes = node.childrenList().mapNotNull { mesh ->
+                AlexandriaAPI.meshes[mesh.node(ID).force()]?.let { inst -> MeshEntry(
+                    inst,
+                    mesh.node(TRANSFORM).get { Transform.Identity }
+                ) }
+            }
+
+            return ComponentBlueprint { MeshesInWorld(meshes) }
         }
 
         override fun createEmpty() = ComponentBlueprint { MeshesInWorld(emptyList()) }
@@ -167,7 +169,7 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(MeshesInWorld::class)
+@All(MeshesInWorld::class, IsMob::class)
 class MeshesInWorldMobSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {

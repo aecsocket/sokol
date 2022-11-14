@@ -140,10 +140,11 @@ class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(IsMob::class)
-@Before(IsMobTarget::class, PlayerTrackedTarget::class, PositionTarget::class)
+@Before(IsMobTarget::class, RemovableTarget::class, PlayerTrackedTarget::class, PositionTarget::class)
 class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
+    private val mRemovable = ids.mapper<Removable>()
     private val mRotation = ids.mapper<Rotation>()
     private val mPositionRead = ids.mapper<PositionRead>()
     private val mPositionWrite = ids.mapper<PositionWrite>()
@@ -155,6 +156,10 @@ class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
 
         mPlayerTracked.set(entity, object : PlayerTracked {
             override fun trackedPlayers() = mob.trackedPlayers
+        })
+
+        mRemovable.set(entity, object : Removable {
+            override val removed get() = !mob.isValid
         })
 
         val rotation = mRotation.getOr(entity)

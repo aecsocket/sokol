@@ -252,6 +252,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { VelocityTarget }
                     .systemFactory { PlayerTrackedTarget }
                     .systemFactory { PlayerTrackedSystem(it) }
+                    .systemFactory { RemovableTarget }
+                    .systemFactory { RemovableSystem(it) }
                     .systemFactory { MobConstructorSystem(it) }
                     .systemFactory { ParticleEffectSpawnerSystem(it) }
                     .systemFactory { MeshesTarget }
@@ -259,6 +261,9 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { MeshesItemSystem(this@Sokol, it) }
                     .systemFactory { MeshesInWorldSystem(it) }
                     .systemFactory { MeshesInWorldMobSystem(it) }
+                    .systemFactory { ColliderSystem(it) }
+                    .systemFactory { ColliderMobSystem(it) }
+                    .systemFactory { ColliderPositionSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -280,12 +285,17 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<ChildTransformStatic>()
                     .componentType<VelocityRead>()
                     .componentType<PlayerTracked>()
+                    .componentType<Removable>()
                     .componentType<Rotation>()
                     .componentType<ParticleEffectSpawner>()
                     .componentType<Meshes>()
                     .componentType<MeshesStatic>()
                     .componentType<MeshesItem>()
                     .componentType<MeshesInWorld>()
+                    .componentType<Collider>()
+                    .componentType<RigidBodyCollider>()
+                    .componentType<VehicleBodyCollider>()
+                    .componentType<GhostBodyCollider>()
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
@@ -295,6 +305,10 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)
                 registerComponentType(MeshesInWorld.Type)
+                registerComponentType(Collider.Type)
+                registerComponentType(RigidBodyCollider.Type)
+                registerComponentType(VehicleBodyCollider.Type)
+                registerComponentType(GhostBodyCollider.Type)
             }
         )
     }
