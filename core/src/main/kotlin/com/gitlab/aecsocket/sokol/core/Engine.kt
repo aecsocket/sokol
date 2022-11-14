@@ -14,7 +14,7 @@ interface SokolComponent {
 interface SokolSpace {
     val engine: SokolEngine
 
-    val entities: Collection<SokolEntity>
+    fun allEntities(): Collection<SokolEntity>
 
     fun countEntities(): Int
 
@@ -42,7 +42,7 @@ fun <E : SokolEvent> SokolSpace.call(event: E, recursive: Boolean = true): E {
         if (!system.system.processing) return@forEach
 
         val filter = system.filter
-        entities.forEach { entity ->
+        allEntities().forEach { entity ->
             fun callOn(target: SokolEntity) {
                 if (filter.matches(target.archetype)) {
                     listeners.forEach { it(event, target) }
@@ -69,10 +69,12 @@ class SokolEntity internal constructor(
     val archetype: Bits = Bits(engine.countComponentTypes()),
 ) : SokolSpace {
     private val _entities = emptyBag<SokolEntity>()
-    override val entities get() = _entities
+    val entities get() = _entities
 
     private val _components = arrayOfNulls<SokolComponent>(engine.countComponentTypes())
     val components get() = _components.filterNotNull()
+
+    override fun allEntities() = setOf(this) + _entities
 
     override fun countEntities() = _entities.size
 
@@ -124,7 +126,9 @@ class SokolEntityContainer internal constructor(
     capacity: Int
 ) : SokolSpace {
     private val _entities = emptyBag<SokolEntity>(capacity)
-    override val entities get() = _entities
+    val entities get() = _entities
+
+    override fun allEntities() = entities
 
     override fun countEntities() = _entities.size
 
