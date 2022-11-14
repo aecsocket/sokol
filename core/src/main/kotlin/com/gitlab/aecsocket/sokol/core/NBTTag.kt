@@ -230,12 +230,12 @@ fun ListNBTTag.set(index: Int, factory: NBTTagContext.() -> NBTTag): ListNBTTag 
     return this
 }
 
-fun ListNBTTag.add(index: Int, factory: NBTTagContext.() -> NBTTag): ListNBTTag {
+fun ListNBTTag.pushComponent(index: Int, factory: NBTTagContext.() -> NBTTag): ListNBTTag {
     add(index, factory(this))
     return this
 }
 
-fun ListNBTTag.add(factory: NBTTagContext.() -> NBTTag): ListNBTTag {
+fun ListNBTTag.pushComponent(factory: NBTTagContext.() -> NBTTag): ListNBTTag {
     add(factory(this))
     return this
 }

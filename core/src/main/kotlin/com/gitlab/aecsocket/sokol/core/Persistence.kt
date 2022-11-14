@@ -15,8 +15,6 @@ interface PersistentComponent : SokolComponent {
     fun writeDelta(tag: NBTTag): NBTTag
 
     fun serialize(node: ConfigurationNode)
-
-    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity): PersistentComponent
 }
 
 interface SimplePersistentComponent : PersistentComponent {
@@ -27,24 +25,70 @@ interface SimplePersistentComponent : PersistentComponent {
     override fun writeDelta(tag: NBTTag) = tag
 
     override fun serialize(node: ConfigurationNode) {}
+}
 
-    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = this
+fun interface ComponentBlueprint<out C : SokolComponent> {
+    fun create(entity: SokolEntity): C
 }
 
 interface ComponentProfile {
     val componentType: KClass<out SokolComponent>
 
-    fun read(tag: NBTTag, entity: SokolEntity): PersistentComponent
+    fun read(tag: NBTTag): ComponentBlueprint<*>
 
-    fun deserialize(node: ConfigurationNode, entity: SokolEntity): PersistentComponent
+    fun deserialize(node: ConfigurationNode): ComponentBlueprint<*>
 
-    fun createEmpty(entity: SokolEntity): PersistentComponent
+    fun createEmpty(): ComponentBlueprint<*>
 }
 
 interface SimpleComponentProfile : ComponentProfile {
-    override fun read(tag: NBTTag, entity: SokolEntity) = createEmpty(entity)
+    override fun read(tag: NBTTag) = createEmpty()
 
-    override fun deserialize(node: ConfigurationNode, entity: SokolEntity) = createEmpty(entity)
+    override fun deserialize(node: ConfigurationNode) = createEmpty()
+}
+
+class EntityBlueprint internal constructor(
+    private val engine: SokolEngine,
+    var flags: Int,
+    private val functions: MutableList<(SokolEntity) -> Unit> = ArrayList()
+) {
+    fun push(function: (SokolEntity) -> Unit): EntityBlueprint {
+        functions.add(function)
+        return this
+    }
+
+    fun <C : SokolComponent> pushSet(mapper: ComponentMapper<C>, component: ComponentBlueprint<C>): EntityBlueprint {
+        functions.add { mapper.set(it, component.create(it)) }
+        return this
+    }
+
+    fun <C : SokolComponent> pushSet(profile: ComponentProfile, component: ComponentBlueprint<C>): EntityBlueprint {
+        @Suppress("UNCHECKED_CAST")
+        val mapper = engine.mapper(profile.componentType) as ComponentMapper<C>
+        functions.add { mapper.set(it, component.create(it)) }
+        return this
+    }
+
+    fun pushRemove(mapper: ComponentMapper<*>): EntityBlueprint {
+        functions.add { mapper.remove(it) }
+        return this
+    }
+
+    fun create(): SokolEntity {
+        val entity = engine.newEntity(flags)
+        functions.forEach { it(entity) }
+        return entity
+    }
+
+    fun copyOf() = EntityBlueprint(engine, flags, functions.toMutableList())
+}
+
+fun SokolEngine.newBlueprint(flags: Int = 0) = EntityBlueprint(this, flags)
+
+fun EntityBlueprint.addInto(space: SokolSpace) = space.addEntity(create())
+
+fun Iterable<EntityBlueprint>.addAllInto(space: SokolSpace) {
+    forEach { space.addEntity(it.create()) }
 }
 
 open class EntityProfile(
@@ -56,11 +100,11 @@ class KeyedEntityProfile(
     components: Map<Key, ComponentProfile>
 ) : EntityProfile(components), Keyed
 
-data class Profiled(val profile: KeyedEntityProfile) : ImmutableComponent {
+data class Profiled(val profile: KeyedEntityProfile) : SokolComponent {
     override val componentType get() = Profiled::class
 }
 
-data class InTag(val tag: CompoundNBTTag) : ImmutableComponent {
+data class InTag(val tag: CompoundNBTTag) : SokolComponent {
     override val componentType get() = InTag::class
 }
 
@@ -76,24 +120,20 @@ interface ComponentType {
             override fun createProfile(node: ConfigurationNode) = object : SimpleComponentProfile {
                 override val componentType get() = component.componentType
 
-                override fun createEmpty(entity: SokolEntity) = component
+                override fun createEmpty() = ComponentBlueprint { component }
             }
         }
 
         fun singletonProfile(key: Key, profile: ComponentProfile) = object : ComponentType {
             override val key get() = key
 
-            override fun createProfile(node: ConfigurationNode): ComponentProfile {
-                return profile
-            }
+            override fun createProfile(node: ConfigurationNode) = profile
         }
 
         inline fun <reified P : ComponentProfile> deserializing(key: Key) = object : ComponentType {
             override val key get() = key
 
-            override fun createProfile(node: ConfigurationNode): P {
-                return node.force<P>()
-            }
+            override fun createProfile(node: ConfigurationNode) = node.force<P>()
         }
     }
 }

@@ -9,12 +9,6 @@ import kotlin.reflect.jvm.javaMethod
 
 interface SokolComponent {
     val componentType: KClass<out SokolComponent>
-
-    fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity): SokolComponent
-}
-
-interface ImmutableComponent : SokolComponent {
-    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = this
 }
 
 interface SokolSpace {
@@ -28,10 +22,6 @@ interface SokolSpace {
 
     fun addEntities(entities: Iterable<SokolEntity>)
 }
-
-fun SokolEntity.addInto(space: SokolSpace) = space.addEntity(this)
-
-fun Iterable<SokolEntity>.addAllInto(space: SokolSpace) = space.addEntities(this)
 
 fun <E : SokolEvent> SokolSpace.call(event: E, recursive: Boolean = true): E {
     val eventType = event::class.java
@@ -75,7 +65,7 @@ fun <E : SokolEvent> SokolSpace.callSingle(event: E) = call(event, false)
 
 class SokolEntity internal constructor(
     override val engine: SokolEngine,
-    var flags: Int = 0,
+    var flags: Int,
     val archetype: Bits = Bits(engine.countComponentTypes()),
 ) : SokolSpace {
     private val _entities = emptyBag<SokolEntity>()
@@ -125,21 +115,6 @@ class SokolEntity internal constructor(
     fun clearFlags() {
         flags = 0
     }
-
-    private fun copyOf(parent: SokolEntity?, root: SokolEntity): SokolEntity {
-        return SokolEntity(engine, flags, Bits(archetype)).also { copy ->
-            _entities.forEach { child ->
-                copy.addEntity(child.copyOf(this, root))
-            }
-
-            _components.forEachIndexed { idx, component ->
-                if (component == null) return@forEachIndexed
-                copy._components[idx] = component.copyOf(copy, parent, root)
-            }
-        }
-    }
-
-    fun copyOf() = copyOf(null, this)
 
     override fun toString() = "Entity[${_components.filterNotNull().joinToString { it.componentType.simpleName ?: it.componentType.toString() }}]"
 }
@@ -235,11 +210,6 @@ class ComponentMapper<C : SokolComponent> internal constructor(
     }
 }
 
-fun <C : SokolComponent> SokolEntity.with(mapper: ComponentMapper<C>, component: C): SokolEntity {
-    mapper.set(this, component)
-    return this
-}
-
 data class ArchetypeFilter internal constructor(
     val all: Bits,
     val one: Bits,
@@ -318,7 +288,7 @@ class SokolEngine internal constructor(
 
     fun systems() = systems.map { it.system }
 
-    fun newEntity() = SokolEntity(this)
+    fun newEntity(flags: Int = 0) = SokolEntity(this, flags)
 
     fun newEntityContainer(capacity: Int = 64) = SokolEntityContainer(this, capacity)
 

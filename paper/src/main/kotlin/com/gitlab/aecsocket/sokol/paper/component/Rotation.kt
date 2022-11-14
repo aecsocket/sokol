@@ -37,15 +37,13 @@ data class Rotation(
         node.set(rotation)
     }
 
-    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = Rotation(rotation)
-
     object Profile : ComponentProfile {
         override val componentType get() = Rotation::class
 
-        override fun read(tag: NBTTag, entity: SokolEntity) = Rotation(tag.asQuaternion())
+        override fun read(tag: NBTTag) = ComponentBlueprint { Rotation(tag.asQuaternion()) }
 
-        override fun deserialize(node: ConfigurationNode, entity: SokolEntity) = Rotation(node.get { Quaternion.Identity })
+        override fun deserialize(node: ConfigurationNode) = ComponentBlueprint { Rotation(node.get { Quaternion.Identity }) }
 
-        override fun createEmpty(entity: SokolEntity) = Rotation(Quaternion.Identity)
+        override fun createEmpty() = ComponentBlueprint { Rotation(Quaternion.Identity) }
     }
 }

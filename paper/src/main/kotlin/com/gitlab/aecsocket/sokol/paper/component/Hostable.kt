@@ -28,6 +28,6 @@ data class AsItem(val profile: Profile) : SimplePersistentComponent {
     ) : SimpleComponentProfile {
         override val componentType get() = AsItem::class
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = AsItem(this)
+        override fun createEmpty() = ComponentBlueprint { AsItem(this) }
     }
 }

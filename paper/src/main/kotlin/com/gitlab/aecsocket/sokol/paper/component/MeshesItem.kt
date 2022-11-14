@@ -24,7 +24,7 @@ data class MeshesItem(val profile: Profile) : SimplePersistentComponent {
     ) : SimpleComponentProfile {
         override val componentType get() = MeshesItem::class
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = MeshesItem(this)
+        override fun createEmpty() = ComponentBlueprint { MeshesItem(this) }
     }
 }
 
@@ -46,7 +46,7 @@ class MeshesItemSystem(
     fun on(event: Meshes.Create, entity: SokolEntity) {
         val meshesItem = mMeshesItem.get(entity).profile
 
-        val item = sokol.hoster.createItemForm(sokol.engine.blueprintOf(entity))
+        val item = sokol.hoster.createItemForm(sokol.persistence.blueprintOf(entity).create())
 
         val transform = event.transform + meshesItem.transform
         val mesh = AlexandriaAPI.meshes.create(item, transform, event.getTrackedPlayers, meshesItem.interpolated)

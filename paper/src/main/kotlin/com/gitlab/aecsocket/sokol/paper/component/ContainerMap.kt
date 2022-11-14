@@ -76,10 +76,6 @@ data class ContainerMap(
         }
     }
 
-    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = ContainerMap(
-
-    )
-
     class Profile(
         private val sokol: Sokol,
         val children: Map<String, EntityProfile>
@@ -89,58 +85,68 @@ data class ContainerMap(
         private val mIsChild = sokol.engine.mapper<IsChild>()
         private val mInTag = sokol.engine.mapper<InTag>()
 
-        override fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpace): PersistentComponent {
+        override fun read(tag: NBTTag): ComponentBlueprint<ContainerMap> {
             val compound = tag.asCompound()
-            val root = mIsChild.getOr(entity)?.root ?: entity
 
-            val result = HashMap<String, Delta<SokolEntity?>>()
+            val result = HashMap<String, EntityBlueprint>()
 
             compound.forEach { (key, childTag) ->
                 val childCompound = childTag.asCompound()
                 val blueprint = children[key]?.let { profile ->
-                    sokol.persistence.readProfileBlueprint(childCompound, profile)
+                    sokol.persistence.readProfiledBlueprint(childCompound, profile)
                 } ?: sokol.persistence.readBlueprint(childCompound)
 
-                result[key] = Delta(blueprint.createIn(space.withEntityFunction { child ->
-                    mIsChild.set(entity, IsChild(child, root))
-                    mInTag.set(entity, InTag(childCompound))
-                }))
+                result[key] = blueprint
+                    .pushSet(mInTag) { InTag(childCompound) }
             }
 
             children.forEach { (key, profile) ->
                 if (result.contains(key)) return@forEach
-                result[key] = Delta(sokol.persistence.emptyBlueprint(profile).createIn(space.withEntityFunction { child ->
-                    mIsChild.set(child, IsChild(entity, root))
-                    mInTag.remove(child)
-                }))
+                result[key] = sokol.persistence.emptyBlueprint(profile)
+                    .pushRemove(mInTag)
             }
 
-            return ContainerMap(sokol, result)
+            return ComponentBlueprint { entity ->
+                val root = mIsChild.getOr(entity)?.root ?: entity
+                val children = result.map { (key, blueprint) ->
+                    key to Delta<SokolEntity?>(blueprint
+                        .pushSet(mIsChild) { IsChild(entity, root) }
+                        .create()
+                    )
+                }.associate { it }.toMutableMap()
+                ContainerMap(sokol, children)
+            }
         }
 
-        override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpace): PersistentComponent {
-            val result = HashMap<String, Delta<SokolEntity?>>()
-            val root = mIsChild.getOr(entity)?.root ?: entity
+        override fun deserialize(node: ConfigurationNode): ComponentBlueprint<ContainerMap> {
+            val result = HashMap<String, EntityBlueprint>()
 
             node.childrenMap().forEach { (key, child) ->
                 val blueprint = (children[key.toString()]?.let { profile ->
-                    sokol.persistence.deserializeProfileBlueprint(child, profile)
+                    sokol.persistence.deserializeProfiledBlueprint(child, profile)
                 } ?: child.force<EntityBlueprint>())
-                    .with(mIsChild) { IsChild(entity, root) }
-                result[key.toString()] = Delta(blueprint.createIn(space))
+
+                result[key.toString()] = blueprint
             }
 
             children.forEach { (key, profile) ->
-                if (result.contains(key)) return@forEach
-                result[key] = Delta(sokol.persistence.emptyBlueprint(profile)
-                    .with(mIsChild) { IsChild(entity, root) }
-                    .createIn(space))
+                if (result.containsKey(key)) return@forEach
+                result[key] = sokol.persistence.emptyBlueprint(profile)
             }
 
-            return ContainerMap(sokol, result)
+            return ComponentBlueprint { entity ->
+                val root = mIsChild.getOr(entity)?.root ?: entity
+                val children = result.map { (key, blueprint) ->
+                    key to Delta<SokolEntity?>(blueprint
+                        .pushSet(mIsChild) { IsChild(entity, root) }
+                        .create()
+                    )
+                }.associate { it }.toMutableMap()
+                ContainerMap(sokol, children)
+            }
         }
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = ContainerMap(sokol, HashMap())
+        override fun createEmpty() = ComponentBlueprint { ContainerMap(sokol, HashMap()) }
     }
 
     class Type(private val sokol: Sokol) : ComponentType {

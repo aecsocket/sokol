@@ -54,27 +54,27 @@ data class MeshesInWorld(
     object Profile : ComponentProfile {
         override val componentType get() = MeshesInWorld::class
 
-        override fun read(
-            tag: NBTTag,
-            entity: SokolEntity,
-            space: SokolSpace
-        ) = MeshesInWorld(tag.asList().mapNotNull { it.asCompound { mesh ->
-            AlexandriaAPI.meshes[mesh.get(ID) { asUUID() }]?.let { inst -> MeshEntry(
-                inst,
-                mesh.get(TRANSFORM) { asTransform() }
-            ) }
-        } })
-
-        override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpace) = MeshesInWorld(
-            node.childrenList().mapNotNull { mesh ->
-                AlexandriaAPI.meshes[mesh.node(ID).force()]?.let { inst -> MeshEntry(
+        override fun read(tag: NBTTag) = ComponentBlueprint {
+            MeshesInWorld(tag.asList().mapNotNull { it.asCompound { mesh ->
+                AlexandriaAPI.meshes[mesh.get(ID) { asUUID() }]?.let { inst -> MeshEntry(
                     inst,
-                    mesh.node(TRANSFORM).get { Transform.Identity }
+                    mesh.get(TRANSFORM) { asTransform() }
                 ) }
-            }
-        )
+            } })
+        }
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = MeshesInWorld(emptyList())
+        override fun deserialize(node: ConfigurationNode) = ComponentBlueprint {
+            MeshesInWorld(
+                node.childrenList().mapNotNull { mesh ->
+                    AlexandriaAPI.meshes[mesh.node(ID).force()]?.let { inst -> MeshEntry(
+                        inst,
+                        mesh.node(TRANSFORM).get { Transform.Identity }
+                    ) }
+                }
+            )
+        }
+
+        override fun createEmpty() = ComponentBlueprint { MeshesInWorld(emptyList()) }
     }
 }
 

@@ -48,7 +48,7 @@ data class MeshesStatic(val profile: Profile) : SimplePersistentComponent {
     ) : SimpleComponentProfile {
         override val componentType get() = MeshesStatic::class
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = MeshesStatic(this)
+        override fun createEmpty() = ComponentBlueprint { MeshesStatic(this) }
     }
 }
 

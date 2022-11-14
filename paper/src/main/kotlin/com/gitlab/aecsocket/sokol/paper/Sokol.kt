@@ -38,6 +38,8 @@ class Sokol : BasePlugin(), SokolAPI {
     @ConfigSerializable
     data class Settings(
         val enableBstats: Boolean = true,
+        val resolveContainerBlocks: Boolean = true,
+        val resolveContainerItems: Boolean = true,
         val entityHoverDistance: Float = 0f,
     )
 
@@ -90,6 +92,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .registerExact(KeyedEntityProfileSerializer)
                     .registerExact(MeshesStatic.MeshDefinitionSerializer)
                     .registerExact(EntitySerializer(this@Sokol))
+                    .registerExact(BlueprintSerializer(this@Sokol))
                     .register(DeltaSerializer)
             },
             onLoad = {

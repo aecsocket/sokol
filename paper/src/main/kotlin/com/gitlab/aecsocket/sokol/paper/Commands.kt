@@ -11,8 +11,8 @@ import com.gitlab.aecsocket.alexandria.core.command.ConfigurationNodeParser
 import com.gitlab.aecsocket.alexandria.core.command.RegistryElementArgument
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.glossa.core.force
+import com.gitlab.aecsocket.sokol.core.EntityBlueprint
 import com.gitlab.aecsocket.sokol.core.KeyedEntityProfile
-import com.gitlab.aecsocket.sokol.core.SokolEntity
 import org.spongepowered.configurate.ConfigurateException
 import org.spongepowered.configurate.serialize.SerializationException
 import java.util.*
@@ -30,13 +30,13 @@ class KeyedEntityProfileArgument<C : Any>(
     }
 }
 
-class EntityParser<C : Any>(
+class EntityBlueprintParser<C : Any>(
     private val sokol: Sokol
-) : ArgumentParser<C, SokolEntity> {
+) : ArgumentParser<C, EntityBlueprint> {
     override fun parse(
         commandContext: CommandContext<C>,
         inputQueue: Queue<String>
-    ): ArgumentParseResult<SokolEntity> {
+    ): ArgumentParseResult<EntityBlueprint> {
         return inputQueue.peek()?.let {
             val input = inputQueue.joinToString(" ")
             inputQueue.clear()
@@ -45,13 +45,13 @@ class EntityParser<C : Any>(
                 val node = AlexandriaAPI.configLoader().buildAndLoadString(input)
 
                 try {
-                    ArgumentParseResult.success(node.force<SokolEntity>())
+                    ArgumentParseResult.success(node.force<EntityBlueprint>())
                 } catch (ex: SerializationException) {
                     ArgumentParseResult.failure(ex)
                 }
             } catch (ex: ConfigurateException) {
                 sokol.entityProfile(input)?.let { profile ->
-                    ArgumentParseResult.success(sokol.persistence.emptyEntity(profile))
+                    ArgumentParseResult.success(sokol.persistence.emptyBlueprint(profile))
                 } ?: ArgumentParseResult.failure(ex)
             }
         } ?: ArgumentParseResult.failure(NoInputProvidedException(
@@ -65,11 +65,11 @@ class EntityParser<C : Any>(
     }
 }
 
-class EntityArgument<C : Any>(
+class EntityBlueprintArgument<C : Any>(
     sokol: Sokol,
     name: String,
     description: ArgumentDescription = ArgumentDescription.of(""),
     required: Boolean = true,
     defaultValue: String = "",
     suggestionsProvider: ((CommandContext<C>, String) -> List<String>)? = null,
-) : CommandArgument<C, SokolEntity>(required, name, EntityParser(sokol), defaultValue, SokolEntity::class.java, suggestionsProvider, description)
+) : CommandArgument<C, EntityBlueprint>(required, name, EntityBlueprintParser(sokol), defaultValue, EntityBlueprint::class.java, suggestionsProvider, description)
