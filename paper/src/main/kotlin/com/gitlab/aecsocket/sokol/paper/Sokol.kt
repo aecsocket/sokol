@@ -246,8 +246,12 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemTagPersistSystem(it) }
                     .systemFactory { CompositeSystem(it) }
                     .systemFactory { PositionTarget }
+                    .systemFactory { PositionReadSystem(it) }
+                    .systemFactory { ChildTransformTarget }
+                    .systemFactory { ChildTransformStaticSystem(it) }
                     .systemFactory { VelocityTarget }
                     .systemFactory { PlayerTrackedTarget }
+                    .systemFactory { PlayerTrackedSystem(it) }
                     .systemFactory { MobConstructorSystem(it) }
                     .systemFactory { ParticleEffectSpawnerSystem(it) }
                     .systemFactory { MeshesTarget }
@@ -272,6 +276,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<ContainerMap>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
+                    .componentType<ChildTransform>()
+                    .componentType<ChildTransformStatic>()
                     .componentType<VelocityRead>()
                     .componentType<PlayerTracked>()
                     .componentType<Rotation>()
@@ -284,6 +290,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
                 registerComponentType(Rotation.Type)
+                registerComponentType(ChildTransformStatic.Type)
                 registerComponentType(ParticleEffectSpawner.Type)
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)

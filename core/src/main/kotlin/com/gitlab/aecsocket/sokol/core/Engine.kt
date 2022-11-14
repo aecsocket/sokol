@@ -16,6 +16,8 @@ interface SokolSpace {
 
     fun allEntities(): Collection<SokolEntity>
 
+    fun allEntitiesRecursive(): Collection<SokolEntity>
+
     fun countEntities(): Int
 
     fun addEntity(entity: SokolEntity)
@@ -38,23 +40,15 @@ fun <E : SokolEvent> SokolSpace.call(event: E, recursive: Boolean = true): E {
     }
 
     // process all systems
+    val entities = if (recursive) allEntitiesRecursive() else allEntities()
     systems.forEach { (system, listeners) ->
         if (!system.system.processing) return@forEach
 
         val filter = system.filter
-        allEntities().forEach { entity ->
-            fun callOn(target: SokolEntity) {
-                if (filter.matches(target.archetype)) {
-                    listeners.forEach { it(event, target) }
-                }
-
-                if (recursive) {
-                    // call on children of this entity as well
-                    target.entities.forEach { callOn(it) }
-                }
+        entities.forEach { entity ->
+            if (filter.matches(entity.archetype)) {
+                listeners.forEach { it(event, entity) }
             }
-
-            callOn(entity)
         }
     }
 
@@ -74,7 +68,10 @@ class SokolEntity internal constructor(
     private val _components = arrayOfNulls<SokolComponent>(engine.countComponentTypes())
     val components get() = _components.filterNotNull()
 
-    override fun allEntities() = setOf(this) + _entities
+    override fun allEntities() = setOf(this)
+
+    override fun allEntitiesRecursive(): Set<SokolEntity> =
+        setOf(this) + _entities.flatMap { it.allEntitiesRecursive() }
 
     override fun countEntities() = _entities.size
 
@@ -129,6 +126,8 @@ class SokolEntityContainer internal constructor(
     val entities get() = _entities
 
     override fun allEntities() = entities
+
+    override fun allEntitiesRecursive() = entities.flatMap { it.allEntitiesRecursive() }
 
     override fun countEntities() = _entities.size
 
