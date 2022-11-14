@@ -28,46 +28,39 @@ class EntityHoster internal constructor(
         mIsItem = sokol.engine.mapper()
     }
 
-    fun hostMob(blueprint: EntityBlueprint, location: Location): Entity {
-        val space = sokol.engine.emptySpace()
-        val entity = blueprint.createIn(space)
+    fun hostMob(entity: SokolEntity, location: Location): Entity {
         return spawnMarkerMob(location) { mob ->
             mIsMob.set(entity, IsMob(mob))
-            space.construct()
-            space.call(MobEvent.Spawn)
+            entity.construct()
+            entity.call(MobEvent.Spawn)
             sokol.mobsAdded.add(mob.entityId)
             sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
         }
     }
 
-    fun hostMob(blueprint: EntityBlueprint, world: World, transform: Transform): Entity {
+    fun hostMob(entity: SokolEntity, world: World, transform: Transform): Entity {
         val location = transform.translation.location(world)
-        return hostMob(blueprint.with(mRotation) { Rotation(transform.rotation) }, location)
+        mRotation.set(entity, Rotation(transform.rotation))
+        return hostMob(entity, location)
     }
 
-    fun hostItem(blueprint: EntityBlueprint): ItemStack {
-        val space = sokol.engine.emptySpace()
-        val entity = blueprint.createIn(space)
-
+    fun hostItem(entity: SokolEntity): ItemStack {
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
             mIsItem.set(entity, IsItem({ item }, { meta }))
-            space.construct()
-            space.call(ItemEvent.CreateForm)
-            space.call(ItemEvent.Create)
+            entity.construct()
+            entity.call(ItemEvent.CreateForm)
+            entity.call(ItemEvent.Create)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
     }
 
-    fun createItemForm(blueprint: EntityBlueprint): ItemStack {
-        val space = sokol.engine.emptySpace()
-        val entity = blueprint.createIn(space)
-
+    fun createItemForm(entity: SokolEntity): ItemStack {
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
             mIsItem.set(entity, IsItem({ item }, { meta }))
-            space.construct()
-            space.call(ItemEvent.CreateForm)
+            entity.construct()
+            entity.call(ItemEvent.CreateForm)
         }
     }
 }

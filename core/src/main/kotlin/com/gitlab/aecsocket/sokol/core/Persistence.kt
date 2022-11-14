@@ -15,6 +15,8 @@ interface PersistentComponent : SokolComponent {
     fun writeDelta(tag: NBTTag): NBTTag
 
     fun serialize(node: ConfigurationNode)
+
+    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity): PersistentComponent
 }
 
 interface SimplePersistentComponent : PersistentComponent {
@@ -25,22 +27,24 @@ interface SimplePersistentComponent : PersistentComponent {
     override fun writeDelta(tag: NBTTag) = tag
 
     override fun serialize(node: ConfigurationNode) {}
+
+    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = this
 }
 
 interface ComponentProfile {
     val componentType: KClass<out SokolComponent>
 
-    fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent
+    fun read(tag: NBTTag, entity: SokolEntity): PersistentComponent
 
-    fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent
+    fun deserialize(node: ConfigurationNode, entity: SokolEntity): PersistentComponent
 
-    fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent
+    fun createEmpty(entity: SokolEntity): PersistentComponent
 }
 
 interface SimpleComponentProfile : ComponentProfile {
-    override fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpaceAccess) = createEmpty(entity, space)
+    override fun read(tag: NBTTag, entity: SokolEntity) = createEmpty(entity)
 
-    override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess) = createEmpty(entity, space)
+    override fun deserialize(node: ConfigurationNode, entity: SokolEntity) = createEmpty(entity)
 }
 
 open class EntityProfile(
@@ -52,11 +56,11 @@ class KeyedEntityProfile(
     components: Map<Key, ComponentProfile>
 ) : EntityProfile(components), Keyed
 
-data class Profiled(val id: String) : SokolComponent {
+data class Profiled(val profile: KeyedEntityProfile) : ImmutableComponent {
     override val componentType get() = Profiled::class
 }
 
-data class InTag(val tag: CompoundNBTTag) : SokolComponent {
+data class InTag(val tag: CompoundNBTTag) : ImmutableComponent {
     override val componentType get() = InTag::class
 }
 
@@ -72,7 +76,7 @@ interface ComponentType {
             override fun createProfile(node: ConfigurationNode) = object : SimpleComponentProfile {
                 override val componentType get() = component.componentType
 
-                override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = component
+                override fun createEmpty(entity: SokolEntity) = component
             }
         }
 
@@ -110,10 +114,4 @@ class PersistenceSystem(
         val inTag = mInTag.get(entity)
         sokol.persistence.writeEntityDelta(entity, inTag.tag)
     }
-}
-
-fun ComponentIdAccess.blueprintOf(entity: SokolEntity): EntityBlueprint {
-    return EntityBlueprint(entity.flags, entity.allComponents().map { component ->
-        mapper(component.componentType) to ComponentFactory { component }
-    })
 }

@@ -6,6 +6,8 @@ import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDe
 import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.sokol.core.PersistenceException
+import com.gitlab.aecsocket.sokol.core.addInto
+import com.gitlab.aecsocket.sokol.core.call
 import com.gitlab.aecsocket.sokol.core.construct
 import org.bukkit.World
 import org.bukkit.craftbukkit.v1_19_R1.CraftWorld
@@ -49,7 +51,7 @@ internal class SokolPacketListener(
                 val mob = mobById(player.world, packet.entityId) ?: return
                 tryPacket(event) {
                     sokol.useSpace { space ->
-                        sokol.resolver.readMob(mob, space)
+                        sokol.resolver.readMob(mob)?.addInto(space)
                         space.construct()
                         space.call(MobEvent.Show(player, event))
                     }
@@ -61,7 +63,7 @@ internal class SokolPacketListener(
                     if (mob == null) return@forEach
                     tryPacket(event) {
                         sokol.useSpace { space ->
-                            sokol.resolver.readMob(mob, space)
+                            sokol.resolver.readMob(mob)?.addInto(space)
                             space.construct()
                             space.call(MobEvent.Hide(player, event))
                         }

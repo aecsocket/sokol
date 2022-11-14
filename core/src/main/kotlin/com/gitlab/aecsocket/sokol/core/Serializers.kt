@@ -48,18 +48,6 @@ class EntitySerializer(private val sokol: SokolAPI) : TypeSerializer<SokolEntity
     }
 
     override fun deserialize(type: Type, node: ConfigurationNode): SokolEntity {
-        throw UnsupportedOperationException()
+        return sokol.persistence.deserializeEntity(node)
     }
-}
-
-class BlueprintSerializer(private val sokol: SokolAPI) : TypeSerializer<EntityBlueprint> {
-    override fun serialize(type: Type, obj: EntityBlueprint?, node: ConfigurationNode) {}
-
-    override fun deserialize(type: Type, node: ConfigurationNode) = sokol.persistence.deserializeBlueprint(node)
-}
-
-class KeyedBlueprintSerializer(private val sokol: SokolAPI) : TypeSerializer<KeyedEntityBlueprint> {
-    override fun serialize(type: Type, obj: KeyedEntityBlueprint?, node: ConfigurationNode) {}
-
-    override fun deserialize(type: Type, node: ConfigurationNode) = sokol.persistence.deserializeBlueprint(node)
 }

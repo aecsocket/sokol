@@ -24,7 +24,7 @@ data class MeshesItem(val profile: Profile) : SimplePersistentComponent {
     ) : SimpleComponentProfile {
         override val componentType get() = MeshesItem::class
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = MeshesItem(this)
+        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = MeshesItem(this)
     }
 }
 

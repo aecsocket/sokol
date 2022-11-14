@@ -76,6 +76,10 @@ data class ContainerMap(
         }
     }
 
+    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = ContainerMap(
+
+    )
+
     class Profile(
         private val sokol: Sokol,
         val children: Map<String, EntityProfile>
@@ -85,7 +89,7 @@ data class ContainerMap(
         private val mIsChild = sokol.engine.mapper<IsChild>()
         private val mInTag = sokol.engine.mapper<InTag>()
 
-        override fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent {
+        override fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpace): PersistentComponent {
             val compound = tag.asCompound()
             val root = mIsChild.getOr(entity)?.root ?: entity
 
@@ -114,7 +118,7 @@ data class ContainerMap(
             return ContainerMap(sokol, result)
         }
 
-        override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess): PersistentComponent {
+        override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpace): PersistentComponent {
             val result = HashMap<String, Delta<SokolEntity?>>()
             val root = mIsChild.getOr(entity)?.root ?: entity
 
@@ -136,7 +140,7 @@ data class ContainerMap(
             return ContainerMap(sokol, result)
         }
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = ContainerMap(sokol, HashMap())
+        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = ContainerMap(sokol, HashMap())
     }
 
     class Type(private val sokol: Sokol) : ComponentType {

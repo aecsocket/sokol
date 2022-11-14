@@ -90,41 +90,37 @@ class EntityResolver internal constructor(
         sokol.inputHandler { event ->
             // even though we're off-main, we still write here
             sokol.useSpace { space ->
-                readPlayerItems(event.player, space)
+                readPlayerItems(event.player).addAllInto(space)
                 space.construct()
                 space.call(event)
             }
         }
     }
 
-    fun readPDC(pdc: PersistentDataContainer, space: SokolSpaceAccess) {
-        val tag = sokol.persistence.getTag(pdc, sokol.persistence.entityKey) ?: return
-        sokol.persistence.readBlueprint(tag).createIn(space.withEntityFunction { entity ->
-            mInTag.set(entity, InTag(tag))
-        })
+    fun readPDC(pdc: PersistentDataContainer): SokolEntity? {
+        val tag = sokol.persistence.getTag(pdc, sokol.persistence.entityKey) ?: return null
+        return sokol.persistence.readEntity(tag)
+            .with(mInTag, InTag(tag))
     }
 
-    fun readItem(item: Item, space: SokolSpaceAccess) {
-        if (!item.hasItemMeta()) return
+    fun readItem(item: Item): SokolEntity? {
+        if (!item.hasItemMeta()) return null
         val meta = item.itemMeta
-        readPDC(meta.persistentDataContainer, space.withEntityFunction { entity ->
-            mIsItem.set(entity, IsItem({ item }, { meta }))
-        })
+        return readPDC(meta.persistentDataContainer)
+            ?.with(mIsItem, IsItem({ item }, { meta }))
     }
 
-    fun readPlayerItems(player: org.bukkit.entity.Player, space: SokolSpaceAccess) {
-        player.inventory.forEachIndexed { idx, item ->
-            if (item == null) return@forEachIndexed
-            readItem(item, space.withEntityFunction { entity ->
-                mItemHolder.set(entity, ItemHolder.byPlayer(player, idx))
-            })
+    fun readPlayerItems(player: org.bukkit.entity.Player): List<SokolEntity> {
+        return player.inventory.mapIndexedNotNull { idx, item ->
+            if (item == null) return@mapIndexedNotNull null
+            readItem(item)
+                ?.with(mItemHolder, ItemHolder.byPlayer(player, idx))
         }
     }
 
-    fun readMob(mob: Mob, space: SokolSpaceAccess) {
-        readPDC(mob.persistentDataContainer, space.withEntityFunction { entity ->
-            mIsMob.set(entity, IsMob(mob))
-        })
+    fun readMob(mob: Mob): SokolEntity? {
+        return readPDC(mob.persistentDataContainer)
+            ?.with(mIsMob, IsMob(mob))
     }
 
     fun resolve(callback: (SokolSpace) -> Unit) {
@@ -143,7 +139,8 @@ class EntityResolver internal constructor(
         private fun resolveTag(
             type: SokolObjectType,
             tag: CompoundTag?,
-            space: SokolSpaceAccess
+            space: SokolSpace,
+            function: SokolEntity.() -> Unit,
         ) {
             val typeStats = stats.computeIfAbsent(type) { TypeStats() }
             typeStats.candidates++
@@ -153,9 +150,10 @@ class EntityResolver internal constructor(
             val wrappedTag = PaperCompoundTag(tag)
 
             try {
-                sokol.persistence.readBlueprint(wrappedTag).createIn(space.withEntityFunction { entity ->
-                    mInTag.set(entity, InTag(wrappedTag))
-                })
+                space.addEntity(sokol.persistence.readEntity(wrappedTag)
+                    .with(mInTag, InTag(wrappedTag))
+                    .also(function)
+                )
             } catch (ex: PersistenceException) {
                 throw EntityResolutionException("Could not read entities", ex)
             }
@@ -163,21 +161,21 @@ class EntityResolver internal constructor(
 
         fun resolve() {
             val server = (Bukkit.getServer() as CraftServer).server
-            val rootSpace = sokol.engine.emptySpace(lastSize + 64)
+            val rootSpace = sokol.engine.newEntityContainer(lastSize + 64)
             server.allLevels.forEach { level ->
                 resolveLevel(level, log, rootSpace)
             }
             callback(rootSpace)
-            lastSize = rootSpace.size
+            lastSize = rootSpace.countEntities()
         }
 
-        private fun resolveLevel(level: ServerLevel, log: LogAcceptor, space: SokolSpaceAccess) {
+        private fun resolveLevel(level: ServerLevel, log: LogAcceptor, space: SokolSpace) {
             val bukkit = level.world
             val entityInfo = bukkit.name
             try {
-                resolveTag(SokolObjectType.World, entityTagIn(level.world.persistentDataContainer), space.withEntityFunction { entity ->
-                    mIsWorld.set(entity, IsWorld(bukkit))
-                })
+                resolveTag(SokolObjectType.World, entityTagIn(level.world.persistentDataContainer), space) {
+                    with(mIsWorld, IsWorld(bukkit))
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve level $entityInfo" }
             }
@@ -194,12 +192,12 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveChunk(chunk: LevelChunk, world: World, log: LogAcceptor, space: SokolSpaceAccess) {
+        private fun resolveChunk(chunk: LevelChunk, world: World, log: LogAcceptor, space: SokolSpace) {
             val bukkit = chunk.bukkitChunk
             try {
-                resolveTag(SokolObjectType.Chunk, entityTagIn(bukkit.persistentDataContainer), space.withEntityFunction { entity ->
-                    mIsChunk.set(entity, IsChunk(bukkit))
-                })
+                resolveTag(SokolObjectType.Chunk, entityTagIn(bukkit.persistentDataContainer), space) {
+                    with(mIsChunk, IsChunk(bukkit))
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve chunk (${chunk.locX}, ${chunk.locZ})" }
             }
@@ -209,14 +207,14 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveBlock(block: BlockEntity, pos: BlockPos, world: World, log: LogAcceptor, space: SokolSpaceAccess) {
+        private fun resolveBlock(block: BlockEntity, pos: BlockPos, world: World, log: LogAcceptor, space: SokolSpace) {
             val bukkit = world.getBlockAt(pos.x, pos.y, pos.z)
             val state = lazy { bukkit.getState(false) }
 
             try {
-                resolveTag(SokolObjectType.Block, entityTagIn(block.persistentDataContainer), space.withEntityFunction { entity ->
-                    mIsBlock.set(entity, IsBlock(bukkit) { state.value })
-                })
+                resolveTag(SokolObjectType.Block, entityTagIn(block.persistentDataContainer), space) {
+                    with(mIsBlock, IsBlock(bukkit) { state.value })
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve block ${bukkit.type.key} @ (${pos.x}, ${pos.y}, ${pos.z})" }
             }
@@ -237,14 +235,14 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveMob(mob: Entity, log: LogAcceptor, space: SokolSpaceAccess) {
+        private fun resolveMob(mob: Entity, log: LogAcceptor, space: SokolSpace) {
             val bukkit = mob.bukkitEntity
             val pos = mob.position()
             val entityInfo = "${bukkit.name} (${mob.uuid}) @ (${pos.x.format()}, ${pos.y.format()}, ${pos.z.format()})"
             try {
-                resolveTag(SokolObjectType.Mob, entityTagIn(bukkit.persistentDataContainer), space.withEntityFunction { entity ->
-                    mIsMob.set(entity, IsMob(bukkit))
-                })
+                resolveTag(SokolObjectType.Mob, entityTagIn(bukkit.persistentDataContainer), space) {
+                    with(mIsMob, IsMob(bukkit))
+                }
             } catch (ex: EntityResolutionException) {
                 log.line(LogLevel.Warning, ex) { "Could not resolve mob $entityInfo" }
             }
@@ -306,9 +304,10 @@ class EntityResolver internal constructor(
             tagMeta: CompoundTag,
             holder: ItemHolder,
             log: LogAcceptor,
-            space: SokolSpaceAccess,
+            space: SokolSpace,
             allowUnforced: Boolean,
-            getStack: () -> ItemStack
+            getStack: () -> ItemStack,
+            function: SokolEntity.() -> Unit = {},
         ) {
             val bukkit = lazy { getStack().bukkitStack }
             val meta = lazy { bukkit.value.itemMeta }
@@ -318,10 +317,11 @@ class EntityResolver internal constructor(
 
             if (allowUnforced || (tagEntity?.getInt(FLAGS) ?: 0) and FLAG_FORCE_UPDATE != 0) {
                 try {
-                    resolveTag(SokolObjectType.Item, tagEntity, space.withEntityFunction { entity ->
-                        mIsItem.set(entity, IsItem({ bukkit.value }, { meta.value }))
-                        mItemHolder.set(entity, holder)
-                    })
+                    resolveTag(SokolObjectType.Item, tagEntity, space) {
+                        with(mIsItem, IsItem({ bukkit.value }, { meta.value }))
+                        with(mItemHolder, holder)
+                        also(function)
+                    }
                 } catch (ex: EntityResolutionException) {
                     log.line(LogLevel.Warning, ex) { "Could not resolve item ${entityInfo.value}" }
                 }
@@ -337,18 +337,19 @@ class EntityResolver internal constructor(
                     tagChildMeta,
                     ItemHolder.byContainerItem(holder, slot),
                     ForwardingLogging(log) { "Item ${entityInfo.value} / slot $slot: $it" },
-                    space.withEntityFunction { entity ->
-                        mInItemTag.set(entity, InItemTag(tagChild))
-                    },
-                    false
-                ) { childItem.value }
+                    space,
+                    false,
+                    { childItem.value }
+                ) {
+                    with(mInItemTag, InItemTag(tagChild))
+                }
             }
         }
 
-        private fun resolveItem(item: ItemStack, holder: ItemHolder, log: LogAcceptor, space: SokolSpaceAccess) {
+        private fun resolveItem(item: ItemStack, holder: ItemHolder, log: LogAcceptor, space: SokolSpace) {
             val tag = item.tag
             if (item.item === Items.AIR || tag == null) return
-            resolveItemTagInternal(tag, holder, log, space, true) { item }
+            resolveItemTagInternal(tag, holder, log, space, true, { item })
         }
     }
 }

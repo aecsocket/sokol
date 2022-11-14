@@ -26,7 +26,7 @@ data class ParticleEffectSpawner(val profile: Profile) : SimplePersistentCompone
     ) : SimpleComponentProfile {
         override val componentType get() = ParticleEffectSpawner::class
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = ParticleEffectSpawner(this)
+        override fun createEmpty(entity: SokolEntity, space: SokolSpace) = ParticleEffectSpawner(this)
     }
 }
 

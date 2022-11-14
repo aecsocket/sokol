@@ -61,7 +61,7 @@ class Sokol : BasePlugin(), SokolAPI {
     private lateinit var command: SokolCommand
     lateinit var settings: Settings private set
     override lateinit var engine: SokolEngine private set
-    lateinit var space: SokolSpace private set
+    lateinit var space: SokolEntityContainer private set
 
     private val _componentTypes = HashMap<String, ComponentType>()
     val componentTypes: Map<String, ComponentType> get() = _componentTypes
@@ -89,9 +89,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
                     .registerExact(MeshesStatic.MeshDefinitionSerializer)
-                    .register(EntitySerializer(this@Sokol))
-                    .register(KeyedBlueprintSerializer(this@Sokol))
-                    .register(BlueprintSerializer(this@Sokol))
+                    .registerExact(EntitySerializer(this@Sokol))
                     .register(DeltaSerializer)
             },
             onLoad = {
@@ -137,7 +135,7 @@ class Sokol : BasePlugin(), SokolAPI {
             persistence.enable()
             resolver.enable()
             hoster.enable()
-            space = engine.emptySpace()
+            space = engine.newEntityContainer()
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
 
@@ -222,7 +220,7 @@ class Sokol : BasePlugin(), SokolAPI {
     override fun componentType(key: Key) = _componentTypes[key.asString()]
 
     fun useSpace(capacity: Int = 64, write: Boolean = true, consumer: (SokolSpace) -> Unit) {
-        val space = engine.emptySpace(capacity)
+        val space = engine.newEntityContainer(capacity)
         consumer(space)
         if (write) {
             space.write()

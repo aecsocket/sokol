@@ -5,10 +5,9 @@ import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.paper.InputEvent
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.core.SokolSpace
+import com.gitlab.aecsocket.sokol.core.call
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryClickEvent
-import org.bukkit.inventory.ItemStack
-import org.bukkit.inventory.meta.ItemMeta
 
 object UpdateEvent : SokolEvent
 

@@ -37,7 +37,7 @@ internal class SokolCommand(
             .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1), desc("Amount of items to give."))
-            .argument(KeyedEntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to give."))
+            .argument(EntityArgument(plugin, "entity"), desc("Entity to give."))
             .permission(perm("give"))
             .handler { handle(it, ::give) })
         manager.command(root
@@ -45,14 +45,16 @@ internal class SokolCommand(
             .argument(LocationArgument.of("location"), desc("Where to spawn the mob."))
             .argument(IntegerArgument.newBuilder<CommandSender>("amount")
                 .withMin(1), desc("Amount of mobs to spawn."))
-            .argument(KeyedEntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to spawn."))
+            .argument(EntityArgument(plugin, "entity"), desc("Entity to spawn."))
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
     }
 
+    private lateinit var mProfiled: ComponentMapper<Profiled>
     private lateinit var mItemHolder: ComponentMapper<ItemHolder>
 
     internal fun enable() {
+        mProfiled = plugin.engine.mapper()
         mItemHolder = plugin.engine.mapper()
     }
 
@@ -107,19 +109,19 @@ internal class SokolCommand(
     fun give(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val targets = ctx.players("targets", sender, i18n)
         val amount = ctx.value("amount") { 1 }
-        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
+        val entity = ctx.get<SokolEntity>("entity")
 
         targets.forEach { target ->
-            val targetBlueprint = blueprint.with(mItemHolder) { ItemHolder.byMob(target) }
-            val item = plugin.hoster.hostItem(targetBlueprint)
+            val targetEntity = entity.copyOf()
+            mItemHolder.set(targetEntity, ItemHolder.byMob(target))
+            val item = plugin.hoster.hostItem(targetEntity)
             item.amount = amount
             target.inventory.addItem(item)
         }
 
-        val targetBlueprint = if (sender is Player) {
-            blueprint.with(mItemHolder) { ItemHolder.byMob(sender) }
-        } else blueprint
-        val item = plugin.hoster.hostItem(targetBlueprint)
+        if (sender is Player)
+            mItemHolder.set(entity, ItemHolder.byMob(sender))
+        val item = plugin.hoster.hostItem(entity)
 
         plugin.sendMessage(sender, i18n.csafe("give") {
             subst("item", item.displayName())
@@ -131,14 +133,16 @@ internal class SokolCommand(
     fun summon(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val location = ctx.get<Location>("location")
         val amount = ctx.value("amount") { 1 }
-        val blueprint = ctx.get<KeyedEntityBlueprint>("blueprint")
+        val entity = ctx.get<SokolEntity>("entity")
 
         repeat(amount) {
-            plugin.hoster.hostMob(blueprint, location)
+            plugin.hoster.hostMob(entity.copyOf(), location)
         }
 
+        val profile = mProfiled.get(entity).profile
+
         plugin.sendMessage(sender, i18n.csafe("summon") {
-            subst("id", text(blueprint.id))
+            subst("id", text(profile.id))
             icu("amount", amount)
         })
     }

@@ -39,7 +39,7 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             sokol.useSpace { space ->
-                sokol.resolver.readMob(mob, space)
+                sokol.resolver.readMob(mob)?.addInto(space)
                 space.construct()
                 space.call(MobEvent.AddToWorld)
             }
@@ -52,7 +52,7 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             sokol.useSpace { space ->
-                sokol.resolver.readMob(mob, space)
+                sokol.resolver.readMob(mob)?.addInto(space)
                 space.construct()
                 space.call(MobEvent.RemoveFromWorld)
             }
@@ -65,14 +65,14 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             sokol.useSpace { space ->
-                sokol.resolver.readPlayerItems(player, space)
+                sokol.resolver.readPlayerItems(player).addAllInto(space)
                 space.construct()
                 space.call(ItemEvent.Click(player, event))
             }
 
             event.currentItem?.let {
                 sokol.useSpace { space ->
-                    sokol.resolver.readItem(it, space)
+                    sokol.resolver.readItem(it)?.addInto(space)
                     space.construct()
                     space.call(ItemEvent.ClickAsCurrent(player, event))
                 }
@@ -80,7 +80,7 @@ internal class SokolEventListener(
 
             event.cursor?.let {
                 sokol.useSpace { space ->
-                    sokol.resolver.readItem(it, space)
+                    sokol.resolver.readItem(it)?.addInto(space)
                     space.construct()
                     space.call(ItemEvent.ClickAsCursor(player, event))
                 }

@@ -11,7 +11,6 @@ import org.spongepowered.configurate.kotlin.extensions.get
 
 data class Rotation(
     val dRotation: Delta<Quaternion>,
-    val tag: NBTTag?
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("rotation")
@@ -25,9 +24,8 @@ data class Rotation(
     var rotation by dRotation
 
     constructor(
-        rotation: Quaternion,
-        tag: NBTTag? = null
-    ) : this(Delta(rotation), tag)
+        rotation: Quaternion
+    ) : this(Delta(rotation))
 
     override fun write(ctx: NBTTagContext) = ctx.makeQuaternion(rotation)
 
@@ -39,13 +37,15 @@ data class Rotation(
         node.set(rotation)
     }
 
+    override fun copyOf(entity: SokolEntity, parent: SokolEntity?, root: SokolEntity) = Rotation(rotation)
+
     object Profile : ComponentProfile {
         override val componentType get() = Rotation::class
 
-        override fun read(tag: NBTTag, entity: SokolEntity, space: SokolSpaceAccess) = Rotation(tag.asQuaternion(), tag)
+        override fun read(tag: NBTTag, entity: SokolEntity) = Rotation(tag.asQuaternion())
 
-        override fun deserialize(node: ConfigurationNode, entity: SokolEntity, space: SokolSpaceAccess) = Rotation(node.get { Quaternion.Identity })
+        override fun deserialize(node: ConfigurationNode, entity: SokolEntity) = Rotation(node.get { Quaternion.Identity })
 
-        override fun createEmpty(entity: SokolEntity, space: SokolSpaceAccess) = Rotation(Quaternion.Identity)
+        override fun createEmpty(entity: SokolEntity) = Rotation(Quaternion.Identity)
     }
 }
