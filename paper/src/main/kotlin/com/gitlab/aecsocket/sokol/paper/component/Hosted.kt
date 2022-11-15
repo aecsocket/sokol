@@ -140,7 +140,7 @@ class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(IsMob::class)
-@Before(IsMobTarget::class, RemovableTarget::class, PlayerTrackedTarget::class, PositionTarget::class)
+@Before(IsMobTarget::class, RemovablePreTarget::class, PlayerTrackedTarget::class, PositionTarget::class)
 class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()

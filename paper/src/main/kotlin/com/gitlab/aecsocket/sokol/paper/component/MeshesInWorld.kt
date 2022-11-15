@@ -169,7 +169,8 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(MeshesInWorld::class, IsMob::class)
+@All(MeshesInWorld::class, PositionRead::class)
+@After(PositionTarget::class)
 class MeshesInWorldMobSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {

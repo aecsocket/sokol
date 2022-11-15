@@ -252,7 +252,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { VelocityTarget }
                     .systemFactory { PlayerTrackedTarget }
                     .systemFactory { PlayerTrackedSystem(it) }
-                    .systemFactory { RemovableTarget }
+                    .systemFactory { RemovablePreTarget }
+                    .systemFactory { RemovablePostTarget }
                     .systemFactory { RemovableSystem(it) }
                     .systemFactory { MobConstructorSystem(it) }
                     .systemFactory { ParticleEffectSpawnerSystem(it) }
@@ -263,7 +264,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { MeshesInWorldMobSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
-                    .systemFactory { ColliderPositionSystem(it) }
+                    .systemFactory { ColliderPositionWriteSystem(it) }
+                    .systemFactory { ColliderPositionReadSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()

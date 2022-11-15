@@ -8,10 +8,14 @@ interface Removable : SokolComponent {
     val removed: Boolean
 }
 
-object RemovableTarget : SokolSystem
+object RemovablePreTarget : SokolSystem
+
+object RemovablePostTarget : SokolSystem
 
 @All(IsChild::class)
 @None(Removable::class)
+@Before(RemovablePostTarget::class)
+@After(RemovablePreTarget::class)
 class RemovableSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsChild = ids.mapper<IsChild>()
     private val mRemovable = ids.mapper<Removable>()
