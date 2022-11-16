@@ -10,11 +10,11 @@ interface Removable : SokolComponent {
 
 object RemovablePreTarget : SokolSystem
 
-object RemovablePostTarget : SokolSystem
+object RemovableTarget : SokolSystem
 
 @All(IsChild::class)
 @None(Removable::class)
-@Before(RemovablePostTarget::class)
+@Before(RemovableTarget::class)
 @After(RemovablePreTarget::class)
 class RemovableSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsChild = ids.mapper<IsChild>()

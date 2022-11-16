@@ -1,16 +1,18 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.extension.key
+import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asQuaternion
 import com.gitlab.aecsocket.sokol.core.extension.makeQuaternion
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
 
 data class Rotation(
-    val dRotation: Delta<Quaternion>,
+    val dRotation: Delta<Quaternion>
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("rotation")
@@ -40,10 +42,32 @@ data class Rotation(
     object Profile : ComponentProfile {
         override val componentType get() = Rotation::class
 
-        override fun read(tag: NBTTag) = ComponentBlueprint { Rotation(tag.asQuaternion()) }
+        override fun read(tag: NBTTag): ComponentBlueprint<Rotation> {
+            val rotation = tag.asQuaternion()
 
-        override fun deserialize(node: ConfigurationNode) = ComponentBlueprint { Rotation(node.get { Quaternion.Identity }) }
+            return ComponentBlueprint { Rotation(rotation) }
+        }
+
+        override fun deserialize(node: ConfigurationNode): ComponentBlueprint<Rotation> {
+            val rotation = node.force<Quaternion>()
+
+            return ComponentBlueprint { Rotation(rotation) }
+        }
 
         override fun createEmpty() = ComponentBlueprint { Rotation(Quaternion.Identity) }
+    }
+}
+
+@All(Rotation::class)
+@Before(LocalTransformTarget::class)
+class RotationSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mRotation = ids.mapper<Rotation>()
+    private val mLocalTransform = ids.mapper<LocalTransform>()
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        val rotation = mRotation.get(entity)
+
+        mLocalTransform.addTo(entity, Transform(Vector3.Zero, rotation.rotation))
     }
 }

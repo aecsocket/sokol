@@ -81,7 +81,7 @@ data class MeshesInWorld(
 }
 
 @All(MeshesInWorld::class, Meshes::class, PositionRead::class, PlayerTracked::class)
-@After(MeshesTarget::class)
+@After(MeshesTarget::class, PositionTarget::class, PlayerTrackedTarget::class)
 class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorld = ids.mapper<MeshesInWorld>()
     private val mPositionRead = ids.mapper<PositionRead>()

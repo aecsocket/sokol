@@ -245,15 +245,21 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemPersistSystem(this@Sokol, it) }
                     .systemFactory { ItemTagPersistSystem(it) }
                     .systemFactory { CompositeSystem(it) }
+                    .systemFactory { LocalTransformTarget }
+                    .systemFactory { LocalTransformStaticSystem(it) }
+                    .systemFactory { RotationSystem(it) }
+                    .systemFactory { WorldAccessPreTarget }
+                    .systemFactory { WorldAccessTarget }
+                    .systemFactory { WorldAccessSystem(it) }
+                    .systemFactory { BasePositionTarget }
+                    .systemFactory { PositionPreTarget }
                     .systemFactory { PositionTarget }
-                    .systemFactory { PositionReadSystem(it) }
-                    .systemFactory { ChildTransformTarget }
-                    .systemFactory { ChildTransformStaticSystem(it) }
+                    .systemFactory { PositionSystem(it) }
                     .systemFactory { VelocityTarget }
                     .systemFactory { PlayerTrackedTarget }
                     .systemFactory { PlayerTrackedSystem(it) }
                     .systemFactory { RemovablePreTarget }
-                    .systemFactory { RemovablePostTarget }
+                    .systemFactory { RemovableTarget }
                     .systemFactory { RemovableSystem(it) }
                     .systemFactory { MobConstructorSystem(it) }
                     .systemFactory { ParticleEffectSpawnerSystem(it) }
@@ -262,10 +268,12 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { MeshesItemSystem(this@Sokol, it) }
                     .systemFactory { MeshesInWorldSystem(it) }
                     .systemFactory { MeshesInWorldMobSystem(it) }
+                    .systemFactory { ColliderInstanceTarget }
+                    .systemFactory { ColliderConstructSystem(it) }
                     .systemFactory { ColliderSystem(it) }
+                    .systemFactory { ColliderInstanceSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
-                    .systemFactory { ColliderPositionWriteSystem(it) }
-                    .systemFactory { ColliderPositionReadSystem(it) }
+                    .systemFactory { PositionByColliderSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -281,28 +289,32 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<IsRoot>()
                     .componentType<IsChild>()
                     .componentType<ContainerMap>()
+                    .componentType<LocalTransform>()
+                    .componentType<LocalTransformStatic>()
+                    .componentType<Rotation>()
+                    .componentType<WorldAccess>()
+                    .componentType<BasePosition>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
-                    .componentType<ChildTransform>()
-                    .componentType<ChildTransformStatic>()
                     .componentType<VelocityRead>()
                     .componentType<PlayerTracked>()
                     .componentType<Removable>()
-                    .componentType<Rotation>()
                     .componentType<ParticleEffectSpawner>()
                     .componentType<Meshes>()
                     .componentType<MeshesStatic>()
                     .componentType<MeshesItem>()
                     .componentType<MeshesInWorld>()
                     .componentType<Collider>()
+                    .componentType<ColliderInstance>()
                     .componentType<RigidBodyCollider>()
                     .componentType<VehicleBodyCollider>()
                     .componentType<GhostBodyCollider>()
+                    .componentType<PositionByCollider>()
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
+                registerComponentType(LocalTransformStatic.Type)
                 registerComponentType(Rotation.Type)
-                registerComponentType(ChildTransformStatic.Type)
                 registerComponentType(ParticleEffectSpawner.Type)
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)
@@ -311,6 +323,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(RigidBodyCollider.Type)
                 registerComponentType(VehicleBodyCollider.Type)
                 registerComponentType(GhostBodyCollider.Type)
+                registerComponentType(PositionByCollider.Type)
             }
         )
     }

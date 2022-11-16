@@ -1,7 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.extension.TPS
-import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.location
@@ -140,12 +139,13 @@ class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(IsMob::class)
-@Before(IsMobTarget::class, RemovablePreTarget::class, PlayerTrackedTarget::class, PositionTarget::class)
+@Before(IsMobTarget::class, RemovablePreTarget::class, PlayerTrackedTarget::class, WorldAccessPreTarget::class, PositionPreTarget::class)
 class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mRemovable = ids.mapper<Removable>()
-    private val mRotation = ids.mapper<Rotation>()
+    private val mWorldAccess = ids.mapper<WorldAccess>()
+    private val mBasePosition = ids.mapper<BasePosition>()
     private val mPositionRead = ids.mapper<PositionRead>()
     private val mPositionWrite = ids.mapper<PositionWrite>()
     private val mVelocityRead = ids.mapper<VelocityRead>()
@@ -162,8 +162,23 @@ class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
             override val removed get() = !mob.isValid
         })
 
-        val rotation = mRotation.getOr(entity)
-        var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
+        mWorldAccess.set(entity, object : WorldAccess {
+            override val world get() = mob.world
+        })
+
+        // rotation is done through LocalTransform and PositionRead/Write
+        var transform = Transform(mob.location.position())
+
+        mBasePosition.set(entity, object : BasePosition {
+            override val world get() = mob.world
+            @Suppress("UnstableApiUsage")
+            override var transform: Transform
+                get() = transform
+                set(value) {
+                    transform = value
+                    mob.teleport(value.translation.location(world), true)
+                }
+        })
 
         mPositionRead.set(entity, object : PositionRead {
             override val world get() = mob.world
@@ -177,7 +192,6 @@ class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
                 get() = transform
                 set(value) {
                     transform = value
-                    rotation?.rotation = transform.rotation
                     mob.teleport(value.translation.location(world), true)
                 }
         })

@@ -40,7 +40,7 @@ class EntityHoster internal constructor(
 
     fun hostMob(entity: SokolEntity, world: World, transform: Transform): Entity {
         val location = transform.translation.location(world)
-        mRotation.set(entity, Rotation(transform.rotation))
+        mRotation.getOr(entity)?.rotation = transform.rotation
         return hostMob(entity, location)
     }
 
