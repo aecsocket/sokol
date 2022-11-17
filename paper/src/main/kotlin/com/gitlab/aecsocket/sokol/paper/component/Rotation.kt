@@ -1,8 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
-import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
@@ -55,19 +53,5 @@ data class Rotation(
         }
 
         override fun createEmpty() = ComponentBlueprint { Rotation(Quaternion.Identity) }
-    }
-}
-
-@All(Rotation::class)
-@Before(LocalTransformTarget::class)
-class RotationSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mRotation = ids.mapper<Rotation>()
-    private val mLocalTransform = ids.mapper<LocalTransform>()
-
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val rotation = mRotation.get(entity)
-
-        mLocalTransform.addTo(entity, Transform(Vector3.Zero, rotation.rotation))
     }
 }

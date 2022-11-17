@@ -247,11 +247,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { CompositeSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
-                    .systemFactory { RotationSystem(it) }
-                    .systemFactory { WorldAccessPreTarget }
-                    .systemFactory { WorldAccessTarget }
-                    .systemFactory { WorldAccessSystem(it) }
-                    .systemFactory { BasePositionTarget }
                     .systemFactory { PositionPreTarget }
                     .systemFactory { PositionTarget }
                     .systemFactory { PositionSystem(it) }
@@ -272,8 +267,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderConstructSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { ColliderInstanceSystem(it) }
+                    .systemFactory { ColliderInstancePositionSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
-                    .systemFactory { PositionByColliderSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -292,8 +287,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<LocalTransform>()
                     .componentType<LocalTransformStatic>()
                     .componentType<Rotation>()
-                    .componentType<WorldAccess>()
-                    .componentType<BasePosition>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
                     .componentType<VelocityRead>()
@@ -309,7 +302,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<RigidBodyCollider>()
                     .componentType<VehicleBodyCollider>()
                     .componentType<GhostBodyCollider>()
-                    .componentType<PositionByCollider>()
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
@@ -323,7 +315,6 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(RigidBodyCollider.Type)
                 registerComponentType(VehicleBodyCollider.Type)
                 registerComponentType(GhostBodyCollider.Type)
-                registerComponentType(PositionByCollider.Type)
             }
         )
     }

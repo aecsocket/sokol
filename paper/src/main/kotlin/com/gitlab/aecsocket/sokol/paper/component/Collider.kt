@@ -24,17 +24,6 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
 
-/*
-1. base position of mob
-2. absolute position of child, from local transforms
-3. spawn collider at abs position
-(4. meshes are spawned at position, but it's equivalent)
-
-1. position backed by mob + rotation
-2. collider uses position to create collider instance
-3. position read/written to/from collider instance
- */
-
 private const val BODY_ID = "body_id"
 
 data class Collider(
@@ -148,22 +137,22 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
 
-@All(Collider::class, WorldAccess::class)
+@All(Collider::class, PositionRead::class)
 @None(ColliderInstance::class)
 @Before(ColliderInstanceTarget::class)
-@After(WorldAccessTarget::class)
+@After(PositionPreTarget::class)
 class ColliderConstructSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mCollider = ids.mapper<Collider>()
-    private val mWorldAccess = ids.mapper<WorldAccess>()
+    private val mPositionRead = ids.mapper<PositionRead>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val collider = mCollider.get(entity)
-        val worldAccess = mWorldAccess.get(entity)
+        val positionRead = mPositionRead.get(entity)
 
         val bodyId = collider.bodyId ?: return
-        val physSpace = CraftBulletAPI.spaceOf(worldAccess.world)
+        val physSpace = CraftBulletAPI.spaceOf(positionRead.world)
         val body = physSpace.trackedBy(bodyId) as? SokolPhysicsObject ?: return
 
         mColliderInstance.set(entity, ColliderInstance(body, physSpace))
@@ -247,14 +236,18 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
             if (body is PhysicsRigidBody && parent != null) {
                 (mColliderInstance.getOr(parent)?.body?.body as? PhysicsRigidBody)?.let { pBody ->
-                    physSpace.addJoint(New6Dof(body, pBody,
+                    val joint = New6Dof(body, pBody,
                         Vector3f(0f, -0.5f, 0f), Vector3f(0f, 0.5f, 0f),
                         Matrix3f.IDENTITY, Matrix3f.IDENTITY,
-                        RotationOrder.XYZ))
-                    physSpace.addJoint(New6Dof(pBody, body,
-                        Vector3f(0f, 0.5f, 0f), Vector3f(0f, -0.5f, 0f),
-                        Matrix3f.IDENTITY, Matrix3f.IDENTITY,
-                        RotationOrder.XYZ))
+                        RotationOrder.XYZ)
+
+                    repeat(6) {
+                        joint.set(MotorParam.LowerLimit, it, 0f)
+                        joint.set(MotorParam.UpperLimit, it, 0f)
+                    }
+
+                    physSpace.addJoint(joint)
+
                     body.addToIgnoreList(pBody)
                 }
             }
@@ -312,6 +305,22 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
         entity.callSingle(Rebuild)
+    }
+}
+
+@All(ColliderInstance::class, Collider::class, PositionWrite::class)
+@Before(ColliderSystem::class)
+@After(ColliderInstanceTarget::class, PositionTarget::class)
+class ColliderInstancePositionSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mColliderInstance = ids.mapper<ColliderInstance>()
+    private val mPositionWrite = ids.mapper<PositionWrite>()
+
+    @Subscribe
+    fun on(event: UpdateEvent, entity: SokolEntity) {
+        val (physObj) = mColliderInstance.get(entity)
+        val positionWrite = mPositionWrite.get(entity)
+
+        positionWrite.transform = physObj.body.transform.alexandria()
     }
 }
 
