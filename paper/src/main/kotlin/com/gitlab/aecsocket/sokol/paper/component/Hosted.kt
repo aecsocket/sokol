@@ -6,8 +6,10 @@ import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
+import com.gitlab.aecsocket.alexandria.paper.extension.scheduleDelayed
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
+import com.gitlab.aecsocket.sokol.paper.UpdateEvent
 import net.minecraft.nbt.CompoundTag
 import org.bukkit.Chunk
 import org.bukkit.World
@@ -89,6 +91,18 @@ data class InItemTag(val nmsTag: CompoundTag) : SokolComponent {
     override val componentType get() = InItemTag::class
 }
 
+data class MobPosition(
+    var dTransform: Delta<Transform>
+) : SokolComponent {
+    override val componentType get() = MobPosition::class
+
+    var transform by dTransform
+
+    constructor(
+        transform: Transform
+    ) : this(Delta(transform))
+}
+
 @All(IsBlock::class, IsRoot::class)
 class BlockPersistSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsBlock = ids.mapper<IsBlock>()
@@ -136,16 +150,19 @@ class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
 
         (isItem.item as CraftItemStack).handle.save(inItemTag.nmsTag)
     }
-
 }
 
 @All(IsMob::class)
 @Before(IsMobTarget::class, RemovablePreTarget::class, PlayerTrackedTarget::class, PositionPreTarget::class)
-class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
+class MobConstructorSystem(
+    private val sokol: Sokol,
+    ids: ComponentIdAccess
+) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mRemovable = ids.mapper<Removable>()
     private val mRotation = ids.mapper<Rotation>()
+    private val mMobPosition = ids.mapper<MobPosition>()
     private val mPositionRead = ids.mapper<PositionRead>()
     private val mPositionWrite = ids.mapper<PositionWrite>()
     private val mVelocityRead = ids.mapper<VelocityRead>()
@@ -162,28 +179,50 @@ class MobConstructorSystem(ids: ComponentIdAccess) : SokolSystem {
             override val removed get() = !mob.isValid
         })
 
-        val rotation = mRotation.getOr(entity)
-        var transform = Transform(mob.location.position(), rotation?.rotation ?: Quaternion.Identity)
+        val mobPosition = MobPosition(Transform(
+            mob.location.position(),
+            mRotation.getOr(entity)?.rotation ?: Quaternion.Identity
+        ))
+
+        mMobPosition.set(entity, mobPosition)
 
         mPositionRead.set(entity, object : PositionRead {
             override val world get() = mob.world
-            override val transform get() = transform
+            override val transform get() = mobPosition.transform
         })
 
         mPositionWrite.set(entity, object : PositionWrite {
             override val world get() = mob.world
-            @Suppress("UnstableApiUsage")
             override var transform: Transform
-                get() = transform
+                get() = mobPosition.transform
                 set(value) {
-                    transform = value
-                    rotation?.rotation = value.rotation
-                    mob.teleport(value.translation.location(world), true)
+                    mobPosition.transform = value
                 }
         })
 
         mVelocityRead.set(entity, object : VelocityRead {
             override val linear get() = mob.velocity.alexandria() * TPS.toDouble()
         })
+    }
+}
+
+@All(IsMob::class, MobPosition::class)
+class MobPositionSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mIsMob = ids.mapper<IsMob>()
+    private val mMobPosition = ids.mapper<MobPosition>()
+    private val mRotation = ids.mapper<Rotation>()
+
+    @Subscribe
+    fun on(event: UpdateEvent, entity: SokolEntity) {
+        val mob = mIsMob.get(entity).mob
+        val mobPosition = mMobPosition.get(entity)
+        val rotation = mRotation.getOr(entity)
+
+        mobPosition.dTransform.ifDirty {
+            rotation?.rotation = it.rotation
+            @Suppress("UnstableApiUsage")
+            mob.teleport(it.translation.location(mob.world), true)
+        }
+        mobPosition.dTransform.clean()
     }
 }

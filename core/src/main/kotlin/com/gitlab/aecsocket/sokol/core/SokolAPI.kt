@@ -135,6 +135,7 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
                 try {
                     val sKey = component.key.asString()
                     tag[sKey] = tag[sKey]?.let { component.writeDelta(it) } ?: component.write(tag)
+                    component.clean()
                 } catch (ex: PersistenceException) {
                     throw PersistenceException("Could not write component delta ${component.key}", ex)
                 }

@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.alexandria.paper.InputEvent
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.core.SokolSpace
 import com.gitlab.aecsocket.sokol.core.call
+import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.bukkit.event.inventory.InventoryClickEvent
 
@@ -38,6 +39,11 @@ interface MobEvent : SokolEvent {
     data class Hide(
         val player: Player,
         val backing: PacketSendEvent,
+    ) : MobEvent
+
+    data class Teleport(
+        val from: Location,
+        val to: Location
     ) : MobEvent
 }
 

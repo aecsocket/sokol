@@ -63,6 +63,8 @@ class EntityResolver internal constructor(
     private val log = sokol.log
     val entityKey = sokol.persistence.entityKey.toString()
 
+    private val mobEntities = HashMap<Int, SokolEntity>()
+
     private val _lastStats = HashMap<SokolObjectType, TypeStats>()
     val lastStats: Map<SokolObjectType, TypeStats> get() = _lastStats
 
@@ -97,6 +99,12 @@ class EntityResolver internal constructor(
         }
     }
 
+    internal fun disable() {
+        mobEntities.forEach { (_, entity) ->
+            entity.write()
+        }
+    }
+
     fun readPDC(pdc: PersistentDataContainer): EntityBlueprint? {
         val tag = sokol.persistence.getTag(pdc, sokol.persistence.entityKey) ?: return null
         return sokol.persistence.readBlueprint(tag)
@@ -119,13 +127,43 @@ class EntityResolver internal constructor(
     }
 
     fun readMob(mob: Mob): EntityBlueprint? {
+        if (!mob.isValid) return null
         return readPDC(mob.persistentDataContainer)
             ?.pushSet(mIsMob) { IsMob(mob) }
+    }
+
+    fun mobTrackedBy(entityId: Int) = mobEntities[entityId]
+
+    fun mobTrackedBy(mob: Mob) = mobEntities[mob.entityId]
+
+    fun trackMob(mob: Mob, entity: SokolEntity) {
+        if (mobEntities.contains(mob.entityId))
+            throw IllegalStateException("Already tracking mob $mob")
+        mobEntities[mob.entityId] = entity
+    }
+
+    fun untrackMob(mob: Mob): SokolEntity? {
+        return mobEntities.remove(mob.entityId)
     }
 
     fun resolve(callback: (SokolSpace) -> Unit) {
         _lastStats.clear()
         ResolveOperation(callback, _lastStats).resolve()
+    }
+
+    fun update() {
+        val mobSpace = sokol.engine.newEntityContainer(mobEntities.size)
+        mobSpace.addEntities(mobEntities.values)
+        mobSpace.update()
+
+        resolve {
+            it.construct()
+            if (sokol.hasReloaded)
+                it.call(ReloadEvent)
+            it.update()
+            it.write()
+        }
+        sokol.hasReloaded = false
     }
 
     private inner class ResolveOperation(
@@ -162,9 +200,11 @@ class EntityResolver internal constructor(
         fun resolve() {
             val server = (Bukkit.getServer() as CraftServer).server
             val rootSpace = sokol.engine.newEntityContainer(lastSize + 64)
+
             server.allLevels.forEach { level ->
                 resolveLevel(level, log, rootSpace)
             }
+
             callback(rootSpace)
             lastSize = rootSpace.countEntities()
         }
@@ -185,10 +225,6 @@ class EntityResolver internal constructor(
                 holder.fullChunkNow?.let { chunk ->
                     resolveChunk(chunk, bukkit, ForwardingLogging(log) { "Level $entityInfo: $it" }, space)
                 }
-            }
-
-            level.entities.all.forEach { mob ->
-                resolveMob(mob, ForwardingLogging(log) { "Level $entityInfo: $it" }, space)
             }
         }
 

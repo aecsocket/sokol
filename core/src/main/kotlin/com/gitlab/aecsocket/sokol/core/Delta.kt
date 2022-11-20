@@ -25,6 +25,11 @@ class Delta<T>(var value: T, dirty: Boolean = false) {
         return this
     }
 
+    fun clean(): Delta<T> {
+        dirty = false
+        return this
+    }
+
     fun <R> ifDirty(consumer: (T) -> R): R? {
         return if (dirty) consumer(value) else null
     }

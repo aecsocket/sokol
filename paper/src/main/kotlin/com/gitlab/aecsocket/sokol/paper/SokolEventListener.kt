@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
+import com.destroystokyo.paper.event.server.ServerTickEndEvent
 import com.destroystokyo.paper.event.server.ServerTickStartEvent
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.sokol.core.*
@@ -9,6 +10,7 @@ import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.entity.EntityTeleportEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 
 internal class SokolEventListener(
@@ -26,6 +28,10 @@ internal class SokolEventListener(
     fun on(event: ServerTickStartEvent) {
         tryEvent(event) {
             sokol.space.update()
+
+            sokol.timings.time {
+                sokol.resolver.update()
+            }
         }
     }
 
@@ -38,11 +44,10 @@ internal class SokolEventListener(
         }
 
         tryEvent(event) {
-            sokol.useSpace { space ->
-                sokol.resolver.readMob(mob)?.addInto(space)
-                space.construct()
-                space.call(MobEvent.AddToWorld)
-            }
+            val entity = sokol.resolver.readMob(mob)?.create() ?: return@tryEvent
+            entity.construct()
+            entity.call(MobEvent.AddToWorld)
+            sokol.resolver.trackMob(mob, entity)
         }
     }
 
@@ -51,11 +56,17 @@ internal class SokolEventListener(
         val mob = event.entity
 
         tryEvent(event) {
-            sokol.useSpace { space ->
-                sokol.resolver.readMob(mob)?.addInto(space)
-                space.construct()
-                space.call(MobEvent.RemoveFromWorld)
-            }
+            val entity = sokol.resolver.untrackMob(mob) ?: return@tryEvent
+            entity.call(MobEvent.RemoveFromWorld)
+            entity.write()
+        }
+    }
+
+    @EventHandler
+    fun on(event: EntityTeleportEvent) {
+        val entity = sokol.resolver.mobTrackedBy(event.entity) ?: return
+        event.to?.let {
+            entity.call(MobEvent.Teleport(event.from, it))
         }
     }
 

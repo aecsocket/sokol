@@ -48,25 +48,17 @@ internal class SokolPacketListener(
         when (event.packetType) {
             PacketType.Play.Server.SPAWN_ENTITY -> {
                 val packet = WrapperPlayServerSpawnEntity(event)
-                val mob = mobById(player.world, packet.entityId) ?: return
                 tryPacket(event) {
-                    sokol.useSpace { space ->
-                        sokol.resolver.readMob(mob)?.addInto(space)
-                        space.construct()
-                        space.call(MobEvent.Show(player, event))
-                    }
+                    val entity = sokol.resolver.mobTrackedBy(packet.entityId) ?: return@tryPacket
+                    entity.call(MobEvent.Show(player, event))
                 }
             }
             PacketType.Play.Server.DESTROY_ENTITIES -> {
                 val packet = WrapperPlayServerDestroyEntities(event)
-                packet.entityIds.map { mobById(player.world, it) }.forEach { mob ->
-                    if (mob == null) return@forEach
-                    tryPacket(event) {
-                        sokol.useSpace { space ->
-                            sokol.resolver.readMob(mob)?.addInto(space)
-                            space.construct()
-                            space.call(MobEvent.Hide(player, event))
-                        }
+                tryPacket(event) {
+                    packet.entityIds.forEach {
+                        val entity = sokol.resolver.mobTrackedBy(it) ?: return@tryPacket
+                        entity.call(MobEvent.Hide(player, event))
                     }
                 }
             }

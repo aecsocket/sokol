@@ -79,7 +79,7 @@ class Sokol : BasePlugin(), SokolAPI {
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
     private val inputHandlers = ArrayList<SokolInputHandler>()
-    private var hasReloaded = false
+    internal var hasReloaded = false
 
     override fun onEnable() {
         super.onEnable()
@@ -145,19 +145,6 @@ class Sokol : BasePlugin(), SokolAPI {
             val postInitCtx = object : PostInitContext {}
             registrations.forEach { it.onPostInit(postInitCtx) }
 
-            scheduleRepeating {
-                timings.time {
-                    resolver.resolve {
-                        it.construct()
-                        if (hasReloaded)
-                            it.call(ReloadEvent)
-                        it.update()
-                        it.write()
-                    }
-                    hasReloaded = false
-                }
-            }
-
             return true
         }
         return false
@@ -207,6 +194,10 @@ class Sokol : BasePlugin(), SokolAPI {
         return false
     }
 
+    override fun onDisable() {
+        resolver.disable()
+    }
+
     fun registerConsumer(
         onInit: InitContext.() -> Unit = {},
         onPostInit: PostInitContext.() -> Unit = {},
@@ -244,6 +235,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { BlockPersistSystem(it) }
                     .systemFactory { ItemPersistSystem(this@Sokol, it) }
                     .systemFactory { ItemTagPersistSystem(it) }
+                    .systemFactory { MobPositionSystem(it) }
                     .systemFactory { CompositeSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
@@ -256,7 +248,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { RemovablePreTarget }
                     .systemFactory { RemovableTarget }
                     .systemFactory { RemovableSystem(it) }
-                    .systemFactory { MobConstructorSystem(it) }
+                    .systemFactory { MobConstructorSystem(this@Sokol, it) }
                     .systemFactory { ParticleEffectSpawnerSystem(it) }
                     .systemFactory { MeshesTarget }
                     .systemFactory { MeshesStaticSystem(it) }
@@ -269,6 +261,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderInstanceSystem(it) }
                     .systemFactory { ColliderInstancePositionSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
+                    .systemFactory { ColliderMobPositionSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -279,6 +272,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<IsItem>()
                     .componentType<ItemHolder>()
                     .componentType<InItemTag>()
+                    .componentType<MobPosition>()
                     .componentType<AsMob>()
                     .componentType<AsItem>()
                     .componentType<IsRoot>()

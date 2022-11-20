@@ -19,6 +19,10 @@ data class ContainerMap(
     override val key get() = Key
     override val dirty get() = true
 
+    override fun clean() {
+        children.forEach { (_, delta) -> delta.clean() }
+    }
+
     fun children() = children
         .mapNotNull { (key, dEntity) -> dEntity.value?.let { key to it } }
         .associate { it }

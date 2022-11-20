@@ -35,6 +35,7 @@ class EntityHoster internal constructor(
             entity.call(MobEvent.Spawn)
             sokol.mobsAdded.add(mob.entityId)
             sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
+            sokol.resolver.trackMob(mob, entity)
         }
     }
 

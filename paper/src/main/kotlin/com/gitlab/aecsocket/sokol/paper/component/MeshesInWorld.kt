@@ -34,6 +34,10 @@ data class MeshesInWorld(
         meshes: List<MeshEntry>
     ) : this(Delta(meshes))
 
+    override fun clean() {
+        dMeshes.clean()
+    }
+
     override fun write(ctx: NBTTagContext) = ctx.makeList().from(meshes) { mesh -> makeCompound()
         .set(ID) { makeUUID(mesh.mesh.id) }
         .set(TRANSFORM) { makeTransform(mesh.transform) }

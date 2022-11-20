@@ -27,6 +27,10 @@ data class Rotation(
         rotation: Quaternion
     ) : this(Delta(rotation))
 
+    override fun clean() {
+        dRotation.clean()
+    }
+
     override fun write(ctx: NBTTagContext) = ctx.makeQuaternion(rotation)
 
     override fun writeDelta(tag: NBTTag): NBTTag {
