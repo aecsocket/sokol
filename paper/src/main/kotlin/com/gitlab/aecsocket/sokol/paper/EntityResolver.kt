@@ -153,7 +153,24 @@ class EntityResolver internal constructor(
 
     fun update() {
         val mobSpace = sokol.engine.newEntityContainer(mobEntities.size)
-        mobSpace.addEntities(mobEntities.values)
+        if (sokol.hasReloaded) {
+            val newEntities = HashMap<Int, SokolEntity>()
+            mobEntities.forEach { (key, entity) ->
+                val mob = mIsMob.getOr(entity)?.mob ?: return@forEach
+                entity.write()
+                val newEntity = readMob(mob)?.create() ?: return@forEach
+                newEntities[key] = newEntity
+                mobSpace.addEntity(newEntity)
+            }
+
+            mobEntities.clear()
+            mobEntities.putAll(newEntities)
+
+            mobSpace.construct()
+            mobSpace.call(ReloadEvent)
+        } else {
+            mobSpace.addEntities(mobEntities.values)
+        }
         mobSpace.update()
 
         resolve {

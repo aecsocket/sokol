@@ -239,6 +239,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { CompositeSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
+                    .systemFactory { RootLocalTransformTarget }
                     .systemFactory { PositionPreTarget }
                     .systemFactory { PositionTarget }
                     .systemFactory { PositionSystem(it) }
@@ -259,6 +260,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderConstructSystem(it) }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { ColliderInstanceSystem(it) }
+                    .systemFactory { ColliderInstanceParentSystem(it) }
                     .systemFactory { ColliderInstancePositionSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
                     .systemFactory { ColliderMobPositionSystem(it) }
@@ -281,6 +283,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<LocalTransform>()
                     .componentType<LocalTransformStatic>()
                     .componentType<Rotation>()
+                    .componentType<RootLocalTransform>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
                     .componentType<VelocityRead>()

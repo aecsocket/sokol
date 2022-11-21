@@ -46,7 +46,7 @@ class EntityBlueprintParser<C : Any>(
 
                 try {
                     ArgumentParseResult.success(node.force<EntityBlueprint>())
-                } catch (ex: SerializationException) {
+                } catch (ex: Exception) {
                     ArgumentParseResult.failure(ex)
                 }
             } catch (ex: ConfigurateException) {
