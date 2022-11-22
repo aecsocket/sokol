@@ -28,7 +28,6 @@ internal class SokolEventListener(
     fun on(event: ServerTickStartEvent) {
         tryEvent(event) {
             sokol.space.update()
-
             sokol.timings.time {
                 sokol.resolver.update()
             }

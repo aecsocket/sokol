@@ -8,6 +8,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.asTransform
 import com.gitlab.aecsocket.sokol.core.extension.makeTransform
 import com.gitlab.aecsocket.sokol.paper.*
+import net.kyori.adventure.text.format.NamedTextColor
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -105,6 +106,15 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
         val player: Player
     ) : SokolEvent
 
+    data class Glowing(
+        val state: Boolean,
+        val players: Iterable<Player>
+    ) : SokolEvent
+
+    data class GlowingColor(
+        val color: NamedTextColor
+    ) : SokolEvent
+
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
@@ -152,6 +162,24 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 
         meshesInWorld.meshes.forEach { (mesh) ->
             mesh.remove(event.player)
+        }
+    }
+
+    @Subscribe
+    fun on(event: Glowing, entity: SokolEntity) {
+        val meshesInWorld = mMeshesInWorld.get(entity)
+
+        meshesInWorld.meshes.forEach { (mesh) ->
+            mesh.glowing(event.state, event.players)
+        }
+    }
+
+    @Subscribe
+    fun on(event: GlowingColor, entity: SokolEntity) {
+        val meshesInWorld = mMeshesInWorld.get(entity)
+
+        meshesInWorld.meshes.forEach { (mesh) ->
+            mesh.glowingColor = event.color
         }
     }
 

@@ -80,6 +80,8 @@ class Sokol : BasePlugin(), SokolAPI {
     val hoster = EntityHoster(this)
     val timings = Timings(60 * 1000)
 
+    val holding = EntityHolding(this)
+
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
     private val inputHandlers = ArrayList<SokolInputHandler>()
@@ -144,6 +146,7 @@ class Sokol : BasePlugin(), SokolAPI {
             resolver.enable()
             hoster.enable()
             space = engine.newEntityContainer()
+            holding.enable()
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
 
@@ -261,6 +264,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { MeshesItemSystem(this@Sokol, it) }
                     .systemFactory { MeshesInWorldSystem(it) }
                     .systemFactory { MeshesInWorldMobSystem(it) }
+                    .systemFactory { MeshesHoverGlowSystem(it) }
                     .systemFactory { ColliderInstanceTarget }
                     .systemFactory { ColliderConstructSystem(it) }
                     .systemFactory { ColliderSystem(it) }
@@ -300,6 +304,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<MeshesStatic>()
                     .componentType<MeshesItem>()
                     .componentType<MeshesInWorld>()
+                    .componentType<MeshesHoverGlow>()
                     .componentType<Collider>()
                     .componentType<ColliderInstance>()
                     .componentType<RigidBodyCollider>()
@@ -315,6 +320,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)
                 registerComponentType(MeshesInWorld.Type)
+                registerComponentType(MeshesHoverGlow.Type)
                 registerComponentType(Collider.Type)
                 registerComponentType(RigidBodyCollider.Type)
                 registerComponentType(VehicleBodyCollider.Type)
@@ -332,7 +338,7 @@ class Sokol : BasePlugin(), SokolAPI {
     ) {
         fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
             if (thisBody !is SokolPhysicsObject) return
-            thisBody.entity.call(ColliderSystem.Contact(thisBody, otherBody, point))
+            thisBody.entity.callSingle(ColliderSystem.Contact(thisBody, otherBody, point))
         }
 
         callEvent(bodyA, bodyB)
