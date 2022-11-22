@@ -1,8 +1,11 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.RangeMapFloat
 import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.core.physics.Shape
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
+import com.gitlab.aecsocket.alexandria.paper.SoundEngineEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.transform
 import com.gitlab.aecsocket.craftbullet.core.*
@@ -11,13 +14,13 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.RotationOrder
+import com.jme3.bullet.collision.PhysicsCollisionObject
 import com.jme3.bullet.joints.New6Dof
 import com.jme3.bullet.joints.motors.MotorParam
 import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
 import com.jme3.math.Matrix3f
-import com.jme3.math.Vector3f
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -188,6 +191,12 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val space: ServerPhysicsSpace
     ) : SokolEvent
 
+    data class Contact(
+        val thisBody: PhysicsCollisionObject,
+        val otherBody: PhysicsCollisionObject,
+        val point: ContactManifoldPoint
+    ) : SokolEvent
+
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
         val collider = mCollider.get(entity)
@@ -279,6 +288,40 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
+@All(ColliderInstance::class, Collider::class)
+@Before(ColliderSystem::class)
+@After(ColliderInstanceTarget::class)
+class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mCollider = ids.mapper<Collider>()
+    private val mColliderInstance = ids.mapper<ColliderInstance>()
+
+    object Remove : SokolEvent
+
+    @Subscribe
+    fun on(event: Remove, entity: SokolEntity) {
+        val (physObj, physSpace) = mColliderInstance.get(entity)
+        val collider = mCollider.get(entity)
+
+        collider.bodyId = null
+
+        CraftBulletAPI.executePhysics {
+            physSpace.removeCollisionObject(physObj.body)
+        }
+    }
+
+    @Subscribe
+    fun on(event: UpdateEvent, entity: SokolEntity) {
+        val (physObj) = mColliderInstance.get(entity)
+
+        physObj.entity = entity
+    }
+
+    @Subscribe
+    fun on(event: ReloadEvent, entity: SokolEntity) {
+        entity.callSingle(ColliderSystem.Create)
+    }
+}
+
 @All(ColliderInstance::class, Collider::class, IsChild::class, RootLocalTransform::class)
 @Before(ColliderSystem::class)
 @After(ColliderInstanceTarget::class, RootLocalTransformTarget::class)
@@ -319,40 +362,6 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         physSpace.addJoint(jointBA)
 
         body.addToIgnoreList(pBody)
-    }
-}
-
-@All(ColliderInstance::class, Collider::class)
-@Before(ColliderSystem::class)
-@After(ColliderInstanceTarget::class)
-class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mCollider = ids.mapper<Collider>()
-    private val mColliderInstance = ids.mapper<ColliderInstance>()
-
-    object Remove : SokolEvent
-
-    @Subscribe
-    fun on(event: Remove, entity: SokolEntity) {
-        val (physObj, physSpace) = mColliderInstance.get(entity)
-        val collider = mCollider.get(entity)
-
-        collider.bodyId = null
-
-        CraftBulletAPI.executePhysics {
-            physSpace.removeCollisionObject(physObj.body)
-        }
-    }
-
-    @Subscribe
-    fun on(event: UpdateEvent, entity: SokolEntity) {
-        val (physObj) = mColliderInstance.get(entity)
-
-        physObj.entity = entity
-    }
-
-    @Subscribe
-    fun on(event: ReloadEvent, entity: SokolEntity) {
-        entity.callSingle(ColliderSystem.Create)
     }
 }
 

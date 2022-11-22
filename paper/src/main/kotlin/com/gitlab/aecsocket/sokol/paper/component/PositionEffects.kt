@@ -10,47 +10,47 @@ import com.gitlab.aecsocket.sokol.paper.UpdateEvent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
-data class ParticleEffectSpawner(val profile: Profile) : SimplePersistentComponent {
+data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
-        val Key = SokolAPI.key("particle_effect_spawner")
+        val Key = SokolAPI.key("position_effects")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = ParticleEffectSpawner::class
+    override val componentType get() = PositionEffects::class
     override val key get() = Key
 
     @ConfigSerializable
     data class Profile(
-        @Required val effect: ParticleEngineEffect,
-        val velocityMultiplier: Double = 0.0
+        val particle: ParticleEngineEffect = ParticleEngineEffect.Empty,
+        val particleVelocityMultiplier: Double = 0.0
     ) : SimpleComponentProfile {
-        override val componentType get() = ParticleEffectSpawner::class
+        override val componentType get() = PositionEffects::class
 
-        override fun createEmpty() = ComponentBlueprint { ParticleEffectSpawner(this) }
+        override fun createEmpty() = ComponentBlueprint { PositionEffects(this) }
     }
 }
 
-@All(ParticleEffectSpawner::class, PositionRead::class)
+@All(PositionEffects::class, PositionRead::class)
 @After(PositionTarget::class, VelocityTarget::class)
-class ParticleEffectSpawnerSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mParticleEffectSpawner = ids.mapper<ParticleEffectSpawner>()
+class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mPositionEffects = ids.mapper<PositionEffects>()
     private val mPositionRead = ids.mapper<PositionRead>()
     private val mVelocityRead = ids.mapper<VelocityRead>()
 
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
-        val particleEffectSpawner = mParticleEffectSpawner.get(entity).profile
+        val positionEffects = mPositionEffects.get(entity).profile
         val positionRead = mPositionRead.get(entity)
         val velocityRead = mVelocityRead.getOr(entity)
 
         val velocity = velocityRead?.linear ?: Vector3.Zero
 
-        val effect = ParticleEngineEffect(particleEffectSpawner.effect.effects.map { effect ->
+        val particle = positionEffects.particle.map { effect ->
             if (effect.count.compareTo(0.0) == 0) effect.copy(
-                size = velocity * particleEffectSpawner.velocityMultiplier
+                size = velocity * positionEffects.particleVelocityMultiplier
             ) else effect
-        })
+        }
 
-        AlexandriaAPI.particleEngine.spawn(positionRead.location(), effect)
+        AlexandriaAPI.particleEngine.spawn(positionRead.location(), particle)
     }
 }

@@ -301,6 +301,8 @@ class SokolEngine internal constructor(
         private val handleLookup = MethodHandles.lookup()
 
         fun componentType(type: KClass<out SokolComponent>): Builder {
+            if (componentTypes.contains(type))
+                throw IllegalArgumentException("Duplicate component type $type")
             componentTypes.add(type)
             return this
         }

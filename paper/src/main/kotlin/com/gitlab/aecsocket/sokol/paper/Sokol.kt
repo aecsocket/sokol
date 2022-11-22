@@ -7,9 +7,13 @@ import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.keyed.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.*
+import com.gitlab.aecsocket.craftbullet.core.ContactManifoldPoint
+import com.gitlab.aecsocket.craftbullet.core.ServerPhysicsSpace
 import com.gitlab.aecsocket.craftbullet.core.Timings
+import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
+import com.jme3.bullet.collision.PhysicsCollisionObject
 import net.kyori.adventure.key.Key
 import org.bstats.bukkit.Metrics
 import org.bukkit.entity.Entity
@@ -84,6 +88,7 @@ class Sokol : BasePlugin(), SokolAPI {
     override fun onEnable() {
         super.onEnable()
         command = SokolCommand(this)
+        CraftBulletAPI.onContact(::onContact)
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
@@ -250,7 +255,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { RemovableTarget }
                     .systemFactory { RemovableSystem(it) }
                     .systemFactory { MobConstructorSystem(this@Sokol, it) }
-                    .systemFactory { ParticleEffectSpawnerSystem(it) }
+                    .systemFactory { PositionEffectsSystem(it) }
                     .systemFactory { MeshesTarget }
                     .systemFactory { MeshesStaticSystem(it) }
                     .systemFactory { MeshesItemSystem(this@Sokol, it) }
@@ -264,6 +269,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderInstancePositionSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
                     .systemFactory { ColliderMobPositionSystem(it) }
+                    .systemFactory { ColliderEffectsSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -289,7 +295,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<VelocityRead>()
                     .componentType<PlayerTracked>()
                     .componentType<Removable>()
-                    .componentType<ParticleEffectSpawner>()
+                    .componentType<PositionEffects>()
                     .componentType<Meshes>()
                     .componentType<MeshesStatic>()
                     .componentType<MeshesItem>()
@@ -299,12 +305,13 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<RigidBodyCollider>()
                     .componentType<VehicleBodyCollider>()
                     .componentType<GhostBodyCollider>()
+                    .componentType<ColliderEffects>()
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
                 registerComponentType(LocalTransformStatic.Type)
                 registerComponentType(Rotation.Type)
-                registerComponentType(ParticleEffectSpawner.Type)
+                registerComponentType(PositionEffects.Type)
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)
                 registerComponentType(MeshesInWorld.Type)
@@ -312,7 +319,23 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(RigidBodyCollider.Type)
                 registerComponentType(VehicleBodyCollider.Type)
                 registerComponentType(GhostBodyCollider.Type)
+                registerComponentType(ColliderEffects.Type)
             }
         )
+    }
+
+    private fun onContact(
+        space: ServerPhysicsSpace,
+        bodyA: PhysicsCollisionObject,
+        bodyB: PhysicsCollisionObject,
+        point: ContactManifoldPoint
+    ) {
+        fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
+            if (thisBody !is SokolPhysicsObject) return
+            thisBody.entity.call(ColliderSystem.Contact(thisBody, otherBody, point))
+        }
+
+        callEvent(bodyA, bodyB)
+        callEvent(bodyB, bodyA)
     }
 }
