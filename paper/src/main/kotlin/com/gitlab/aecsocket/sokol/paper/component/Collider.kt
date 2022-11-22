@@ -341,7 +341,7 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         val pBody = mColliderInstance.getOr(root)?.body?.body as? PhysicsRigidBody ?: return
 
         val jointTranslation = (rootLocalTransform.translation / 2.0).bullet()
-        // todo mat rot
+        // TODO mat rot
         val jointAB = New6Dof(body, pBody,
             -jointTranslation, jointTranslation,
             Matrix3f.IDENTITY, Matrix3f.IDENTITY,

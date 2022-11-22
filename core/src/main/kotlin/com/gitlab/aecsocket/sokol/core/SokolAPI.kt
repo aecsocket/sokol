@@ -21,11 +21,20 @@ interface SokolAPI {
 class PersistenceException(message: String? = null, cause: Throwable? = null)
     : RuntimeException(message, cause)
 
-abstract class SokolPersistence(private val sokol: SokolAPI) {
-    private lateinit var mProfiled: ComponentMapper<Profiled>
+fun interface PersistenceMacro {
+    fun apply(blueprint: EntityBlueprint, node: ConfigurationNode, profile: EntityProfile)
+}
 
-    fun enable() {
+abstract class SokolPersistence(protected val sokol: SokolAPI) {
+    private lateinit var mProfiled: ComponentMapper<Profiled>
+    private val macros = ArrayList<PersistenceMacro>()
+
+    open fun enable() {
         mProfiled = sokol.engine.mapper()
+    }
+
+    fun macro(macro: PersistenceMacro) {
+        macros.add(macro)
     }
 
     abstract fun tagContext(): NBTTagContext
@@ -82,6 +91,8 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
     fun deserializeProfiledBlueprint(node: ConfigurationNode, profile: EntityProfile): EntityBlueprint {
         val blueprint = sokol.engine.newBlueprint()
 
+        macros.forEach { it.apply(blueprint, node, profile) }
+
         blueprint.flags = node.node(FLAGS).get { 0 }
 
         profile.components.forEach { (key, profile) ->
@@ -101,7 +112,7 @@ abstract class SokolPersistence(private val sokol: SokolAPI) {
     }
 
     fun deserializeBlueprint(node: ConfigurationNode): EntityBlueprint {
-        val profileId = node.node(PROFILE).force<String>()
+        val profileId = (if (node.isMap) node.node(PROFILE) else node).force<String>()
         val entityProfile = sokol.entityProfile(profileId)
             ?: throw PersistenceException("Invalid entity profile '$profileId'")
 

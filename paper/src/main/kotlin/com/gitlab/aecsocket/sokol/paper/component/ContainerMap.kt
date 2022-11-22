@@ -9,7 +9,7 @@ import org.spongepowered.configurate.ConfigurationNode
 
 data class ContainerMap(
     private val sokol: Sokol,
-    private val children: MutableMap<String, Delta<SokolEntity?>>
+    val children: MutableMap<String, Delta<SokolEntity?>>
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("container_map")

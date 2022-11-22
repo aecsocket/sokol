@@ -57,24 +57,24 @@ class EntityBlueprint internal constructor(
     private val functions: MutableList<(SokolEntity) -> Unit> = ArrayList()
 ) {
     fun push(function: (SokolEntity) -> Unit): EntityBlueprint {
-        functions.add(function)
+        functions.add(0, function)
         return this
     }
 
     fun <C : SokolComponent> pushSet(mapper: ComponentMapper<C>, component: ComponentBlueprint<C>): EntityBlueprint {
-        functions.add { mapper.set(it, component.create(it)) }
+        push { mapper.set(it, component.create(it)) }
         return this
     }
 
     fun <C : SokolComponent> pushSet(profile: ComponentProfile, component: ComponentBlueprint<C>): EntityBlueprint {
         @Suppress("UNCHECKED_CAST")
         val mapper = engine.mapper(profile.componentType) as ComponentMapper<C>
-        functions.add { mapper.set(it, component.create(it)) }
+        push { mapper.set(it, component.create(it)) }
         return this
     }
 
     fun pushRemove(mapper: ComponentMapper<*>): EntityBlueprint {
-        functions.add { mapper.remove(it) }
+        push { mapper.remove(it) }
         return this
     }
 
