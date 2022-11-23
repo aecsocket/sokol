@@ -1,11 +1,8 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.core.RangeMapFloat
 import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.core.physics.Shape
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
-import com.gitlab.aecsocket.alexandria.paper.SoundEngineEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.transform
 import com.gitlab.aecsocket.craftbullet.core.*
@@ -307,13 +304,6 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
         CraftBulletAPI.executePhysics {
             physSpace.removeCollisionObject(physObj.body)
         }
-    }
-
-    @Subscribe
-    fun on(event: UpdateEvent, entity: SokolEntity) {
-        val (physObj) = mColliderInstance.get(entity)
-
-        physObj.entity = entity
     }
 
     @Subscribe
