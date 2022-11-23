@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.github.retrooper.packetevents.event.PacketSendEvent
 import com.gitlab.aecsocket.alexandria.core.input.Input
-import com.gitlab.aecsocket.alexandria.paper.InputEvent
+import com.gitlab.aecsocket.alexandria.paper.input.InputEvent
 import com.gitlab.aecsocket.sokol.core.SokolEvent
 import com.gitlab.aecsocket.sokol.core.SokolSpace
 import com.gitlab.aecsocket.sokol.core.call

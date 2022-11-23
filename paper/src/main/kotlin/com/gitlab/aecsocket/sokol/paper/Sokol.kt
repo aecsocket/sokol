@@ -34,9 +34,7 @@ private const val BSTATS_ID = 11870
 private lateinit var instance: Sokol
 val SokolAPI get() = instance
 
-fun interface SokolInputHandler {
-    fun handle(event: PlayerInputEvent)
-}
+typealias InputListener = (event: PlayerInputEvent) -> Unit
 
 class Sokol : BasePlugin(), SokolAPI {
     @ConfigSerializable
@@ -84,7 +82,7 @@ class Sokol : BasePlugin(), SokolAPI {
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
-    private val inputHandlers = ArrayList<SokolInputHandler>()
+    private val onInput = ArrayList<InputListener>()
     internal var hasReloaded = false
 
     override fun onEnable() {
@@ -106,11 +104,9 @@ class Sokol : BasePlugin(), SokolAPI {
                 addDefaultI18N()
             }
         )
-        AlexandriaAPI.inputHandler { event ->
+        AlexandriaAPI.onInput { event ->
             val sokolEvent = PlayerInputEvent(event)
-            inputHandlers.forEach { handler ->
-                handler.handle(sokolEvent)
-            }
+            onInput.forEach { it(sokolEvent) }
         }
 
         registerDefaultConsumer()
@@ -213,8 +209,8 @@ class Sokol : BasePlugin(), SokolAPI {
         registrations.add(Registration(onInit, onPostInit))
     }
 
-    fun inputHandler(handler: SokolInputHandler) {
-        inputHandlers.add(handler)
+    fun onInput(handler: InputListener) {
+        onInput.add(handler)
     }
 
     override fun entityProfile(id: String) = _entityProfiles[id]
@@ -243,6 +239,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { BlockPersistSystem(it) }
                     .systemFactory { ItemPersistSystem(this@Sokol, it) }
                     .systemFactory { ItemTagPersistSystem(it) }
+                    .systemFactory { DisplayNameTarget }
+                    .systemFactory { DisplayNameProfileSystem(it) }
                     .systemFactory { MobPositionSystem(it) }
                     .systemFactory { CompositeSystem(it) }
                     .systemFactory { LocalTransformTarget }
@@ -259,12 +257,18 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { RemovableSystem(it) }
                     .systemFactory { MobConstructorSystem(this@Sokol, it) }
                     .systemFactory { PositionEffectsSystem(it) }
+                    .systemFactory { EntityCallbacksTarget }
+                    .systemFactory { EntityCallbacksSystem(it) }
+                    .systemFactory { InputCallbacksInstanceTarget }
+                    .systemFactory { InputCallbacksSystem(it) }
+                    .systemFactory { InputCallbacksInstanceSystem(it) }
+                    .systemFactory { TakeableSystem(it) }
                     .systemFactory { MeshesTarget }
                     .systemFactory { MeshesStaticSystem(it) }
                     .systemFactory { MeshesItemSystem(this@Sokol, it) }
                     .systemFactory { MeshesInWorldSystem(it) }
                     .systemFactory { MeshesInWorldMobSystem(it) }
-                    .systemFactory { MeshesHoverGlowSystem(it) }
+                    .systemFactory { HoverMeshGlowSystem(it) }
                     .systemFactory { ColliderInstanceTarget }
                     .systemFactory { ColliderConstructSystem(it) }
                     .systemFactory { ColliderSystem(it) }
@@ -284,6 +288,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<IsItem>()
                     .componentType<ItemHolder>()
                     .componentType<InItemTag>()
+                    .componentType<DisplayName>()
+                    .componentType<DisplayNameProfile>()
                     .componentType<MobPosition>()
                     .componentType<AsMob>()
                     .componentType<AsItem>()
@@ -299,28 +305,35 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<VelocityRead>()
                     .componentType<PlayerTracked>()
                     .componentType<Removable>()
+                    .componentType<EntityCallbacks>()
+                    .componentType<InputCallbacks>()
+                    .componentType<InputCallbacksInstance>()
+                    .componentType<Takeable>()
                     .componentType<PositionEffects>()
                     .componentType<Meshes>()
                     .componentType<MeshesStatic>()
                     .componentType<MeshesItem>()
                     .componentType<MeshesInWorld>()
-                    .componentType<MeshesHoverGlow>()
+                    .componentType<HoverMeshGlow>()
                     .componentType<Collider>()
                     .componentType<ColliderInstance>()
                     .componentType<RigidBodyCollider>()
                     .componentType<VehicleBodyCollider>()
                     .componentType<GhostBodyCollider>()
                     .componentType<ColliderEffects>()
+                registerComponentType(DisplayNameProfile.Type)
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
                 registerComponentType(LocalTransformStatic.Type)
                 registerComponentType(Rotation.Type)
+                registerComponentType(InputCallbacks.Type)
+                registerComponentType(Takeable.Type)
                 registerComponentType(PositionEffects.Type)
                 registerComponentType(MeshesStatic.Type)
                 registerComponentType(MeshesItem.Type)
                 registerComponentType(MeshesInWorld.Type)
-                registerComponentType(MeshesHoverGlow.Type)
+                registerComponentType(HoverMeshGlow.Type)
                 registerComponentType(Collider.Type)
                 registerComponentType(RigidBodyCollider.Type)
                 registerComponentType(VehicleBodyCollider.Type)

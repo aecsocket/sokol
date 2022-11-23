@@ -89,7 +89,7 @@ class EntityResolver internal constructor(
         mItemHolder = sokol.engine.mapper()
         mInItemTag = sokol.engine.mapper()
 
-        sokol.inputHandler { event ->
+        sokol.onInput { event ->
             // even though we're off-main, we still write here
             sokol.useSpace { space ->
                 readPlayerItems(event.player).addAllInto(space)

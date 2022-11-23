@@ -3,7 +3,6 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.ContainerMap
-import com.gitlab.aecsocket.sokol.paper.component.IsChild
 import net.kyori.adventure.key.Key
 import net.minecraft.nbt.CompoundTag
 import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
@@ -16,16 +15,16 @@ class PaperSokolPersistence internal constructor(
     sokol: Sokol,
 ) : SokolPersistence(sokol) {
     val entityKey = sokol.key("entity")
-    private lateinit var mIsChild: ComponentMapper<IsChild>
-    private lateinit var mContainerMap: ComponentMapper<ContainerMap>
 
     override fun enable() {
         super.enable()
-        mIsChild = sokol.engine.mapper()
-        mContainerMap = sokol.engine.mapper()
-
         macro { _, node, _ ->
             /*
+                map_children: {
+                  child: "entity_profile_id"
+                }
+
+            to
 
                 "sokol:container_map": {
                   child: {
@@ -33,12 +32,6 @@ class PaperSokolPersistence internal constructor(
                       _: "entity_profile_id"
                     }
                   }
-                }
-
-            to
-
-                map_children: {
-                  child: "entity_profile_id"
                 }
 
              */

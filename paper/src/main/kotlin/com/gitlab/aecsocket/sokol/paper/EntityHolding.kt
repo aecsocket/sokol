@@ -34,6 +34,11 @@ class EntityHolding internal constructor(
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
     internal fun enable() {
+        sokol.onInput { event ->
+            val holding = event.player.alexandria.featureData(this)
+            holding.hover?.physObj?.entity?.call(event)
+        }
+
         CraftBulletAPI.onPostStep {
             bukkitPlayers.forEach { player ->
                 val holding = player.alexandria.featureData(this)

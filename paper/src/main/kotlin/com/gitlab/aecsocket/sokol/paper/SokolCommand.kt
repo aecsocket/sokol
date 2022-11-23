@@ -10,6 +10,7 @@ import com.gitlab.aecsocket.alexandria.paper.desc
 import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.glossa.core.I18N
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.component.DisplayName
 import com.gitlab.aecsocket.sokol.paper.component.ItemHolder
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.Component.text
@@ -51,10 +52,12 @@ internal class SokolCommand(
     }
 
     private lateinit var mProfiled: ComponentMapper<Profiled>
+    private lateinit var mDisplayName: ComponentMapper<DisplayName>
     private lateinit var mItemHolder: ComponentMapper<ItemHolder>
 
     internal fun enable() {
         mProfiled = plugin.engine.mapper()
+        mDisplayName = plugin.engine.mapper()
         mItemHolder = plugin.engine.mapper()
     }
 
@@ -113,6 +116,7 @@ internal class SokolCommand(
 
         targets.forEach { target ->
             val entity = blueprint.create()
+            entity.construct()
             mItemHolder.set(entity, ItemHolder.byMob(target))
             val item = plugin.hoster.hostItem(entity)
             item.amount = amount
@@ -120,12 +124,11 @@ internal class SokolCommand(
         }
 
         val entity = blueprint.create()
-        if (sender is Player)
-            mItemHolder.set(entity, ItemHolder.byMob(sender))
-        val item = plugin.hoster.hostItem(entity)
+        entity.construct()
+        val displayName = mDisplayName.getOr(entity)?.nameFor(i18n) ?: text(mProfiled.get(entity).profile.id)
 
         plugin.sendMessage(sender, i18n.csafe("give") {
-            subst("item", item.displayName())
+            subst("name", displayName)
             subst("target", if (targets.size == 1) targets.first().name() else text(targets.size))
             icu("amount", amount)
         })
@@ -137,14 +140,17 @@ internal class SokolCommand(
         val blueprint = ctx.get<EntityBlueprint>("blueprint")
 
         repeat(amount) {
-            plugin.hoster.hostMob(blueprint.create(), location)
+            val entity = blueprint.create()
+            entity.construct()
+            plugin.hoster.hostMob(entity, location)
         }
 
         val entity = blueprint.create()
-        val profile = mProfiled.get(entity).profile
+        entity.construct()
+        val displayName = mDisplayName.getOr(entity)?.nameFor(i18n) ?: text(mProfiled.get(entity).profile.id)
 
         plugin.sendMessage(sender, i18n.csafe("summon") {
-            subst("id", text(profile.id))
+            subst("name", displayName)
             icu("amount", amount)
         })
     }

@@ -175,8 +175,15 @@ class MobConstructorSystem(
             override fun trackedPlayers() = mob.trackedPlayers
         })
 
+        var removed = false
+
         mRemovable.set(entity, object : Removable {
-            override val removed get() = !mob.isValid
+            override val removed get() = removed || !mob.isValid
+
+            override fun remove() {
+                removed = true
+                mob.remove()
+            }
         })
 
         val mobPosition = MobPosition(Transform(

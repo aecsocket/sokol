@@ -6,6 +6,8 @@ interface Removable : SokolComponent {
     override val componentType get() = Removable::class
 
     val removed: Boolean
+
+    fun remove()
 }
 
 object RemovablePreTarget : SokolSystem
