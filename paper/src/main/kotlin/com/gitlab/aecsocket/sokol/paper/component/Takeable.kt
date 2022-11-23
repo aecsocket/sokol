@@ -3,7 +3,9 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import org.bukkit.entity.Player
 
 data class Takeable(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -21,26 +23,44 @@ data class Takeable(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
-@All(Takeable::class, Removable::class, PositionRead::class /* if we have a world presence */)
-@Before(EntityCallbacksSystem::class, RemovableTarget::class)
-class TakeableSystem(ids: ComponentIdAccess) : SokolSystem {
+@All(Takeable::class, InputCallbacks::class, Removable::class, PositionRead::class /* if we have a world presence */)
+@Before(InputCallbacksSystem::class)
+@After(RemovableTarget::class, PositionTarget::class)
+class TakeableSystem(
+    private val sokol: Sokol,
+    ids: ComponentIdAccess
+) : SokolSystem {
     companion object {
         val TakeAsItem = Takeable.Key.with("take_as_item")
     }
 
+    data class Remove(
+        val player: Player
+    ) : SokolEvent
+
+    private val mInputCallbacks = ids.mapper<InputCallbacks>()
     private val mRemovable = ids.mapper<Removable>()
+    private val mIsChild = ids.mapper<IsChild>()
 
     @Subscribe
-    fun on(event: EntityCallbacksSystem.Construct, entity: SokolEntity) {
-        val removable = mRemovable.get(entity)
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        val inputCallbacks = mInputCallbacks.get(entity)
+        val isChild = mIsChild.getOr(entity)
 
-        event.callback(TakeAsItem) {
-            if (removable.removed) return@callback false
-            removable.remove()
-
-            // todo
-
+        inputCallbacks.callback(TakeAsItem) { input ->
+            input.cancel()
+            (isChild?.root ?: entity).callSingle(Remove(input.player))
             true
         }
+    }
+
+    @Subscribe
+    fun on(event: Remove, entity: SokolEntity) {
+        val removable = mRemovable.get(entity)
+        if (removable.removed) return
+        removable.remove()
+
+        val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(entity).create())
+        event.player.inventory.addItem(item)
     }
 }

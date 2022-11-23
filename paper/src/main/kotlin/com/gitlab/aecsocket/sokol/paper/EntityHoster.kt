@@ -31,7 +31,7 @@ class EntityHoster internal constructor(
     fun hostMob(entity: SokolEntity, location: Location): Entity {
         return spawnMarkerMob(location) { mob ->
             mIsMob.set(entity, IsMob(mob))
-            entity.construct()
+            entity.construct() // construct after IsMob set
             entity.call(MobEvent.Spawn)
             sokol.mobsAdded.add(mob.entityId)
             sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
@@ -49,7 +49,7 @@ class EntityHoster internal constructor(
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
             mIsItem.set(entity, IsItem({ item }, { meta }))
-            entity.construct()
+            entity.construct() // construct after IsItem set
             entity.call(ItemEvent.CreateForm)
             entity.call(ItemEvent.Create)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
@@ -60,7 +60,7 @@ class EntityHoster internal constructor(
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
             mIsItem.set(entity, IsItem({ item }, { meta }))
-            entity.construct()
+            entity.construct() // construct after IsItem set
             entity.call(ItemEvent.CreateForm)
         }
     }

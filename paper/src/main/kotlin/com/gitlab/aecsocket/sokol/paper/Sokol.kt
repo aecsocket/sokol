@@ -257,12 +257,10 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { RemovableSystem(it) }
                     .systemFactory { MobConstructorSystem(this@Sokol, it) }
                     .systemFactory { PositionEffectsSystem(it) }
-                    .systemFactory { EntityCallbacksTarget }
-                    .systemFactory { EntityCallbacksSystem(it) }
                     .systemFactory { InputCallbacksInstanceTarget }
                     .systemFactory { InputCallbacksSystem(it) }
                     .systemFactory { InputCallbacksInstanceSystem(it) }
-                    .systemFactory { TakeableSystem(it) }
+                    .systemFactory { TakeableSystem(this@Sokol, it) }
                     .systemFactory { MeshesTarget }
                     .systemFactory { MeshesStaticSystem(it) }
                     .systemFactory { MeshesItemSystem(this@Sokol, it) }
@@ -305,7 +303,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<VelocityRead>()
                     .componentType<PlayerTracked>()
                     .componentType<Removable>()
-                    .componentType<EntityCallbacks>()
                     .componentType<InputCallbacks>()
                     .componentType<InputCallbacksInstance>()
                     .componentType<Takeable>()

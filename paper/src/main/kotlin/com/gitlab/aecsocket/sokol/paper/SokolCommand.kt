@@ -116,7 +116,6 @@ internal class SokolCommand(
 
         targets.forEach { target ->
             val entity = blueprint.create()
-            entity.construct()
             mItemHolder.set(entity, ItemHolder.byMob(target))
             val item = plugin.hoster.hostItem(entity)
             item.amount = amount

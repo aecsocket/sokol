@@ -9,6 +9,10 @@ import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
+fun interface InputCallback {
+    fun run(event: PlayerInputEvent): Boolean
+}
+
 data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("input_callbacks")
@@ -23,6 +27,16 @@ data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
 
     override val componentType get() = InputCallbacks::class
     override val key get() = Key
+
+    private val callbacks = HashMap<Key, InputCallback>()
+
+    fun callback(key: Key) = callbacks[key]
+
+    fun callback(key: Key, callback: InputCallback) {
+        if (callbacks.contains(key))
+            throw IllegalArgumentException("Duplicate input callback $key")
+        callbacks[key] = callback
+    }
 
     @ConfigSerializable
     data class Profile(
@@ -41,28 +55,25 @@ data class InputCallbacksInstance(
 
     data class Callback(
         val mIf: Set<String>,
-        val mDo: List<List<EntityCallback>>
+        val mDo: List<List<InputCallback>>
     )
 }
 
 object InputCallbacksInstanceTarget : SokolSystem
 
-@All(InputCallbacks::class, EntityCallbacks::class)
+@All(InputCallbacks::class)
 @None(InputCallbacksInstance::class)
 @Before(InputCallbacksInstanceTarget::class)
-@After(EntityCallbacksTarget::class)
 class InputCallbacksSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mInputCallbacks = ids.mapper<InputCallbacks>()
-    private val mEntityCallbacks = ids.mapper<EntityCallbacks>()
     private val mInputCallbacksInstance = ids.mapper<InputCallbacksInstance>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        val inputCallbacks = mInputCallbacks.get(entity).profile
-        val entityCallbacks = mEntityCallbacks.get(entity)
+        val inputCallbacks = mInputCallbacks.get(entity)
 
-        val inputs = inputCallbacks.inputs.map { (mIf, mDo) ->
-            InputCallbacksInstance.Callback(mIf, mDo.map { a -> a.mapNotNull { b -> entityCallbacks.callback(b) } })
+        val inputs = inputCallbacks.profile.inputs.map { (mIf, mDo) ->
+            InputCallbacksInstance.Callback(mIf, mDo.map { a -> a.mapNotNull { b -> inputCallbacks.callback(b) } })
         }
         mInputCallbacksInstance.set(entity, InputCallbacksInstance(inputs))
     }
@@ -88,7 +99,7 @@ class InputCallbacksInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
             if (!conditions.containsAll(mIf)) return@forEach
             mDo.forEach { callbackSet ->
                 for (callback in callbackSet) {
-                    if (callback.run()) break
+                    if (callback.run(event)) break
                 }
             }
         }
