@@ -6,9 +6,13 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.Held
+import com.gitlab.aecsocket.sokol.paper.component.IsMob
 import com.gitlab.aecsocket.sokol.paper.component.SokolPhysicsObject
 import com.jme3.bullet.collision.PhysicsRayTestResult
+import org.bukkit.entity.Entity
 import org.bukkit.entity.Player
+import java.lang.ref.WeakReference
+import java.util.WeakHashMap
 
 interface HoldOperation {
     val canRelease: Boolean
@@ -36,9 +40,10 @@ class EntityHolding internal constructor(
 
     data class Hold(
         val player: Player,
-        val entity: SokolEntity,
+        var entity: SokolEntity,
         val operation: HoldOperation,
-        val raiseHandLock: PlayerLockInstance
+        val raiseHandLock: PlayerLockInstance,
+        val mob: WeakReference<Entity>?
     ) : State
 
     inner class PlayerData(val player: AlexandriaPlayer) : PlayerFeature.PlayerData {
@@ -51,10 +56,14 @@ class EntityHolding internal constructor(
 
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
+    private val mobMap = WeakHashMap<Entity, Hold>()
+
     private lateinit var mHeld: ComponentMapper<Held>
+    private lateinit var mIsMob: ComponentMapper<IsMob>
 
     internal fun enable() {
         mHeld = sokol.engine.mapper()
+        mIsMob = sokol.engine.mapper()
 
         sokol.onInput { event ->
             val holding = event.player.alexandria.featureData(this).state ?: return@onInput
@@ -94,9 +103,12 @@ class EntityHolding internal constructor(
         }
     }
 
+    fun holdOf(mob: Entity) = mobMap[mob]
+
     private fun stop(player: AlexandriaPlayer, state: Hold, releaseLock: Boolean) {
         state.entity.callSingle(ChangeHoldState(false))
         mHeld.remove(state.entity)
+        state.mob?.get()?.let { mobMap.remove(it) }
         if (releaseLock) {
             player.releaseLock(state.raiseHandLock)
         }
@@ -117,13 +129,16 @@ class EntityHolding internal constructor(
 
     fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation) {
         stop(player)
+        val mob = mIsMob.getOr(entity)?.mob
         val hold = Hold(
             player.handle,
             entity,
             operation,
-            player.acquireLock(PlayerLock.RaiseHand)
+            player.acquireLock(PlayerLock.RaiseHand),
+            WeakReference(mob)
         )
         mHeld.set(entity, Held(hold))
+        mob?.let { mobMap[it] = hold }
         entity.callSingle(ChangeHoldState(true))
         player.featureData(this).state = hold
     }

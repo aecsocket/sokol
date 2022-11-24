@@ -82,7 +82,7 @@ data class Collider(
 }
 
 data class ColliderInstance(
-    val body: SokolPhysicsObject,
+    val physObj: SokolPhysicsObject,
     val physSpace: ServerPhysicsSpace
 ) : SokolComponent {
     override val componentType get() = ColliderInstance::class
@@ -328,7 +328,7 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         val body = physObj.body
 
         if (body !is PhysicsRigidBody || root == entity) return
-        val pBody = mColliderInstance.getOr(root)?.body?.body as? PhysicsRigidBody ?: return
+        val pBody = mColliderInstance.getOr(root)?.physObj?.body as? PhysicsRigidBody ?: return
 
         val jointTranslation = (rootLocalTransform.translation / 2.0).bullet()
         // TODO mat rot

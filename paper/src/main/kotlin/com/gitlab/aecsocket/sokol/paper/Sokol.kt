@@ -277,9 +277,12 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderMobPositionSystem(it) }
                     .systemFactory { ColliderEffectsSystem(it) }
                     .systemFactory { HoldableSystem(this@Sokol, it) }
-                    .systemFactory { HoldableItemSystem(this@Sokol, it) }
-                    .systemFactory { HeldPositionSystem(it) }
+                    .systemFactory { PlaceableSystem(this@Sokol, it) }
+                    .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
+                    .systemFactory { HoldMovableColliderSystem(it) }
                     .systemFactory { HeldMobSystem(this@Sokol, it) }
+                    .systemFactory { HeldSnapSystem(it) }
+                    .systemFactory { HeldAttachableSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -324,6 +327,10 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<ColliderEffects>()
                     .componentType<Holdable>()
                     .componentType<Held>()
+                    .componentType<Placeable>()
+                    .componentType<HoldMovable>()
+                    .componentType<HeldSnap>()
+                    .componentType<HeldAttachable>()
                 registerComponentType(DisplayNameProfile.Type)
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
@@ -343,6 +350,10 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(GhostBodyCollider.Type)
                 registerComponentType(ColliderEffects.Type)
                 registerComponentType(Holdable.Type)
+                registerComponentType(Placeable.Type)
+                registerComponentType(HoldMovable.Type)
+                registerComponentType(HeldSnap.Type)
+                registerComponentType(HeldAttachable.Type)
             }
         )
     }
