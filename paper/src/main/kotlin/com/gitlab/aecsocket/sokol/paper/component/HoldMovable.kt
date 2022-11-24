@@ -84,8 +84,8 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val body = physObj.body
         val player = hold.player
 
-        val operation = hold.operation
-        if (operation !is MoveHoldOperation) return
+        val operation = hold.operation as? MoveHoldOperation ?: return
+        if (hold.frozen) return
 
         body.transform = operation.nextTransform.bullet()
         if (body is PhysicsRigidBody) {

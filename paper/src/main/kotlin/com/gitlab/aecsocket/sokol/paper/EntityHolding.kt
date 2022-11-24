@@ -44,7 +44,10 @@ class EntityHolding internal constructor(
         val operation: HoldOperation,
         val raiseHandLock: PlayerLockInstance,
         val mob: WeakReference<Entity>?
-    ) : State
+    ) : State {
+        var frozen = false
+        var drawSlotShapes = false
+    }
 
     inner class PlayerData(val player: AlexandriaPlayer) : PlayerFeature.PlayerData {
         var state: State? = null

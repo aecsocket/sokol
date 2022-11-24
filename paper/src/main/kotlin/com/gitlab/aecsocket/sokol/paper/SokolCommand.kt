@@ -1,11 +1,13 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.bukkit.parsers.location.LocationArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
 import com.gitlab.aecsocket.alexandria.core.extension.value
 import com.gitlab.aecsocket.alexandria.paper.BaseCommand
 import com.gitlab.aecsocket.alexandria.paper.Context
+import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.alexandria.paper.desc
 import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.glossa.core.I18N
@@ -49,6 +51,21 @@ internal class SokolCommand(
             .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to spawn."))
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
+
+        val holding = root
+            .literal("holding", desc("Options for manipulating the currently held entity."))
+        manager.command(holding
+            .literal("freeze", desc("Toggles freezing the held entity state."))
+            .argument(BooleanArgument.optional("enable"), desc("Enable the feature."))
+            .permission(perm("holding.freeze"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::holdingFreeze) })
+        manager.command(holding
+            .literal("slots", desc("Toggles recursively drawing the slots on the held entity."))
+            .argument(BooleanArgument.optional("enable"), desc("Enable the feature."))
+            .permission(perm("holding.slots"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::holdingSlots) })
     }
 
     private lateinit var mProfiled: ComponentMapper<Profiled>
@@ -152,6 +169,22 @@ internal class SokolCommand(
             subst("name", displayName)
             icu("amount", amount)
         })
+    }
+
+    fun holdingFreeze(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val player = sender as Player
+        val holding = player.alexandria.holding.state as? EntityHolding.Hold ?: error(i18n.safe("error.not_holding"))
+        val enable = ctx.value("enable") { !holding.frozen }
+
+        holding.frozen = enable
+    }
+
+    fun holdingSlots(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+        val player = sender as Player
+        val holding = player.alexandria.holding.state as? EntityHolding.Hold ?: error(i18n.safe("error.not_holding"))
+        val enable = ctx.value("enable") { !holding.drawSlotShapes }
+
+        holding.drawSlotShapes = enable
     }
 
     /*init {
