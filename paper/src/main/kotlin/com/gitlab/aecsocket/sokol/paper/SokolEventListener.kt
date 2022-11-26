@@ -2,7 +2,6 @@ package com.gitlab.aecsocket.sokol.paper
 
 import com.destroystokyo.paper.event.entity.EntityAddToWorldEvent
 import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
-import com.destroystokyo.paper.event.server.ServerTickEndEvent
 import com.destroystokyo.paper.event.server.ServerTickStartEvent
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.sokol.core.*

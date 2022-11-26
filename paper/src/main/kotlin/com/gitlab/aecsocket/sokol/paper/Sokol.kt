@@ -42,7 +42,7 @@ class Sokol : BasePlugin(), SokolAPI {
         val enableBstats: Boolean = true,
         val resolveContainerBlocks: Boolean = true,
         val resolveContainerItems: Boolean = true,
-        val entityHoverDistance: Float = 0f,
+        val entityHoverDistance: Double = 0.0,
     )
 
     private data class Registration(
@@ -241,8 +241,11 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ItemTagPersistSystem(it) }
                     .systemFactory { DisplayNameTarget }
                     .systemFactory { DisplayNameProfileSystem(it) }
+                    .systemFactory { MobConstructorSystem(this@Sokol, it) }
+                    .systemFactory { MobSystem(it) }
                     .systemFactory { MobPositionSystem(it) }
-                    .systemFactory { CompositeSystem(it) }
+                    .systemFactory { CompositeConstructSystem(it) }
+                    .systemFactory { CompositeRootSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
                     .systemFactory { RootLocalTransformTarget }
@@ -255,7 +258,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { RemovablePreTarget }
                     .systemFactory { RemovableTarget }
                     .systemFactory { RemovableSystem(it) }
-                    .systemFactory { MobConstructorSystem(this@Sokol, it) }
                     .systemFactory { PositionEffectsSystem(it) }
                     .systemFactory { InputCallbacksInstanceTarget }
                     .systemFactory { InputCallbacksSystem(it) }
@@ -276,16 +278,21 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderMobSystem(it) }
                     .systemFactory { ColliderMobPositionSystem(it) }
                     .systemFactory { ColliderEffectsSystem(it) }
-                    .systemFactory { HoldableSystem(this@Sokol, it) }
+                    .systemFactory { HoldableInputsSystem(this@Sokol, it) }
                     .systemFactory { PlaceableSystem(this@Sokol, it) }
                     .systemFactory { HeldSystem(it) }
+                    .systemFactory { HeldEntitySlotSystem(it) }
                     .systemFactory { HeldColliderSystem(it) }
                     .systemFactory { HeldMobSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableColliderSystem(it) }
                     .systemFactory { HeldSnapSystem(it) }
                     .systemFactory { HeldAttachableSystem(it) }
+                    .systemFactory { HeldAttachableInputsSystem(this@Sokol, it) }
+                    .systemFactory { HeldAttachableEffectsSystem(it) }
                     .systemFactory { HeldMeshGlowSystem(it) }
+                    .systemFactory { EntitySlotTarget }
+                    .systemFactory { EntitySlotInMapSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -334,8 +341,10 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<HoldMovable>()
                     .componentType<HeldSnap>()
                     .componentType<HeldAttachable>()
+                    .componentType<HeldAttachableEffects>()
                     .componentType<HeldMeshGlow>()
                     .componentType<EntitySlot>()
+                    .componentType<EntitySlotInMap>()
                 registerComponentType(DisplayNameProfile.Type)
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
@@ -359,8 +368,9 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(HoldMovable.Type)
                 registerComponentType(HeldSnap.Type)
                 registerComponentType(HeldAttachable.Type)
+                registerComponentType(HeldAttachableEffects.Type)
                 registerComponentType(HeldMeshGlow.Type)
-                registerComponentType(EntitySlot.Type)
+                registerComponentType(EntitySlotInMap.Type)
             }
         )
     }

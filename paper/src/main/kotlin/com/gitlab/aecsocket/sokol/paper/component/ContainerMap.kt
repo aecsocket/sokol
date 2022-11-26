@@ -13,6 +13,7 @@ data class ContainerMap(
 ) : PersistentComponent {
     companion object {
         val Key = SokolAPI.key("container_map")
+        const val DefaultKey = "_"
     }
 
     override val componentType get() = ContainerMap::class
@@ -147,7 +148,9 @@ data class ContainerMap(
             return componentOf(blueprints)
         }
 
-        override fun createEmpty() = ComponentBlueprint { ContainerMap(sokol, HashMap()) }
+        override fun createEmpty() = componentOf(children
+            .map { (key, profile) -> key to sokol.persistence.emptyBlueprint(profile) }
+            .associate { it })
     }
 
     class Type(private val sokol: Sokol) : ComponentType {

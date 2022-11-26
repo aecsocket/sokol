@@ -3,9 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.ReloadEvent
 import org.bukkit.World
-import kotlin.reflect.KClass
 
 interface PositionAccess {
     val world: World
@@ -34,8 +32,7 @@ data class RootLocalTransform(val transform: Transform) : SokolComponent {
 
 object RootLocalTransformTarget : SokolSystem
 
-@All(IsChild::class, LocalTransform::class)
-@None(PositionRead::class)
+@All(IsChild::class)
 @Before(PositionTarget::class, RootLocalTransformTarget::class)
 @After(PositionPreTarget::class)
 class PositionSystem(ids: ComponentIdAccess) : SokolSystem {
@@ -44,10 +41,9 @@ class PositionSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mRootLocalTransform = ids.mapper<RootLocalTransform>()
     private val mPositionRead = ids.mapper<PositionRead>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    private fun construct(entity: SokolEntity) {
         val isChild = mIsChild.get(entity)
-        val localTransform = mLocalTransform.get(entity).transform
+        val localTransform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
         val pRootLocalTransform = mRootLocalTransform.getOr(isChild.parent)?.transform ?: Transform.Identity
         val pPositionRead = mPositionRead.getOr(isChild.parent) ?: return
 
@@ -57,5 +53,15 @@ class PositionSystem(ids: ComponentIdAccess) : SokolSystem {
             override val world get() = pPositionRead.world
             override val transform get() = pPositionRead.transform + localTransform
         })
+    }
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        construct(entity)
+    }
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
+        construct(entity)
     }
 }

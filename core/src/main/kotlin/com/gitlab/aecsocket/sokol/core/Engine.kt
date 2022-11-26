@@ -23,6 +23,8 @@ interface SokolSpace {
     fun addEntity(entity: SokolEntity)
 
     fun addEntities(entities: Iterable<SokolEntity>)
+
+    fun removeEntity(entity: SokolEntity)
 }
 
 fun <E : SokolEvent> SokolSpace.call(event: E, recursive: Boolean = true): E {
@@ -83,6 +85,10 @@ class SokolEntity internal constructor(
         _entities.addAll(entities)
     }
 
+    override fun removeEntity(entity: SokolEntity) {
+        _entities.remove(entity)
+    }
+
     fun hasComponent(componentId: Int) = archetype[componentId]
 
     fun getComponent(componentId: Int) = _components[componentId]
@@ -118,6 +124,8 @@ class SokolEntity internal constructor(
     override fun toString() = "Entity[${_components.filterNotNull().joinToString { it.componentType.simpleName ?: it.componentType.toString() }}]"
 }
 
+inline fun <reified C : SokolComponent> SokolEntity.component() = getComponent(engine.idOf<C>()) as C
+
 class SokolEntityContainer internal constructor(
     override val engine: SokolEngine,
     capacity: Int
@@ -139,7 +147,7 @@ class SokolEntityContainer internal constructor(
         _entities.addAll(entities)
     }
 
-    fun removeEntity(entity: SokolEntity) {
+    override fun removeEntity(entity: SokolEntity) {
         _entities.remove(entity)
     }
 

@@ -6,11 +6,12 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.PlayerInputEvent
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import net.kyori.adventure.key.Key
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
 fun interface InputCallback {
-    fun run(event: PlayerInputEvent): Boolean
+    fun run(player: Player, cancel: () -> Unit): Boolean
 }
 
 data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
@@ -99,7 +100,7 @@ class InputCallbacksInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
             if (!conditions.containsAll(mIf)) return@forEach
             mDo.forEach { callbackSet ->
                 for (callback in callbackSet) {
-                    if (callback.run(event)) break
+                    if (callback.run(event.player, event.cancel)) break
                 }
             }
         }

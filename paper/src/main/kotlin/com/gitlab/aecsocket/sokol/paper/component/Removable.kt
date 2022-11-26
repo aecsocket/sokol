@@ -7,7 +7,7 @@ interface Removable : SokolComponent {
 
     val removed: Boolean
 
-    fun remove()
+    fun remove(silent: Boolean = false)
 }
 
 object RemovablePreTarget : SokolSystem
@@ -15,17 +15,25 @@ object RemovablePreTarget : SokolSystem
 object RemovableTarget : SokolSystem
 
 @All(IsChild::class)
-@None(Removable::class)
 @Before(RemovableTarget::class)
 @After(RemovablePreTarget::class)
 class RemovableSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsChild = ids.mapper<IsChild>()
     private val mRemovable = ids.mapper<Removable>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    private fun construct(entity: SokolEntity) {
         val isChild = mIsChild.get(entity)
 
         mRemovable.set(entity, mRemovable.getOr(isChild.parent) ?: return)
+    }
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        construct(entity)
+    }
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
+        construct(entity)
     }
 }

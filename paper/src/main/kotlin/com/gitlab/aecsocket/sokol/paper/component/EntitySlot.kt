@@ -6,23 +6,16 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
+import kotlin.reflect.KClass
 
-data class EntitySlot(val profile: Profile) : SimplePersistentComponent {
-    companion object {
-        val Key = SokolAPI.key("entity_slot")
-        val Type = ComponentType.deserializing<Profile>(Key)
-    }
-
+interface EntitySlot : SokolComponent {
     override val componentType get() = EntitySlot::class
-    override val key get() = Key
 
-    @ConfigSerializable
-    data class Profile(
-        @Required val shape: Shape,
-        val allows: Boolean = true
-    ) : SimpleComponentProfile {
-        override val componentType get() = EntitySlot::class
+    val shape: Shape
 
-        override fun createEmpty() = ComponentBlueprint { EntitySlot(this) }
-    }
+    fun allows(): Boolean
+
+    fun attach(child: SokolEntity)
 }
+
+object EntitySlotTarget : SokolSystem

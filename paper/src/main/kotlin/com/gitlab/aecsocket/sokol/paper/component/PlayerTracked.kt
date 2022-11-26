@@ -12,16 +12,24 @@ interface PlayerTracked : SokolComponent {
 object PlayerTrackedTarget : SokolSystem
 
 @All(IsChild::class)
-@None(PlayerTracked::class)
 @After(PlayerTrackedTarget::class)
 class PlayerTrackedSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsChild = ids.mapper<IsChild>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    private fun construct(entity: SokolEntity) {
         val isChild = mIsChild.get(entity)
 
         mPlayerTracked.set(entity, mPlayerTracked.getOr(isChild.parent) ?: return)
+    }
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        construct(entity)
+    }
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
+        construct(entity)
     }
 }

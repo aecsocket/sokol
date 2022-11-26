@@ -62,7 +62,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
         val from = player.eyeLocation
         val direction = from.direction.alexandria()
 
-        val rayTest = player.rayTestFrom(heldSnap.snapDistance.toFloat())
+        val rayTest = player.rayTestFrom(heldSnap.snapDistance)
             .firstOrNull {
                 val obj = it.collisionObject
                 obj !is TrackedPhysicsObject || obj.id != physObj.id

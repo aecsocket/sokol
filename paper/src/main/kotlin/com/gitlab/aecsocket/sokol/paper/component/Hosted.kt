@@ -180,8 +180,12 @@ class MobConstructorSystem(
         mRemovable.set(entity, object : Removable {
             override val removed get() = removed || !mob.isValid
 
-            override fun remove() {
+            override fun remove(silent: Boolean) {
                 removed = true
+                if (silent) {
+                    // no remove event will be called
+                    sokol.resolver.untrackMob(mob)
+                }
                 mob.remove()
             }
         })
@@ -210,6 +214,16 @@ class MobConstructorSystem(
         mVelocityRead.set(entity, object : VelocityRead {
             override val linear get() = mob.velocity.alexandria() * TPS.toDouble()
         })
+    }
+}
+
+@All(IsMob::class)
+class MobSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mIsMob = ids.mapper<IsMob>()
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
+        mIsMob.remove(entity)
     }
 }
 

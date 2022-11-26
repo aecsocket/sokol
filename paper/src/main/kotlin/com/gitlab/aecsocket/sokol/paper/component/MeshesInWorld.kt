@@ -116,6 +116,16 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     ) : SokolEvent
 
     @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
+        val meshesInWorld = mMeshesInWorld.get(entity)
+        val playerTracked = mPlayerTracked.get(entity)
+
+        meshesInWorld.meshes.forEach { (mesh) ->
+            mesh.updateTrackedPlayers { playerTracked.trackedPlayers() }
+        }
+    }
+
+    @Subscribe
     fun on(event: Create, entity: SokolEntity) {
         val meshesInWorld = mMeshesInWorld.get(entity)
         val positionRead = mPositionRead.get(entity)

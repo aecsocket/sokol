@@ -8,8 +8,7 @@ import net.minecraft.nbt.CompoundTag
 import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
 import org.bukkit.persistence.PersistentDataContainer
 
-private const val MAP_CHILDREN = "map_children"
-const val SLOT_CHILD_KEY = "_"
+private const val CHILDREN_MAP = "children_map"
 
 class PaperSokolPersistence internal constructor(
     sokol: Sokol,
@@ -20,7 +19,7 @@ class PaperSokolPersistence internal constructor(
         super.enable()
         macro { _, node, _ ->
             /*
-                map_children: {
+                children_map: {
                   child: "entity_profile_id"
                 }
 
@@ -37,8 +36,8 @@ class PaperSokolPersistence internal constructor(
              */
             val kContainerMap = ContainerMap.Key.asString()
             val nContainerMap = node.node(kContainerMap)
-            node.node(MAP_CHILDREN).childrenMap().forEach { (key, child) ->
-                nContainerMap.node(key).node(kContainerMap).node(SLOT_CHILD_KEY).mergeFrom(child)
+            node.node(CHILDREN_MAP).childrenMap().forEach { (key, child) ->
+                nContainerMap.node(key).node(kContainerMap).node(ContainerMap.DefaultKey).mergeFrom(child)
             }
         }
     }

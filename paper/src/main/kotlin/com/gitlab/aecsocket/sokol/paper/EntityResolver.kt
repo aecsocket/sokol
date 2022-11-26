@@ -90,11 +90,10 @@ class EntityResolver internal constructor(
         mInItemTag = sokol.engine.mapper()
 
         sokol.onInput { event ->
-            // even though we're off-main, we still write here
             sokol.useSpace { space ->
                 readPlayerItems(event.player).addAllInto(space)
                 space.construct()
-                space.call(event)
+                space.callSingle(event)
             }
         }
     }
@@ -151,7 +150,7 @@ class EntityResolver internal constructor(
         ResolveOperation(callback, _lastStats).resolve()
     }
 
-    fun update() {
+    internal fun update() {
         val mobSpace = sokol.engine.newEntityContainer(mobEntities.size)
         if (sokol.hasReloaded) {
             val newEntities = HashMap<Int, SokolEntity>()
@@ -163,11 +162,12 @@ class EntityResolver internal constructor(
                 mobSpace.addEntity(newEntity)
             }
 
-            mobEntities.clear()
-            mobEntities.putAll(newEntities)
-
+            // during reload, IsMob-using systems can still access the old entity via mobEntities
             mobSpace.construct()
             mobSpace.call(ReloadEvent)
+
+            mobEntities.clear()
+            mobEntities.putAll(newEntities)
         } else {
             mobSpace.addEntities(mobEntities.values)
         }

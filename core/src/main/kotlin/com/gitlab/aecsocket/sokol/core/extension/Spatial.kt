@@ -3,13 +3,15 @@ package com.gitlab.aecsocket.sokol.core.extension
 import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.core.physics.Vector3
-import com.jme3.math.Vector3f
+import com.jme3.math.TransformDp
+import com.simsilica.mathd.Quatd
+import com.simsilica.mathd.Vec3d
 
-fun Vector3.bullet() = Vector3f(x.toFloat(), y.toFloat(), z.toFloat())
-fun Vector3f.alexandria() = Vector3(x.toDouble(), y.toDouble(), z.toDouble())
+fun Vector3.bullet() = Vec3d(x, y, z)
+fun Vec3d.alexandria() = Vector3(x, y, z)
 
-fun Quaternion.bullet() = com.jme3.math.Quaternion(x.toFloat(), y.toFloat(), z.toFloat(), w.toFloat())
-fun com.jme3.math.Quaternion.alexandria() = Quaternion(x.toDouble(), y.toDouble(), z.toDouble(), w.toDouble())
+fun Quaternion.bullet() = Quatd(x, y, z, w)
+fun Quatd.alexandria() = Quaternion(x, y, z, w)
 
-fun Transform.bullet() = com.jme3.math.Transform(translation.bullet(), rotation.bullet())
-fun com.jme3.math.Transform.alexandria() = Transform(translation.alexandria(), rotation.alexandria())
+fun Transform.bullet() = TransformDp(translation.bullet(), rotation.bullet())
+fun TransformDp.alexandria() = Transform(translation.alexandria(), rotation.alexandria())

@@ -157,7 +157,6 @@ internal class SokolCommand(
 
         repeat(amount) {
             val entity = blueprint.create()
-            entity.construct()
             plugin.hoster.hostMob(entity, location)
         }
 
@@ -173,7 +172,7 @@ internal class SokolCommand(
 
     fun holdingFreeze(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val player = sender as Player
-        val holding = player.alexandria.holding.state as? EntityHolding.Hold ?: error(i18n.safe("error.not_holding"))
+        val holding = player.alexandria.holding.hold ?: error(i18n.safe("error.not_holding"))
         val enable = ctx.value("enable") { !holding.frozen }
 
         holding.frozen = enable
@@ -181,7 +180,7 @@ internal class SokolCommand(
 
     fun holdingSlots(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val player = sender as Player
-        val holding = player.alexandria.holding.state as? EntityHolding.Hold ?: error(i18n.safe("error.not_holding"))
+        val holding = player.alexandria.holding.hold ?: error(i18n.safe("error.not_holding"))
         val enable = ctx.value("enable") { !holding.drawSlotShapes }
 
         holding.drawSlotShapes = enable
