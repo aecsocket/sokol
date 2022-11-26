@@ -276,7 +276,6 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { ColliderInstanceParentSystem(it) }
                     .systemFactory { ColliderInstancePositionSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
-                    .systemFactory { ColliderMobPositionSystem(it) }
                     .systemFactory { ColliderEffectsSystem(it) }
                     .systemFactory { HoldableInputsSystem(this@Sokol, it) }
                     .systemFactory { PlaceableSystem(this@Sokol, it) }

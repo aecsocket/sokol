@@ -369,6 +369,7 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
             RotationOrder.XYZ)
 
         repeat(6) {
+            joint.set(MotorParam.StopErp, it, 0.8f)
             joint.set(MotorParam.LowerLimit, it, 0f)
             joint.set(MotorParam.UpperLimit, it, 0f)
         }
@@ -418,28 +419,4 @@ class ColliderMobSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
         entity.callSingle(ColliderSystem.Create)
     }
-
-    /*@Subscribe
-    fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {
-        CraftBulletAPI.executePhysics {
-            entity.callSingle(ColliderInstanceSystem.Remove)
-        }
-    }*/
-}
-
-@All(Collider::class, PositionWrite::class)
-@After(PositionTarget::class)
-class ColliderMobPositionSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mColliderInstance = ids.mapper<ColliderInstance>()
-
-    /*@Subscribe
-    fun on(event: MobEvent.Teleport, entity: SokolEntity) {
-        val (physObj) = mColliderInstance.get(entity)
-        val body = physObj.body
-
-        CraftBulletAPI.executePhysics {
-            body.transform = event.to.transform().bullet()
-            body.activate(true)
-        }
-    }*/
 }

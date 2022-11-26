@@ -2,22 +2,22 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.*
+import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.RotationOrder
+import com.jme3.bullet.collision.shapes.EmptyShape
 import com.jme3.bullet.joints.New6Dof
-import com.jme3.bullet.joints.PhysicsJoint
 import com.jme3.bullet.joints.motors.MotorParam
+import com.jme3.bullet.objects.PhysicsBody
+import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Matrix3f
 import com.jme3.math.Vector3f
-import com.simsilica.mathd.Vec3d
-import org.bukkit.Particle
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
@@ -29,7 +29,12 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     override val componentType get() = HoldMovable::class
     override val key get() = Key
 
-    var holdJoint: New6Dof? = null
+    data class JointData(
+        val joint: New6Dof,
+        val holdTarget: PhysicsRigidBody
+    )
+
+    var joint: JointData? = null
 
     @ConfigSerializable
     data class Profile(
@@ -93,34 +98,41 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val (physObj, physSpace) = mColliderInstance.get(entity)
         val body = physObj.body as? PhysicsRigidBody ?: return
 
-        holdMovable.holdJoint?.let {
-            physSpace.removeJoint(it)
-            holdMovable.holdJoint = null
-        }
-
-        if (event.held) {
-            /*val operation = hold.operation as? MoveHoldOperation ?: return
-
-            val transform = operation.nextTransform
-            // todo mat rot
-            val joint = New6Dof(body,
-                Vector3f.ZERO, (transform.translation + Vector3(0.0, 0.5, 0.0)).bullet().sp(),
-                Matrix3f.IDENTITY, Matrix3f.IDENTITY,
-                RotationOrder.XYZ
-            )
-
-            repeat(6) {
-                joint.set(MotorParam.LowerLimit, it, 0f)
-                joint.set(MotorParam.UpperLimit, it, 0f)
+        CraftBulletAPI.executePhysics {
+            holdMovable.joint?.let {
+                physSpace.removeJoint(it.joint)
+                physSpace.removeCollisionObject(it.holdTarget)
+                holdMovable.joint = null
             }
 
-            physSpace.addJoint(joint)
-            holdMovable.holdJoint = joint*/
+            if (event.held) {
+                val operation = hold.operation as? MoveHoldOperation ?: return@executePhysics
+
+                val holdTarget = PhysicsRigidBody(EmptyShape(false))
+                holdTarget.isKinematic = true
+                holdTarget.transform = operation.nextTransform.bullet()
+                physSpace.addCollisionObject(holdTarget)
+
+                val joint = New6Dof(body, holdTarget,
+                    Vector3f.ZERO, Vector3f.ZERO,
+                    Matrix3f.IDENTITY, Matrix3f.IDENTITY,
+                    RotationOrder.XYZ
+                )
+
+                repeat(6) {
+                    joint.set(MotorParam.StopErp, it, 0.8f)
+                    joint.set(MotorParam.LowerLimit, it, 0f)
+                    joint.set(MotorParam.UpperLimit, it, 0f)
+                }
+
+                physSpace.addJoint(joint)
+                holdMovable.joint = HoldMovable.JointData(joint, holdTarget)
+            }
         }
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdMovable = mHoldMovable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)
@@ -130,15 +142,8 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val operation = hold.operation as? MoveHoldOperation ?: return
         if (hold.frozen) return
 
-        body.transform = operation.nextTransform.bullet()
-        if (body is PhysicsRigidBody) {
-            body.linearVelocity = Vec3d.ZERO
-            body.angularVelocity = Vec3d.ZERO
-        }
-        // A = world, B = body
         body.activate(true)
-        //holdMovable.holdJoint?.setPivotInA(operation.nextTransform.translation.bullet().sp())
-        //player.spawnParticle(Particle.END_ROD, operation.nextTransform.translation.location(player.world), 0)
+        holdMovable.joint?.holdTarget?.transform = operation.nextTransform.bullet()
 
         val from = player.eyeLocation
         val direction = from.direction.alexandria()
