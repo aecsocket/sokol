@@ -12,7 +12,7 @@ interface PersistentComponent : SokolComponent {
 
     fun clean()
 
-    fun write(ctx: NBTTagContext): NBTTag
+    fun write(ctx: NBTTagContext): NBTTag?
 
     fun writeDelta(tag: NBTTag): NBTTag
 
@@ -24,7 +24,7 @@ interface SimplePersistentComponent : PersistentComponent {
 
     override fun clean() {}
 
-    override fun write(ctx: NBTTagContext) = ctx.makeCompound()
+    override fun write(ctx: NBTTagContext) = null
 
     override fun writeDelta(tag: NBTTag) = tag
 
