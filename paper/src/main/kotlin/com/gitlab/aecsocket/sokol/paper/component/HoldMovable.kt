@@ -122,6 +122,9 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             physSpace.addJoint(joint)
             holdMovable.joint = HoldMovable.HoldJoint(joint, holdTarget)
         } else {
+            // so if you don't make the body dynamic, literally none of the below code works
+            // ok!
+            body.isKinematic = false
             holdMovable.joint?.let { joint ->
                 physSpace.removeCollisionObject(joint.holdTarget)
                 physSpace.removeJoint(joint.joint)

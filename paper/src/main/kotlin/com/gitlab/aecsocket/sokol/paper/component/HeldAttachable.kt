@@ -115,7 +115,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
 
         if (newAttachTo != attachTo) {
             heldAttachable.attachTo = newAttachTo
-            //body.isKinematic = newAttachTo != null
+            body.isKinematic = newAttachTo != null
             entity.callSingle(ChangeAttachTo)
         }
     }
