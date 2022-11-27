@@ -13,6 +13,8 @@ interface EntitySlot : SokolComponent {
 
     val shape: Shape
 
+    fun full(): Boolean
+
     fun allows(): Boolean
 
     fun attach(child: SokolEntity)

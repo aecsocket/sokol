@@ -45,9 +45,10 @@ class TakeableSystem(
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
-        val isChild = mIsChild.getOr(entity)
 
         inputCallbacks.callback(TakeAsItem) { player, cancel ->
+            val isChild = mIsChild.getOr(entity)
+
             cancel()
             (isChild?.root ?: entity).callSingle(Remove(player))
             true

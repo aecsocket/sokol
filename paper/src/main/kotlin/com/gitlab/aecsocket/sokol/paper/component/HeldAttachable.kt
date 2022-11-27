@@ -15,6 +15,7 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
+import com.jme3.bullet.objects.PhysicsRigidBody
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
@@ -63,6 +64,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
         val heldAttachable = mHeldAttachable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj, physSpace) = mColliderInstance.get(entity)
+        val body = physObj.body as? PhysicsRigidBody ?: return
         val localTransform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
         val player = hold.player
 
@@ -91,6 +93,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
             val rootEntity = obj.entity
             rootEntity.entities.forEach children@ { testEntity ->
                 val testSlot = mEntitySlot.getOr(testEntity) ?: return@children
+                if (testSlot.full()) return@children
                 val testTransform = mPositionRead.getOr(testEntity)?.transform ?: return@children
 
                 val collision = testRayShape(testTransform.invert(ray), testSlot.shape) ?: return@children
@@ -109,6 +112,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
 
         if (newAttachTo != attachTo) {
             heldAttachable.attachTo = newAttachTo
+            body.isKinematic = newAttachTo != null
             entity.callSingle(ChangeAttachTo)
         }
     }

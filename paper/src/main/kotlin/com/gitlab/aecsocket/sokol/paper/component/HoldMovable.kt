@@ -9,12 +9,11 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.PhysicsSpace
 import com.jme3.bullet.RotationOrder
 import com.jme3.bullet.collision.shapes.EmptyShape
 import com.jme3.bullet.joints.New6Dof
 import com.jme3.bullet.joints.motors.MotorParam
-import com.jme3.bullet.objects.PhysicsBody
-import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Matrix3f
 import com.jme3.math.Vector3f
@@ -29,17 +28,13 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     override val componentType get() = HoldMovable::class
     override val key get() = Key
 
-    data class JointData(
-        val joint: New6Dof,
-        val holdTarget: PhysicsRigidBody
-    )
-
-    var joint: JointData? = null
+    var joint: HoldJoint? = null
 
     @ConfigSerializable
     data class Profile(
         val holdTransform: Transform = Transform.Identity,
-        val holdDistance: Double = 0.0
+        val holdDistance: Double = 0.0,
+        val hasCollision: Boolean = true
     ) : SimpleComponentProfile {
         override val componentType get() = HoldMovable::class
 
@@ -61,7 +56,7 @@ class HoldMovableCallbackSystem(
     ids: ComponentIdAccess
 ) : SokolSystem {
     companion object {
-        val StartMove = HoldMovable.Key.with("start")
+        val Start = HoldMovable.Key.with("start")
     }
 
     private val mInputCallbacks = ids.mapper<InputCallbacks>()
@@ -73,7 +68,7 @@ class HoldMovableCallbackSystem(
         val inputCallbacks = mInputCallbacks.get(entity)
         val positionRead = mPositionRead.get(entity)
 
-        inputCallbacks.callback(StartMove) { player, cancel ->
+        inputCallbacks.callback(Start) { player, cancel ->
             if (mHeld.has(entity)) // this entity is already held
                 return@callback false
 
@@ -91,43 +86,54 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
 
-    @Subscribe
-    fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
+    private fun updateBody(entity: SokolEntity, held: Boolean) {
         val holdMovable = mHoldMovable.get(entity)
-        val (hold) = mHeld.get(entity)
         val (physObj, physSpace) = mColliderInstance.get(entity)
         val body = physObj.body as? PhysicsRigidBody ?: return
 
-        CraftBulletAPI.executePhysics {
-            holdMovable.joint?.let {
-                physSpace.removeJoint(it.joint)
-                physSpace.removeCollisionObject(it.holdTarget)
+        if (!holdMovable.profile.hasCollision) {
+            body.isContactResponse = !held
+        }
+
+        if (held) {
+            if (holdMovable.joint != null) return
+
+            val holdTarget = PhysicsRigidBody(EmptyShape(false))
+            holdTarget.isKinematic = true
+            physSpace.addCollisionObject(holdTarget)
+
+            val joint = New6Dof(
+                body, holdTarget,
+                Vector3f.ZERO, Vector3f.ZERO,
+                Matrix3f.IDENTITY, Matrix3f.IDENTITY,
+                RotationOrder.XYZ
+            )
+
+            repeat(6) {
+                joint.set(MotorParam.LowerLimit, it, 0f)
+                joint.set(MotorParam.UpperLimit, it, 0f)
+            }
+
+            physSpace.addJoint(joint)
+            holdMovable.joint = HoldJoint(joint, holdTarget)
+        } else {
+            holdMovable.joint?.let { joint ->
+                joint.remove(physSpace)
                 holdMovable.joint = null
             }
+        }
+    }
 
-            if (event.held) {
-                val operation = hold.operation as? MoveHoldOperation ?: return@executePhysics
+    @Subscribe
+    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+        if (!mHeld.has(entity)) return
+        updateBody(entity, true)
+    }
 
-                val holdTarget = PhysicsRigidBody(EmptyShape(false))
-                holdTarget.isKinematic = true
-                holdTarget.transform = operation.nextTransform.bullet()
-                physSpace.addCollisionObject(holdTarget)
-
-                val joint = New6Dof(body, holdTarget,
-                    Vector3f.ZERO, Vector3f.ZERO,
-                    Matrix3f.IDENTITY, Matrix3f.IDENTITY,
-                    RotationOrder.XYZ
-                )
-
-                repeat(6) {
-                    joint.set(MotorParam.StopErp, it, 0.8f)
-                    joint.set(MotorParam.LowerLimit, it, 0f)
-                    joint.set(MotorParam.UpperLimit, it, 0f)
-                }
-
-                physSpace.addJoint(joint)
-                holdMovable.joint = HoldMovable.JointData(joint, holdTarget)
-            }
+    @Subscribe
+    fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
+        CraftBulletAPI.executePhysics {
+            updateBody(entity, event.held)
         }
     }
 
@@ -135,15 +141,15 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdMovable = mHoldMovable.get(entity)
         val (hold) = mHeld.get(entity)
-        val (physObj) = mColliderInstance.get(entity)
-        val body = physObj.body
+        val (physObj, physSpace) = mColliderInstance.get(entity)
+        val body = physObj.body as? PhysicsRigidBody ?: return
         val player = hold.player
 
         val operation = hold.operation as? MoveHoldOperation ?: return
         if (hold.frozen) return
 
         body.activate(true)
-        holdMovable.joint?.holdTarget?.transform = operation.nextTransform.bullet()
+        (if (body.isKinematic) body else holdMovable.joint?.holdTarget)?.transform = operation.nextTransform.bullet()
 
         val from = player.eyeLocation
         val direction = from.direction.alexandria()

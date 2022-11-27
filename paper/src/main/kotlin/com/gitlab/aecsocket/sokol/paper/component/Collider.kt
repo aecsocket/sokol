@@ -286,12 +286,8 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mCollider = ids.mapper<Collider>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mRemovable = ids.mapper<Removable>()
-    private val mRigidBodyCollider = ids.mapper<RigidBodyCollider>()
-    private val mGhostBodyCollider = ids.mapper<GhostBodyCollider>()
 
     object Remove : SokolEvent
-
-    object Rebuild : SokolEvent
 
     @Subscribe
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
@@ -314,31 +310,8 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: Rebuild, entity: SokolEntity) {
-        val (physObj) = mColliderInstance.get(entity)
-        val body = physObj.body
-        physObj.entity = entity
-
-        CraftBulletAPI.executePhysics {
-            when (body) {
-                is PhysicsRigidBody -> {
-                    val rigidBody = mRigidBodyCollider.get(entity).profile
-                    body.collisionShape = collisionOf(rigidBody.shape)
-                    body.mass = rigidBody.mass
-                }
-                is PhysicsGhostObject -> {
-                    val ghostBody = mGhostBodyCollider.get(entity).profile
-                    body.collisionShape = collisionOf(ghostBody.shape)
-                }
-            }
-
-            entity.callSingle(ColliderSystem.CreatePhysics)
-        }
-    }
-
-    @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
-        entity.callSingle(Rebuild)
+        entity.callSingle(ColliderSystem.Create)
     }
 }
 

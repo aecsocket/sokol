@@ -44,6 +44,10 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
         mEntitySlot.set(entity, object : EntitySlot {
             override val shape get() = entitySlotInMap.shape
 
+            override fun full(): Boolean {
+                return containerMap.contains(entitySlotInMap.childKey)
+            }
+
             override fun allows(): Boolean {
                 return entitySlotInMap.allows
             }

@@ -7,6 +7,8 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.PhysicsSpace
+import com.jme3.bullet.joints.New6Dof
 import com.jme3.bullet.objects.PhysicsRigidBody
 import org.bukkit.entity.Player
 
@@ -98,5 +100,15 @@ class HeldMobSystem(
     @Subscribe
     fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {
         mHeld.getOr(entity)?.hold?.let { sokol.holding.stop(it) }
+    }
+}
+
+data class HoldJoint(
+    val joint: New6Dof,
+    val holdTarget: PhysicsRigidBody
+) {
+    fun remove(physSpace: PhysicsSpace) {
+        physSpace.removeJoint(joint)
+        physSpace.removeCollisionObject(holdTarget)
     }
 }
