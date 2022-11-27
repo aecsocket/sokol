@@ -7,11 +7,24 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.RotationOrder
+import com.jme3.bullet.collision.shapes.EmptyShape
+import com.jme3.bullet.joints.New6Dof
+import com.jme3.bullet.joints.motors.MotorParam
 import com.jme3.bullet.objects.PhysicsRigidBody
+import com.jme3.math.Matrix3f
+import com.jme3.math.Vector3f
 import org.bukkit.entity.Player
 
 data class Held(val hold: EntityHolding.Hold) : SokolComponent {
+    data class Joint(
+        val joint: New6Dof,
+        val holdTarget: PhysicsRigidBody
+    )
+
     override val componentType get() = Held::class
+
+    var joint: Joint? = null
 }
 
 @All(Held::class)
@@ -53,25 +66,77 @@ class HeldEntitySlotSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(ColliderInstance::class)
+@All(Held::class, ColliderInstance::class)
 class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
 
-    data class ChangeBodyState(
-        val held: Boolean
-    ) : SokolEvent
-
-    @Subscribe
-    fun on(event: ChangeBodyState, entity: SokolEntity) {
-        val (physObj) = mColliderInstance.get(entity)
+    private fun updateBody(entity: SokolEntity, held: Held, isHeld: Boolean) {
+        val (physObj, physSpace) = mColliderInstance.get(entity)
         val body = physObj.body
         if (body !is PhysicsRigidBody) return
+
         body.activate()
+
+        if (isHeld) {
+            if (held.joint != null) return
+
+            val holdTarget = PhysicsRigidBody(EmptyShape(false))
+            holdTarget.isKinematic = true
+            physSpace.addCollisionObject(holdTarget)
+
+            val joint = New6Dof(
+                body, holdTarget,
+                Vector3f.ZERO, Vector3f.ZERO,
+                Matrix3f.IDENTITY, Matrix3f.IDENTITY,
+                RotationOrder.XYZ
+            )
+
+            repeat(6) {
+                joint.set(MotorParam.LowerLimit, it, 0f)
+                joint.set(MotorParam.UpperLimit, it, 0f)
+            }
+
+            physSpace.addJoint(joint)
+            held.joint = Held.Joint(joint, holdTarget)
+        } else {
+            // so if you don't make the body dynamic, literally none of the below code works
+            // ok!
+            body.isKinematic = false
+            held.joint?.let { joint ->
+                joint.joint.destroy()
+                physSpace.removeJoint(joint.joint)
+                physSpace.removeCollisionObject(joint.holdTarget)
+                held.joint = null
+            }
+        }
+    }
+
+    @Subscribe
+    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+        updateBody(entity, mHeld.get(entity), true)
     }
 
     @Subscribe
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
-        entity.call(ChangeBodyState(event.held))
+        val held = mHeld.get(entity)
+        // in executePhysics, `held` will already be removed
+        // and we need its `joint` field to remove the joint from the phys space
+        CraftBulletAPI.executePhysics {
+            updateBody(entity, held, event.held)
+        }
+    }
+
+    @Subscribe
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
+        val held = mHeld.get(entity)
+        val hold = held.hold
+        val (physObj) = mColliderInstance.get(entity)
+        val body = physObj.body as? PhysicsRigidBody ?: return
+        if (hold.frozen) return
+
+        body.activate(true)
+        (if (body.isKinematic) body else held.joint?.holdTarget)?.transform = hold.nextTransform.bullet()
     }
 }
 

@@ -17,6 +17,7 @@ import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
 import com.jme3.math.Matrix3f
+import com.jme3.math.Vector3f
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -334,15 +335,13 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         val pBody = mColliderInstance.getOr(root)?.physObj?.body as? PhysicsRigidBody ?: return
         colliderInstance.parentJoint?.let { physSpace.removeJoint(it) }
 
-        val jointTranslation = (rootLocalTransform.translation / 2.0).bullet().sp()
         // TODO mat rot
         val joint = New6Dof(body, pBody,
-            -jointTranslation, jointTranslation,
+            Vector3f.ZERO, rootLocalTransform.translation.bullet().sp(),
             Matrix3f.IDENTITY, Matrix3f.IDENTITY,
             RotationOrder.XYZ)
 
         repeat(6) {
-            joint.set(MotorParam.StopErp, it, 0.8f)
             joint.set(MotorParam.LowerLimit, it, 0f)
             joint.set(MotorParam.UpperLimit, it, 0f)
         }
@@ -360,7 +359,9 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Composite.Attach, entity: SokolEntity) {
-        setJoint(entity)
+        CraftBulletAPI.executePhysics {
+            setJoint(entity)
+        }
     }
 }
 
@@ -380,8 +381,7 @@ class ColliderInstancePositionSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(Collider::class, PositionRead::class)
-@After(PositionTarget::class)
+@All(Collider::class, IsMob::class)
 class ColliderMobSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {

@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper
 
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.extension.bukkitPlayers
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
@@ -36,6 +37,7 @@ class EntityHolding internal constructor(
         val player: Player,
         var entity: SokolEntity,
         val operation: HoldOperation,
+        var nextTransform: Transform,
         val raiseHandLock: PlayerLockInstance
     ) {
         var frozen = false
@@ -112,12 +114,13 @@ class EntityHolding internal constructor(
         hold.player.alexandria.featureData(this).hold = null
     }
 
-    fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation) {
+    fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation, transform: Transform) {
         stop(player)
         val hold = Hold(
             player.handle,
             entity,
             operation,
+            transform,
             player.acquireLock(PlayerLock.RaiseHand)
         )
         mHeld.set(entity, Held(hold))

@@ -285,6 +285,8 @@ class Sokol : BasePlugin(), SokolAPI {
                     .systemFactory { HeldMobSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableColliderSystem(it) }
+                    .systemFactory { HoldDetachableCallbackSystem(this@Sokol, it) }
+                    .systemFactory { HoldDetachableColliderSystem(it) }
                     .systemFactory { HeldSnapSystem(it) }
                     .systemFactory { HeldAttachableSystem(it) }
                     .systemFactory { HeldAttachableInputsSystem(this@Sokol, it) }
@@ -338,6 +340,7 @@ class Sokol : BasePlugin(), SokolAPI {
                     .componentType<Held>()
                     .componentType<Placeable>()
                     .componentType<HoldMovable>()
+                    .componentType<HoldDetachable>()
                     .componentType<HeldSnap>()
                     .componentType<HeldAttachable>()
                     .componentType<HeldAttachableEffects>()
@@ -365,6 +368,7 @@ class Sokol : BasePlugin(), SokolAPI {
                 registerComponentType(Holdable.Type)
                 registerComponentType(Placeable.Type)
                 registerComponentType(HoldMovable.Type)
+                registerComponentType(HoldDetachable.Type)
                 registerComponentType(HeldSnap.Type)
                 registerComponentType(HeldAttachable.Type)
                 registerComponentType(HeldAttachableEffects.Type)

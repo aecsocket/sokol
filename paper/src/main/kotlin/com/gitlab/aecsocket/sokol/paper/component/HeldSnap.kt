@@ -114,7 +114,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
             }
 
             heldSnap.lastSurface = HeldSnap.SurfaceData(hitNormal, rotation)
-            operation.nextTransform = Transform(hitPos, rotation) + heldSnap.profile.snapTransform
+            hold.nextTransform = Transform(hitPos, rotation) + heldSnap.profile.snapTransform
             true
         }
 

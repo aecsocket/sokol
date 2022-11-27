@@ -38,6 +38,6 @@ class PlaceableSystem(
         val mobEntity = sokol.persistence.blueprintOf(entity).create()
         val location = player.eyeLocation
         sokol.hoster.hostMob(mobEntity, location)
-        sokol.holding.start(player.alexandria, mobEntity, MoveHoldOperation(location.transform()))
+        sokol.holding.start(player.alexandria, mobEntity, MoveHoldOperation(), location.transform())
     }
 }

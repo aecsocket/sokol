@@ -109,7 +109,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
 
         val attachTo = heldAttachable.attachTo
         val newAttachTo = slotBodies.minByOrNull { it.tIn }?.let { slot ->
-            operation.nextTransform = slot.transform + localTransform
+            hold.nextTransform = slot.transform + localTransform
             HeldAttachable.AttachTo(slot.entity, slot.slot.allows(), slot.slot)
         }
 
