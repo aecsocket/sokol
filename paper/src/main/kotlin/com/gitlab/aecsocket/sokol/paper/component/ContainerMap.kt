@@ -91,7 +91,7 @@ data class ContainerMap(
         private val mInTag = sokol.engine.mapper<InTag>()
 
         private fun componentOf(blueprints: Map<String, EntityBlueprint>) = ComponentBlueprint { entity ->
-            val root = mIsChild.getOr(entity)?.root ?: entity
+            val root = mIsChild.root(entity)
 
             val children = blueprints.map { (key, blueprint) -> key to blueprint
                 .pushSet(mIsChild) { IsChild(entity, root) }

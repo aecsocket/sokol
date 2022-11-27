@@ -7,8 +7,6 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
-import com.jme3.bullet.PhysicsSpace
-import com.jme3.bullet.joints.New6Dof
 import com.jme3.bullet.objects.PhysicsRigidBody
 import org.bukkit.entity.Player
 
@@ -68,11 +66,7 @@ class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val (physObj) = mColliderInstance.get(entity)
         val body = physObj.body
         if (body !is PhysicsRigidBody) return
-
-        val held = event.held
         body.activate()
-        //body.isKinematic = held
-        //body.isContactResponse = !held
     }
 
     @Subscribe
@@ -100,15 +94,5 @@ class HeldMobSystem(
     @Subscribe
     fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {
         mHeld.getOr(entity)?.hold?.let { sokol.holding.stop(it) }
-    }
-}
-
-data class HoldJoint(
-    val joint: New6Dof,
-    val holdTarget: PhysicsRigidBody
-) {
-    fun remove(physSpace: PhysicsSpace) {
-        physSpace.removeJoint(joint)
-        physSpace.removeCollisionObject(holdTarget)
     }
 }

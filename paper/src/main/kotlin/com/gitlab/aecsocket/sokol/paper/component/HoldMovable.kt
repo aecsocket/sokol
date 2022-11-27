@@ -28,6 +28,11 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     override val componentType get() = HoldMovable::class
     override val key get() = Key
 
+    data class HoldJoint(
+        val joint: New6Dof,
+        val holdTarget: PhysicsRigidBody
+    )
+
     var joint: HoldJoint? = null
 
     @ConfigSerializable
@@ -115,10 +120,11 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             }
 
             physSpace.addJoint(joint)
-            holdMovable.joint = HoldJoint(joint, holdTarget)
+            holdMovable.joint = HoldMovable.HoldJoint(joint, holdTarget)
         } else {
             holdMovable.joint?.let { joint ->
-                joint.remove(physSpace)
+                physSpace.removeCollisionObject(joint.holdTarget)
+                physSpace.removeJoint(joint.joint)
                 holdMovable.joint = null
             }
         }
@@ -141,7 +147,7 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdMovable = mHoldMovable.get(entity)
         val (hold) = mHeld.get(entity)
-        val (physObj, physSpace) = mColliderInstance.get(entity)
+        val (physObj) = mColliderInstance.get(entity)
         val body = physObj.body as? PhysicsRigidBody ?: return
         val player = hold.player
 

@@ -53,6 +53,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeldAttachable = ids.mapper<HeldAttachable>()
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
+    private val mIsChild = ids.mapper<IsChild>()
     private val mLocalTransform = ids.mapper<LocalTransform>()
     private val mEntitySlot = ids.mapper<EntitySlot>()
     private val mPositionRead = ids.mapper<PositionRead>()
@@ -66,6 +67,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
         val (physObj, physSpace) = mColliderInstance.get(entity)
         val body = physObj.body as? PhysicsRigidBody ?: return
         val localTransform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
+        val root = mIsChild.root(entity)
         val player = hold.player
 
         val operation = hold.operation as? MoveHoldOperation ?: return
@@ -90,8 +92,9 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
 
         nearby.overlappingObjects.forEach { obj ->
             if (obj === physObj || obj !is SokolPhysicsObject) return@forEach
-            val rootEntity = obj.entity
-            rootEntity.entities.forEach children@ { testEntity ->
+            val parentEntity = obj.entity
+            if (mIsChild.root(parentEntity) === root) return@forEach // slots are on same tree as our entity is currently on
+            parentEntity.entities.forEach children@ { testEntity ->
                 val testSlot = mEntitySlot.getOr(testEntity) ?: return@children
                 if (testSlot.full()) return@children
                 val testTransform = mPositionRead.getOr(testEntity)?.transform ?: return@children
@@ -112,7 +115,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
 
         if (newAttachTo != attachTo) {
             heldAttachable.attachTo = newAttachTo
-            body.isKinematic = newAttachTo != null
+            //body.isKinematic = newAttachTo != null
             entity.callSingle(ChangeAttachTo)
         }
     }

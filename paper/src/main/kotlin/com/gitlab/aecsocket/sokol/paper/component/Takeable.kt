@@ -47,10 +47,8 @@ class TakeableSystem(
         val inputCallbacks = mInputCallbacks.get(entity)
 
         inputCallbacks.callback(TakeAsItem) { player, cancel ->
-            val isChild = mIsChild.getOr(entity)
-
             cancel()
-            (isChild?.root ?: entity).callSingle(Remove(player))
+            mIsChild.root(entity).callSingle(Remove(player))
             true
         }
     }

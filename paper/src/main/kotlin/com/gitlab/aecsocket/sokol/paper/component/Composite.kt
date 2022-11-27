@@ -17,6 +17,8 @@ data class IsChild(
     override val componentType get() = IsChild::class
 }
 
+fun ComponentMapper<IsChild>.root(entity: SokolEntity) = getOr(entity)?.root ?: entity
+
 @None(IsChild::class)
 class CompositeConstructSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsRoot = ids.mapper<IsRoot>()
