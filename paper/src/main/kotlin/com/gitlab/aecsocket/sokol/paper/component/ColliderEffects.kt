@@ -11,7 +11,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.UpdateEvent
 import com.jme3.bullet.collision.PhysicsCollisionObject
-import com.jme3.math.Vector3f
+import com.simsilica.mathd.Vec3d
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class ColliderEffects(val profile: Profile) : SimplePersistentComponent {
@@ -24,7 +24,7 @@ data class ColliderEffects(val profile: Profile) : SimplePersistentComponent {
         val thisBody: PhysicsCollisionObject,
         val otherBody: PhysicsCollisionObject,
         val impulse: Float,
-        val position: Vector3f
+        val position: Vec3d
     )
 
     override val componentType get() = ColliderEffects::class
