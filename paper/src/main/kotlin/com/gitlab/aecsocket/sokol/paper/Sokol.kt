@@ -250,10 +250,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { CompositeRootSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
-                    .systemFactory { RootLocalTransformTarget }
-                    .systemFactory { PositionPreTarget }
-                    .systemFactory { PositionTarget }
-                    .systemFactory { PositionSystem(it) }
                     .systemFactory { VelocityTarget }
                     .systemFactory { PlayerTrackedTarget }
                     .systemFactory { PlayerTrackedSystem(it) }

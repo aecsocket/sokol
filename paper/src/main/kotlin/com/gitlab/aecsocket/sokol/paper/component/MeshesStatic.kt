@@ -53,6 +53,7 @@ data class MeshesStatic(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(MeshesStatic::class)
+@None(Meshes::class)
 @Before(MeshesTarget::class)
 class MeshesStaticSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesStatic = ids.mapper<MeshesStatic>()
@@ -60,22 +61,19 @@ class MeshesStaticSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mMeshes.set(entity, Meshes)
-    }
+        mMeshes.set(entity,
+            Meshes { transform, trackedPlayers ->
+                val meshesStatic = mMeshesStatic.get(entity).profile
 
-    @Subscribe
-    fun on(event: Meshes.Create, entity: SokolEntity) {
-        val meshesStatic = mMeshesStatic.get(entity).profile
-
-        val parentTransform = event.transform
-        meshesStatic.parts.forEach { (item, transform) ->
-            val mesh = AlexandriaAPI.meshes.create(
-                item,
-                parentTransform * transform,
-                event.getTrackedPlayers,
-                meshesStatic.interpolated
-            )
-            event.meshes.add(MeshEntry(mesh, transform))
-        }
+                meshesStatic.parts.map { (item, partTransform) ->
+                    val mesh = AlexandriaAPI.meshes.create(
+                        item,
+                        transform * partTransform,
+                        trackedPlayers,
+                        meshesStatic.interpolated
+                    )
+                    MeshEntry(mesh, partTransform)
+                }
+            })
     }
 }

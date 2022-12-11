@@ -9,7 +9,7 @@ data class LocalTransform(
     override val componentType get() = LocalTransform::class
 }
 
-fun ComponentMapper<LocalTransform>.addTo(entity: SokolEntity, transform: Transform) {
+fun ComponentMapper<LocalTransform>.combine(entity: SokolEntity, transform: Transform) {
     getOr(entity)?.let {
         it.transform *= transform
     } ?: set(entity, LocalTransform(transform))

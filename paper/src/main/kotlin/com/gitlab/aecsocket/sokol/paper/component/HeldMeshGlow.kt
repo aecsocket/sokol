@@ -42,13 +42,13 @@ class HeldMeshGlowSystem(ids: ComponentIdAccess) : SokolSystem {
         val player = hold.player
 
         if (held) {
-            entity.callSingle(MeshesInWorldSystem.Glowing(true, setOf(player)))
+            entity.callSingle(MeshesInWorldInstanceSystem.Glowing(true, setOf(player)))
             val color = mHeldAttachable.getOr(entity)?.attachTo?.let { attachTo ->
                 if (attachTo.allows) heldMeshGlow.attachAllow else heldMeshGlow.attachDisallow
             } ?: heldMeshGlow.default
-            entity.callSingle(MeshesInWorldSystem.GlowingColor(color))
+            entity.callSingle(MeshesInWorldInstanceSystem.GlowingColor(color))
         } else {
-            entity.callSingle(MeshesInWorldSystem.Glowing(false, setOf(player)))
+            entity.callSingle(MeshesInWorldInstanceSystem.Glowing(false, setOf(player)))
         }
     }
 

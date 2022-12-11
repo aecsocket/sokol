@@ -29,6 +29,7 @@ data class MeshesItem(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(MeshesItem::class)
+@None(Meshes::class)
 @Before(MeshesTarget::class)
 class MeshesItemSystem(
     private val sokol: Sokol,
@@ -39,18 +40,16 @@ class MeshesItemSystem(
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mMeshes.set(entity, Meshes)
-    }
+        mMeshes.set(entity, Meshes { transform, trackedPlayers ->
+            val meshesItem = mMeshesItem.get(entity).profile
 
-    @Subscribe
-    fun on(event: Meshes.Create, entity: SokolEntity) {
-        val meshesItem = mMeshesItem.get(entity).profile
+            val itemEntity = sokol.persistence.blueprintOf(entity).create()
+            val item = sokol.hoster.createItemForm(itemEntity)
 
-        val itemEntity = sokol.persistence.blueprintOf(entity).create()
-        val item = sokol.hoster.createItemForm(itemEntity)
+            val transform = transform * meshesItem.transform
+            val mesh = AlexandriaAPI.meshes.create(item, transform, trackedPlayers, meshesItem.interpolated)
 
-        val transform = event.transform * meshesItem.transform
-        val mesh = AlexandriaAPI.meshes.create(item, transform, event.getTrackedPlayers, meshesItem.interpolated)
-        event.meshes.add(MeshEntry(mesh, meshesItem.transform))
+            listOf(MeshEntry(mesh, meshesItem.transform))
+        })
     }
 }

@@ -6,7 +6,6 @@ import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.extension.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
-import com.gitlab.aecsocket.alexandria.paper.extension.scheduleDelayed
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.UpdateEvent
@@ -91,18 +90,6 @@ data class InItemTag(val nmsTag: CompoundTag) : SokolComponent {
     override val componentType get() = InItemTag::class
 }
 
-data class MobPosition(
-    var dTransform: Delta<Transform>
-) : SokolComponent {
-    override val componentType get() = MobPosition::class
-
-    var transform by dTransform
-
-    constructor(
-        transform: Transform
-    ) : this(Delta(transform))
-}
-
 @All(IsBlock::class, IsRoot::class)
 class BlockPersistSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsBlock = ids.mapper<IsBlock>()
@@ -153,7 +140,7 @@ class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(IsMob::class)
-@Before(IsMobTarget::class, RemovablePreTarget::class, PlayerTrackedTarget::class, PositionPreTarget::class)
+@Before(IsMobTarget::class, RemovablePreTarget::class, PlayerTrackedTarget::class)
 class MobConstructorSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -162,18 +149,14 @@ class MobConstructorSystem(
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mRemovable = ids.mapper<Removable>()
     private val mRotation = ids.mapper<Rotation>()
-    private val mMobPosition = ids.mapper<MobPosition>()
-    private val mPositionRead = ids.mapper<PositionRead>()
-    private val mPositionWrite = ids.mapper<PositionWrite>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mVelocityRead = ids.mapper<VelocityRead>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val mob = mIsMob.get(entity).mob
 
-        mPlayerTracked.set(entity, object : PlayerTracked {
-            override fun trackedPlayers() = mob.trackedPlayers
-        })
+        mPlayerTracked.set(entity, PlayerTracked { mob.trackedPlayers })
 
         var removed = false
 
@@ -190,26 +173,13 @@ class MobConstructorSystem(
             }
         })
 
-        val mobPosition = MobPosition(Transform(
-            mob.location.position(),
-            mRotation.getOr(entity)?.rotation ?: Quaternion.Identity
+        mPositionAccess.set(entity, PositionAccess(
+            mob.world,
+            Transform(
+                mob.location.position(),
+                mRotation.getOr(entity)?.rotation ?: Quaternion.Identity
+            )
         ))
-
-        mMobPosition.set(entity, mobPosition)
-
-        mPositionRead.set(entity, object : PositionRead {
-            override val world get() = mob.world
-            override val transform get() = mobPosition.transform
-        })
-
-        mPositionWrite.set(entity, object : PositionWrite {
-            override val world get() = mob.world
-            override var transform: Transform
-                get() = mobPosition.transform
-                set(value) {
-                    mobPosition.transform = value
-                }
-        })
 
         mVelocityRead.set(entity, object : VelocityRead {
             override val linear get() = mob.velocity.alexandria() * TPS.toDouble()
@@ -227,23 +197,28 @@ class MobSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(IsMob::class, MobPosition::class)
+@All(IsMob::class, PositionAccess::class)
 class MobPositionSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
-    private val mMobPosition = ids.mapper<MobPosition>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mRotation = ids.mapper<Rotation>()
 
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val mob = mIsMob.get(entity).mob
-        val mobPosition = mMobPosition.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
+
+        val transform = positionAccess.transform
+        @Suppress("UnstableApiUsage")
+        mob.teleport(transform.translation.location(mob.world), true)
+    }
+
+    @Subscribe
+    fun on(event: WriteEvent, entity: SokolEntity) {
+        val positionAccess = mPositionAccess.get(entity)
         val rotation = mRotation.getOr(entity)
 
-        mobPosition.dTransform.ifDirty {
-            rotation?.rotation = it.rotation
-            @Suppress("UnstableApiUsage")
-            mob.teleport(it.translation.location(mob.world), true)
-        }
-        mobPosition.dTransform.clean()
+        val transform = positionAccess.transform
+        rotation?.rotation = transform.rotation
     }
 }

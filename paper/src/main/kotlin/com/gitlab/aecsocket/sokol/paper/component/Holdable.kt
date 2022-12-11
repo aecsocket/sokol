@@ -1,17 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.core.extension.getIfExists
 import com.gitlab.aecsocket.alexandria.core.extension.with
-import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import org.bukkit.Bukkit
-import org.bukkit.entity.Player
-import org.spongepowered.configurate.ConfigurationNode
-import java.util.UUID
-
-private const val HOLDER_ID = "holder_id"
 
 object Holdable : SimplePersistentComponent {
     override val componentType get() = Holdable::class

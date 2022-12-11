@@ -69,12 +69,12 @@ class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: UpdateEvent, entity: SokolEntity) {
         // only run one impulse effect set per update
         val colliderEffects = mColliderEffects.get(entity)
-        val position = mPositionRead.get(entity)
+        val transform = mPositionRead.get(entity)
 
         val (_, otherBody, impulse, worldPos) = colliderEffects.nextContact ?: return
         colliderEffects.nextContact = null
 
-        val world = position.world
+        val world = transform.world
         val location = worldPos.location(world)
 
         val volume = colliderEffects.profile.soundVolumeMap.map(impulse)

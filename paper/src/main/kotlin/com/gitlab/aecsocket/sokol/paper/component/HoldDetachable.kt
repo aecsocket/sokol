@@ -51,7 +51,7 @@ class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val holdDetachable = mHoldDetachable.get(entity)
-        mLocalTransform.addTo(entity, holdDetachable.localTransform)
+        mLocalTransform.combine(entity, holdDetachable.localTransform)
     }
 }
 
