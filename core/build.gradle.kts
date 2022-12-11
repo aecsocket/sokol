@@ -21,6 +21,7 @@ dependencies {
     compileOnly(libs.alexandriaCore)
     compileOnly(libs.packetEventsApi)
     compileOnly(libs.craftbulletCore)
+    compileOnly(libs.libBulletJme)
 
 
     testImplementation(platform("org.junit:junit-bom:5.9.0"))

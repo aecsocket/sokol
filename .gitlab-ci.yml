@@ -16,4 +16,4 @@ build:
     paths:
       - "*/build/libs/*.jar"
   script:
-    - "./gradlew --build-cache --gradle-user-home cache/ build publish"
+    - "./gradlew --build-cache --gradle-user-home cache/ build reobfJar publish"

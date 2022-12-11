@@ -11,7 +11,8 @@ guava = "31.1-jre"
 bstats = "2.2.1"
 alexandria = "0.5.4"
 packetEvents = "2.0-SNAPSHOT"
-craftbullet = "0.2.0"
+craftbullet = "0.2.1"
+libBulletJme = "17.2.0"
 
 [libraries]
 
@@ -41,3 +42,5 @@ packetEventsSpigot = { group = "com.github.retrooper.packetevents", name = "spig
 
 craftbulletCore = { group = "com.gitlab.aecsocket.craftbullet", name = "craftbullet-core", version.ref = "craftbullet" }
 craftbulletPaper = { group = "com.gitlab.aecsocket.craftbullet", name = "craftbullet-paper", version.ref = "craftbullet" }
+
+libBulletJme = { group = "com.github.stephengold", name = "Libbulletjme", version.ref = "libBulletJme" }

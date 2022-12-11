@@ -15,6 +15,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.PhysicsCollisionObject
 import net.kyori.adventure.key.Key
+import net.kyori.adventure.text.format.TextColor
 import org.bstats.bukkit.Metrics
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
@@ -36,7 +37,15 @@ val SokolAPI get() = instance
 
 typealias InputListener = (event: PlayerInputEvent) -> Unit
 
-class Sokol : BasePlugin(), SokolAPI {
+class Sokol : BasePlugin(PluginManifest("sokol",
+    accentColor = TextColor.color(0x329945),
+    langPaths = listOf(
+        "lang/default_en-US.conf"
+    ),
+    savedPaths = listOf(
+        "settings.conf"
+    )
+)), SokolAPI {
     @ConfigSerializable
     data class Settings(
         val enableBstats: Boolean = true,
@@ -154,48 +163,41 @@ class Sokol : BasePlugin(), SokolAPI {
         return false
     }
 
-    override fun loadInternal(log: LogList, settings: ConfigurationNode): Boolean {
-        if (super.loadInternal(log, settings)) {
-            try {
-                this.settings = settings.get { Settings() }
-            } catch (ex: SerializationException) {
-                log.line(LogLevel.Error, ex) { "Could not load settings file" }
-                return false
-            }
+    override fun loadInternal(log: LogList, config: ConfigurationNode): Boolean {
+        if (!super.loadInternal(log, config)) return false
+        settings = config.force()
 
-            if (this.settings.enableBstats) {
-                Metrics(this, BSTATS_ID)
-            }
-
-            _entityProfiles.clear()
-
-            val configs = walkConfigs(dataFolder.resolve(CONFIG),
-                onError = { ex, path ->
-                    log.line(LogLevel.Warning, ex) { "Could not load config from $path" }
-                }
-            )
-
-            configs.forEach { (node, path) ->
-                try {
-                    node.node(ENTITY_PROFILES).childrenMap().forEach { (key, child) ->
-                        try {
-                            val entityProfile = child.force<KeyedEntityProfile>()
-                            _entityProfiles.register(entityProfile)
-                        } catch (ex: SerializationException) {
-                            log.line(LogLevel.Warning, ex) { "Could not read entity profile '$key' from $path" }
-                        }
-                    }
-                } catch (ex: SerializationException) {
-                    log.line(LogLevel.Warning, ex) { "Could not read entity profiles from $path" }
-                }
-            }
-
-            log.line(LogLevel.Info) { "Loaded ${_entityProfiles.size} entity profiles" }
-
-            hasReloaded = true
-            return true
+        if (settings.enableBstats) {
+            Metrics(this, BSTATS_ID)
         }
-        return false
+
+        _entityProfiles.clear()
+
+        val configs = walkConfigs(dataFolder.resolve(CONFIG),
+            onError = { ex, path ->
+                log.line(LogLevel.Warning, ex) { "Could not load config from $path" }
+            }
+        )
+
+        configs.forEach { (node, path) ->
+            try {
+                node.node(ENTITY_PROFILES).childrenMap().forEach { (key, child) ->
+                    try {
+                        val entityProfile = child.force<KeyedEntityProfile>()
+                        _entityProfiles.register(entityProfile)
+                    } catch (ex: SerializationException) {
+                        log.line(LogLevel.Warning, ex) { "Could not read entity profile '$key' from $path" }
+                    }
+                }
+            } catch (ex: SerializationException) {
+                log.line(LogLevel.Warning, ex) { "Could not read entity profiles from $path" }
+            }
+        }
+
+        log.line(LogLevel.Info) { "Loaded ${_entityProfiles.size} entity profiles" }
+
+        hasReloaded = true
+        return true
     }
 
     override fun onDisable() {

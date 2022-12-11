@@ -40,6 +40,8 @@ dependencies {
     compileOnly(libs.craftbulletCore)
     compileOnly(libs.craftbulletPaper)
 
+    compileOnly(libs.libBulletJme)
+
     // shaded
     implementation(libs.bstatsPaper)
 
@@ -51,12 +53,23 @@ dependencies {
 tasks {
     shadowJar {
         mergeServiceFiles()
+
+        // kt-runtime
         exclude("kotlin/")
         exclude("kotlinx/")
+
+        listOf(
+            "org.spongepowered.configurate",
+            "io.leangen.geantyref",
+            "com.typesafe.config",
+            "cloud.commandframework",
+            "com.github.retrooper.packetevents",
+            "io.github.retrooper.packetevents",
+        ).forEach { relocate(it, "com.gitlab.aecsocket.alexandria.lib.$it") }
+
         listOf(
             "org.jetbrains",
             "org.intellij",
-
             "org.bstats",
         ).forEach { relocate(it, "${project.group}.lib.$it") }
     }
