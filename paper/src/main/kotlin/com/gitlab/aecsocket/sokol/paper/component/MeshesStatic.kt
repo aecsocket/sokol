@@ -71,7 +71,7 @@ class MeshesStaticSystem(ids: ComponentIdAccess) : SokolSystem {
         meshesStatic.parts.forEach { (item, transform) ->
             val mesh = AlexandriaAPI.meshes.create(
                 item,
-                parentTransform + transform,
+                parentTransform * transform,
                 event.getTrackedPlayers,
                 meshesStatic.interpolated
             )

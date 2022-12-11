@@ -157,7 +157,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
                 val relative = Transform(axis * clamp(distanceAlongAxis, 0.0, holdDetachable.profile.stopAt))
                 holdDetachable.localTransform = relative
                 // todo how do we apply a local transform for the next tick?
-                hold.nextTransform = pTransform + relative
+                hold.nextTransform = pTransform * relative
             }
         }
     }

@@ -206,7 +206,7 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 
         val parentTransform = positionRead.transform
         meshesInWorld.meshes.forEach { (mesh, transform) ->
-            mesh.transform = parentTransform + transform
+            mesh.transform = parentTransform * transform
         }
     }
 }

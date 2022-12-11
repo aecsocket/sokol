@@ -47,11 +47,11 @@ class PositionSystem(ids: ComponentIdAccess) : SokolSystem {
         val pRootLocalTransform = mRootLocalTransform.getOr(isChild.parent)?.transform ?: Transform.Identity
         val pPositionRead = mPositionRead.getOr(isChild.parent) ?: return
 
-        mRootLocalTransform.set(entity, RootLocalTransform(pRootLocalTransform + localTransform))
+        mRootLocalTransform.set(entity, RootLocalTransform(pRootLocalTransform * localTransform))
 
         mPositionRead.set(entity, object : PositionRead {
             override val world get() = pPositionRead.world
-            override val transform get() = pPositionRead.transform + localTransform
+            override val transform get() = pPositionRead.transform * localTransform
         })
     }
 

@@ -11,7 +11,7 @@ data class LocalTransform(
 
 fun ComponentMapper<LocalTransform>.addTo(entity: SokolEntity, transform: Transform) {
     getOr(entity)?.let {
-        it.transform += transform
+        it.transform *= transform
     } ?: set(entity, LocalTransform(transform))
 }
 

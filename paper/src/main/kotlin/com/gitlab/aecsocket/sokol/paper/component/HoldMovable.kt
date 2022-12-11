@@ -112,6 +112,6 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         hold.nextTransform = Transform(
             (from + direction * holdMovable.profile.holdDistance).position(),
             from.rotation()
-        ) + holdMovable.profile.holdTransform
+        ) * holdMovable.profile.holdTransform
     }
 }

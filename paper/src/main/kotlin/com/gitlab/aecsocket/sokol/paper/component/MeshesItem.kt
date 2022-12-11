@@ -49,7 +49,7 @@ class MeshesItemSystem(
         val itemEntity = sokol.persistence.blueprintOf(entity).create()
         val item = sokol.hoster.createItemForm(itemEntity)
 
-        val transform = event.transform + meshesItem.transform
+        val transform = event.transform * meshesItem.transform
         val mesh = AlexandriaAPI.meshes.create(item, transform, event.getTrackedPlayers, meshesItem.interpolated)
         event.meshes.add(MeshEntry(mesh, meshesItem.transform))
     }
