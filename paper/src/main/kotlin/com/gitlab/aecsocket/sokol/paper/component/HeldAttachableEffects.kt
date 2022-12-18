@@ -32,14 +32,14 @@ data class HeldAttachableEffects(val profile: Profile) : SimplePersistentCompone
 class HeldAttachableEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeldAttachableEffects = ids.mapper<HeldAttachableEffects>()
     private val mHeldAttachable = ids.mapper<HeldAttachable>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mPositionRead = ids.mapper<PositionRead>()
 
     @Subscribe
     fun on(event: HeldAttachableInputsSystem.AttachTo, entity: SokolEntity) {
         val heldAttachableEffects = mHeldAttachableEffects.get(entity).profile
         val attachTo = mHeldAttachable.get(entity).attachTo ?: return
 
-        val location = mPositionAccess.getOr(attachTo.target)?.location() ?: return
+        val location = mPositionRead.getOr(attachTo.target)?.location() ?: return
         AlexandriaAPI.soundEngine.play(location, heldAttachableEffects.sound)
         AlexandriaAPI.particleEngine.spawn(location, heldAttachableEffects.particle)
     }

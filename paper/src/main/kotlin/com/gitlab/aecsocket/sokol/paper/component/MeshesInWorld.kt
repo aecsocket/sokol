@@ -19,11 +19,15 @@ data class MeshesInWorldInstance(
     override val componentType get() = MeshesInWorldInstance::class
 }
 
-@All(MeshesInWorld::class, Meshes::class, PositionAccess::class, PlayerTracked::class)
+object MeshesInWorldInstanceTarget : SokolSystem
+
+@All(MeshesInWorld::class, MeshProvider::class, PositionRead::class, PlayerTracked::class)
 @None(MeshesInWorldInstance::class)
+@Before(MeshesInWorldInstanceTarget::class)
+@After(MeshProviderTarget::class, PositionAccessTarget::class)
 class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mMeshes = ids.mapper<Meshes>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mMeshProvider = ids.mapper<MeshProvider>()
+    private val mPositionRead = ids.mapper<PositionRead>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
 
@@ -33,11 +37,11 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
-        val meshes = mMeshes.get(entity)
-        val positionAccess = mPositionAccess.get(entity)
+        val meshes = mMeshProvider.get(entity)
+        val positionRead = mPositionRead.get(entity)
         val playerTracked = mPlayerTracked.get(entity)
 
-        val transform = positionAccess.transform
+        val transform = positionRead.transform
         val meshEntries = meshes.create(transform, playerTracked::trackedPlayers)
 
         if (event.sendToPlayers) {
@@ -51,11 +55,11 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(MeshesInWorldInstance::class, PositionAccess::class, PlayerTracked::class)
-@After(MeshesTarget::class, PlayerTrackedTarget::class)
+@All(MeshesInWorldInstance::class, PositionRead::class, PlayerTracked::class)
+@After(MeshesInWorldInstanceTarget::class, PositionAccessTarget::class, PlayerTrackedTarget::class)
 class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mPositionRead = ids.mapper<PositionRead>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
 
     object Remove : SokolEvent
@@ -142,9 +146,9 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val meshesInWorldInstance = mMeshesInWorldInstance.get(entity)
-        val positionAccess = mPositionAccess.get(entity)
+        val positionRead = mPositionRead.get(entity)
 
-        val transform = positionAccess.transform
+        val transform = positionRead.transform
         meshesInWorldInstance.meshEntries.forEach { (mesh, meshTransform) ->
             mesh.transform = transform * meshTransform
         }

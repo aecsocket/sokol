@@ -4,7 +4,6 @@ import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.core.physics.Ray
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.core.physics.invert
-import com.gitlab.aecsocket.alexandria.core.physics.testRayShape
 import com.gitlab.aecsocket.alexandria.paper.extension.direction
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.position
@@ -61,7 +60,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
     object ChangeAttachTo : SokolEvent
 
     @Subscribe
-    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.PostPhysicsStep, entity: SokolEntity) {
         val heldAttachable = mHeldAttachable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj, physSpace) = mColliderInstance.get(entity)
@@ -99,7 +98,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
                 if (testSlot.full()) return@children
                 val testTransform = mPositionRead.getOr(testEntity)?.transform ?: return@children
 
-                val collision = testRayShape(testTransform.invert(ray), testSlot.shape) ?: return@children
+                val collision = testSlot.shape.testRay(testTransform.invert(ray)) ?: return@children
                 if (collision.tIn > heldAttachable.profile.attachDistance) return@children
                 slotBodies.add(SlotBody(testEntity, collision.tIn, testSlot, testTransform))
             }

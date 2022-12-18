@@ -57,7 +57,7 @@ class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
 
 @All(HoldDetachable::class, InputCallbacks::class, PositionRead::class)
 @Before(InputCallbacksSystem::class)
-@After(PositionTarget::class)
+@After(PositionAccessTarget::class)
 class HoldDetachableCallbackSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -88,7 +88,7 @@ class HoldDetachableCallbackSystem(
 }
 
 @All(HoldDetachable::class, Held::class, ColliderInstance::class, IsChild::class, PositionRead::class)
-@After(ColliderInstanceTarget::class, PositionTarget::class)
+@After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldDetachable = ids.mapper<HoldDetachable>()
     private val mHeld = ids.mapper<Held>()
@@ -112,7 +112,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.CreatePhysics, entity: SokolEntity) {
         updateBody(entity, true)
     }
 
@@ -124,7 +124,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdDetachable = mHoldDetachable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)
@@ -146,7 +146,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val planeNormal = (from - planeOrigin).normalized
         val plane = PlaneShape(planeNormal)
 
-        testRayPlane(ray, plane)?.let { (tIn) ->
+        plane.testRay(ray)?.let { (tIn) ->
             val axis = holdDetachable.profile.detachAxisNorm
             val intersect = from + direction * tIn
             val distanceAlongAxis = (intersect - planeOrigin).dot(axis)

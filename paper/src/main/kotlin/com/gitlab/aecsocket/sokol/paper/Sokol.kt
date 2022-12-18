@@ -20,7 +20,6 @@ import org.bstats.bukkit.Metrics
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.kotlin.extensions.get
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
 
@@ -104,7 +103,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .registerExact(ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
-                    .registerExact(MeshesStatic.MeshDefinitionSerializer)
+                    .registerExact(MeshProviderStatic.MeshDefinitionSerializer)
                     .registerExact(EntitySerializer(this@Sokol))
                     .registerExact(BlueprintSerializer(this@Sokol))
                     .register(DeltaSerializer)
@@ -242,7 +241,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { ItemPersistSystem(this@Sokol, it) }
                     .systemFactory { ItemTagPersistSystem(it) }
                     .systemFactory { DisplayNameTarget }
-                    .systemFactory { DisplayNameProfileSystem(it) }
+                    .systemFactory { DisplayNameFromProfileSystem(it) }
                     .systemFactory { MobConstructorSystem(this@Sokol, it) }
                     .systemFactory { MobSystem(it) }
                     .systemFactory { MobPositionSystem(it) }
@@ -260,23 +259,23 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { InputCallbacksInstanceTarget }
                     .systemFactory { InputCallbacksSystem(it) }
                     .systemFactory { InputCallbacksInstanceSystem(it) }
-                    .systemFactory { TakeableSystem(this@Sokol, it) }
-                    .systemFactory { MeshesTarget }
-                    .systemFactory { MeshesStaticSystem(it) }
-                    .systemFactory { MeshesItemSystem(this@Sokol, it) }
+                    .systemFactory { TakeableAsItemSystem(this@Sokol, it) }
+                    .systemFactory { MeshProviderTarget }
+                    .systemFactory { MeshProviderStaticSystem(it) }
+                    .systemFactory { MeshProviderFromItemSystem(this@Sokol, it) }
                     .systemFactory { MeshesInWorldSystem(it) }
                     .systemFactory { MeshesInWorldMobSystem(it) }
                     .systemFactory { HoverMeshGlowSystem(it) }
                     .systemFactory { ColliderInstanceTarget }
                     .systemFactory { ColliderConstructSystem(it) }
-                    .systemFactory { ColliderSystem(it) }
+                    .systemFactory { ColliderPhysicsSystem(it) }
                     .systemFactory { ColliderInstanceSystem(it) }
                     .systemFactory { ColliderInstanceParentSystem(it) }
                     .systemFactory { ColliderInstancePositionSystem(it) }
                     .systemFactory { ColliderMobSystem(it) }
                     .systemFactory { ColliderEffectsSystem(it) }
                     .systemFactory { HoldableInputsSystem(this@Sokol, it) }
-                    .systemFactory { PlaceableSystem(this@Sokol, it) }
+                    .systemFactory { PlaceableAsMobSystem(this@Sokol, it) }
                     .systemFactory { HeldSystem(it) }
                     .systemFactory { HeldEntitySlotSystem(it) }
                     .systemFactory { HeldColliderSystem(it) }
@@ -303,7 +302,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<ItemHolder>()
                     .componentType<InItemTag>()
                     .componentType<DisplayName>()
-                    .componentType<DisplayNameProfile>()
+                    .componentType<DisplayNameFromProfile>()
                     .componentType<MobPosition>()
                     .componentType<AsMob>()
                     .componentType<AsItem>()
@@ -321,22 +320,22 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<Removable>()
                     .componentType<InputCallbacks>()
                     .componentType<InputCallbacksInstance>()
-                    .componentType<Takeable>()
+                    .componentType<TakeableAsItem>()
                     .componentType<PositionEffects>()
-                    .componentType<Meshes>()
-                    .componentType<MeshesStatic>()
-                    .componentType<MeshesItem>()
+                    .componentType<MeshProvider>()
+                    .componentType<MeshProviderStatic>()
+                    .componentType<MeshProviderFromItem>()
                     .componentType<MeshesInWorld>()
                     .componentType<HoverMeshGlow>()
                     .componentType<Collider>()
                     .componentType<ColliderInstance>()
-                    .componentType<RigidBodyCollider>()
-                    .componentType<VehicleBodyCollider>()
-                    .componentType<GhostBodyCollider>()
+                    .componentType<ColliderRigidBody>()
+                    .componentType<ColliderVehicleBody>()
+                    .componentType<ColliderGhostBody>()
                     .componentType<ColliderEffects>()
                     .componentType<Holdable>()
                     .componentType<Held>()
-                    .componentType<Placeable>()
+                    .componentType<PlaceableAsMob>()
                     .componentType<HoldMovable>()
                     .componentType<HoldDetachable>()
                     .componentType<HeldSnap>()
@@ -345,26 +344,26 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<HeldMeshGlow>()
                     .componentType<EntitySlot>()
                     .componentType<EntitySlotInMap>()
-                registerComponentType(DisplayNameProfile.Type)
+                registerComponentType(DisplayNameFromProfile.Type)
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
                 registerComponentType(LocalTransformStatic.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(InputCallbacks.Type)
-                registerComponentType(Takeable.Type)
+                registerComponentType(TakeableAsItem.Type)
                 registerComponentType(PositionEffects.Type)
-                registerComponentType(MeshesStatic.Type)
-                registerComponentType(MeshesItem.Type)
+                registerComponentType(MeshProviderStatic.Type)
+                registerComponentType(MeshProviderFromItem.Type)
                 registerComponentType(MeshesInWorld.Type)
                 registerComponentType(HoverMeshGlow.Type)
                 registerComponentType(Collider.Type)
-                registerComponentType(RigidBodyCollider.Type)
-                registerComponentType(VehicleBodyCollider.Type)
-                registerComponentType(GhostBodyCollider.Type)
+                registerComponentType(ColliderRigidBody.Type)
+                registerComponentType(ColliderVehicleBody.Type)
+                registerComponentType(ColliderGhostBody.Type)
                 registerComponentType(ColliderEffects.Type)
                 registerComponentType(Holdable.Type)
-                registerComponentType(Placeable.Type)
+                registerComponentType(PlaceableAsMob.Type)
                 registerComponentType(HoldMovable.Type)
                 registerComponentType(HoldDetachable.Type)
                 registerComponentType(HeldSnap.Type)
@@ -384,7 +383,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     ) {
         fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
             if (thisBody !is SokolPhysicsObject) return
-            thisBody.entity.callSingle(ColliderSystem.Contact(thisBody, otherBody, point))
+            thisBody.entity.callSingle(ColliderPhysicsSystem.Contact(thisBody, otherBody, point))
         }
 
         callEvent(bodyA, bodyB)

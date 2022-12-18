@@ -47,13 +47,13 @@ data class ColliderEffects(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(ColliderEffects::class, ColliderInstance::class, PositionRead::class)
-@Before(ColliderInstanceTarget::class, PositionTarget::class)
+@After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderEffects = ids.mapper<ColliderEffects>()
     private val mPositionRead = ids.mapper<PositionRead>()
 
     @Subscribe
-    fun on(event: ColliderSystem.Contact, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.Contact, entity: SokolEntity) {
         val colliderEffects = mColliderEffects.get(entity)
 
         val point = event.point
@@ -69,12 +69,12 @@ class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: UpdateEvent, entity: SokolEntity) {
         // only run one impulse effect set per update
         val colliderEffects = mColliderEffects.get(entity)
-        val transform = mPositionRead.get(entity)
+        val positionRead = mPositionRead.get(entity)
 
         val (_, otherBody, impulse, worldPos) = colliderEffects.nextContact ?: return
         colliderEffects.nextContact = null
 
-        val world = transform.world
+        val world = positionRead.world
         val location = worldPos.location(world)
 
         val volume = colliderEffects.profile.soundVolumeMap.map(impulse)

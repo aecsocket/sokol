@@ -9,14 +9,14 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.bukkit.GameMode
 
-object Placeable : SimplePersistentComponent {
-    override val componentType get() = Placeable::class
-    override val key = SokolAPI.key("placeable")
+object PlaceableAsMob : SimplePersistentComponent {
+    override val componentType get() = PlaceableAsMob::class
+    override val key = SokolAPI.key("placeable_as_mob")
     val Type = ComponentType.singletonComponent(key, this)
 }
 
-@All(Placeable::class, IsItem::class, AsMob::class)
-class PlaceableSystem(
+@All(PlaceableAsMob::class, IsItem::class, AsMob::class)
+class PlaceableAsMobSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {

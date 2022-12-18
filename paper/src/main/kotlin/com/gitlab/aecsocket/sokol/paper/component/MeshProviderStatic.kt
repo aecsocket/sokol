@@ -18,13 +18,13 @@ import java.lang.reflect.Type
 private const val ITEM = "item"
 private const val TRANSFORM = "transform"
 
-data class MeshesStatic(val profile: Profile) : SimplePersistentComponent {
+data class MeshProviderStatic(val profile: Profile) : SimplePersistentComponent {
     companion object {
-        val Key = SokolAPI.key("meshes_static")
+        val Key = SokolAPI.key("mesh_provider_static")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = MeshesStatic::class
+    override val componentType get() = MeshProviderStatic::class
     override val key get() = Key
 
     data class MeshDefinition(
@@ -46,31 +46,31 @@ data class MeshesStatic(val profile: Profile) : SimplePersistentComponent {
         @Required val parts: List<MeshDefinition>,
         val interpolated: Boolean = true
     ) : SimpleComponentProfile {
-        override val componentType get() = MeshesStatic::class
+        override val componentType get() = MeshProviderStatic::class
 
-        override fun createEmpty() = ComponentBlueprint { MeshesStatic(this) }
+        override fun createEmpty() = ComponentBlueprint { MeshProviderStatic(this) }
     }
 }
 
-@All(MeshesStatic::class)
-@None(Meshes::class)
-@Before(MeshesTarget::class)
-class MeshesStaticSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mMeshesStatic = ids.mapper<MeshesStatic>()
-    private val mMeshes = ids.mapper<Meshes>()
+@All(MeshProviderStatic::class)
+@None(MeshProvider::class)
+@Before(MeshProviderTarget::class)
+class MeshProviderStaticSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mMeshProviderStatic = ids.mapper<MeshProviderStatic>()
+    private val mMeshProvider = ids.mapper<MeshProvider>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mMeshes.set(entity,
-            Meshes { transform, trackedPlayers ->
-                val meshesStatic = mMeshesStatic.get(entity).profile
+        val meshProviderStatic = mMeshProviderStatic.get(entity).profile
 
-                meshesStatic.parts.map { (item, partTransform) ->
+        mMeshProvider.set(entity,
+            MeshProvider { transform, trackedPlayers ->
+                meshProviderStatic.parts.map { (item, partTransform) ->
                     val mesh = AlexandriaAPI.meshes.create(
                         item,
                         transform * partTransform,
                         trackedPlayers,
-                        meshesStatic.interpolated
+                        meshProviderStatic.interpolated
                     )
                     MeshEntry(mesh, partTransform)
                 }

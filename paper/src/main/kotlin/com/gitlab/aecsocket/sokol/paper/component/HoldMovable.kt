@@ -38,7 +38,7 @@ class MoveHoldOperation : HoldOperation {
 
 @All(HoldMovable::class, InputCallbacks::class, PositionRead::class)
 @Before(InputCallbacksSystem::class)
-@After(PositionTarget::class)
+@After(PositionAccessTarget::class)
 class HoldMovableCallbackSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -85,7 +85,7 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.CreatePhysics, entity: SokolEntity) {
         updateBody(entity, true)
     }
 
@@ -97,7 +97,7 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdMovable = mHoldMovable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)

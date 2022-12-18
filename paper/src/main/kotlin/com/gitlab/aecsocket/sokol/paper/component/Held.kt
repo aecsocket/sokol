@@ -28,7 +28,6 @@ data class Held(val hold: EntityHolding.Hold) : SokolComponent {
 }
 
 @All(Held::class)
-@After(PositionTarget::class)
 class HeldSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeld = ids.mapper<Held>()
 
@@ -44,6 +43,7 @@ class HeldSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(EntitySlot::class, PositionRead::class)
+@After(PositionAccessTarget::class)
 class HeldEntitySlotSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mEntitySlot = ids.mapper<EntitySlot>()
     private val mPositionRead = ids.mapper<PositionRead>()
@@ -67,6 +67,7 @@ class HeldEntitySlotSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(Held::class, ColliderInstance::class)
+@After(ColliderInstanceTarget::class)
 class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
@@ -113,7 +114,7 @@ class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.CreatePhysics, entity: SokolEntity) {
         updateBody(entity, mHeld.get(entity), true)
     }
 
@@ -128,7 +129,7 @@ class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderPhysicsSystem.PrePhysicsStep, entity: SokolEntity) {
         val held = mHeld.get(entity)
         val hold = held.hold
         val (physObj) = mColliderInstance.get(entity)

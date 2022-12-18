@@ -6,15 +6,15 @@ import com.gitlab.aecsocket.sokol.core.SokolComponent
 import com.gitlab.aecsocket.sokol.core.SokolSystem
 import org.bukkit.entity.Player
 
-data class MeshEntry(
-    val mesh: Mesh,
-    val transform: Transform
-)
-
-fun interface Meshes : SokolComponent {
-    override val componentType get() = Meshes::class
+fun interface MeshProvider : SokolComponent {
+    override val componentType get() = MeshProvider::class
 
     fun create(transform: Transform, trackedPlayers: () -> Iterable<Player>): List<MeshEntry>
 }
 
-object MeshesTarget : SokolSystem
+object MeshProviderTarget : SokolSystem
+
+data class MeshEntry(
+    val mesh: Mesh,
+    val transform: Transform
+)

@@ -8,7 +8,6 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.UpdateEvent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
-import org.spongepowered.configurate.objectmapping.meta.Required
 
 data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -31,7 +30,7 @@ data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(PositionEffects::class, PositionRead::class)
-@After(PositionTarget::class, VelocityTarget::class)
+@After(PositionAccessTarget::class, VelocityReadTarget::class)
 class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionEffects = ids.mapper<PositionEffects>()
     private val mPositionRead = ids.mapper<PositionRead>()
@@ -40,7 +39,7 @@ class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val positionEffects = mPositionEffects.get(entity).profile
-        val positionRead = mPositionRead.get(entity)
+        val positionAccess = mPositionRead.get(entity)
         val velocityRead = mVelocityRead.getOr(entity)
 
         val velocity = velocityRead?.linear ?: Vector3.Zero
@@ -51,6 +50,7 @@ class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
             ) else effect
         }
 
-        AlexandriaAPI.particleEngine.spawn(positionRead.location(), particle)
+        val location = positionAccess.location()
+        AlexandriaAPI.particleEngine.spawn(location, particle)
     }
 }

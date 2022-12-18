@@ -7,31 +7,31 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.bukkit.entity.Player
 
-data class Takeable(val profile: Profile) : SimplePersistentComponent {
+data class TakeableAsItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
-        val Key = SokolAPI.key("takeable")
+        val Key = SokolAPI.key("takeable_as_item")
         val Type = ComponentType.singletonProfile(Key, Profile)
     }
 
-    override val componentType get() = Takeable::class
+    override val componentType get() = TakeableAsItem::class
     override val key get() = Key
 
     object Profile : SimpleComponentProfile {
-        override val componentType get() = Takeable::class
+        override val componentType get() = TakeableAsItem::class
 
-        override fun createEmpty() = ComponentBlueprint { Takeable(this) }
+        override fun createEmpty() = ComponentBlueprint { TakeableAsItem(this) }
     }
 }
 
-@All(Takeable::class, InputCallbacks::class, Removable::class, PositionRead::class /* if we have a world presence */)
+@All(TakeableAsItem::class, InputCallbacks::class, Removable::class)
 @Before(InputCallbacksSystem::class)
-@After(RemovableTarget::class, PositionTarget::class)
-class TakeableSystem(
+@After(RemovableTarget::class)
+class TakeableAsItemSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {
     companion object {
-        val TakeAsItem = Takeable.Key.with("take_as_item")
+        val TakeAsItem = TakeableAsItem.Key.with("take")
     }
 
     data class Remove(

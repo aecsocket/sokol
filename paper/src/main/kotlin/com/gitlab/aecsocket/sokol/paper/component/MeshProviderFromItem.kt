@@ -8,13 +8,13 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
-data class MeshesItem(val profile: Profile) : SimplePersistentComponent {
+data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
-        val Key = SokolAPI.key("meshes_item")
+        val Key = SokolAPI.key("mesh_provider_from_item")
         val Type = ComponentType.deserializing<Profile>(Key)
     }
 
-    override val componentType get() = MeshesItem::class
+    override val componentType get() = MeshProviderFromItem::class
     override val key get() = Key
 
     @ConfigSerializable
@@ -22,34 +22,34 @@ data class MeshesItem(val profile: Profile) : SimplePersistentComponent {
         val transform: Transform = Transform.Identity,
         val interpolated: Boolean = true
     ) : SimpleComponentProfile {
-        override val componentType get() = MeshesItem::class
+        override val componentType get() = MeshProviderFromItem::class
 
-        override fun createEmpty() = ComponentBlueprint { MeshesItem(this) }
+        override fun createEmpty() = ComponentBlueprint { MeshProviderFromItem(this) }
     }
 }
 
-@All(MeshesItem::class)
-@None(Meshes::class)
-@Before(MeshesTarget::class)
-class MeshesItemSystem(
+@All(MeshProviderFromItem::class)
+@None(MeshProvider::class)
+@Before(MeshProviderTarget::class)
+class MeshProviderFromItemSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {
-    private val mMeshesItem = ids.mapper<MeshesItem>()
-    private val mMeshes = ids.mapper<Meshes>()
+    private val mMeshProviderFromItem = ids.mapper<MeshProviderFromItem>()
+    private val mMeshProvider = ids.mapper<MeshProvider>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mMeshes.set(entity, Meshes { transform, trackedPlayers ->
-            val meshesItem = mMeshesItem.get(entity).profile
+        val meshProviderFromItem = mMeshProviderFromItem.get(entity).profile
 
+        mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
             val itemEntity = sokol.persistence.blueprintOf(entity).create()
             val item = sokol.hoster.createItemForm(itemEntity)
 
-            val transform = transform * meshesItem.transform
-            val mesh = AlexandriaAPI.meshes.create(item, transform, trackedPlayers, meshesItem.interpolated)
+            val transform = transform * meshProviderFromItem.transform
+            val mesh = AlexandriaAPI.meshes.create(item, transform, trackedPlayers, meshProviderFromItem.interpolated)
 
-            listOf(MeshEntry(mesh, meshesItem.transform))
+            listOf(MeshEntry(mesh, meshProviderFromItem.transform))
         })
     }
 }
