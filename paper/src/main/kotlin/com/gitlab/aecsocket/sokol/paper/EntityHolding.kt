@@ -95,13 +95,13 @@ class EntityHolding internal constructor(
 
                 val ray = Ray(location.position(), location.direction())
                 val newHover = testBodies.mapNotNull {
-                    if (it !is SokolPhysicsObject) return@forEach
+                    if (it !is SokolPhysicsObject) return@mapNotNull null
                     val entity = it.entity
-                    val positionRead = mPositionRead.getOr(entity) ?: return@forEach
-                    val hoverShape = mHoverShape.getOr(entity)?.profile ?: return@forEach
+                    val positionRead = mPositionRead.getOr(entity) ?: return@mapNotNull null
+                    val hoverShape = mHoverShape.getOr(entity)?.profile ?: return@mapNotNull null
 
                     val transform = positionRead.transform
-                    val collision = hoverShape.shape.testRay(transform.invert(ray)) ?: return@forEach
+                    val collision = hoverShape.shape.testRay(transform.invert(ray)) ?: return@mapNotNull null
                     collision.tIn to Hover(it, collision)
                 }.minByOrNull { (tIn) -> tIn }?.second
 

@@ -138,12 +138,6 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ReloadEvent, entity: SokolEntity) {
-        entity.callSingle(Remove)
-        entity.callSingle(MeshesInWorldSystem.Create(true))
-    }
-
-    @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val meshesInWorldInstance = mMeshesInWorldInstance.get(entity)
         val positionRead = mPositionRead.get(entity)
@@ -156,7 +150,12 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(MeshesInWorld::class, IsMob::class)
-class MeshesInWorldMobSystem(ids: ComponentIdAccess) : SokolSystem {
+class MeshesInWorldMobSystem(
+    private val sokol: Sokol,
+    ids: ComponentIdAccess
+) : SokolSystem {
+    private val mIsMob = ids.mapper<IsMob>()
+
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
         entity.callSingle(MeshesInWorldSystem.Create(false))
@@ -180,5 +179,13 @@ class MeshesInWorldMobSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: MobEvent.Hide, entity: SokolEntity) {
         entity.callSingle(MeshesInWorldInstanceSystem.Hide(event.player))
+    }
+
+    @Subscribe
+    fun on(event: ReloadEvent, entity: SokolEntity) {
+        val mob = mIsMob.get(entity).mob
+        val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
+        oldEntity.callSingle(MeshesInWorldInstanceSystem.Remove)
+        entity.callSingle(MeshesInWorldSystem.Create(true))
     }
 }

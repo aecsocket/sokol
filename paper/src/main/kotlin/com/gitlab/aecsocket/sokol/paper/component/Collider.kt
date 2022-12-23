@@ -188,11 +188,6 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
         parentJoint?.let { physSpace.removeJoint(it) }
         physSpace.removeCollisionObject(physObj.body)
     }
-
-    @Subscribe
-    fun on(event: ReloadEvent, entity: SokolEntity) {
-        entity.callSingle(ColliderSystem.Create)
-    }
 }
 
 @All(ColliderInstance::class, Collider::class, IsChild::class)
@@ -255,14 +250,6 @@ class ColliderInstancePositionSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionWrite = ids.mapper<PositionWrite>()
 
     @Subscribe
-    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
-        val colliderInstance = mColliderInstance.get(entity)
-        val (physObj) = colliderInstance
-
-        //colliderInstance.lastTransform = physObj.body.transform.alexandria()
-    }
-
-    @Subscribe
     fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
         val colliderInstance = mColliderInstance.get(entity)
         val (physObj) = mColliderInstance.get(entity)
@@ -281,7 +268,12 @@ class ColliderInstancePositionSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(Collider::class, IsMob::class)
-class ColliderMobSystem(ids: ComponentIdAccess) : SokolSystem {
+class ColliderMobSystem(
+    private val sokol: Sokol,
+    ids: ComponentIdAccess
+) : SokolSystem {
+    private val mIsMob = ids.mapper<IsMob>()
+
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
         entity.callSingle(ColliderSystem.Create)
@@ -290,5 +282,15 @@ class ColliderMobSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
         entity.callSingle(ColliderSystem.Create)
+    }
+
+    @Subscribe
+    fun on(event: ReloadEvent, entity: SokolEntity) {
+        val mob = mIsMob.get(entity).mob
+        val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
+        CraftBulletAPI.executePhysics {
+            oldEntity.callSingle(ColliderInstanceSystem.Remove)
+            entity.callSingle(ColliderSystem.Create)
+        }
     }
 }

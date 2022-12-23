@@ -266,14 +266,14 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { MeshesInWorldInstanceTarget }
                     .systemFactory { MeshesInWorldSystem(it) }
                     .systemFactory { MeshesInWorldInstanceSystem(it) }
-                    .systemFactory { MeshesInWorldMobSystem(it) }
+                    .systemFactory { MeshesInWorldMobSystem(this@Sokol, it) }
                     .systemFactory { HoverMeshGlowSystem(it) }
                     .systemFactory { ColliderInstanceTarget }
                     .systemFactory { ColliderSystem(it) }
                     .systemFactory { ColliderInstanceSystem(it) }
                     .systemFactory { ColliderInstanceParentSystem(it) }
                     .systemFactory { ColliderInstancePositionSystem(it) }
-                    .systemFactory { ColliderMobSystem(it) }
+                    .systemFactory { ColliderMobSystem(this@Sokol, it) }
                     .systemFactory { ColliderEffectsSystem(it) }
                     .systemFactory { HoldableInputsSystem(this@Sokol, it) }
                     .systemFactory { PlaceableAsMobSystem(this@Sokol, it) }
