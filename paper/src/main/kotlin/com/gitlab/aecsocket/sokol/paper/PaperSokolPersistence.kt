@@ -5,7 +5,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.ContainerMap
 import net.kyori.adventure.key.Key
 import net.minecraft.nbt.CompoundTag
-import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
+import org.bukkit.craftbukkit.v1_19_R2.persistence.CraftPersistentDataContainer
 import org.bukkit.persistence.PersistentDataContainer
 
 private const val CHILDREN_MAP = "children_map"

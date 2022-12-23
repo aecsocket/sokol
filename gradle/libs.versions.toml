@@ -1,12 +1,12 @@
 [versions]
 
-minecraft = "1.19.2"
+minecraft = "1.19.3"
 
 kotlin = "1.7.20"
 adventure = "4.11.0"
 glossa = "0.5.2"
 configurate = "4.1.2"
-cloud = "1.7.1"
+cloud = "1.8.0"
 guava = "31.1-jre"
 bstats = "2.2.1"
 alexandria = "0.5.4"

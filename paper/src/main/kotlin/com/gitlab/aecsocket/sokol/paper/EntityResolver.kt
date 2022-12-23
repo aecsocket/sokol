@@ -24,9 +24,9 @@ import net.minecraft.world.level.chunk.LevelChunk
 import org.bukkit.Bukkit
 import org.bukkit.World
 import org.bukkit.block.Container
-import org.bukkit.craftbukkit.v1_19_R1.CraftEquipmentSlot
-import org.bukkit.craftbukkit.v1_19_R1.CraftServer
-import org.bukkit.craftbukkit.v1_19_R1.persistence.CraftPersistentDataContainer
+import org.bukkit.craftbukkit.v1_19_R2.CraftEquipmentSlot
+import org.bukkit.craftbukkit.v1_19_R2.CraftServer
+import org.bukkit.craftbukkit.v1_19_R2.persistence.CraftPersistentDataContainer
 import org.bukkit.persistence.PersistentDataContainer
 import java.lang.RuntimeException
 
