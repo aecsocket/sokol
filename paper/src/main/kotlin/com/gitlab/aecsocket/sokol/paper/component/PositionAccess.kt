@@ -10,7 +10,7 @@ interface PositionAccess {
     val transform: Transform
 }
 
-fun PositionAccess.location() = transform.translation.location(world)
+fun PositionAccess.location() = transform.position.location(world)
 
 object PositionAccessTarget : SokolSystem
 

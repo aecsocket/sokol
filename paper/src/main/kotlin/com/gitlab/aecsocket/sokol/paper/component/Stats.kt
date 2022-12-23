@@ -6,7 +6,6 @@ import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
-import kotlin.reflect.KClass
 
 data class Stats(val profile: Profile) : SimplePersistentComponent {
     companion object {

@@ -114,7 +114,7 @@ class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.CreatePhysics, entity: SokolEntity) {
+    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
         updateBody(entity, mHeld.get(entity), true)
     }
 
@@ -129,7 +129,7 @@ class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.PrePhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val held = mHeld.get(entity)
         val hold = held.hold
         val (physObj) = mColliderInstance.get(entity)

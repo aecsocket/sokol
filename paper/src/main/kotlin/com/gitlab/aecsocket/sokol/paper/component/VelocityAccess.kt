@@ -9,9 +9,8 @@ interface VelocityAccess {
     val angular: Vector3
 }
 
+object VelocityAccessTarget : SokolSystem
+
 interface VelocityRead : VelocityAccess, SokolComponent {
     override val componentType get() = VelocityRead::class
 }
-
-object VelocityReadTarget : SokolSystem
-

@@ -19,6 +19,17 @@ import net.kyori.adventure.text.Component.text
 import org.bukkit.Location
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import kotlin.collections.average
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.first
+import kotlin.collections.forEach
+import kotlin.collections.forEachIndexed
+import kotlin.collections.lastOrNull
+import kotlin.collections.listOf
+import kotlin.collections.mapNotNull
+import kotlin.collections.max
+import kotlin.collections.min
 
 private val TIMING_INTERVALS = listOf(5, 30, 60)
 

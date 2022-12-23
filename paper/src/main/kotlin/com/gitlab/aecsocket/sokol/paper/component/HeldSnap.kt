@@ -59,7 +59,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
     ) : SokolEvent
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.PostPhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
         val heldSnap = mHeldSnap.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)

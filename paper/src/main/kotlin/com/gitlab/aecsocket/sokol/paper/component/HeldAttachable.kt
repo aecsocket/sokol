@@ -60,7 +60,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
     object ChangeAttachTo : SokolEvent
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.PostPhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
         val heldAttachable = mHeldAttachable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj, physSpace) = mColliderInstance.get(entity)

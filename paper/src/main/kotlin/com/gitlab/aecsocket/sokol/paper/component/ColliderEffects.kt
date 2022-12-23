@@ -53,7 +53,7 @@ class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionRead = ids.mapper<PositionRead>()
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.Contact, entity: SokolEntity) {
+    fun on(event: ColliderSystem.Contact, entity: SokolEntity) {
         val colliderEffects = mColliderEffects.get(entity)
 
         val point = event.point

@@ -13,5 +13,5 @@ fun Vec3d.alexandria() = Vector3(x, y, z)
 fun Quaternion.bullet() = Quatd(x, y, z, w)
 fun Quatd.alexandria() = Quaternion(x, y, z, w)
 
-fun Transform.bullet() = TransformDp(translation.bullet(), rotation.bullet())
+fun Transform.bullet() = TransformDp(position.bullet(), rotation.bullet())
 fun TransformDp.alexandria() = Transform(translation.alexandria(), rotation.alexandria())

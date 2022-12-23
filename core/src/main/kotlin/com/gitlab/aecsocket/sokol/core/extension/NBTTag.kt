@@ -13,14 +13,14 @@ fun NBTTagContext.makeQuaternion(value: Quaternion) = makeDoubleArray(doubleArra
 
 fun NBTTag.asQuaternion() = asDoubleArray().run { Quaternion(get(0), get(1), get(2), get(3)) }
 
-private const val TRANSLATION = "translation"
+private const val POSITION = "position"
 private const val ROTATION = "rotation"
 
 fun NBTTagContext.makeTransform(value: Transform) = makeCompound()
-    .set(TRANSLATION) { makeVector3(value.translation) }
+    .set(POSITION) { makeVector3(value.position) }
     .set(ROTATION) { makeQuaternion(value.rotation) }
 
 fun NBTTag.asTransform() = asCompound().run { Transform(
-    get(TRANSLATION) { asVector3() },
+    get(POSITION) { asVector3() },
     get(ROTATION) { asQuaternion() },
 ) }

@@ -244,12 +244,12 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { DisplayNameFromProfileSystem(it) }
                     .systemFactory { MobConstructorSystem(this@Sokol, it) }
                     .systemFactory { MobSystem(it) }
-                    .systemFactory { MobPositionSystem(it) }
                     .systemFactory { CompositeConstructSystem(it) }
                     .systemFactory { CompositeRootSystem(it) }
                     .systemFactory { LocalTransformTarget }
                     .systemFactory { LocalTransformStaticSystem(it) }
-                    .systemFactory { VelocityTarget }
+                    .systemFactory { PositionAccessTarget }
+                    .systemFactory { VelocityAccessTarget }
                     .systemFactory { PlayerTrackedTarget }
                     .systemFactory { PlayerTrackedSystem(it) }
                     .systemFactory { RemovablePreTarget }
@@ -263,12 +263,13 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { MeshProviderTarget }
                     .systemFactory { MeshProviderStaticSystem(it) }
                     .systemFactory { MeshProviderFromItemSystem(this@Sokol, it) }
+                    .systemFactory { MeshesInWorldInstanceTarget }
                     .systemFactory { MeshesInWorldSystem(it) }
+                    .systemFactory { MeshesInWorldInstanceSystem(it) }
                     .systemFactory { MeshesInWorldMobSystem(it) }
                     .systemFactory { HoverMeshGlowSystem(it) }
                     .systemFactory { ColliderInstanceTarget }
-                    .systemFactory { ColliderConstructSystem(it) }
-                    .systemFactory { ColliderPhysicsSystem(it) }
+                    .systemFactory { ColliderSystem(it) }
                     .systemFactory { ColliderInstanceSystem(it) }
                     .systemFactory { ColliderInstanceParentSystem(it) }
                     .systemFactory { ColliderInstancePositionSystem(it) }
@@ -303,7 +304,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<InItemTag>()
                     .componentType<DisplayName>()
                     .componentType<DisplayNameFromProfile>()
-                    .componentType<MobPosition>()
                     .componentType<AsMob>()
                     .componentType<AsItem>()
                     .componentType<IsRoot>()
@@ -312,7 +312,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<LocalTransform>()
                     .componentType<LocalTransformStatic>()
                     .componentType<Rotation>()
-                    .componentType<RootLocalTransform>()
                     .componentType<PositionRead>()
                     .componentType<PositionWrite>()
                     .componentType<VelocityRead>()
@@ -326,12 +325,13 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<MeshProviderStatic>()
                     .componentType<MeshProviderFromItem>()
                     .componentType<MeshesInWorld>()
+                    .componentType<MeshesInWorldInstance>()
+                    .componentType<HoverShape>()
                     .componentType<HoverMeshGlow>()
                     .componentType<Collider>()
                     .componentType<ColliderInstance>()
                     .componentType<ColliderRigidBody>()
                     .componentType<ColliderVehicleBody>()
-                    .componentType<ColliderGhostBody>()
                     .componentType<ColliderEffects>()
                     .componentType<Holdable>()
                     .componentType<Held>()
@@ -356,11 +356,11 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 registerComponentType(MeshProviderStatic.Type)
                 registerComponentType(MeshProviderFromItem.Type)
                 registerComponentType(MeshesInWorld.Type)
+                registerComponentType(HoverShape.Type)
                 registerComponentType(HoverMeshGlow.Type)
                 registerComponentType(Collider.Type)
                 registerComponentType(ColliderRigidBody.Type)
                 registerComponentType(ColliderVehicleBody.Type)
-                registerComponentType(ColliderGhostBody.Type)
                 registerComponentType(ColliderEffects.Type)
                 registerComponentType(Holdable.Type)
                 registerComponentType(PlaceableAsMob.Type)
@@ -383,7 +383,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     ) {
         fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
             if (thisBody !is SokolPhysicsObject) return
-            thisBody.entity.callSingle(ColliderPhysicsSystem.Contact(thisBody, otherBody, point))
+            thisBody.entity.callSingle(ColliderSystem.Contact(thisBody, otherBody, point))
         }
 
         callEvent(bodyA, bodyB)

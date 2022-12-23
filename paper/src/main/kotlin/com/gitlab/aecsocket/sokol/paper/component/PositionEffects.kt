@@ -30,7 +30,7 @@ data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(PositionEffects::class, PositionRead::class)
-@After(PositionAccessTarget::class, VelocityReadTarget::class)
+@After(PositionAccessTarget::class, VelocityAccessTarget::class)
 class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionEffects = ids.mapper<PositionEffects>()
     private val mPositionRead = ids.mapper<PositionRead>()

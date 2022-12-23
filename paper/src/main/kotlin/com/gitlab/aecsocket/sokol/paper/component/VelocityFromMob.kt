@@ -15,7 +15,7 @@ object VelocityFromMob : SimplePersistentComponent {
 
 @All(VelocityFromMob::class, IsMob::class)
 @None(VelocityRead::class)
-@Before(VelocityReadTarget::class)
+@Before(VelocityAccessTarget::class)
 class VelocityFromMobSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
     private val mVelocityRead = ids.mapper<VelocityRead>()

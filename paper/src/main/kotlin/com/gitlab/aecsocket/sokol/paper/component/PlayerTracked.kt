@@ -3,10 +3,10 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.sokol.core.*
 import org.bukkit.entity.Player
 
-fun interface PlayerTracked : SokolComponent {
+data class PlayerTracked(
+    val trackedPlayers: () -> Set<Player>
+) : SokolComponent {
     override val componentType get() = PlayerTracked::class
-
-    fun trackedPlayers(): Set<Player>
 }
 
 object PlayerTrackedTarget : SokolSystem

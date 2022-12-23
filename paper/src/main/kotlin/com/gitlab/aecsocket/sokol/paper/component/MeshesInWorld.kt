@@ -37,12 +37,12 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
-        val meshes = mMeshProvider.get(entity)
+         val meshes = mMeshProvider.get(entity)
         val positionRead = mPositionRead.get(entity)
         val playerTracked = mPlayerTracked.get(entity)
 
         val transform = positionRead.transform
-        val meshEntries = meshes.create(transform, playerTracked::trackedPlayers)
+        val meshEntries = meshes.create(transform, playerTracked.trackedPlayers)
 
         if (event.sendToPlayers) {
             val players = playerTracked.trackedPlayers()

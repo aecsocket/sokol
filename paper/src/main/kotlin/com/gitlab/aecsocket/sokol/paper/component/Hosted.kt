@@ -1,6 +1,10 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.physics.Quaternion
+import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.extension.location
+import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.UpdateEvent
@@ -28,6 +32,8 @@ object IsChunkTarget : SokolSystem
 
 data class IsMob(val mob: Entity) : SokolComponent {
     override val componentType get() = IsMob::class
+
+    var lastPosition: Vector3? = null
 }
 
 object IsMobTarget : SokolSystem
@@ -169,53 +175,44 @@ class MobConstructorSystem(
             }
         })
 
-        /* TODO
         val positionWrite = PositionWrite(
             mob.world,
-            Transform(
-                mob.location.position(),
-                mRotation.getOr(entity)?.rotation ?: Quaternion.Identity
-            )
+            Transform(mob.location.position(), mRotation.getOr(entity)?.rotation ?: Quaternion.Identity)
         )
 
         mPositionRead.set(entity, positionWrite.asRead())
-        mPositionWrite.set(entity, positionWrite)*/
+        mPositionWrite.set(entity, positionWrite)
     }
 }
 
-@All(IsMob::class)
+@All(IsMob::class, PositionWrite::class)
 class MobSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
+    private val mPositionWrite = ids.mapper<PositionWrite>()
+    private val mRotation = ids.mapper<Rotation>()
 
     @Subscribe
     fun on(event: Composite.Attach, entity: SokolEntity) {
         mIsMob.remove(entity)
     }
-}
-
-@All(IsMob::class, PositionRead::class)
-@After(PositionAccessTarget::class)
-class MobPositionSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mIsMob = ids.mapper<IsMob>()
-    private val mPositionRead = ids.mapper<PositionRead>()
-    private val mRotation = ids.mapper<Rotation>()
 
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
-        val mob = mIsMob.get(entity).mob
-        val positionRead = mPositionRead.get(entity)
-
-        val transform = positionRead.transform
-        @Suppress("UnstableApiUsage")
-        mob.teleport(transform.translation.location(mob.world), true)
-    }
-
-    @Subscribe
-    fun on(event: WriteEvent, entity: SokolEntity) {
-        val positionAccess = mPositionRead.get(entity)
+        val isMob = mIsMob.get(entity)
+        val positionWrite = mPositionWrite.get(entity)
         val rotation = mRotation.getOr(entity)
+        val mob = isMob.mob
 
-        val transform = positionAccess.transform
+        val transform = isMob.lastPosition?.let { lastPosition ->
+            val delta = mob.location.position() - lastPosition
+            positionWrite.transform.copy(position = positionWrite.transform.position + delta).also {
+                positionWrite.transform = it
+            }
+        } ?: positionWrite.transform
+
+        @Suppress("UnstableApiUsage")
+        mob.teleport(transform.position.location(mob.world), true)
         rotation?.rotation = transform.rotation
+        isMob.lastPosition = transform.position
     }
 }

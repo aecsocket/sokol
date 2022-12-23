@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
+import com.gitlab.aecsocket.alexandria.paper.MeshSettings
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
@@ -20,7 +21,7 @@ data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponen
     @ConfigSerializable
     data class Profile(
         val transform: Transform = Transform.Identity,
-        val interpolated: Boolean = true
+        val meshSettings: MeshSettings = MeshSettings()
     ) : SimpleComponentProfile {
         override val componentType get() = MeshProviderFromItem::class
 
@@ -47,7 +48,7 @@ class MeshProviderFromItemSystem(
             val item = sokol.hoster.createItemForm(itemEntity)
 
             val transform = transform * meshProviderFromItem.transform
-            val mesh = AlexandriaAPI.meshes.create(item, transform, trackedPlayers, meshProviderFromItem.interpolated)
+            val mesh = AlexandriaAPI.meshes.create(item, transform, trackedPlayers, meshProviderFromItem.meshSettings)
 
             listOf(MeshEntry(mesh, meshProviderFromItem.transform))
         })

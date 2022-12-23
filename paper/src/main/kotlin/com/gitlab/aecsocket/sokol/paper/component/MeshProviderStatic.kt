@@ -2,11 +2,13 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
+import com.gitlab.aecsocket.alexandria.paper.MeshSettings
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
+import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -44,7 +46,7 @@ data class MeshProviderStatic(val profile: Profile) : SimplePersistentComponent 
     @ConfigSerializable
     data class Profile(
         @Required val parts: List<MeshDefinition>,
-        val interpolated: Boolean = true
+        val meshSettings: MeshSettings = MeshSettings()
     ) : SimpleComponentProfile {
         override val componentType get() = MeshProviderStatic::class
 
@@ -63,17 +65,16 @@ class MeshProviderStaticSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val meshProviderStatic = mMeshProviderStatic.get(entity).profile
 
-        mMeshProvider.set(entity,
-            MeshProvider { transform, trackedPlayers ->
-                meshProviderStatic.parts.map { (item, partTransform) ->
-                    val mesh = AlexandriaAPI.meshes.create(
-                        item,
-                        transform * partTransform,
-                        trackedPlayers,
-                        meshProviderStatic.interpolated
-                    )
-                    MeshEntry(mesh, partTransform)
-                }
-            })
+        mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
+            meshProviderStatic.parts.map { (item, partTransform) ->
+                val mesh = AlexandriaAPI.meshes.create(
+                    item,
+                    transform * partTransform,
+                    trackedPlayers,
+                    meshProviderStatic.meshSettings
+                )
+                MeshEntry(mesh, partTransform)
+            }
+        })
     }
 }

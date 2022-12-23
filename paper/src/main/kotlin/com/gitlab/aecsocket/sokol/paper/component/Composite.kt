@@ -19,6 +19,12 @@ data class IsChild(
 
 fun ComponentMapper<IsChild>.root(entity: SokolEntity) = getOr(entity)?.root ?: entity
 
+fun ComponentMapper<IsChild>.firstParent(entity: SokolEntity, predicate: (SokolEntity) -> Boolean): SokolEntity? {
+    var current = getOr(entity)?.parent ?: return null
+    while (!predicate(current)) current = getOr(current)?.parent ?: return null
+    return current
+}
+
 @None(IsChild::class)
 class CompositeConstructSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsRoot = ids.mapper<IsRoot>()

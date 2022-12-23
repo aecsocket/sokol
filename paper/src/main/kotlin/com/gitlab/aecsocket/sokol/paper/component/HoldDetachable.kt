@@ -112,7 +112,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.CreatePhysics, entity: SokolEntity) {
+    fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
         updateBody(entity, true)
     }
 
@@ -124,7 +124,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 
     @Subscribe
-    fun on(event: ColliderPhysicsSystem.PrePhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdDetachable = mHoldDetachable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)
@@ -136,7 +136,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         if (hold.frozen) return
 
         val pTransform = pPositionRead.transform
-        val planeOrigin = pTransform.translation
+        val planeOrigin = pTransform.position
 
         val eyeLocation = player.eyeLocation
         val from = eyeLocation.position()
