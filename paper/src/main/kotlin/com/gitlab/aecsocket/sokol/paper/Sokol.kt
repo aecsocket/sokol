@@ -246,10 +246,11 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { MobSystem(it) }
                     .systemFactory { CompositeConstructSystem(it) }
                     .systemFactory { CompositeRootSystem(it) }
-                    .systemFactory { LocalTransformTarget }
-                    .systemFactory { LocalTransformStaticSystem(it) }
+                    .systemFactory { DeltaTransformTarget }
+                    .systemFactory { DeltaTransformStaticSystem(it) }
                     .systemFactory { PositionAccessTarget }
                     .systemFactory { VelocityAccessTarget }
+                    .systemFactory { PositionFromDeltaSystem(it) }
                     .systemFactory { PlayerTrackedTarget }
                     .systemFactory { PlayerTrackedSystem(it) }
                     .systemFactory { RemovablePreTarget }
@@ -309,12 +310,12 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<IsRoot>()
                     .componentType<IsChild>()
                     .componentType<ContainerMap>()
-                    .componentType<LocalTransform>()
-                    .componentType<LocalTransformStatic>()
+                    .componentType<DeltaTransform>()
+                    .componentType<DeltaTransformStatic>()
                     .componentType<Rotation>()
-                    .componentType<PositionRead>()
-                    .componentType<PositionWrite>()
+                    .componentType<PositionAccess>()
                     .componentType<VelocityRead>()
+                    .componentType<PositionFromDelta>()
                     .componentType<PlayerTracked>()
                     .componentType<Removable>()
                     .componentType<InputCallbacks>()
@@ -348,7 +349,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
                 registerComponentType(ContainerMap.Type(this@Sokol))
-                registerComponentType(LocalTransformStatic.Type)
+                registerComponentType(DeltaTransformStatic.Type)
+                registerComponentType(PositionFromDelta.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(InputCallbacks.Type)
                 registerComponentType(TakeableAsItem.Type)

@@ -53,9 +53,9 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
-    private val mLocalTransform = ids.mapper<LocalTransform>()
+    private val mDeltaTransform = ids.mapper<DeltaTransform>()
     private val mEntitySlot = ids.mapper<EntitySlot>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     object ChangeAttachTo : SokolEvent
 
@@ -65,7 +65,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
         val (hold) = mHeld.get(entity)
         val (physObj, physSpace) = mColliderInstance.get(entity)
         val body = physObj.body as? PhysicsRigidBody ?: return
-        val localTransform = mLocalTransform.getOr(entity)?.transform ?: Transform.Identity
+        val localTransform = mDeltaTransform.getOr(entity)?.transform ?: Transform.Identity
         val root = mIsChild.root(entity)
         val player = hold.player
 
@@ -96,7 +96,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
             parentEntity.entities.forEach children@ { testEntity ->
                 val testSlot = mEntitySlot.getOr(testEntity) ?: return@children
                 if (testSlot.full()) return@children
-                val testTransform = mPositionRead.getOr(testEntity)?.transform ?: return@children
+                val testTransform = mPositionAccess.getOr(testEntity)?.transform ?: return@children
 
                 val collision = testSlot.shape.testRay(testTransform.invert(ray)) ?: return@children
                 if (collision.tIn > heldAttachable.profile.attachDistance) return@children

@@ -1,8 +1,10 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.extension.matrix
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.core.physics.transformDelta
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.craftbullet.core.*
@@ -10,10 +12,14 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.*
 import com.gitlab.aecsocket.sokol.paper.*
+import com.jme3.bullet.RotationOrder
 import com.jme3.bullet.collision.PhysicsCollisionObject
 import com.jme3.bullet.joints.New6Dof
+import com.jme3.bullet.joints.motors.MotorParam
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.bullet.objects.PhysicsVehicle
+import com.jme3.math.Matrix3f
+import com.jme3.math.Vector3f
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
@@ -69,11 +75,11 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
 
-@All(Collider::class, PositionRead::class)
+@All(Collider::class, PositionAccess::class)
 @One(ColliderRigidBody::class)
 @After(PositionAccessTarget::class)
 class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mColliderRigidBody = ids.mapper<ColliderRigidBody>()
     private val mVehicleBodyCollider = ids.mapper<ColliderVehicleBody>()
@@ -98,7 +104,7 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
-        val positionRead = mPositionRead.get(entity)
+        val positionRead = mPositionAccess.get(entity)
         val colliderRigidBody = mColliderRigidBody.getOr(entity)?.profile
 
         val bodyId = UUID.randomUUID()
@@ -190,22 +196,27 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(ColliderInstance::class, Collider::class, IsChild::class)
+@All(ColliderInstance::class, Collider::class, IsChild::class, PositionAccess::class)
 @Before(ColliderSystem::class)
-@After(ColliderInstanceTarget::class)
+@After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     private fun setJoint(entity: SokolEntity) {
         val colliderInstance = mColliderInstance.get(entity)
         val (physObj, physSpace) = colliderInstance
         val body = physObj.body
         if (body !is PhysicsRigidBody) return
+        val positionAccess = mPositionAccess.get(entity)
 
         // "parent" being the closest parent which has a collider instance
-        var parentEntity = mIsChild.firstParent(entity) { mColliderInstance.has(it) } ?: return
+        var parentEntity = mIsChild.firstParent(entity) {
+            mColliderInstance.has(it) && mPositionAccess.has(it)
+        } ?: return
         val parentCollider = mColliderInstance.get(parentEntity)
+        val parentPositionAccess = mPositionAccess.get(parentEntity)
         val parentBody = parentCollider.physObj.body as? PhysicsRigidBody ?: return
 
         colliderInstance.parentJoint?.let {
@@ -213,10 +224,11 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
             it.isCollisionBetweenLinkedBodies = true
         }
 
-        /*// TODO mat rot
+        val delta = transformDelta(parentPositionAccess.transform, positionAccess.transform)
+
         val joint = New6Dof(body, parentBody,
-            Vector3f.ZERO, rootLocalTransform.translation.bullet().sp(),
-            Matrix3f.IDENTITY, Matrix3f.IDENTITY,
+            Vector3f.ZERO, delta.position.bullet().sp(),
+            Matrix3f.IDENTITY, delta.rotation.matrix().bulletSp(), // todo
             RotationOrder.XYZ)
 
         repeat(6) {
@@ -226,7 +238,7 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         joint.isCollisionBetweenLinkedBodies = false
 
         physSpace.addJoint(joint)
-        colliderInstance.parentJoint = joint*/
+        colliderInstance.parentJoint = joint
     }
 
     @Subscribe
@@ -242,25 +254,25 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(ColliderInstance::class, Collider::class, PositionWrite::class)
+@All(ColliderInstance::class, Collider::class, PositionAccess::class)
 @Before(ColliderSystem::class)
 @After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class ColliderInstancePositionSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
-    private val mPositionWrite = ids.mapper<PositionWrite>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     @Subscribe
     fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
         val colliderInstance = mColliderInstance.get(entity)
         val (physObj) = mColliderInstance.get(entity)
-        val positionWrite = mPositionWrite.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
 
         val transform = colliderInstance.lastTransform?.let { lastTransform ->
             val delta = transformDelta(lastTransform, physObj.body.transform.alexandria())
-            (positionWrite.transform * delta).also {
-                positionWrite.transform = it
+            (positionAccess.transform * delta).also {
+                positionAccess.transform = it
             }
-        } ?: positionWrite.transform
+        } ?: positionAccess.transform
 
         physObj.body.transform = transform.bullet()
         colliderInstance.lastTransform = transform
@@ -276,12 +288,12 @@ class ColliderMobSystem(
 
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
-        entity.callSingle(ColliderSystem.Create)
+        entity.call(ColliderSystem.Create)
     }
 
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
-        entity.callSingle(ColliderSystem.Create)
+        entity.call(ColliderSystem.Create)
     }
 
     @Subscribe
@@ -289,8 +301,8 @@ class ColliderMobSystem(
         val mob = mIsMob.get(entity).mob
         val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
         CraftBulletAPI.executePhysics {
-            oldEntity.callSingle(ColliderInstanceSystem.Remove)
-            entity.callSingle(ColliderSystem.Create)
+            oldEntity.call(ColliderInstanceSystem.Remove)
+            entity.call(ColliderSystem.Create)
         }
     }
 }

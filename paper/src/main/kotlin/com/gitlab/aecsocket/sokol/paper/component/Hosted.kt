@@ -150,8 +150,7 @@ class MobConstructorSystem(
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mRemovable = ids.mapper<Removable>()
     private val mRotation = ids.mapper<Rotation>()
-    private val mPositionRead = ids.mapper<PositionRead>()
-    private val mPositionWrite = ids.mapper<PositionWrite>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mVelocityRead = ids.mapper<VelocityRead>()
 
     @Subscribe
@@ -175,20 +174,18 @@ class MobConstructorSystem(
             }
         })
 
-        val positionWrite = PositionWrite(
+        mPositionAccess.set(entity, PositionAccess(
             mob.world,
             Transform(mob.location.position(), mRotation.getOr(entity)?.rotation ?: Quaternion.Identity)
         )
-
-        mPositionRead.set(entity, positionWrite.asRead())
-        mPositionWrite.set(entity, positionWrite)
+        )
     }
 }
 
-@All(IsMob::class, PositionWrite::class)
+@All(IsMob::class, PositionAccess::class)
 class MobSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
-    private val mPositionWrite = ids.mapper<PositionWrite>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mRotation = ids.mapper<Rotation>()
 
     @Subscribe
@@ -199,16 +196,16 @@ class MobSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val isMob = mIsMob.get(entity)
-        val positionWrite = mPositionWrite.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
         val rotation = mRotation.getOr(entity)
         val mob = isMob.mob
 
         val transform = isMob.lastPosition?.let { lastPosition ->
             val delta = mob.location.position() - lastPosition
-            positionWrite.transform.copy(position = positionWrite.transform.position + delta).also {
-                positionWrite.transform = it
+            positionAccess.transform.copy(position = positionAccess.transform.position + delta).also {
+                positionAccess.transform = it
             }
-        } ?: positionWrite.transform
+        } ?: positionAccess.transform
 
         @Suppress("UnstableApiUsage")
         mob.teleport(transform.position.location(mob.world), true)

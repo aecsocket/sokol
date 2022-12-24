@@ -14,7 +14,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.component.Held
 import com.gitlab.aecsocket.sokol.paper.component.HoverShape
-import com.gitlab.aecsocket.sokol.paper.component.PositionRead
+import com.gitlab.aecsocket.sokol.paper.component.PositionAccess
 import com.gitlab.aecsocket.sokol.paper.component.SokolPhysicsObject
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
@@ -64,12 +64,12 @@ class EntityHolding internal constructor(
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
     private lateinit var mHeld: ComponentMapper<Held>
-    private lateinit var mPositionRead: ComponentMapper<PositionRead>
+    private lateinit var mPositionAccess: ComponentMapper<PositionAccess>
     private lateinit var mHoverShape: ComponentMapper<HoverShape>
 
     internal fun enable() {
         mHeld = sokol.engine.mapper()
-        mPositionRead = sokol.engine.mapper()
+        mPositionAccess = sokol.engine.mapper()
         mHoverShape = sokol.engine.mapper()
 
         sokol.onInput { event ->
@@ -97,7 +97,7 @@ class EntityHolding internal constructor(
                 val newHover = testBodies.mapNotNull {
                     if (it !is SokolPhysicsObject) return@mapNotNull null
                     val entity = it.entity
-                    val positionRead = mPositionRead.getOr(entity) ?: return@mapNotNull null
+                    val positionRead = mPositionAccess.getOr(entity) ?: return@mapNotNull null
                     val hoverShape = mHoverShape.getOr(entity)?.profile ?: return@mapNotNull null
 
                     val transform = positionRead.transform

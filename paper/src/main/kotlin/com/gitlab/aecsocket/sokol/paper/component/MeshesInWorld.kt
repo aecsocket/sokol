@@ -21,13 +21,13 @@ data class MeshesInWorldInstance(
 
 object MeshesInWorldInstanceTarget : SokolSystem
 
-@All(MeshesInWorld::class, MeshProvider::class, PositionRead::class, PlayerTracked::class)
+@All(MeshesInWorld::class, MeshProvider::class, PositionAccess::class, PlayerTracked::class)
 @None(MeshesInWorldInstance::class)
 @Before(MeshesInWorldInstanceTarget::class)
 @After(MeshProviderTarget::class, PositionAccessTarget::class)
 class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshProvider = ids.mapper<MeshProvider>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
 
@@ -37,8 +37,8 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: Create, entity: SokolEntity) {
-         val meshes = mMeshProvider.get(entity)
-        val positionRead = mPositionRead.get(entity)
+        val meshes = mMeshProvider.get(entity)
+        val positionRead = mPositionAccess.get(entity)
         val playerTracked = mPlayerTracked.get(entity)
 
         val transform = positionRead.transform
@@ -55,11 +55,11 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(MeshesInWorldInstance::class, PositionRead::class, PlayerTracked::class)
+@All(MeshesInWorldInstance::class, PositionAccess::class, PlayerTracked::class)
 @After(MeshesInWorldInstanceTarget::class, PositionAccessTarget::class, PlayerTrackedTarget::class)
 class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
 
     object Remove : SokolEvent
@@ -140,9 +140,9 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val meshesInWorldInstance = mMeshesInWorldInstance.get(entity)
-        val positionRead = mPositionRead.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
 
-        val transform = positionRead.transform
+        val transform = positionAccess.transform
         meshesInWorldInstance.meshEntries.forEach { (mesh, meshTransform) ->
             mesh.transform = transform * meshTransform
         }
@@ -158,34 +158,34 @@ class MeshesInWorldMobSystem(
 
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
-        entity.callSingle(MeshesInWorldSystem.Create(false))
+        entity.call(MeshesInWorldSystem.Create(false))
     }
 
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
-        entity.callSingle(MeshesInWorldSystem.Create(false))
+        entity.call(MeshesInWorldSystem.Create(false))
     }
 
     @Subscribe
     fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {
-        entity.callSingle(MeshesInWorldInstanceSystem.Remove)
+        entity.call(MeshesInWorldInstanceSystem.Remove)
     }
 
     @Subscribe
     fun on(event: MobEvent.Show, entity: SokolEntity) {
-        entity.callSingle(MeshesInWorldInstanceSystem.Show(event.player))
+        entity.call(MeshesInWorldInstanceSystem.Show(event.player))
     }
 
     @Subscribe
     fun on(event: MobEvent.Hide, entity: SokolEntity) {
-        entity.callSingle(MeshesInWorldInstanceSystem.Hide(event.player))
+        entity.call(MeshesInWorldInstanceSystem.Hide(event.player))
     }
 
     @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
         val mob = mIsMob.get(entity).mob
         val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
-        oldEntity.callSingle(MeshesInWorldInstanceSystem.Remove)
-        entity.callSingle(MeshesInWorldSystem.Create(true))
+        oldEntity.call(MeshesInWorldInstanceSystem.Remove)
+        entity.call(MeshesInWorldSystem.Create(true))
     }
 }

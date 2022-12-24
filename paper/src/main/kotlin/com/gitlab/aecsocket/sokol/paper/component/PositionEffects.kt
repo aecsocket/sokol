@@ -29,17 +29,17 @@ data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
-@All(PositionEffects::class, PositionRead::class)
+@All(PositionEffects::class, PositionAccess::class)
 @After(PositionAccessTarget::class, VelocityAccessTarget::class)
 class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionEffects = ids.mapper<PositionEffects>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mVelocityRead = ids.mapper<VelocityRead>()
 
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val positionEffects = mPositionEffects.get(entity).profile
-        val positionAccess = mPositionRead.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
         val velocityRead = mVelocityRead.getOr(entity)
 
         val velocity = velocityRead?.linear ?: Vector3.Zero

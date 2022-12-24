@@ -36,7 +36,7 @@ class MoveHoldOperation : HoldOperation {
     override var canRelease = false
 }
 
-@All(HoldMovable::class, InputCallbacks::class, PositionRead::class)
+@All(HoldMovable::class, InputCallbacks::class, PositionAccess::class)
 @Before(InputCallbacksSystem::class)
 @After(PositionAccessTarget::class)
 class HoldMovableCallbackSystem(
@@ -49,12 +49,12 @@ class HoldMovableCallbackSystem(
 
     private val mInputCallbacks = ids.mapper<InputCallbacks>()
     private val mHeld = ids.mapper<Held>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
-        val positionRead = mPositionRead.get(entity)
+        val positionRead = mPositionAccess.get(entity)
 
         inputCallbacks.callback(Start) { player, cancel ->
             if (mHeld.has(entity)) // this entity is already held

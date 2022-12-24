@@ -124,6 +124,10 @@ class SokolEntity internal constructor(
     override fun toString() = "Entity[${_components.filterNotNull().joinToString { it.componentType.simpleName ?: it.componentType.toString() }}]"
 }
 
+inline fun <reified C : SokolComponent> SokolEntity.hasComponent() = hasComponent(engine.idOf<C>())
+
+inline fun <reified C : SokolComponent> SokolEntity.componentOr() = getComponent(engine.idOf<C>()) as C?
+
 inline fun <reified C : SokolComponent> SokolEntity.component() = getComponent(engine.idOf<C>()) as C
 
 class SokolEntityContainer internal constructor(

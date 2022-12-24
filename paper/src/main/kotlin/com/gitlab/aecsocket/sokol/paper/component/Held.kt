@@ -42,11 +42,11 @@ class HeldSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(EntitySlot::class, PositionRead::class)
+@All(EntitySlot::class, PositionAccess::class)
 @After(PositionAccessTarget::class)
 class HeldEntitySlotSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mEntitySlot = ids.mapper<EntitySlot>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     data class DrawShapes(
         val player: Player
@@ -55,7 +55,7 @@ class HeldEntitySlotSystem(ids: ComponentIdAccess) : SokolSystem {
     @Subscribe
     fun on(event: DrawShapes, entity: SokolEntity) {
         val entitySlot = mEntitySlot.get(entity)
-        val positionRead = mPositionRead.get(entity)
+        val positionRead = mPositionAccess.get(entity)
         val player = event.player
 
         val transform = positionRead.transform.bullet()

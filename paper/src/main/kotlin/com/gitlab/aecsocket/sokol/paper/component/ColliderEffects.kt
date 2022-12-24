@@ -46,11 +46,11 @@ data class ColliderEffects(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
-@All(ColliderEffects::class, ColliderInstance::class, PositionRead::class)
+@All(ColliderEffects::class, ColliderInstance::class, PositionAccess::class)
 @After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderEffects = ids.mapper<ColliderEffects>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     @Subscribe
     fun on(event: ColliderSystem.Contact, entity: SokolEntity) {
@@ -69,7 +69,7 @@ class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: UpdateEvent, entity: SokolEntity) {
         // only run one impulse effect set per update
         val colliderEffects = mColliderEffects.get(entity)
-        val positionRead = mPositionRead.get(entity)
+        val positionRead = mPositionAccess.get(entity)
 
         val (_, otherBody, impulse, worldPos) = colliderEffects.nextContact ?: return
         colliderEffects.nextContact = null

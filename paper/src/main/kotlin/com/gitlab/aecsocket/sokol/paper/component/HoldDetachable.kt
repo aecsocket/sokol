@@ -43,19 +43,19 @@ class DetachHoldOperation : HoldOperation {
 }
 
 @All(HoldDetachable::class)
-@Before(LocalTransformTarget::class)
+@Before(DeltaTransformTarget::class)
 class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldDetachable = ids.mapper<HoldDetachable>()
-    private val mLocalTransform = ids.mapper<LocalTransform>()
+    private val mDeltaTransform = ids.mapper<DeltaTransform>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val holdDetachable = mHoldDetachable.get(entity)
-        mLocalTransform.combine(entity, holdDetachable.localTransform)
+        mDeltaTransform.combine(entity, holdDetachable.localTransform)
     }
 }
 
-@All(HoldDetachable::class, InputCallbacks::class, PositionRead::class)
+@All(HoldDetachable::class, InputCallbacks::class, PositionAccess::class)
 @Before(InputCallbacksSystem::class)
 @After(PositionAccessTarget::class)
 class HoldDetachableCallbackSystem(
@@ -68,13 +68,13 @@ class HoldDetachableCallbackSystem(
 
     private val mInputCallbacks = ids.mapper<InputCallbacks>()
     private val mHeld = ids.mapper<Held>()
-    private val mPositionRead = ids.mapper<PositionRead>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mIsChild = ids.mapper<IsChild>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
-        val positionRead = mPositionRead.get(entity)
+        val positionRead = mPositionAccess.get(entity)
 
         inputCallbacks.callback(Start) { player, cancel ->
             if (mHeld.has(entity)) return@callback false // this entity is already held
@@ -87,15 +87,15 @@ class HoldDetachableCallbackSystem(
     }
 }
 
-@All(HoldDetachable::class, Held::class, ColliderInstance::class, IsChild::class, PositionRead::class)
+@All(HoldDetachable::class, Held::class, ColliderInstance::class, IsChild::class, PositionAccess::class)
 @After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldDetachable = ids.mapper<HoldDetachable>()
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
-    private val mPositionRead = ids.mapper<PositionRead>()
-    private val mLocalTransform = ids.mapper<LocalTransform>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mDeltaTransform = ids.mapper<DeltaTransform>()
 
     private fun updateBody(entity: SokolEntity, isHeld: Boolean) {
         val holdDetachable = mHoldDetachable.get(entity)
@@ -129,7 +129,7 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)
         val parent = mIsChild.get(entity).parent
-        val pPositionRead = mPositionRead.getOr(parent) ?: return
+        val pPositionRead = mPositionAccess.getOr(parent) ?: return
         val player = hold.player
 
         val operation = hold.operation as? DetachHoldOperation ?: return
