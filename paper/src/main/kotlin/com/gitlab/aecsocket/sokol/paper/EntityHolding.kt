@@ -10,6 +10,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.direction
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
+import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.component.Held
@@ -85,7 +86,11 @@ class EntityHolding internal constructor(
 
                 val physSpace = CraftBulletAPI.spaceOf(player.world)
                 val location = player.eyeLocation
-                val testGhost = PhysicsGhostObject(BoxCollisionShape(sokol.settings.entityHoverDistance.toFloat())).also {
+
+                val hoverDistance = sokol.settings.entityHoverDistance
+                val physTest = player.rayTestFrom(hoverDistance)
+                    .minByOrNull { it.hitFraction * hoverDistance }
+                val testGhost = PhysicsGhostObject(BoxCollisionShape(hoverDistance.toFloat())).also {
                     it.physPosition = location.position().bullet()
                 }
 
@@ -94,15 +99,23 @@ class EntityHolding internal constructor(
                 physSpace.removeCollisionObject(testGhost)
 
                 val ray = Ray(location.position(), location.direction())
-                val newHover = testBodies.mapNotNull {
-                    if (it !is SokolPhysicsObject) return@mapNotNull null
-                    val entity = it.entity
+                val newHover = testBodies.mapNotNull { body ->
+                    if (body !is SokolPhysicsObject) return@mapNotNull null
+                    val entity = body.entity
                     val positionRead = mPositionAccess.getOr(entity) ?: return@mapNotNull null
                     val hoverShape = mHoverShape.getOr(entity)?.profile ?: return@mapNotNull null
 
                     val transform = positionRead.transform
                     val collision = hoverShape.shape.testRay(transform.invert(ray)) ?: return@mapNotNull null
-                    collision.tIn to Hover(it, collision)
+                    if (collision.tIn > hoverDistance) return@mapNotNull null
+                    physTest?.let {
+                        if (
+                            it.collisionObject !== body &&
+                            collision.tIn > it.hitFraction * hoverDistance
+                        ) return@mapNotNull null
+                    }
+
+                    collision.tIn to Hover(body, collision)
                 }.minByOrNull { (tIn) -> tIn }?.second
 
                 hover?.let {
