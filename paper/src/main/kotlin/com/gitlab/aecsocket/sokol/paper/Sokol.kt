@@ -284,6 +284,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { HeldMobSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableColliderSystem(it) }
+                    .systemFactory { HoldMovableColliderPropagationSystem(it) }
                     .systemFactory { HoldDetachableCallbackSystem(this@Sokol, it) }
                     .systemFactory { HoldDetachableColliderSystem(it) }
                     .systemFactory { HeldSnapSystem(it) }

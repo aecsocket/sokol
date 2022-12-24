@@ -54,33 +54,35 @@ class HoldMovableCallbackSystem(
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
-        val positionRead = mPositionAccess.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
 
         inputCallbacks.callback(Start) { player, cancel ->
             if (mHeld.has(entity)) // this entity is already held
                 return@callback false
 
             cancel()
-            sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), positionRead.transform)
+            sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), positionAccess.transform)
             true
         }
     }
 }
 
-@All(HoldMovable::class, Held::class, ColliderInstance::class)
+@All(HoldMovable::class, Held::class)
 @After(ColliderInstanceTarget::class)
 class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldMovable = ids.mapper<HoldMovable>()
     private val mHeld = ids.mapper<Held>()
-    private val mColliderInstance = ids.mapper<ColliderInstance>()
+    private val mIsChild = ids.mapper<IsChild>()
 
     private fun updateBody(entity: SokolEntity, isHeld: Boolean) {
         val holdMovable = mHoldMovable.get(entity)
-        val (physObj) = mColliderInstance.get(entity)
-        val body = physObj.body as? PhysicsRigidBody ?: return
 
         if (!holdMovable.profile.hasCollision) {
-            body.isContactResponse = !isHeld
+            CraftBulletAPI.executePhysics {
+                // call from the root down, so all entities in this tree have their collision response updated
+                mIsChild.root(entity)
+                    .call(HoldMovableColliderPropagationSystem.ChangeContactResponse(!isHeld))
+            }
         }
     }
 
@@ -91,16 +93,13 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
-        CraftBulletAPI.executePhysics {
-            updateBody(entity, event.held)
-        }
+        updateBody(entity, event.held)
     }
 
     @Subscribe
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdMovable = mHoldMovable.get(entity)
         val (hold) = mHeld.get(entity)
-        val (physObj) = mColliderInstance.get(entity)
         val player = hold.player
 
         val operation = hold.operation as? MoveHoldOperation ?: return
@@ -113,5 +112,22 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             (from + direction * holdMovable.profile.holdDistance).position(),
             from.rotation()
         ) * holdMovable.profile.holdTransform
+    }
+}
+
+@All(ColliderInstance::class)
+class HoldMovableColliderPropagationSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mColliderInstance = ids.mapper<ColliderInstance>()
+
+    data class ChangeContactResponse(
+        val hasContactResponse: Boolean
+    ) : SokolEvent
+
+    @Subscribe
+    fun on(event: ChangeContactResponse, entity: SokolEntity) {
+        val (physObj) = mColliderInstance.get(entity)
+        val body = physObj.body as? PhysicsRigidBody ?: return
+
+        body.isContactResponse = event.hasContactResponse
     }
 }
