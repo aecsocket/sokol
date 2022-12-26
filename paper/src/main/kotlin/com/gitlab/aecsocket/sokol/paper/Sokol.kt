@@ -51,6 +51,9 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         val resolveContainerBlocks: Boolean = true,
         val resolveContainerItems: Boolean = true,
         val entityHoverDistance: Double = 0.0,
+        val drawRadius: Double = 16.0,
+        val drawHoverShape: ParticleEngineEffect = ParticleEngineEffect.Empty,
+        val drawSlots: ParticleEngineEffect = ParticleEngineEffect.Empty,
     )
 
     private data class Registration(
@@ -85,8 +88,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     val resolver = EntityResolver(this)
     val hoster = EntityHoster(this)
     val timings = Timings(60 * 1000)
-
     val holding = EntityHolding(this)
+    val players = SokolPlayers(this)
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -96,7 +99,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     override fun onEnable() {
         super.onEnable()
         command = SokolCommand(this)
-        CraftBulletAPI.onContact(::onContact)
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
@@ -121,6 +123,9 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
         registerEvents(SokolEventListener(this))
         PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this@Sokol))
+
+        CraftBulletAPI.onContact(::onPhysicsContact)
+        CraftBulletAPI.onPostStep(::onPhysicsPostStep)
     }
 
     override fun initInternal(): Boolean {
@@ -151,6 +156,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
             hoster.enable()
             space = engine.newEntityContainer()
             holding.enable()
+            players.enable()
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
 
@@ -278,8 +284,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { ColliderEffectsSystem(it) }
                     .systemFactory { HoldableInputsSystem(this@Sokol, it) }
                     .systemFactory { PlaceableAsMobSystem(this@Sokol, it) }
-                    .systemFactory { HeldSystem(it) }
-                    .systemFactory { HeldEntitySlotSystem(it) }
                     .systemFactory { HeldColliderSystem(it) }
                     .systemFactory { HeldMobSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
@@ -378,7 +382,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         )
     }
 
-    private fun onContact(
+    private fun onPhysicsContact(
         space: ServerPhysicsSpace,
         bodyA: PhysicsCollisionObject,
         bodyB: PhysicsCollisionObject,
@@ -391,5 +395,9 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
         callEvent(bodyA, bodyB)
         callEvent(bodyB, bodyA)
+    }
+
+    private fun onPhysicsPostStep() {
+        players.postPhysicsStep()
     }
 }

@@ -11,14 +11,14 @@ import com.jme3.math.Plane
 
 private val EMPTY_SHAPE = com.jme3.bullet.collision.shapes.EmptyShape(false)
 
-fun collisionOf(shape: Shape): CollisionShape = when (shape) {
+fun Shape.bullet(): CollisionShape = when (this) {
     is EmptyShape -> EMPTY_SHAPE
-    is PlaneShape -> PlaneCollisionShape(Plane(shape.normal.bullet().sp(), 0f))
-    is BoxShape -> BoxCollisionShape(shape.halfExtent.bullet().sp())
-    is SphereShape -> SphereCollisionShape(shape.radius.toFloat())
-    is CompoundShape -> CompoundCollisionShape(shape.children.size).apply {
-        shape.children.forEach { child ->
-            addChildShape(collisionOf(child.shape), child.transform.bullet().sp())
+    is PlaneShape -> PlaneCollisionShape(Plane(normal.bullet().sp(), 0f))
+    is BoxShape -> BoxCollisionShape(halfExtent.bullet().sp())
+    is SphereShape -> SphereCollisionShape(radius.toFloat())
+    is CompoundShape -> CompoundCollisionShape(children.size).apply {
+        children.forEach { child ->
+            addChildShape(child.shape.bullet(), child.transform.bullet().sp())
         }
     }
 }

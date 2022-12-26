@@ -51,6 +51,6 @@ class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
         }
 
         val location = positionAccess.location()
-        AlexandriaAPI.particleEngine.spawn(location, particle)
+        AlexandriaAPI.particles.spawn(particle, location)
     }
 }

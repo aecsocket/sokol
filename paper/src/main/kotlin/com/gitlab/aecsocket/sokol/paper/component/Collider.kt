@@ -120,7 +120,7 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
             val physObj: SokolPhysicsObject = when {
                 colliderRigidBody != null -> {
-                    val shape = collisionOf(colliderRigidBody.shape)
+                    val shape = colliderRigidBody.shape.bullet()
                     val mass = colliderRigidBody.mass
 
                     if (mVehicleBodyCollider.has(entity)) object : PhysicsVehicle(shape, mass), SokolPhysicsObject {

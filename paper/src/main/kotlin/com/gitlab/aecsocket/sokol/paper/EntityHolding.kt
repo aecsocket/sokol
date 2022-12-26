@@ -50,7 +50,6 @@ class EntityHolding internal constructor(
         val raiseHandLock: PlayerLockInstance
     ) {
         var frozen = false
-        var drawSlotShapes = false
     }
 
     inner class PlayerData(val player: AlexandriaPlayer) : PlayerFeature.PlayerData {

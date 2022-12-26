@@ -1,11 +1,9 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.craftbullet.core.transform
-import com.gitlab.aecsocket.craftbullet.paper.CraftBullet
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
-import com.gitlab.aecsocket.sokol.core.extension.collisionOf
 import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.RotationOrder
 import com.jme3.bullet.collision.shapes.EmptyShape
@@ -14,7 +12,6 @@ import com.jme3.bullet.joints.motors.MotorParam
 import com.jme3.bullet.objects.PhysicsRigidBody
 import com.jme3.math.Matrix3f
 import com.jme3.math.Vector3f
-import org.bukkit.entity.Player
 
 data class Held(val hold: EntityHolding.Hold) : SokolComponent {
     data class Joint(
@@ -25,45 +22,6 @@ data class Held(val hold: EntityHolding.Hold) : SokolComponent {
     override val componentType get() = Held::class
 
     var joint: Joint? = null
-}
-
-@All(Held::class)
-class HeldSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mHeld = ids.mapper<Held>()
-
-    @Subscribe
-    fun on(event: UpdateEvent, entity: SokolEntity) {
-        val (hold) = mHeld.get(entity)
-        val player = hold.player
-
-        if (hold.drawSlotShapes) {
-            entity.call(HeldEntitySlotSystem.DrawShapes(player))
-        }
-    }
-}
-
-@All(EntitySlot::class, PositionAccess::class)
-@After(PositionAccessTarget::class)
-class HeldEntitySlotSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mEntitySlot = ids.mapper<EntitySlot>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
-
-    data class DrawShapes(
-        val player: Player
-    ) : SokolEvent
-
-    @Subscribe
-    fun on(event: DrawShapes, entity: SokolEntity) {
-        val entitySlot = mEntitySlot.get(entity)
-        val positionRead = mPositionAccess.get(entity)
-        val player = event.player
-
-        val transform = positionRead.transform.bullet()
-        val drawable = CraftBulletAPI.drawableOf(player, CraftBullet.DrawType.SHAPE)
-        CraftBulletAPI.drawPointsShape(collisionOf(entitySlot.shape)).forEach { point ->
-            drawable.draw(transform.transform(point))
-        }
-    }
 }
 
 @All(Held::class, ColliderInstance::class)

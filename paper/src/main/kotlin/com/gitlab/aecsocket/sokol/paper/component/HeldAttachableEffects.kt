@@ -40,7 +40,7 @@ class HeldAttachableEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
         val attachTo = mHeldAttachable.get(entity).attachTo ?: return
 
         val location = mPositionAccess.getOr(attachTo.target)?.location() ?: return
-        AlexandriaAPI.soundEngine.play(location, heldAttachableEffects.sound)
-        AlexandriaAPI.particleEngine.spawn(location, heldAttachableEffects.particle)
+        AlexandriaAPI.sounds.play(heldAttachableEffects.sound, location)
+        AlexandriaAPI.particles.spawn(heldAttachableEffects.particle, location)
     }
 }

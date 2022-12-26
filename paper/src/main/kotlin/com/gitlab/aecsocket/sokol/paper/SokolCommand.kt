@@ -4,6 +4,7 @@ import cloud.commandframework.arguments.standard.BooleanArgument
 import cloud.commandframework.arguments.standard.IntegerArgument
 import cloud.commandframework.bukkit.parsers.location.LocationArgument
 import cloud.commandframework.bukkit.parsers.selector.MultiplePlayerSelectorArgument
+import com.gitlab.aecsocket.alexandria.core.extension.flagged
 import com.gitlab.aecsocket.alexandria.core.extension.value
 import com.gitlab.aecsocket.alexandria.paper.BaseCommand
 import com.gitlab.aecsocket.alexandria.paper.Context
@@ -49,7 +50,7 @@ internal class SokolCommand(
         manager.command(root
             .literal("give", desc("Gives an entity item to a player."))
             .argument(MultiplePlayerSelectorArgument.of("targets"), desc("Players to give to."))
-            .argument(IntegerArgument.newBuilder<CommandSender>("amount")
+            .argument(IntegerArgument.builder<CommandSender>("amount")
                 .withMin(1), desc("Amount of items to give."))
             .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to give."))
             .permission(perm("give"))
@@ -57,11 +58,23 @@ internal class SokolCommand(
         manager.command(root
             .literal("summon", desc("Summons an entity mob."))
             .argument(LocationArgument.of("location"), desc("Where to spawn the mob."))
-            .argument(IntegerArgument.newBuilder<CommandSender>("amount")
+            .argument(IntegerArgument.builder<CommandSender>("amount")
                 .withMin(1), desc("Amount of mobs to spawn."))
             .argument(EntityBlueprintArgument(plugin, "blueprint"), desc("Blueprint to spawn."))
             .permission(perm("summon"))
             .handler { handle(it, ::summon) })
+
+        manager.command(root
+            .literal("draw", desc("Draws debug info on the screen."))
+            .flag(manager.flagBuilder("hover-shape")
+                .withDescription(desc("Draw hover shapes of entities"))
+                .withAliases("h"))
+            .flag(manager.flagBuilder("slots")
+                .withDescription(desc("Draw entity slots to attach to"))
+                .withAliases("s"))
+            .permission(perm("draw"))
+            .senderType(Player::class.java)
+            .handler { handle(it, ::draw) })
 
         val holding = root
             .literal("holding", desc("Options for manipulating the currently held entity."))
@@ -71,12 +84,6 @@ internal class SokolCommand(
             .permission(perm("holding.freeze"))
             .senderType(Player::class.java)
             .handler { handle(it, ::holdingFreeze) })
-        manager.command(holding
-            .literal("slots", desc("Toggles recursively drawing the slots on the held entity."))
-            .argument(BooleanArgument.optional("enable"), desc("Enable the feature."))
-            .permission(perm("holding.slots"))
-            .senderType(Player::class.java)
-            .handler { handle(it, ::holdingSlots) })
     }
 
     private lateinit var mProfiled: ComponentMapper<Profiled>
@@ -189,12 +196,14 @@ internal class SokolCommand(
         holding.frozen = enable
     }
 
-    fun holdingSlots(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
+    fun draw(ctx: Context, sender: CommandSender, i18n: I18N<Component>) {
         val player = sender as Player
-        val holding = player.alexandria.holding.hold ?: error(i18n.safe("error.not_holding"))
-        val enable = ctx.value("enable") { !holding.drawSlotShapes }
+        val hoverShape = ctx.flagged("hover-shape")
+        val slots = ctx.flagged("slots")
 
-        holding.drawSlotShapes = enable
+        val sokolPlayer = player.alexandria.sokol
+        sokolPlayer.drawHoverShape = hoverShape
+        sokolPlayer.drawSlots = slots
     }
 
     /*init {

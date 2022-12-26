@@ -78,9 +78,9 @@ class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
         val location = worldPos.location(world)
 
         val volume = colliderEffects.profile.soundVolumeMap.map(impulse)
-        AlexandriaAPI.soundEngine.play(location, colliderEffects.profile.sound.map { effect ->
+        AlexandriaAPI.sounds.play(colliderEffects.profile.sound.map { effect ->
             effect.copy(volume = effect.sound.volume() * volume)
-        })
+        }, location)
 
         if (otherBody is BlockRigidBody) {
             val (bx, by, bz) = otherBody.pos
@@ -88,9 +88,9 @@ class ColliderEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
 
             val blockData = block.blockData
             val count = colliderEffects.profile.particleBlockCountMap.map(impulse)
-            AlexandriaAPI.particleEngine.spawn(location, colliderEffects.profile.particleBlock.map { effect ->
+            AlexandriaAPI.particles.spawn(colliderEffects.profile.particleBlock.map { effect ->
                 effect.copy(data = blockData, count = effect.count * count)
-            })
+            }, location)
         }
     }
 }
