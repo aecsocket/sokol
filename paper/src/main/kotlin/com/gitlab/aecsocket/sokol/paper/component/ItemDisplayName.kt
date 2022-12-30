@@ -1,6 +1,5 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
-import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.ItemEvent
@@ -25,7 +24,7 @@ class ItemDisplayNameSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: ItemEvent.Create, entity: SokolEntity) {
         val displayName = mDisplayName.get(entity)
         val isItem = mIsItem.get(entity)
-        val i18n = (mItemHolder.getOr(entity) as? ItemHolder.ByMob)?.let { AlexandriaAPI.i18nFor(it.mob) } ?: AlexandriaAPI.i18n
+        val i18n = mItemHolder.i18n(entity)
 
         isItem.writeMeta { meta ->
             meta.displayName(Component.empty()

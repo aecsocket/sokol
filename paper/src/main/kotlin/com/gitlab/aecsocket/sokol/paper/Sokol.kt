@@ -299,6 +299,9 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { EntitySlotTarget }
                     .systemFactory { EntitySlotInMapSystem(it) }
                     .systemFactory { ItemDisplayNameSystem(it) }
+                    .systemFactory { ItemLoreManagerSystem(it) }
+                    .systemFactory { ItemLoreStaticSystem(it) }
+                    .systemFactory { ItemLoreFromProfileSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -352,8 +355,11 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<HeldMeshGlow>()
                     .componentType<EntitySlot>()
                     .componentType<EntitySlotInMap>()
-                    .componentType<ItemDisplayName>()
                     .componentType<Stats>()
+                    .componentType<ItemDisplayName>()
+                    .componentType<ItemLoreManager>()
+                    .componentType<ItemLoreStatic>()
+                    .componentType<ItemLoreFromProfile>()
                 registerComponentType(DisplayNameFromProfile.Type)
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
@@ -383,8 +389,11 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 registerComponentType(HeldAttachableEffects.Type)
                 registerComponentType(HeldMeshGlow.Type)
                 registerComponentType(EntitySlotInMap.Type)
-                registerComponentType(ItemDisplayName.Type)
                 registerComponentType(Stats.Type)
+                registerComponentType(ItemDisplayName.Type)
+                registerComponentType(ItemLoreManager.Type)
+                registerComponentType(ItemLoreStatic.Type)
+                registerComponentType(ItemLoreFromProfile.Type)
             }
         )
     }

@@ -17,7 +17,7 @@ data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentCompon
     @ConfigSerializable
     data class Profile(
         val prefix: String = "",
-        val suffix: String = "",
+        val suffix: String = ""
     ) : SimpleComponentProfile {
         override val componentType get() = DisplayNameFromProfile::class
 

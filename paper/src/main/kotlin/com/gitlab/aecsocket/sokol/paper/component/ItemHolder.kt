@@ -1,7 +1,10 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.PlayerInventorySlot
+import com.gitlab.aecsocket.sokol.core.ComponentMapper
 import com.gitlab.aecsocket.sokol.core.SokolComponent
+import com.gitlab.aecsocket.sokol.core.SokolEntity
 import org.bukkit.block.Block
 import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
@@ -109,3 +112,6 @@ sealed interface ItemHolder : SokolComponent {
         }
     }
 }
+
+fun ComponentMapper<ItemHolder>.i18n(entity: SokolEntity) =
+    (getOr(entity) as? ItemHolder.ByMob)?.mob?.let { AlexandriaAPI.i18nFor(it) } ?: AlexandriaAPI.i18n

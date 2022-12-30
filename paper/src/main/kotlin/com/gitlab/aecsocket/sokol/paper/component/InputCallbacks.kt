@@ -29,14 +29,15 @@ data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
     override val componentType get() = InputCallbacks::class
     override val key get() = Key
 
-    private val callbacks = HashMap<Key, InputCallback>()
+    private val _callbacks = HashMap<Key, InputCallback>()
+    val callbacks: Map<Key, InputCallback> get() = _callbacks
 
-    fun callback(key: Key) = callbacks[key]
+    fun callback(key: Key) = _callbacks[key]
 
     fun callback(key: Key, callback: InputCallback) {
-        if (callbacks.contains(key))
+        if (_callbacks.contains(key))
             throw IllegalArgumentException("Duplicate input callback $key")
-        callbacks[key] = callback
+        _callbacks[key] = callback
     }
 
     @ConfigSerializable
