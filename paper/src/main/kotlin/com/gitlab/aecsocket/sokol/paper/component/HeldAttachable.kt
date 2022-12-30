@@ -144,7 +144,7 @@ class HeldAttachableInputsSystem(
         val inputCallbacks = mInputCallbacks.get(entity)
         val removable = mRemovable.get(entity)
 
-        inputCallbacks.callback(Attach) { player, cancel ->
+        inputCallbacks.callback(Attach) { player ->
             val (hold) = mHeld.getOr(entity) ?: return@callback false
             if (player !== hold.player) return@callback false
             val attachTo = heldAttachable.attachTo ?: return@callback false
@@ -152,7 +152,6 @@ class HeldAttachableInputsSystem(
             val parent = attachTo.target
             val root = mIsChild.getOr(parent)?.root ?: entity
 
-            cancel()
             removable.remove(true)
             attachTo.slot.attach(entity)
             mIsChild.set(entity, IsChild(parent, root))

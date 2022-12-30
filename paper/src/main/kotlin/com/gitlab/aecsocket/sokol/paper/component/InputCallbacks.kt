@@ -11,7 +11,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
 fun interface InputCallback {
-    fun run(player: Player, cancel: () -> Unit): Boolean
+    fun run(player: Player): Boolean
 }
 
 data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
@@ -100,7 +100,10 @@ class InputCallbacksInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
             if (!conditions.containsAll(mIf)) return@forEach
             mDo.forEach { callbackSet ->
                 for (callback in callbackSet) {
-                    if (callback.run(event.player, event.cancel)) break
+                    if (callback.run(event.player)) {
+                        event.cancel()
+                        break
+                    }
                 }
             }
         }

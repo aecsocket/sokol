@@ -3,25 +3,21 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.bukkit.entity.Player
 
-object TakeableAsItem : SimplePersistentComponent {
-    override val componentType get() = TakeableAsItem::class
-    override val key = SokolAPI.key("takeable_as_item")
+object InputRemovable : SimplePersistentComponent {
+    override val componentType get() = InputRemovable::class
+    override val key = SokolAPI.key("input_removable")
     val Type = ComponentType.singletonComponent(key, this)
 }
 
-@All(TakeableAsItem::class, InputCallbacks::class, Removable::class, AsItem::class)
+@All(InputRemovable::class, InputCallbacks::class, Removable::class)
 @Before(InputCallbacksSystem::class)
 @After(RemovableTarget::class)
-class TakeableAsItemSystem(
-    private val sokol: Sokol,
-    ids: ComponentIdAccess
-) : SokolSystem {
+class InputRemovableSystem(ids: ComponentIdAccess) : SokolSystem {
     companion object {
-        val TakeAsItem = TakeableAsItem.key.with("take")
+        val Remove = InputRemovable.key.with("remove")
     }
 
     data class Remove(
@@ -36,7 +32,7 @@ class TakeableAsItemSystem(
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
 
-        inputCallbacks.callback(TakeAsItem) { player ->
+        inputCallbacks.callback(Remove) { player ->
             mIsChild.root(entity).callSingle(Remove(player))
             true
         }
@@ -47,8 +43,5 @@ class TakeableAsItemSystem(
         val removable = mRemovable.get(entity)
         if (removable.removed) return
         removable.remove()
-
-        val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(entity).create())
-        event.player.inventory.addItem(item)
     }
 }

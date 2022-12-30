@@ -7,6 +7,14 @@ import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
+interface StatType<T> {
+    val key: Key
+
+    data class OfFloat(override val key: Key) : StatType<Float>
+}
+
+class StatValue<T>
+
 data class Stats(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("stats")
@@ -16,9 +24,15 @@ data class Stats(val profile: Profile) : SimplePersistentComponent {
     override val componentType get() = Stats::class
     override val key get() = Key
 
+    private val statTypes = HashMap<Key, StatType<*>>()
+
+    fun <T> statType(statType: StatType<T>) {
+        statTypes[statType.key] = statType
+    }
+
     @ConfigSerializable
     data class Profile(
-        @Setting(nodeFromParent = true) val stats: Map<StatKey<*>, Any>
+        @Setting(nodeFromParent = true) val stats: Map<Key, Any>
     ) : SimpleComponentProfile {
         override val componentType get() = Stats::class
 
@@ -26,10 +40,29 @@ data class Stats(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
-interface StatKey<T> {
-    val key: Key
+data class StatsInstance(
+    val stats: Map<Key, StatValue<*>>
+) : SokolComponent {
+    override val componentType get() = StatsInstance::class
 }
 
-private class StatKeyImpl<T>(override val key: Key) : StatKey<T>
+object StatsInstanceTarget : SokolSystem
 
-fun <T> statKeyOf(key: Key): StatKey<T> = StatKeyImpl(key)
+@All(Stats::class)
+@None(StatsInstance::class)
+@Before(StatsInstanceTarget::class)
+class StatsSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mStats = ids.mapper<Stats>()
+
+    object BuildStats : SokolEvent
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        entity.call(BuildStats)
+    }
+
+    @Subscribe
+    fun on(event: BuildStats, entity: SokolEntity) {
+        //val stats =
+    }
+}

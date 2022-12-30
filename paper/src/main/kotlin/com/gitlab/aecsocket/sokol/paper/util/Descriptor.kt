@@ -15,14 +15,14 @@ data class ItemDescriptor(
     val damage: Int = 0,
     val modelData: Int = 0,
     val unbreakable: Boolean = false,
-    val flags: List<String> = emptyList(),
+    val flags: List<ItemFlag> = emptyList(),
 ) {
     fun applyTo(item: ItemStack, meta: ItemMeta) {
         item.type = material
         (meta as? Damageable)?.damage = damage
         meta.setCustomModelData(modelData)
         meta.isUnbreakable = unbreakable
-        meta.addItemFlags(*flags.map { ItemFlag.valueOf(it) }.toTypedArray())
+        meta.addItemFlags(*flags.toTypedArray())
     }
 
     fun create(): ItemStack {

@@ -28,13 +28,12 @@ class HoldableInputsSystem(
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
 
-        inputCallbacks.callback(Stop) { player, cancel ->
+        inputCallbacks.callback(Stop) { player ->
             // Held is not a guarantee, since it can be added/removed over the lifetime of an entity
             // and we only set up the callbacks on construct
             val (hold) = mHeld.getOr(entity) ?: return@callback false
             if (player !== hold.player) return@callback false
 
-            cancel()
             sokol.holding.stop(hold)
             true
         }

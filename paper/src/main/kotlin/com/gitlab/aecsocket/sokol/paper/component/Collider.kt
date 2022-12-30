@@ -4,7 +4,6 @@ import com.gitlab.aecsocket.alexandria.core.extension.matrix
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
-import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.core.physics.transformDelta
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.craftbullet.core.*
@@ -47,8 +46,10 @@ data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider_rigid_body")
         val Type = ComponentType.deserializing<Profile>(Key)
+    }
 
-        val StatMass = statKeyOf<Float>(Key.with("stat_mass"))
+    object Stats {
+        val Mass = StatType.OfFloat(Key.with("mass"))
     }
 
     override val componentType get() = ColliderRigidBody::class
@@ -177,6 +178,10 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
 
     object Remove : SokolEvent
 
+    data class ChangeContactResponse(
+        val hasResponse: Boolean
+    ) : SokolEvent
+
     @Subscribe
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val removable = mRemovable.get(entity)
@@ -184,6 +189,14 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
         if (removable.removed) {
             entity.callSingle(Remove)
         }
+    }
+
+    @Subscribe
+    fun on(event: ChangeContactResponse, entity: SokolEntity) {
+        val (physObj) = mColliderInstance.get(entity)
+        val body = physObj.body as? PhysicsRigidBody ?: return
+
+        body.isContactResponse = event.hasResponse
     }
 
     @Subscribe

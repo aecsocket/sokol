@@ -56,11 +56,10 @@ class HoldMovableCallbackSystem(
         val inputCallbacks = mInputCallbacks.get(entity)
         val positionAccess = mPositionAccess.get(entity)
 
-        inputCallbacks.callback(Start) { player, cancel ->
+        inputCallbacks.callback(Start) { player ->
             if (mHeld.has(entity)) // this entity is already held
                 return@callback false
 
-            cancel()
             sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), positionAccess.transform)
             true
         }
@@ -78,11 +77,9 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
         val holdMovable = mHoldMovable.get(entity)
 
         if (!holdMovable.profile.hasCollision) {
-            CraftBulletAPI.executePhysics {
-                // call from the root down, so all entities in this tree have their collision response updated
-                mIsChild.root(entity)
-                    .call(HoldMovableColliderPropagationSystem.ChangeContactResponse(!isHeld))
-            }
+            // call from the root down, so all entities in this tree have their collision response updated
+            mIsChild.root(entity)
+                .call(ColliderInstanceSystem.ChangeContactResponse(!isHeld))
         }
     }
 
@@ -93,7 +90,9 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
-        updateBody(entity, event.held)
+        CraftBulletAPI.executePhysics {
+            updateBody(entity, event.held)
+        }
     }
 
     @Subscribe
@@ -112,22 +111,5 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             (from + direction * holdMovable.profile.holdDistance).position(),
             from.rotation()
         ) * holdMovable.profile.holdTransform
-    }
-}
-
-@All(ColliderInstance::class)
-class HoldMovableColliderPropagationSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mColliderInstance = ids.mapper<ColliderInstance>()
-
-    data class ChangeContactResponse(
-        val hasContactResponse: Boolean
-    ) : SokolEvent
-
-    @Subscribe
-    fun on(event: ChangeContactResponse, entity: SokolEntity) {
-        val (physObj) = mColliderInstance.get(entity)
-        val body = physObj.body as? PhysicsRigidBody ?: return
-
-        body.isContactResponse = event.hasContactResponse
     }
 }

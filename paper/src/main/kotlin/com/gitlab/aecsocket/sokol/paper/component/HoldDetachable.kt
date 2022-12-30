@@ -10,6 +10,7 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.objects.PhysicsRigidBody
+import org.bukkit.Particle
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
@@ -76,11 +77,10 @@ class HoldDetachableCallbackSystem(
         val inputCallbacks = mInputCallbacks.get(entity)
         val positionRead = mPositionAccess.get(entity)
 
-        inputCallbacks.callback(Start) { player, cancel ->
+        inputCallbacks.callback(Start) { player ->
             if (mHeld.has(entity)) return@callback false // this entity is already held
             if (!mIsChild.has(entity)) return@callback false
 
-            cancel()
             sokol.holding.start(player.alexandria, entity, DetachHoldOperation(), positionRead.transform)
             true
         }
@@ -99,14 +99,14 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
     private fun updateBody(entity: SokolEntity, isHeld: Boolean) {
         val holdDetachable = mHoldDetachable.get(entity)
-        val (physObj, _, parentJoint) = mColliderInstance.get(entity)
-        val body = physObj.body as? PhysicsRigidBody ?: return
+        val colliderInstance = mColliderInstance.get(entity)
 
         if (!holdDetachable.profile.hasCollision) {
-            body.isContactResponse = !isHeld
+            // only call from this entity down, so the parent's contact response isn't changed
+            entity.call(ColliderInstanceSystem.ChangeContactResponse(!isHeld))
         }
 
-        parentJoint?.let { joint ->
+        colliderInstance.parentJoint?.let { joint ->
             joint.isEnabled = !isHeld
         }
     }
@@ -151,13 +151,15 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             val intersect = from + direction * tIn
             val distanceAlongAxis = (intersect - planeOrigin).dot(axis)
 
-            if (distanceAlongAxis >= holdDetachable.profile.detachAt) {
+            val relative = Transform(axis * clamp(distanceAlongAxis, 0.0, holdDetachable.profile.stopAt))
+            holdDetachable.localTransform = relative
+            // todo how do we apply a local transform for the next tick?
+            hold.nextTransform = pTransform * relative
+            player.spawnParticle(Particle.WATER_BUBBLE, (pTransform * relative).position.location(player.world), 0)
 
+            if (distanceAlongAxis >= holdDetachable.profile.detachAt) {
+                // todo do this stupid f'n detach
             } else {
-                val relative = Transform(axis * clamp(distanceAlongAxis, 0.0, holdDetachable.profile.stopAt))
-                holdDetachable.localTransform = relative
-                // todo how do we apply a local transform for the next tick?
-                hold.nextTransform = pTransform * relative
             }
         }
     }

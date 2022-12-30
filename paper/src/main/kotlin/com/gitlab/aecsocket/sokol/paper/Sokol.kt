@@ -266,6 +266,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { InputCallbacksInstanceTarget }
                     .systemFactory { InputCallbacksSystem(it) }
                     .systemFactory { InputCallbacksInstanceSystem(it) }
+                    .systemFactory { InputRemovableSystem(it) }
                     .systemFactory { TakeableAsItemSystem(this@Sokol, it) }
                     .systemFactory { MeshProviderTarget }
                     .systemFactory { MeshProviderStaticSystem(it) }
@@ -288,7 +289,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { HeldMobSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
                     .systemFactory { HoldMovableColliderSystem(it) }
-                    .systemFactory { HoldMovableColliderPropagationSystem(it) }
                     .systemFactory { HoldDetachableCallbackSystem(this@Sokol, it) }
                     .systemFactory { HoldDetachableColliderSystem(it) }
                     .systemFactory { HeldSnapSystem(it) }
@@ -298,6 +298,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .systemFactory { HeldMeshGlowSystem(it) }
                     .systemFactory { EntitySlotTarget }
                     .systemFactory { EntitySlotInMapSystem(it) }
+                    .systemFactory { ItemDisplayNameSystem(it) }
 
                     .componentType<Profiled>()
                     .componentType<InTag>()
@@ -325,6 +326,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<Removable>()
                     .componentType<InputCallbacks>()
                     .componentType<InputCallbacksInstance>()
+                    .componentType<InputRemovable>()
                     .componentType<TakeableAsItem>()
                     .componentType<PositionEffects>()
                     .componentType<MeshProvider>()
@@ -350,6 +352,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .componentType<HeldMeshGlow>()
                     .componentType<EntitySlot>()
                     .componentType<EntitySlotInMap>()
+                    .componentType<ItemDisplayName>()
+                    .componentType<Stats>()
                 registerComponentType(DisplayNameFromProfile.Type)
                 registerComponentType(AsMob.Type)
                 registerComponentType(AsItem.Type)
@@ -358,6 +362,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 registerComponentType(PositionFromDelta.Type)
                 registerComponentType(Rotation.Type)
                 registerComponentType(InputCallbacks.Type)
+                registerComponentType(InputRemovable.Type)
                 registerComponentType(TakeableAsItem.Type)
                 registerComponentType(PositionEffects.Type)
                 registerComponentType(MeshProviderStatic.Type)
@@ -378,6 +383,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 registerComponentType(HeldAttachableEffects.Type)
                 registerComponentType(HeldMeshGlow.Type)
                 registerComponentType(EntitySlotInMap.Type)
+                registerComponentType(ItemDisplayName.Type)
+                registerComponentType(Stats.Type)
             }
         )
     }
