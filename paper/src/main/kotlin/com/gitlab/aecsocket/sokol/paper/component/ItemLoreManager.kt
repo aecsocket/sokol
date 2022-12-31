@@ -8,9 +8,13 @@ import com.gitlab.aecsocket.sokol.paper.ItemEvent
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import net.kyori.adventure.text.format.TextDecoration
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 typealias LoreProvider = (I18N<Component>) -> List<Component>
+
+private val unstyled = Component.text("").color(NamedTextColor.WHITE).decoration(TextDecoration.ITALIC, false)
 
 data class ItemLoreManager(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -27,7 +31,7 @@ data class ItemLoreManager(val profile: Profile) : SimplePersistentComponent {
     fun loreProvider(key: Key) = _loreProviders[key]
 
     fun loreProvider(key: Key, provider: LoreProvider) {
-        if (_loreProviders.containsKey(key))
+        if (_loreProviders.contains(key))
             throw IllegalArgumentException("Duplicate lore provider $key")
         _loreProviders[key] = provider
     }
@@ -35,7 +39,8 @@ data class ItemLoreManager(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         val order: List<Key> = emptyList(),
-        val separatorKey: String? = null
+        val separatorKey: String? = null,
+        val lineKey: String? = null
     ) : SimpleComponentProfile<ItemLoreManager> {
         override val componentType get() = ItemLoreManager::class
 
@@ -58,11 +63,18 @@ class ItemLoreManagerSystem(ids: ComponentIdAccess) : SokolSystem {
         val separator = itemLoreManager.profile.separatorKey?.let { i18n.make(it) } ?: emptyList()
         val lore = itemLoreManager.profile.order.mapNotNull { key ->
             val loreProvider = itemLoreManager.loreProvider(key) ?: return@mapNotNull null
-            loreProvider(i18n)
+            val lore = loreProvider(i18n)
+            lore.ifEmpty { null } // empty sections won't add another separator
         }.join(separator)
 
         isItem.writeMeta { meta ->
-            meta.lore(lore)
+            meta.lore(lore.flatMap { line ->
+                (itemLoreManager.profile.lineKey?.let { i18n.make(it) {
+                    subst("line", line)
+                } } ?: listOf(line)).map {
+                    unstyled.append(it)
+                }
+            })
         }
     }
 }

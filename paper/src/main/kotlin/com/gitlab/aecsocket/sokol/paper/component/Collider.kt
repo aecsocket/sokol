@@ -11,6 +11,7 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.*
 import com.gitlab.aecsocket.sokol.paper.*
+import com.gitlab.aecsocket.sokol.paper.stat.DecimalCounterStat
 import com.jme3.bullet.RotationOrder
 import com.jme3.bullet.collision.PhysicsCollisionObject
 import com.jme3.bullet.joints.New6Dof
@@ -41,7 +42,6 @@ data class ColliderInstance(
 
 object ColliderInstanceTarget : SokolSystem
 
-// TODO mass could probably be moved to the stats system once that's done
 data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider_rigid_body")
@@ -49,7 +49,8 @@ data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
     }
 
     object Stats {
-        val Mass = StatType.DecimalCounter(Key.with("mass"))
+        val Mass = DecimalCounterStat(Key.with("mass"))
+        val All = listOf(Mass)
     }
 
     override val componentType get() = ColliderRigidBody::class
@@ -57,8 +58,7 @@ data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        @Required val shape: Shape,
-        val mass: Float = 1f
+        @Required val shape: Shape
     ) : SimpleComponentProfile<ColliderRigidBody> {
         override val componentType get() = ColliderRigidBody::class
 
@@ -76,7 +76,7 @@ interface SokolPhysicsObject : TrackedPhysicsObject {
     var entity: SokolEntity
 }
 
-@All(Collider::class, PositionAccess::class)
+@All(Collider::class, PositionAccess::class, Stats::class)
 @One(ColliderRigidBody::class)
 @After(PositionAccessTarget::class)
 class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
@@ -84,6 +84,7 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mColliderRigidBody = ids.mapper<ColliderRigidBody>()
     private val mVehicleBodyCollider = ids.mapper<ColliderVehicleBody>()
+    private val mStatsInstance = ids.mapper<StatsInstance>()
 
     object Create : SokolEvent
 
@@ -107,6 +108,7 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: Create, entity: SokolEntity) {
         val positionRead = mPositionAccess.get(entity)
         val colliderRigidBody = mColliderRigidBody.getOr(entity)?.profile
+        val stats = mStatsInstance.statMap(entity)
 
         val bodyId = UUID.randomUUID()
 
@@ -122,7 +124,7 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             val physObj: SokolPhysicsObject = when {
                 colliderRigidBody != null -> {
                     val shape = colliderRigidBody.shape.bullet()
-                    val mass = colliderRigidBody.mass
+                    val mass = stats.value(ColliderRigidBody.Stats.Mass).toFloat()
 
                     if (mVehicleBodyCollider.has(entity)) object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
                         override val id get() = bodyId

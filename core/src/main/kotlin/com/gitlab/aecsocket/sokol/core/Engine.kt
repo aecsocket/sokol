@@ -394,20 +394,20 @@ class SokolEngine internal constructor(
             }
 
             fun target(system: KClass<out SokolSystem>, target: KClass<out SokolSystem>) = systems[target]
-                ?: throw IllegalArgumentException("System ${system.simpleName} is referencing ${target.simpleName}, which is not registered")
+                ?: throw IllegalArgumentException("System ${system.simpleName} references ${target.simpleName}, which is not registered")
 
             systems.forEach { (systemType, system) ->
                 system.after.forEach { targetType ->
                     val target = target(systemType, targetType)
                     if (target.after.contains(systemType))
-                        throw IllegalArgumentException("Cyclical dependency: ${targetType.simpleName} and ${systemType.simpleName} executing after each other")
+                        throw IllegalArgumentException("Cyclical dependency: ${targetType.simpleName} and ${systemType.simpleName} execute after each other")
                     systemGraph.putEdge(target.definition, system.definition)
                 }
 
                 system.before.forEach { targetType ->
                     val target = target(systemType, targetType)
                     if (target.before.contains(systemType))
-                        throw IllegalArgumentException("Cyclical dependency: ${targetType.simpleName} and ${systemType.simpleName} executing before each other")
+                        throw IllegalArgumentException("Cyclical dependency: ${targetType.simpleName} and ${systemType.simpleName} execute before each other")
                     systemGraph.putEdge(system.definition, target.definition)
                 }
             }

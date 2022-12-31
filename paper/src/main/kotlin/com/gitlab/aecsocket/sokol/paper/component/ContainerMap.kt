@@ -141,7 +141,7 @@ data class ContainerMap(
             }
 
             children.forEach { (key, profile) ->
-                if (blueprints.containsKey(key)) return@forEach
+                if (blueprints.contains(key)) return@forEach
                 blueprints[key] = sokol.persistence.emptyBlueprint(profile)
             }
 

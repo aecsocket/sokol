@@ -13,9 +13,8 @@ import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
+import com.gitlab.aecsocket.sokol.paper.stat.DecimalStatFormatter
 import com.jme3.bullet.collision.PhysicsCollisionObject
-import io.leangen.geantyref.GenericTypeReflector
-import io.leangen.geantyref.TypeToken
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
 import org.bstats.bukkit.Metrics
@@ -24,7 +23,6 @@ import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
-import java.lang.reflect.WildcardType
 import kotlin.reflect.KClass
 
 internal typealias Mob = Entity
@@ -67,6 +65,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
     interface InitContext {
         val sokol: Sokol
+        val components: SokolComponents
 
         fun <C : SokolComponent> componentType(type: ComponentType<C>)
         fun <C : SokolComponent> componentClass(type: KClass<C>)
@@ -96,6 +95,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     val timings = Timings(60 * 1000)
     val holding = EntityHolding(this)
     val players = SokolPlayers(this)
+    val components = SokolComponents(this)
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -115,6 +115,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .registerExact(EntitySerializer(this@Sokol))
                     .registerExact(BlueprintSerializer(this@Sokol))
                     .register(DeltaSerializer)
+                    .register(matchExactErased<Stat<*>>(), StatSerializer(this@Sokol))
+                    .register(matchExactErased<StatFormatter<*>>(), StatFormatterSerializer(this@Sokol))
             },
             onLoad = {
                 addDefaultI18N()
@@ -128,7 +130,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         registerDefaultConsumer()
 
         registerEvents(SokolEventListener(this))
-        PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this@Sokol))
+        PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this))
 
         CraftBulletAPI.onContact(::onPhysicsContact)
         CraftBulletAPI.onPostStep(::onPhysicsPostStep)
@@ -139,6 +141,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
             val engineBuilder = SokolEngine.Builder()
             val initCtx = object : InitContext {
                 override val sokol get() = this@Sokol
+                override val components get() = this@Sokol.components
 
                 override fun <C : SokolComponent> componentType(type: ComponentType<C>) {
                     val key = type.key.asString()
@@ -311,10 +314,13 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 system { HeldMeshGlowSystem(it) }
                 system { EntitySlotTarget }
                 system { EntitySlotInMapSystem(it) }
+                system { StatsInstanceTarget }
+                system { StatsSystem(it) }
                 system { ItemDisplayNameSystem(it) }
                 system { ItemLoreManagerSystem(it) }
                 system { ItemLoreStaticSystem(it) }
                 system { ItemLoreFromProfileSystem(it) }
+                system { ItemLoreStatsSystem(it) }
 
                 componentClass<Profiled>()
                 componentClass<InTag>()
@@ -331,7 +337,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 persistentComponent(AsItem.Type)
                 componentClass<IsRoot>()
                 componentClass<IsChild>()
-                persistentComponent(ContainerMap.Type(sokol))
+                persistentComponent(components.containerMap)
                 componentClass<DeltaTransform>()
                 persistentComponent(DeltaTransformStatic.Type)
                 persistentComponent(Rotation.Type)
@@ -368,11 +374,19 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 persistentComponent(HeldMeshGlow.Type)
                 componentClass<EntitySlot>()
                 persistentComponent(EntitySlotInMap.Type)
-                persistentComponent(Stats.Type)
+                persistentComponent(components.stats)
+                componentClass<StatsInstance>()
                 persistentComponent(ItemDisplayName.Type)
                 persistentComponent(ItemLoreManager.Type)
                 persistentComponent(ItemLoreStatic.Type)
                 persistentComponent(ItemLoreFromProfile.Type)
+                persistentComponent(components.itemLoreStats)
+
+                components.stats.stats(ColliderRigidBody.Stats.All)
+
+                // TODO move to own func
+                // move all of this to their own funcs really
+                components.itemLoreStats.formatterType<DecimalStatFormatter>(key("decimal"))
             }
         )
     }
