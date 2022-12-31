@@ -13,7 +13,9 @@ import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
+import com.gitlab.aecsocket.sokol.paper.stat.DecimalStatBarFormatter
 import com.gitlab.aecsocket.sokol.paper.stat.DecimalStatFormatter
+import com.gitlab.aecsocket.sokol.paper.stat.NameStatFormatter
 import com.jme3.bullet.collision.PhysicsCollisionObject
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
@@ -386,7 +388,9 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
                 // TODO move to own func
                 // move all of this to their own funcs really
+                components.itemLoreStats.formatterType<NameStatFormatter>(key("name"))
                 components.itemLoreStats.formatterType<DecimalStatFormatter>(key("decimal"))
+                components.itemLoreStats.formatterType<DecimalStatBarFormatter>(key("decimal_bar"))
             }
         )
     }

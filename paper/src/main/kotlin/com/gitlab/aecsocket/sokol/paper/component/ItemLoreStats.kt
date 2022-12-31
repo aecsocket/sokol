@@ -20,15 +20,9 @@ import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 import kotlin.reflect.KClass
 
-private const val FORMATTER = "formatter"
-private const val FORMATTERS = "formatters"
-private const val TABLE_ALIGNS = "table_aligns"
-private const val COLUMN_SEPARATOR_KEY = "column_separator_key"
+private const val TYPE = "type"
 
-interface StatFormatter<V : Any> {
-    val stat: Stat<V>
-    val nameKey: String
-
+fun interface StatFormatter<V : Any> {
     fun format(i18n: I18N<Component>, value: StatValue<V>): TableRow<Component>
 }
 
@@ -36,7 +30,7 @@ class StatFormatterSerializer(private val sokol: Sokol) : TypeSerializer<StatFor
     override fun serialize(type: Type, obj: StatFormatter<*>?, node: ConfigurationNode) {}
 
     override fun deserialize(type: Type, node: ConfigurationNode): StatFormatter<*> {
-        val key = node.node(FORMATTER).force<Key>()
+        val key = node.node(TYPE).force<Key>()
         val formatterType = sokol.components.itemLoreStats.formatterType(key)
             ?: throw SerializationException(node, type, "Invalid formatter type '$key'")
         return node.force(formatterType)
@@ -48,12 +42,18 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
         val Key = SokolAPI.key("item_lore_stats")
     }
 
+    @ConfigSerializable
+    data class StatRow(
+        val stat: Stat<*>,
+        val formatters: List<StatFormatter<*>>
+    )
+
     override val componentType get() = ItemLoreStats::class
     override val key get() = Key
 
     @ConfigSerializable
     data class Profile(
-        val formatters: List<StatFormatter<*>> = emptyList(),
+        val rows: List<StatRow> = emptyList(),
         val tableAligns: TableAligns = TableAligns.Default,
         val columnSeparatorKey: String? = null,
         val lineKey: String? = null,
@@ -115,11 +115,10 @@ class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
                 return formatter.format(i18n, value as StatValue<V>)
             }
 
-            val rows: TableRow<TableCell<Component>> = itemLoreStats.formatters.mapNotNull { formatter ->
-                val value = stats[formatter.stat] ?: return@mapNotNull null
-                val col1: List<Component> = i18n.safe(formatter.nameKey)
-                val valueCols: TableRow<Component> = format(formatter, value)
-                listOf(col1) + valueCols
+            val rows: TableRow<TableCell<Component>> = itemLoreStats.rows.mapNotNull { row ->
+                val value = stats[row.stat] ?: return@mapNotNull null
+                val cols = row.formatters.flatMap { format(it, value) }
+                cols
             }
 
             renderer.render(rows).flatMap { line ->

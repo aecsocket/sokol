@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.stat
 
+import com.gitlab.aecsocket.alexandria.core.BarRenderer
 import com.gitlab.aecsocket.alexandria.core.RangeMapDouble
 import com.gitlab.aecsocket.alexandria.core.TableRow
 import com.gitlab.aecsocket.alexandria.core.extension.force
@@ -10,6 +11,7 @@ import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
+import org.spongepowered.configurate.objectmapping.meta.Setting
 import org.spongepowered.configurate.serialize.SerializationException
 import java.text.DecimalFormat
 
@@ -90,16 +92,48 @@ data class DecimalCounterStat(override val key: Key) : Stat<Double> {
 }
 
 @ConfigSerializable
+data class NameStatFormatter(
+    @Required val key: String
+) : StatFormatter<Any> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Any>): TableRow<Component> {
+        val text = i18n.safe(key)
+        return listOf(text)
+    }
+}
+
+@ConfigSerializable
 data class DecimalStatFormatter(
-    @Required override val stat: Stat<Double>,
-    @Required override val nameKey: String,
     @Required val key: String,
-    val mapper: RangeMapDouble = RangeMapDouble.Identity,
+    val mapper: RangeMapDouble = RangeMapDouble.Identity
 ) : StatFormatter<Double> {
     override fun format(i18n: I18N<Component>, value: StatValue<Double>): TableRow<Component> {
         val number = mapper.map(value.compute())
         val text = i18n.safe(key) {
             icu("value", number)
+        }
+        return listOf(text)
+    }
+}
+
+@ConfigSerializable
+data class StatBarData(
+    @Required @Setting(nodeFromParent = true) val renderer: BarRenderer,
+    @Required val max: Double
+)
+
+@ConfigSerializable
+data class DecimalStatBarFormatter(
+    @Required val key: String,
+    @Required val bar: StatBarData,
+    val mapper: RangeMapDouble = RangeMapDouble.Identity
+) : StatFormatter<Double> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Double>): TableRow<Component> {
+        val number = mapper.map(value.compute())
+        val percent = number / bar.max
+        val (first, background) = bar.renderer.renderOne(percent.toFloat())
+        val text = i18n.safe(key) {
+            subst("first", first)
+            subst("background", background)
         }
         return listOf(text)
     }
