@@ -13,7 +13,6 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import org.spongepowered.configurate.objectmapping.meta.Setting
 import org.spongepowered.configurate.serialize.SerializationException
-import java.text.DecimalFormat
 
 data class IntegerStat(override val key: Key) : Stat<Int> {
     data class Set(val value: Int) : StatNode.First<Int> {
@@ -102,12 +101,12 @@ data class NameStatFormatter(
 }
 
 @ConfigSerializable
-data class DecimalStatFormatter(
+data class NumberStatFormatter(
     @Required val key: String,
     val mapper: RangeMapDouble = RangeMapDouble.Identity
-) : StatFormatter<Double> {
-    override fun format(i18n: I18N<Component>, value: StatValue<Double>): TableRow<Component> {
-        val number = mapper.map(value.compute())
+) : StatFormatter<Number> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Number>): TableRow<Component> {
+        val number = mapper.map(value.compute().toDouble())
         val text = i18n.safe(key) {
             icu("value", number)
         }
@@ -122,13 +121,13 @@ data class StatBarData(
 )
 
 @ConfigSerializable
-data class DecimalStatBarFormatter(
+data class NumberStatBarFormatter(
     @Required val key: String,
     @Required val bar: StatBarData,
     val mapper: RangeMapDouble = RangeMapDouble.Identity
-) : StatFormatter<Double> {
-    override fun format(i18n: I18N<Component>, value: StatValue<Double>): TableRow<Component> {
-        val number = mapper.map(value.compute())
+) : StatFormatter<Number> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Number>): TableRow<Component> {
+        val number = mapper.map(value.compute().toDouble())
         val percent = number / bar.max
         val (first, background) = bar.renderer.renderOne(percent.toFloat())
         val text = i18n.safe(key) {
