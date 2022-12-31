@@ -84,7 +84,7 @@ data class ContainerMap(
     class Profile(
         private val sokol: Sokol,
         val children: Map<String, EntityProfile>
-    ) : ComponentProfile {
+    ) : ComponentProfile<ContainerMap> {
         override val componentType get() = ContainerMap::class
 
         private val mIsChild = sokol.engine.mapper<IsChild>()
@@ -153,7 +153,7 @@ data class ContainerMap(
             .associate { it })
     }
 
-    class Type(private val sokol: Sokol) : ComponentType {
+    class Type(private val sokol: Sokol) : ComponentType<ContainerMap> {
         override val key get() = Key
 
         override fun createProfile(node: ConfigurationNode) = Profile(sokol,

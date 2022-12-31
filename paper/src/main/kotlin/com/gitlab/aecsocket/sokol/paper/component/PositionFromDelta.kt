@@ -16,7 +16,7 @@ class PositionFromDelta : SimplePersistentComponent {
 
     var enabled = true
 
-    object Profile : SimpleComponentProfile {
+    object Profile : SimpleComponentProfile<PositionFromDelta> {
         override val componentType get() = PositionFromDelta::class
 
         override fun createEmpty() = ComponentBlueprint { PositionFromDelta() }

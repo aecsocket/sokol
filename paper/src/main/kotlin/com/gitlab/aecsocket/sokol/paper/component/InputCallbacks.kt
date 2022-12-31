@@ -17,7 +17,7 @@ fun interface InputCallback {
 data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("input_callbacks")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     @ConfigSerializable
@@ -43,7 +43,7 @@ data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val inputs: InputMapper<Callback>
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<InputCallbacks> {
         override val componentType get() = InputCallbacks::class
 
         override fun createEmpty() = ComponentBlueprint { InputCallbacks(this) }

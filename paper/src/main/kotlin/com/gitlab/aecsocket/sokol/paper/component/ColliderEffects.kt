@@ -17,7 +17,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class ColliderEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider_effects")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     data class ContactData(
@@ -39,7 +39,7 @@ data class ColliderEffects(val profile: Profile) : SimplePersistentComponent {
         val soundVolumeMap: RangeMapFloat = RangeMapFloat.Identity,
         val particleBlock: ParticleEngineEffect = ParticleEngineEffect.Empty,
         val particleBlockCountMap: RangeMapFloat = RangeMapFloat.Identity,
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<ColliderEffects> {
         override val componentType get() = ColliderEffects::class
 
         override fun createEmpty() = ComponentBlueprint { ColliderEffects(this) }

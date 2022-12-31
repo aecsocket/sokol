@@ -10,7 +10,7 @@ import org.spongepowered.configurate.objectmapping.meta.Setting
 data class HoverShape(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hover_shape")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = HoverShape::class
@@ -19,7 +19,7 @@ data class HoverShape(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val shape: Shape
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HoverShape> {
         override val componentType get() = HoverShape::class
 
         override fun createEmpty() = ComponentBlueprint { HoverShape(this) }

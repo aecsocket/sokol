@@ -12,7 +12,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("mesh_provider_from_item")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = MeshProviderFromItem::class
@@ -22,7 +22,7 @@ data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponen
     data class Profile(
         val transform: Transform = Transform.Identity,
         val meshSettings: MeshSettings = MeshSettings()
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<MeshProviderFromItem> {
         override val componentType get() = MeshProviderFromItem::class
 
         override fun createEmpty() = ComponentBlueprint { MeshProviderFromItem(this) }

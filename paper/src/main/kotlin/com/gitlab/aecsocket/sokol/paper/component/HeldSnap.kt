@@ -21,7 +21,7 @@ import kotlin.math.abs
 data class HeldSnap(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_snap")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     data class SurfaceData(
@@ -40,7 +40,7 @@ data class HeldSnap(val profile: Profile) : SimplePersistentComponent {
         val snapTransform: Transform = Transform.Identity,
         val snapDistance: Double = 0.0,
         val allowFreePlace: Boolean = true
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HeldSnap> {
         override val componentType get() = HeldSnap::class
 
         override fun createEmpty() = ComponentBlueprint { HeldSnap(this) }

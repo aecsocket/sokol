@@ -10,7 +10,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class HoverMeshGlow(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hover_mesh_glow")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = HoverMeshGlow::class
@@ -19,7 +19,7 @@ data class HoverMeshGlow(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         val color: NamedTextColor = NamedTextColor.WHITE
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HoverMeshGlow> {
         override val componentType get() = HoverMeshGlow::class
 
         override fun createEmpty() = ComponentBlueprint { HoverMeshGlow(this) }

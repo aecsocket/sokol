@@ -23,7 +23,7 @@ private const val TRANSFORM = "transform"
 data class MeshProviderStatic(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("mesh_provider_static")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = MeshProviderStatic::class
@@ -47,7 +47,7 @@ data class MeshProviderStatic(val profile: Profile) : SimplePersistentComponent 
     data class Profile(
         @Required val parts: List<MeshDefinition>,
         val meshSettings: MeshSettings = MeshSettings()
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<MeshProviderStatic> {
         override val componentType get() = MeshProviderStatic::class
 
         override fun createEmpty() = ComponentBlueprint { MeshProviderStatic(this) }

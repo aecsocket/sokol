@@ -10,7 +10,7 @@ import org.spongepowered.configurate.objectmapping.meta.Required
 data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("entity_slot_in_map")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = EntitySlotInMap::class
@@ -21,7 +21,7 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
         @Required val shape: Shape,
         val childKey: String = ContainerMap.DefaultKey,
         val allows: Boolean = true
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<EntitySlotInMap> {
         override val componentType get() = EntitySlotInMap::class
 
         override fun createEmpty() = ComponentBlueprint { EntitySlotInMap(this) }

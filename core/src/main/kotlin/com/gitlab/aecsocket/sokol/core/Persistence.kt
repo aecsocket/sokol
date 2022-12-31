@@ -2,6 +2,7 @@ package com.gitlab.aecsocket.sokol.core
 
 import com.gitlab.aecsocket.alexandria.core.keyed.Keyed
 import com.gitlab.aecsocket.glossa.core.force
+import io.leangen.geantyref.TypeToken
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 import kotlin.reflect.KClass
@@ -35,17 +36,17 @@ fun interface ComponentBlueprint<out C : SokolComponent> {
     fun create(entity: SokolEntity): C
 }
 
-interface ComponentProfile {
-    val componentType: KClass<out SokolComponent>
+interface ComponentProfile<C : SokolComponent> {
+    val componentType: KClass<C>
 
-    fun read(tag: NBTTag): ComponentBlueprint<*>
+    fun read(tag: NBTTag): ComponentBlueprint<C>
 
-    fun deserialize(node: ConfigurationNode): ComponentBlueprint<*>
+    fun deserialize(node: ConfigurationNode): ComponentBlueprint<C>
 
-    fun createEmpty(): ComponentBlueprint<*>
+    fun createEmpty(): ComponentBlueprint<C>
 }
 
-interface SimpleComponentProfile : ComponentProfile {
+interface SimpleComponentProfile<C : SokolComponent> : ComponentProfile<C> {
     override fun read(tag: NBTTag) = createEmpty()
 
     override fun deserialize(node: ConfigurationNode) = createEmpty()
@@ -66,9 +67,8 @@ class EntityBlueprint internal constructor(
         return this
     }
 
-    fun <C : SokolComponent> pushSet(profile: ComponentProfile, component: ComponentBlueprint<C>): EntityBlueprint {
-        @Suppress("UNCHECKED_CAST")
-        val mapper = engine.mapper(profile.componentType) as ComponentMapper<C>
+    fun <C : SokolComponent> pushSet(profile: ComponentProfile<C>, component: ComponentBlueprint<C>): EntityBlueprint {
+        val mapper = engine.mapper(profile.componentType)
         push { mapper.set(it, component.create(it)) }
         return this
     }
@@ -96,12 +96,12 @@ fun Iterable<EntityBlueprint>.addAllInto(space: SokolSpace) {
 }
 
 open class EntityProfile(
-    val components: Map<Key, ComponentProfile>
+    val components: Map<Key, ComponentProfile<*>>
 )
 
 class KeyedEntityProfile(
     override val id: String,
-    components: Map<Key, ComponentProfile>
+    components: Map<Key, ComponentProfile<*>>
 ) : EntityProfile(components), Keyed
 
 data class Profiled(val profile: KeyedEntityProfile) : SokolComponent {
@@ -114,32 +114,33 @@ data class InTag(val tag: CompoundNBTTag) : SokolComponent {
     override val componentType get() = InTag::class
 }
 
-interface ComponentType {
+interface ComponentType<C : SokolComponent> {
     val key: Key
 
-    fun createProfile(node: ConfigurationNode): ComponentProfile
+    fun createProfile(node: ConfigurationNode): ComponentProfile<C>
 
     companion object {
-        fun singletonComponent(key: Key, component: PersistentComponent) = object : ComponentType {
+        fun <C : SokolComponent> singletonComponent(key: Key, component: C) = object : ComponentType<C> {
             override val key get() = key
 
-            override fun createProfile(node: ConfigurationNode) = object : SimpleComponentProfile {
-                override val componentType get() = component.componentType
+            override fun createProfile(node: ConfigurationNode) = object : SimpleComponentProfile<C> {
+                @Suppress("UNCHECKED_CAST")
+                override val componentType get() = component.componentType as KClass<C>
 
                 override fun createEmpty() = ComponentBlueprint { component }
             }
         }
 
-        fun singletonProfile(key: Key, profile: ComponentProfile) = object : ComponentType {
+        fun <C : SokolComponent> singletonProfile(key: Key, profile: ComponentProfile<C>) = object : ComponentType<C> {
             override val key get() = key
 
             override fun createProfile(node: ConfigurationNode) = profile
         }
 
-        inline fun <reified P : ComponentProfile> deserializing(key: Key) = object : ComponentType {
+        fun <C : SokolComponent> deserializing(key: Key, type: KClass<out ComponentProfile<C>>) = object : ComponentType<C> {
             override val key get() = key
 
-            override fun createProfile(node: ConfigurationNode) = node.force<P>()
+            override fun createProfile(node: ConfigurationNode) = node.force(TypeToken.get(type.java))
         }
     }
 }

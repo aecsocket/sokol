@@ -16,7 +16,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hold_detachable")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = HoldDetachable::class
@@ -30,7 +30,7 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
         val stopAt: Double = 0.0,
         val detachAt: Double = 0.0,
         val hasCollision: Boolean = true
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HoldDetachable> {
         override val componentType get() = HoldDetachable::class
 
         val detachAxisNorm = detachAxis.normalized

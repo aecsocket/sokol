@@ -8,7 +8,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("display_name_from_profile")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = DisplayNameFromProfile::class
@@ -18,7 +18,7 @@ data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentCompon
     data class Profile(
         val prefix: String = "",
         val suffix: String = ""
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<DisplayNameFromProfile> {
         override val componentType get() = DisplayNameFromProfile::class
 
         override fun createEmpty() = ComponentBlueprint { DisplayNameFromProfile(this) }

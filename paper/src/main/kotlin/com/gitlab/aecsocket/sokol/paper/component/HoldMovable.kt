@@ -14,7 +14,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hold_movable")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = HoldMovable::class
@@ -25,7 +25,7 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
         val holdTransform: Transform = Transform.Identity,
         val holdDistance: Double = 0.0,
         val hasCollision: Boolean = true
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HoldMovable> {
         override val componentType get() = HoldMovable::class
 
         override fun createEmpty() = ComponentBlueprint { HoldMovable(this) }

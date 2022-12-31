@@ -14,6 +14,8 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.PhysicsCollisionObject
+import io.leangen.geantyref.GenericTypeReflector
+import io.leangen.geantyref.TypeToken
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
 import org.bstats.bukkit.Metrics
@@ -22,6 +24,8 @@ import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
+import java.lang.reflect.WildcardType
+import kotlin.reflect.KClass
 
 internal typealias Mob = Entity
 internal typealias Item = ItemStack
@@ -62,9 +66,11 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     )
 
     interface InitContext {
-        val engine: SokolEngine.Builder
+        val sokol: Sokol
 
-        fun registerComponentType(type: ComponentType)
+        fun <C : SokolComponent> componentType(type: ComponentType<C>)
+        fun <C : SokolComponent> componentClass(type: KClass<C>)
+        fun system(factory: EngineSystemFactory)
     }
 
     interface PostInitContext
@@ -78,8 +84,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     override lateinit var engine: SokolEngine private set
     lateinit var space: SokolEntityContainer private set
 
-    private val _componentTypes = HashMap<String, ComponentType>()
-    val componentTypes: Map<String, ComponentType> get() = _componentTypes
+    private val _componentTypes = HashMap<String, ComponentType<*>>()
+    val componentTypes: Map<String, ComponentType<*>> get() = _componentTypes
 
     private val _entityProfiles = Registry.create<KeyedEntityProfile>()
     val entityProfiles: Registry<KeyedEntityProfile> get() = _entityProfiles
@@ -102,7 +108,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         AlexandriaAPI.registerConsumer(this,
             onInit = {
                 serializers
-                    .registerExact(ComponentProfileSerializer(this@Sokol))
+                    .register(matchExactErased<ComponentProfile<*>>(), ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
                     .registerExact(MeshProviderStatic.MeshDefinitionSerializer)
@@ -132,13 +138,21 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         if (super.initInternal()) {
             val engineBuilder = SokolEngine.Builder()
             val initCtx = object : InitContext {
-                override val engine get() = engineBuilder
+                override val sokol get() = this@Sokol
 
-                override fun registerComponentType(type: ComponentType) {
+                override fun <C : SokolComponent> componentType(type: ComponentType<C>) {
                     val key = type.key.asString()
                     if (_componentTypes.contains(key))
-                        throw IllegalArgumentException("Component type with key $key already exists")
+                        throw IllegalArgumentException("Persistent component type with key $key already exists")
                     _componentTypes[key] = type
+                }
+
+                override fun <C : SokolComponent> componentClass(type: KClass<C>) {
+                    engineBuilder.componentClass(type)
+                }
+
+                override fun system(factory: EngineSystemFactory) {
+                    engineBuilder.systemFactory(factory)
                 }
             }
 
@@ -235,165 +249,130 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     private fun registerDefaultConsumer() {
         registerConsumer(
             onInit = {
-                engine
-                    .systemFactory { IsWorldTarget }
-                    .systemFactory { IsChunkTarget }
-                    .systemFactory { IsMobTarget }
-                    .systemFactory { IsBlockTarget }
-                    .systemFactory { IsItemFormTarget }
-                    .systemFactory { IsItemTarget }
-                    .systemFactory { PersistenceSystem(this@Sokol, it) }
-                    .systemFactory { BlockPersistSystem(it) }
-                    .systemFactory { ItemPersistSystem(this@Sokol, it) }
-                    .systemFactory { ItemTagPersistSystem(it) }
-                    .systemFactory { DisplayNameTarget }
-                    .systemFactory { DisplayNameFromProfileSystem(it) }
-                    .systemFactory { MobConstructorSystem(this@Sokol, it) }
-                    .systemFactory { MobSystem(it) }
-                    .systemFactory { CompositeConstructSystem(it) }
-                    .systemFactory { CompositeRootSystem(it) }
-                    .systemFactory { DeltaTransformTarget }
-                    .systemFactory { DeltaTransformStaticSystem(it) }
-                    .systemFactory { PositionAccessTarget }
-                    .systemFactory { VelocityAccessTarget }
-                    .systemFactory { PositionFromDeltaSystem(it) }
-                    .systemFactory { PlayerTrackedTarget }
-                    .systemFactory { PlayerTrackedSystem(it) }
-                    .systemFactory { RemovablePreTarget }
-                    .systemFactory { RemovableTarget }
-                    .systemFactory { RemovableSystem(it) }
-                    .systemFactory { PositionEffectsSystem(it) }
-                    .systemFactory { InputCallbacksInstanceTarget }
-                    .systemFactory { InputCallbacksSystem(it) }
-                    .systemFactory { InputCallbacksInstanceSystem(it) }
-                    .systemFactory { InputRemovableSystem(it) }
-                    .systemFactory { TakeableAsItemSystem(this@Sokol, it) }
-                    .systemFactory { MeshProviderTarget }
-                    .systemFactory { MeshProviderStaticSystem(it) }
-                    .systemFactory { MeshProviderFromItemSystem(this@Sokol, it) }
-                    .systemFactory { MeshesInWorldInstanceTarget }
-                    .systemFactory { MeshesInWorldSystem(it) }
-                    .systemFactory { MeshesInWorldInstanceSystem(it) }
-                    .systemFactory { MeshesInWorldMobSystem(this@Sokol, it) }
-                    .systemFactory { HoverMeshGlowSystem(it) }
-                    .systemFactory { ColliderInstanceTarget }
-                    .systemFactory { ColliderSystem(it) }
-                    .systemFactory { ColliderInstanceSystem(it) }
-                    .systemFactory { ColliderInstanceParentSystem(it) }
-                    .systemFactory { ColliderInstancePositionSystem(it) }
-                    .systemFactory { ColliderMobSystem(this@Sokol, it) }
-                    .systemFactory { ColliderEffectsSystem(it) }
-                    .systemFactory { HoldableInputsSystem(this@Sokol, it) }
-                    .systemFactory { PlaceableAsMobSystem(this@Sokol, it) }
-                    .systemFactory { HeldColliderSystem(it) }
-                    .systemFactory { HeldMobSystem(this@Sokol, it) }
-                    .systemFactory { HoldMovableCallbackSystem(this@Sokol, it) }
-                    .systemFactory { HoldMovableColliderSystem(it) }
-                    .systemFactory { HoldDetachableCallbackSystem(this@Sokol, it) }
-                    .systemFactory { HoldDetachableColliderSystem(it) }
-                    .systemFactory { HeldSnapSystem(it) }
-                    .systemFactory { HeldAttachableSystem(it) }
-                    .systemFactory { HeldAttachableInputsSystem(this@Sokol, it) }
-                    .systemFactory { HeldAttachableEffectsSystem(it) }
-                    .systemFactory { HeldMeshGlowSystem(it) }
-                    .systemFactory { EntitySlotTarget }
-                    .systemFactory { EntitySlotInMapSystem(it) }
-                    .systemFactory { ItemDisplayNameSystem(it) }
-                    .systemFactory { ItemLoreManagerSystem(it) }
-                    .systemFactory { ItemLoreStaticSystem(it) }
-                    .systemFactory { ItemLoreFromProfileSystem(it) }
+                system { IsWorldTarget }
+                system { IsChunkTarget }
+                system { IsMobTarget }
+                system { IsBlockTarget }
+                system { IsItemFormTarget }
+                system { IsItemTarget }
+                system { PersistenceSystem(sokol, it) }
+                system { BlockPersistSystem(it) }
+                system { ItemPersistSystem(sokol, it) }
+                system { ItemTagPersistSystem(it) }
+                system { DisplayNameTarget }
+                system { DisplayNameFromProfileSystem(it) }
+                system { MobConstructorSystem(sokol, it) }
+                system { MobSystem(it) }
+                system { CompositeConstructSystem(it) }
+                system { CompositeRootSystem(it) }
+                system { DeltaTransformTarget }
+                system { DeltaTransformStaticSystem(it) }
+                system { PositionAccessTarget }
+                system { VelocityAccessTarget }
+                system { PositionFromDeltaSystem(it) }
+                system { PlayerTrackedTarget }
+                system { PlayerTrackedSystem(it) }
+                system { RemovablePreTarget }
+                system { RemovableTarget }
+                system { RemovableSystem(it) }
+                system { PositionEffectsSystem(it) }
+                system { InputCallbacksInstanceTarget }
+                system { InputCallbacksSystem(it) }
+                system { InputCallbacksInstanceSystem(it) }
+                system { InputRemovableSystem(it) }
+                system { TakeableAsItemSystem(sokol, it) }
+                system { MeshProviderTarget }
+                system { MeshProviderStaticSystem(it) }
+                system { MeshProviderFromItemSystem(sokol, it) }
+                system { MeshesInWorldInstanceTarget }
+                system { MeshesInWorldSystem(it) }
+                system { MeshesInWorldInstanceSystem(it) }
+                system { MeshesInWorldMobSystem(sokol, it) }
+                system { HoverMeshGlowSystem(it) }
+                system { ColliderInstanceTarget }
+                system { ColliderSystem(it) }
+                system { ColliderInstanceSystem(it) }
+                system { ColliderInstanceParentSystem(it) }
+                system { ColliderInstancePositionSystem(it) }
+                system { ColliderMobSystem(sokol, it) }
+                system { ColliderEffectsSystem(it) }
+                system { HoldableInputsSystem(sokol, it) }
+                system { PlaceableAsMobSystem(sokol, it) }
+                system { HeldColliderSystem(it) }
+                system { HeldMobSystem(sokol, it) }
+                system { HoldMovableCallbackSystem(sokol, it) }
+                system { HoldMovableColliderSystem(it) }
+                system { HoldDetachableCallbackSystem(sokol, it) }
+                system { HoldDetachableColliderSystem(it) }
+                system { HeldSnapSystem(it) }
+                system { HeldAttachableSystem(it) }
+                system { HeldAttachableInputsSystem(sokol, it) }
+                system { HeldAttachableEffectsSystem(it) }
+                system { HeldMeshGlowSystem(it) }
+                system { EntitySlotTarget }
+                system { EntitySlotInMapSystem(it) }
+                system { ItemDisplayNameSystem(it) }
+                system { ItemLoreManagerSystem(it) }
+                system { ItemLoreStaticSystem(it) }
+                system { ItemLoreFromProfileSystem(it) }
 
-                    .componentType<Profiled>()
-                    .componentType<InTag>()
-                    .componentType<IsWorld>()
-                    .componentType<IsChunk>()
-                    .componentType<IsMob>()
-                    .componentType<IsBlock>()
-                    .componentType<IsItem>()
-                    .componentType<ItemHolder>()
-                    .componentType<InItemTag>()
-                    .componentType<DisplayName>()
-                    .componentType<DisplayNameFromProfile>()
-                    .componentType<AsMob>()
-                    .componentType<AsItem>()
-                    .componentType<IsRoot>()
-                    .componentType<IsChild>()
-                    .componentType<ContainerMap>()
-                    .componentType<DeltaTransform>()
-                    .componentType<DeltaTransformStatic>()
-                    .componentType<Rotation>()
-                    .componentType<PositionAccess>()
-                    .componentType<VelocityRead>()
-                    .componentType<PositionFromDelta>()
-                    .componentType<PlayerTracked>()
-                    .componentType<Removable>()
-                    .componentType<InputCallbacks>()
-                    .componentType<InputCallbacksInstance>()
-                    .componentType<InputRemovable>()
-                    .componentType<TakeableAsItem>()
-                    .componentType<PositionEffects>()
-                    .componentType<MeshProvider>()
-                    .componentType<MeshProviderStatic>()
-                    .componentType<MeshProviderFromItem>()
-                    .componentType<MeshesInWorld>()
-                    .componentType<MeshesInWorldInstance>()
-                    .componentType<HoverShape>()
-                    .componentType<HoverMeshGlow>()
-                    .componentType<Collider>()
-                    .componentType<ColliderInstance>()
-                    .componentType<ColliderRigidBody>()
-                    .componentType<ColliderVehicleBody>()
-                    .componentType<ColliderEffects>()
-                    .componentType<Holdable>()
-                    .componentType<Held>()
-                    .componentType<PlaceableAsMob>()
-                    .componentType<HoldMovable>()
-                    .componentType<HoldDetachable>()
-                    .componentType<HeldSnap>()
-                    .componentType<HeldAttachable>()
-                    .componentType<HeldAttachableEffects>()
-                    .componentType<HeldMeshGlow>()
-                    .componentType<EntitySlot>()
-                    .componentType<EntitySlotInMap>()
-                    .componentType<Stats>()
-                    .componentType<ItemDisplayName>()
-                    .componentType<ItemLoreManager>()
-                    .componentType<ItemLoreStatic>()
-                    .componentType<ItemLoreFromProfile>()
-                registerComponentType(DisplayNameFromProfile.Type)
-                registerComponentType(AsMob.Type)
-                registerComponentType(AsItem.Type)
-                registerComponentType(ContainerMap.Type(this@Sokol))
-                registerComponentType(DeltaTransformStatic.Type)
-                registerComponentType(PositionFromDelta.Type)
-                registerComponentType(Rotation.Type)
-                registerComponentType(InputCallbacks.Type)
-                registerComponentType(InputRemovable.Type)
-                registerComponentType(TakeableAsItem.Type)
-                registerComponentType(PositionEffects.Type)
-                registerComponentType(MeshProviderStatic.Type)
-                registerComponentType(MeshProviderFromItem.Type)
-                registerComponentType(MeshesInWorld.Type)
-                registerComponentType(HoverShape.Type)
-                registerComponentType(HoverMeshGlow.Type)
-                registerComponentType(Collider.Type)
-                registerComponentType(ColliderRigidBody.Type)
-                registerComponentType(ColliderVehicleBody.Type)
-                registerComponentType(ColliderEffects.Type)
-                registerComponentType(Holdable.Type)
-                registerComponentType(PlaceableAsMob.Type)
-                registerComponentType(HoldMovable.Type)
-                registerComponentType(HoldDetachable.Type)
-                registerComponentType(HeldSnap.Type)
-                registerComponentType(HeldAttachable.Type)
-                registerComponentType(HeldAttachableEffects.Type)
-                registerComponentType(HeldMeshGlow.Type)
-                registerComponentType(EntitySlotInMap.Type)
-                registerComponentType(Stats.Type)
-                registerComponentType(ItemDisplayName.Type)
-                registerComponentType(ItemLoreManager.Type)
-                registerComponentType(ItemLoreStatic.Type)
-                registerComponentType(ItemLoreFromProfile.Type)
+                componentClass<Profiled>()
+                componentClass<InTag>()
+                componentClass<IsWorld>()
+                componentClass<IsChunk>()
+                componentClass<IsMob>()
+                componentClass<IsBlock>()
+                componentClass<IsItem>()
+                componentClass<ItemHolder>()
+                componentClass<InItemTag>()
+                componentClass<DisplayName>()
+                persistentComponent(DisplayNameFromProfile.Type)
+                persistentComponent(AsMob.Type)
+                persistentComponent(AsItem.Type)
+                componentClass<IsRoot>()
+                componentClass<IsChild>()
+                persistentComponent(ContainerMap.Type(sokol))
+                componentClass<DeltaTransform>()
+                persistentComponent(DeltaTransformStatic.Type)
+                persistentComponent(Rotation.Type)
+                componentClass<PositionAccess>()
+                componentClass<VelocityRead>()
+                persistentComponent(PositionFromDelta.Type)
+                componentClass<PlayerTracked>()
+                componentClass<Removable>()
+                persistentComponent(InputCallbacks.Type)
+                componentClass<InputCallbacksInstance>()
+                persistentComponent(InputRemovable.Type)
+                persistentComponent(TakeableAsItem.Type)
+                persistentComponent(PositionEffects.Type)
+                componentClass<MeshProvider>()
+                persistentComponent(MeshProviderStatic.Type)
+                persistentComponent(MeshProviderFromItem.Type)
+                persistentComponent(MeshesInWorld.Type)
+                componentClass<MeshesInWorldInstance>()
+                persistentComponent(HoverShape.Type)
+                persistentComponent(HoverMeshGlow.Type)
+                persistentComponent(Collider.Type)
+                componentClass<ColliderInstance>()
+                persistentComponent(ColliderRigidBody.Type)
+                persistentComponent(ColliderVehicleBody.Type)
+                persistentComponent(ColliderEffects.Type)
+                persistentComponent(Holdable.Type)
+                componentClass<Held>()
+                persistentComponent(PlaceableAsMob.Type)
+                persistentComponent(HoldMovable.Type)
+                persistentComponent(HoldDetachable.Type)
+                persistentComponent(HeldSnap.Type)
+                persistentComponent(HeldAttachable.Type)
+                persistentComponent(HeldAttachableEffects.Type)
+                persistentComponent(HeldMeshGlow.Type)
+                componentClass<EntitySlot>()
+                persistentComponent(EntitySlotInMap.Type)
+                persistentComponent(Stats.Type)
+                persistentComponent(ItemDisplayName.Type)
+                persistentComponent(ItemLoreManager.Type)
+                persistentComponent(ItemLoreStatic.Type)
+                persistentComponent(ItemLoreFromProfile.Type)
             }
         )
     }
@@ -417,3 +396,10 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         players.postPhysicsStep()
     }
 }
+
+inline fun <reified C : SokolComponent> Sokol.InitContext.persistentComponent(type: ComponentType<C>) {
+    componentType(type)
+    componentClass<C>()
+}
+
+inline fun <reified C : SokolComponent> Sokol.InitContext.componentClass() = componentClass(C::class)

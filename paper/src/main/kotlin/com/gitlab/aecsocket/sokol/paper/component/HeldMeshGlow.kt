@@ -11,7 +11,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class HeldMeshGlow(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_mesh_glow")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = HeldMeshGlow::class
@@ -22,7 +22,7 @@ data class HeldMeshGlow(val profile: Profile) : SimplePersistentComponent {
         val default: NamedTextColor = NamedTextColor.WHITE,
         val attachAllow: NamedTextColor = NamedTextColor.WHITE,
         val attachDisallow: NamedTextColor = NamedTextColor.WHITE,
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HeldMeshGlow> {
         override val componentType get() = HeldMeshGlow::class
 
         override fun createEmpty() = ComponentBlueprint { HeldMeshGlow(this) }

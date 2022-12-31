@@ -20,7 +20,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_attachable")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     data class AttachTo(
@@ -37,7 +37,7 @@ data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         val attachDistance: Double = 0.0
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HeldAttachable> {
         override val componentType get() = HeldAttachable::class
 
         val attachAABB = BoxCollisionShape(attachDistance.toFloat())

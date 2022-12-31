@@ -15,7 +15,7 @@ interface SokolAPI {
 
     fun entityProfile(id: String): KeyedEntityProfile?
 
-    fun componentType(key: Key): ComponentType?
+    fun componentType(key: Key): ComponentType<*>?
 }
 
 class PersistenceException(message: String? = null, cause: Throwable? = null)
@@ -51,9 +51,11 @@ abstract class SokolPersistence(protected val sokol: SokolAPI) {
     fun emptyBlueprint(profile: EntityProfile): EntityBlueprint {
         val blueprint = sokol.engine.newBlueprint()
 
-        profile.components.forEach { (_, profile) ->
+        fun <C : SokolComponent> push(profile: ComponentProfile<C>) {
             blueprint.pushSet(profile, profile.createEmpty())
         }
+
+        profile.components.forEach { (_, profile) -> push(profile) }
         setProfile(blueprint, profile)
 
         return blueprint
@@ -64,7 +66,7 @@ abstract class SokolPersistence(protected val sokol: SokolAPI) {
 
         blueprint.flags = tag.getOr(FLAGS) { asInt() } ?: 0
 
-        profile.components.forEach { (key, profile) ->
+        fun <C : SokolComponent> push(key: Key, profile: ComponentProfile<C>) {
             val component = try {
                 tag[key.asString()]?.let { config ->
                     profile.read(config)
@@ -75,6 +77,8 @@ abstract class SokolPersistence(protected val sokol: SokolAPI) {
 
             blueprint.pushSet(profile, component)
         }
+
+        profile.components.forEach { (key, profile) -> push(key, profile) }
         setProfile(blueprint, profile)
 
         return blueprint
@@ -95,7 +99,7 @@ abstract class SokolPersistence(protected val sokol: SokolAPI) {
 
         blueprint.flags = node.node(FLAGS).get { 0 }
 
-        profile.components.forEach { (key, profile) ->
+        fun <C : SokolComponent> push(key: Key, profile: ComponentProfile<C>) {
             val config = node.node(key.asString())
             val component = try {
                 if (config.empty()) profile.createEmpty()
@@ -106,6 +110,8 @@ abstract class SokolPersistence(protected val sokol: SokolAPI) {
 
             blueprint.pushSet(profile, component)
         }
+
+        profile.components.forEach { (key, profile) -> push(key, profile) }
         setProfile(blueprint, profile)
 
         return blueprint

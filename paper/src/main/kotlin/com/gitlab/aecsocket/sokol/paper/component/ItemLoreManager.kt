@@ -15,7 +15,7 @@ typealias LoreProvider = (I18N<Component>) -> List<Component>
 data class ItemLoreManager(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("item_lore_manager")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = ItemLoreManager::class
@@ -36,7 +36,7 @@ data class ItemLoreManager(val profile: Profile) : SimplePersistentComponent {
     data class Profile(
         val order: List<Key> = emptyList(),
         val separatorKey: String? = null
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<ItemLoreManager> {
         override val componentType get() = ItemLoreManager::class
 
         override fun createEmpty() = ComponentBlueprint { ItemLoreManager(this) }

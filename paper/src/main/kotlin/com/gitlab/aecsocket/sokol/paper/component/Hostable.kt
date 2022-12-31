@@ -16,7 +16,7 @@ object AsMob : SimplePersistentComponent {
 data class AsItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("as_item")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = AsItem::class
@@ -25,7 +25,7 @@ data class AsItem(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val item: ItemDescriptor
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<AsItem> {
         override val componentType get() = AsItem::class
 
         override fun createEmpty() = ComponentBlueprint { AsItem(this) }

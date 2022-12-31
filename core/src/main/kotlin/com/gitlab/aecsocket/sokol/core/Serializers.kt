@@ -9,10 +9,10 @@ import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
-class ComponentProfileSerializer(private val sokol: SokolAPI) : TypeSerializer<ComponentProfile> {
-    override fun serialize(type: Type, obj: ComponentProfile?, node: ConfigurationNode) {}
+class ComponentProfileSerializer(private val sokol: SokolAPI) : TypeSerializer<ComponentProfile<*>> {
+    override fun serialize(type: Type, obj: ComponentProfile<*>?, node: ConfigurationNode) {}
 
-    override fun deserialize(type: Type, node: ConfigurationNode): ComponentProfile {
+    override fun deserialize(type: Type, node: ConfigurationNode): ComponentProfile<*> {
         val componentTypeKey = parseNodeNamespacedKey(type, node)
         val componentType = sokol.componentType(componentTypeKey)
             ?: throw SerializationException(node, type, "Invalid component type '$componentTypeKey'")
@@ -24,7 +24,7 @@ object EntityProfileSerializer : TypeSerializer<EntityProfile> {
     override fun serialize(type: Type, obj: EntityProfile?, node: ConfigurationNode) {}
 
     override fun deserialize(type: Type, node: ConfigurationNode): EntityProfile {
-        val componentProfiles = node.force<HashMap<Key, ComponentProfile>>()
+        val componentProfiles = node.force<HashMap<Key, ComponentProfile<*>>>()
         return EntityProfile(componentProfiles)
     }
 }
@@ -34,7 +34,7 @@ object KeyedEntityProfileSerializer : TypeSerializer<KeyedEntityProfile> {
 
     override fun deserialize(type: Type, node: ConfigurationNode): KeyedEntityProfile {
         val id = parseNodeAlexandriaKey(type, node)
-        val componentProfiles = node.force<HashMap<Key, ComponentProfile>>()
+        val componentProfiles = node.force<HashMap<Key, ComponentProfile<*>>>()
         return KeyedEntityProfile(id, componentProfiles)
     }
 }

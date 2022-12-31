@@ -11,7 +11,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class HeldAttachableEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_attachable_effects")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = HeldAttachableEffects::class
@@ -21,7 +21,7 @@ data class HeldAttachableEffects(val profile: Profile) : SimplePersistentCompone
     data class Profile(
         val sound: SoundEngineEffect = SoundEngineEffect.Empty,
         val particle: ParticleEngineEffect = ParticleEngineEffect.Empty
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<HeldAttachableEffects> {
         override val componentType get() = HeldAttachableEffects::class
 
         override fun createEmpty() = ComponentBlueprint { HeldAttachableEffects(this) }

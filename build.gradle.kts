@@ -6,7 +6,7 @@ plugins {
 
 allprojects {
     group = "com.gitlab.aecsocket.sokol"
-    version = "2.4.0"
+    version = "2.4.1"
     description = "Entity composition and management framework"
 }
 

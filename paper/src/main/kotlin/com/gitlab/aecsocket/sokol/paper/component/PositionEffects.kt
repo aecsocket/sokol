@@ -12,7 +12,7 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("position_effects")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = PositionEffects::class
@@ -22,7 +22,7 @@ data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
     data class Profile(
         val particle: ParticleEngineEffect = ParticleEngineEffect.Empty,
         val particleVelocityMultiplier: Double = 0.0
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<PositionEffects> {
         override val componentType get() = PositionEffects::class
 
         override fun createEmpty() = ComponentBlueprint { PositionEffects(this) }

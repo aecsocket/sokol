@@ -10,7 +10,7 @@ import org.spongepowered.configurate.objectmapping.meta.Setting
 data class ItemLoreStatic(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("item_lore_static")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = ItemLoreStatic::class
@@ -19,7 +19,7 @@ data class ItemLoreStatic(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val i18nKey: String
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<ItemLoreStatic> {
         override val componentType get() = ItemLoreStatic::class
 
         override fun createEmpty() = ComponentBlueprint { ItemLoreStatic(this) }

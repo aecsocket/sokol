@@ -41,7 +41,7 @@ data class Rotation(
         node.set(rotation)
     }
 
-    object Profile : ComponentProfile {
+    object Profile : ComponentProfile<Rotation> {
         override val componentType get() = Rotation::class
 
         override fun read(tag: NBTTag): ComponentBlueprint<Rotation> {

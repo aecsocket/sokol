@@ -265,7 +265,7 @@ interface SokolEvent
 
 private typealias EventListener = (SokolEvent, SokolEntity) -> Unit
 
-private typealias SystemFactory = (ComponentIdAccess) -> SokolSystem
+typealias EngineSystemFactory = (ComponentIdAccess) -> SokolSystem
 
 object ConstructEvent : SokolEvent
 
@@ -308,31 +308,31 @@ class SokolEngine internal constructor(
     fun newEntityContainer(capacity: Int = 64) = SokolEntityContainer(this, capacity)
 
     class Builder {
-        private val componentTypes = ArrayList<KClass<out SokolComponent>>()
-        private val systemFactories = ArrayList<SystemFactory>()
+        private val componentClass = ArrayList<KClass<out SokolComponent>>()
+        private val systemFactories = ArrayList<EngineSystemFactory>()
         private val handleLookup = MethodHandles.lookup()
 
-        fun componentType(type: KClass<out SokolComponent>): Builder {
-            if (componentTypes.contains(type))
-                throw IllegalArgumentException("Duplicate component type $type")
-            componentTypes.add(type)
+        fun componentClass(type: KClass<out SokolComponent>): Builder {
+            if (componentClass.contains(type))
+                throw IllegalArgumentException("Duplicate component class $type")
+            componentClass.add(type)
             return this
         }
 
-        inline fun <reified C : SokolComponent> componentType() = componentType(C::class)
+        inline fun <reified C : SokolComponent> componentClass() = componentClass(C::class)
 
-        fun systemFactory(factory: SystemFactory): Builder {
+        fun systemFactory(factory: EngineSystemFactory): Builder {
             systemFactories.add(factory)
             return this
         }
 
-        fun countComponentTypes() = componentTypes.size
+        fun countComponentTypes() = componentClass.size
 
         fun countSystemFactories() = systemFactories.size
 
         @Suppress("UnstableApiUsage")
         fun build(): SokolEngine {
-            val idAccess = BaseComponentIdAccess(componentTypes)
+            val idAccess = BaseComponentIdAccess(componentClass)
 
             data class SystemData(
                 val definition: SystemDefinition,

@@ -12,7 +12,7 @@ import kotlin.reflect.KClass
 data class ItemLoreFromProfile(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("item_lore_from_profile")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = ItemLoreFromProfile::class
@@ -22,7 +22,7 @@ data class ItemLoreFromProfile(val profile: Profile) : SimplePersistentComponent
     data class Profile(
         val prefix: String = "",
         val suffix: String = ""
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<ItemLoreFromProfile> {
         override val componentType get() = ItemLoreFromProfile::class
 
         override fun createEmpty() = ComponentBlueprint { ItemLoreFromProfile(this) }

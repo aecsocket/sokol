@@ -10,7 +10,7 @@ import org.spongepowered.configurate.objectmapping.meta.Setting
 data class DeltaTransformStatic(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("delta_transform_static")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     override val componentType get() = DeltaTransformStatic::class
@@ -19,7 +19,7 @@ data class DeltaTransformStatic(val profile: Profile) : SimplePersistentComponen
     @ConfigSerializable
     data class Profile(
         @Setting(nodeFromParent = true) val transform: Transform
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<DeltaTransformStatic> {
         override val componentType get() = DeltaTransformStatic::class
 
         override fun createEmpty() = ComponentBlueprint { DeltaTransformStatic(this) }

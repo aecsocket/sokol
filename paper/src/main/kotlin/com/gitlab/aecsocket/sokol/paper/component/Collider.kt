@@ -45,11 +45,11 @@ object ColliderInstanceTarget : SokolSystem
 data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("collider_rigid_body")
-        val Type = ComponentType.deserializing<Profile>(Key)
+        val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
     object Stats {
-        val Mass = StatType.OfFloat(Key.with("mass"))
+        val Mass = StatType.DecimalCounter(Key.with("mass"))
     }
 
     override val componentType get() = ColliderRigidBody::class
@@ -59,7 +59,7 @@ data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
     data class Profile(
         @Required val shape: Shape,
         val mass: Float = 1f
-    ) : SimpleComponentProfile {
+    ) : SimpleComponentProfile<ColliderRigidBody> {
         override val componentType get() = ColliderRigidBody::class
 
         override fun createEmpty() = ComponentBlueprint { ColliderRigidBody(this) }
