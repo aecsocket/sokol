@@ -13,10 +13,7 @@ import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
-import com.gitlab.aecsocket.sokol.paper.component.Held
-import com.gitlab.aecsocket.sokol.paper.component.HoverShape
-import com.gitlab.aecsocket.sokol.paper.component.PositionAccess
-import com.gitlab.aecsocket.sokol.paper.component.SokolPhysicsObject
+import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
 import org.bukkit.entity.Player
@@ -63,11 +60,13 @@ class EntityHolding internal constructor(
 
     override fun createFor(player: AlexandriaPlayer) = PlayerData(player)
 
+    private lateinit var mHoldable: ComponentMapper<Holdable>
     private lateinit var mHeld: ComponentMapper<Held>
     private lateinit var mPositionAccess: ComponentMapper<PositionAccess>
     private lateinit var mHoverShape: ComponentMapper<HoverShape>
 
     internal fun enable() {
+        mHoldable = sokol.engine.mapper()
         mHeld = sokol.engine.mapper()
         mPositionAccess = sokol.engine.mapper()
         mHoverShape = sokol.engine.mapper()
@@ -154,6 +153,8 @@ class EntityHolding internal constructor(
     }
 
     fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation, transform: Transform) {
+        if (!mHoldable.has(entity))
+            throw IllegalArgumentException("Entity must have Holdable component")
         stop(player)
         val hold = Hold(
             player.handle,

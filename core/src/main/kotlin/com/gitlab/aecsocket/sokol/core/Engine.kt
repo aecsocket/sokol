@@ -28,33 +28,35 @@ interface SokolSpace {
 }
 
 fun <E : SokolEvent> SokolSpace.call(event: E, recursive: Boolean = true): E {
-    val eventType = event::class.java
+    synchronized(this) {
+        val eventType = event::class.java
 
-    // find all listeners for this event
-    val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
-        engine.systems.mapNotNull {
-            val listeners = it.listeners
-                .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
-                .map { (_, listener) -> listener }
-            if (listeners.isEmpty()) null
-            else SokolEngine.EventSystem(it, listeners)
-        }
-    }
-
-    // process all systems
-    val entities = if (recursive) allEntitiesRecursive() else allEntities()
-    systems.forEach { (system, listeners) ->
-        if (!system.system.processing) return@forEach
-
-        val filter = system.filter
-        entities.forEach { entity ->
-            if (filter.matches(entity.archetype)) {
-                listeners.forEach { it(event, entity) }
+        // find all listeners for this event
+        val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
+            engine.systems.mapNotNull {
+                val listeners = it.listeners
+                    .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
+                    .map { (_, listener) -> listener }
+                if (listeners.isEmpty()) null
+                else SokolEngine.EventSystem(it, listeners)
             }
         }
-    }
 
-    return event
+        // process all systems
+        val entities = if (recursive) allEntitiesRecursive() else allEntities()
+        systems.forEach { (system, listeners) ->
+            if (!system.system.processing) return@forEach
+
+            val filter = system.filter
+            entities.forEach { entity ->
+                if (filter.matches(entity.archetype)) {
+                    listeners.forEach { it(event, entity) }
+                }
+            }
+        }
+
+        return event
+    }
 }
 
 fun <E : SokolEvent> SokolSpace.callSingle(event: E) = call(event, false)

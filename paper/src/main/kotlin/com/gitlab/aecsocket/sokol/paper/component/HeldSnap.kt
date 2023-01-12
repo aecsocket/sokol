@@ -12,7 +12,6 @@ import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
-import com.jme3.bullet.objects.PhysicsRigidBody
 import com.simsilica.mathd.Vec3d
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import kotlin.math.PI
@@ -63,7 +62,6 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
         val heldSnap = mHeldSnap.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)
-        val body = physObj.body as? PhysicsRigidBody ?: return
         val player = hold.player
 
         val operation = hold.operation as? MoveHoldOperation ?: return
@@ -97,7 +95,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
                 // `rotation` will be facing "away" from the player
                 quaternionFromTo(
                     Vector3.Forward, dir
-                ) * Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2 * PI).quaternion(EulerOrder.XYZ)
+                ) * Euler3(z = (if (dir.y > 0.0) -yaw else yaw) + 2*PI).quaternion(EulerOrder.XYZ)
             } else {
                 heldSnap.lastSurface?.let { lastSurface ->
                     if (lastSurface.normal.dot(hitNormal) > 0.99) {

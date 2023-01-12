@@ -109,11 +109,11 @@ class HeldMobSystem(
 
     @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
-        val mob = mIsMob.get(entity).mob
+        /*val mob = mIsMob.get(entity).mob
         val oldHeld = sokol.resolver.mobTrackedBy(mob)?.let { mHeld.getOr(it) } ?: return
         oldHeld.hold.entity = entity
         mHeld.set(entity, oldHeld)
-    }
+    */}
 
     @Subscribe
     fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {

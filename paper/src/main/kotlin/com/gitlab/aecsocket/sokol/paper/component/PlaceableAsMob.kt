@@ -15,7 +15,7 @@ object PlaceableAsMob : SimplePersistentComponent {
     val Type = ComponentType.singletonComponent(key, this)
 }
 
-@All(PlaceableAsMob::class, IsItem::class, AsMob::class)
+@All(PlaceableAsMob::class, IsItem::class, AsMob::class, Holdable::class)
 class PlaceableAsMobSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
