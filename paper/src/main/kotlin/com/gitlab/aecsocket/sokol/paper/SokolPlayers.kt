@@ -58,8 +58,8 @@ class SokolPlayers internal constructor(
             physSpace.removeCollisionObject(ghostObject)
 
             val effector = player.alexandria.effector
-            nearby.forEach { entity ->
-                val transform = mPositionAccess.getOr(entity)?.transform ?: return@forEach
+            nearby.forEach nearby@ { entity ->
+                val transform = mPositionAccess.getOr(entity)?.transform ?: return@nearby
 
                 if (sokolPlayer.drawHoverShape) {
                     mHoverShape.getOr(entity)?.let { hoverShape ->
