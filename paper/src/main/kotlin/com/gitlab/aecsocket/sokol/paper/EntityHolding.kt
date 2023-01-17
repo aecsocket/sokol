@@ -73,7 +73,7 @@ class EntityHolding internal constructor(
 
         sokol.onInput { event ->
             val holding = event.player.alexandria.featureData(this)
-            (holding.hold?.entity ?: holding.hover?.physObj?.entity)?.callSingle(event)
+            (holding.hold?.entity ?: holding.hover?.physObj?.entity)?.call(event)
         }
 
         CraftBulletAPI.onPostStep {
@@ -118,12 +118,12 @@ class EntityHolding internal constructor(
 
                 hover?.let {
                     if (newHover == null || newHover.physObj !== hover.physObj) {
-                        hover.physObj.entity.callSingle(ChangeHoverState(player, false))
+                        hover.physObj.entity.call(ChangeHoverState(player, false))
                     }
                 }
                 newHover?.let {
                     if (hover == null || hover.physObj !== newHover.physObj) {
-                        newHover.physObj.entity.callSingle(ChangeHoverState(player, true))
+                        newHover.physObj.entity.call(ChangeHoverState(player, true))
                     }
                 }
                 holding.hover = newHover
@@ -132,7 +132,7 @@ class EntityHolding internal constructor(
     }
 
     private fun stop(player: AlexandriaPlayer, state: Hold, releaseLock: Boolean) {
-        state.entity.callSingle(ChangeHoldState(false))
+        state.entity.call(ChangeHoldState(false))
         mHeld.remove(state.entity)
         if (releaseLock) {
             player.releaseLock(state.raiseHandLock)
@@ -164,7 +164,7 @@ class EntityHolding internal constructor(
             player.acquireLock(PlayerLock.RaiseHand)
         )
         mHeld.set(entity, Held(hold))
-        entity.callSingle(ChangeHoldState(true))
+        entity.call(ChangeHoldState(true))
         player.featureData(this).hold = hold
     }
 }

@@ -33,7 +33,7 @@ class InputRemovableSystem(ids: ComponentIdAccess) : SokolSystem {
         val inputCallbacks = mInputCallbacks.get(entity)
 
         inputCallbacks.callback(Remove) { player ->
-            mIsChild.root(entity).callSingle(Remove(player))
+            mIsChild.root(entity).call(Remove(player))
             true
         }
     }

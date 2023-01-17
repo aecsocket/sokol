@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
@@ -14,6 +15,8 @@ data class ContainerMap(
     companion object {
         val Key = SokolAPI.key("container_map")
         const val DefaultKey = "_"
+
+        val CompositeKey = Key.with("composite")
     }
 
     override val componentType get() = ContainerMap::class
@@ -34,7 +37,7 @@ data class ContainerMap(
 
     fun attach(key: String, value: SokolEntity) {
         if (contains(key))
-            throw IllegalStateException("Entity already exists in slot $key")
+            throw IllegalArgumentException("Entity in slot $key already exists")
         children[key] = Delta(value, true)
     }
 
@@ -87,10 +90,12 @@ data class ContainerMap(
     ) : ComponentProfile<ContainerMap> {
         override val componentType get() = ContainerMap::class
 
+        private val mComposite = sokol.engine.mapper<Composite>()
         private val mIsChild = sokol.engine.mapper<IsChild>()
         private val mInTag = sokol.engine.mapper<InTag>()
 
-        private fun componentOf(blueprints: Map<String, EntityBlueprint>) = ComponentBlueprint { entity ->
+        private fun blueprintOf(blueprints: Map<String, EntityBlueprint>) = ComponentBlueprint { entity ->
+            val composite = mComposite.getOrSet(entity) { Composite(entity.engine) }
             val root = mIsChild.root(entity)
 
             val children = blueprints.map { (key, blueprint) -> key to blueprint
@@ -98,11 +103,12 @@ data class ContainerMap(
                 .create()
             }
 
-            children.forEach { (_, child) -> entity.addEntity(child) }
-
-            ContainerMap(sokol, children.map { (key, child) ->
+            val component = ContainerMap(sokol, children.map { (key, child) ->
                 key to Delta<SokolEntity?>(child)
             }.associate { it }.toMutableMap())
+
+            composite.entityProvider(CompositeKey) { component.children().values }
+            component
         }
 
         override fun read(tag: NBTTag): ComponentBlueprint<ContainerMap> {
@@ -126,7 +132,7 @@ data class ContainerMap(
                     .pushRemove(mInTag)
             }
 
-            return componentOf(blueprints)
+            return blueprintOf(blueprints)
         }
 
         override fun deserialize(node: ConfigurationNode): ComponentBlueprint<ContainerMap> {
@@ -145,10 +151,10 @@ data class ContainerMap(
                 blueprints[key] = sokol.persistence.emptyBlueprint(profile)
             }
 
-            return componentOf(blueprints)
+            return blueprintOf(blueprints)
         }
 
-        override fun createEmpty() = componentOf(children
+        override fun createEmpty() = blueprintOf(children
             .map { (key, profile) -> key to sokol.persistence.emptyBlueprint(profile) }
             .associate { it })
     }

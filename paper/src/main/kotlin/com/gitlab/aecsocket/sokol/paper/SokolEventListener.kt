@@ -43,8 +43,10 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             val entity = sokol.resolver.readMob(mob)?.create() ?: return@tryEvent
-            entity.construct()
-            entity.call(MobEvent.AddToWorld)
+            sokol.useSpaceOf(entity) { space ->
+                space.construct()
+                space.call(MobEvent.AddToWorld)
+            }
             sokol.resolver.trackMob(mob, entity)
         }
     }
@@ -55,8 +57,9 @@ internal class SokolEventListener(
 
         tryEvent(event) {
             val entity = sokol.resolver.untrackMob(mob) ?: return@tryEvent
-            entity.call(MobEvent.RemoveFromWorld)
-            entity.write()
+            sokol.useSpaceOf(entity) { space ->
+                space.call(MobEvent.RemoveFromWorld)
+            }
         }
     }
 
@@ -64,7 +67,9 @@ internal class SokolEventListener(
     fun on(event: EntityTeleportEvent) {
         val entity = sokol.resolver.mobTrackedBy(event.entity) ?: return
         event.to?.let {
-            entity.call(MobEvent.Teleport(event.from, it))
+            sokol.useSpaceOf(entity) { space ->
+                space.call(MobEvent.Teleport(event.from, it))
+            }
         }
     }
 

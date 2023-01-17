@@ -8,11 +8,9 @@ import com.gitlab.aecsocket.alexandria.paper.extension.bukkitPlayers
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
-import com.gitlab.aecsocket.sokol.core.ComponentMapper
-import com.gitlab.aecsocket.sokol.core.SokolEntity
+import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
-import com.gitlab.aecsocket.sokol.core.mapper
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
@@ -27,16 +25,20 @@ class SokolPlayers internal constructor(
 
     override fun createFor(player: AlexandriaPlayer) = PlayerData()
 
-    private lateinit var mIsRoot: ComponentMapper<IsRoot>
+    private lateinit var mComposite: ComponentMapper<Composite>
+    private lateinit var mIsChild: ComponentMapper<IsChild>
     private lateinit var mPositionAccess: ComponentMapper<PositionAccess>
     private lateinit var mHoverShape: ComponentMapper<HoverShape>
     private lateinit var mEntitySlot: ComponentMapper<EntitySlot>
 
     internal fun enable() {
-        mIsRoot = sokol.engine.mapper()
-        mPositionAccess = sokol.engine.mapper()
-        mHoverShape = sokol.engine.mapper()
-        mEntitySlot = sokol.engine.mapper()
+        sokol.engine.apply {
+            mComposite = mapper()
+            mIsChild = mapper()
+            mPositionAccess = mapper()
+            mHoverShape = mapper()
+            mEntitySlot = mapper()
+        }
     }
 
     internal fun postPhysicsStep() {
@@ -50,8 +52,8 @@ class SokolPlayers internal constructor(
 
             val nearby: List<SokolEntity> = ghostObject.overlappingObjects.flatMap { body ->
                 (body as? SokolPhysicsObject)?.entity?.let { entity ->
-                    if (!mIsRoot.has(entity)) return@let emptyList()
-                    entity.allEntitiesRecursive()
+                    if (mIsChild.has(entity)) return@let emptyList()
+                    mComposite.all(entity)
                 } ?: emptyList()
             }
 

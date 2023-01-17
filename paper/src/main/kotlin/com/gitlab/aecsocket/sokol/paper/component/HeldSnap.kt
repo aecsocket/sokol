@@ -118,7 +118,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
 
         if (isSnapping != heldSnap.isSnapping) {
             heldSnap.isSnapping = isSnapping
-            entity.callSingle(ChangeSnapping(isSnapping))
+            entity.call(ChangeSnapping(isSnapping))
         }
     }
 }

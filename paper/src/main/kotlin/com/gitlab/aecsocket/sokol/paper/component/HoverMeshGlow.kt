@@ -35,10 +35,10 @@ class HoverMeshGlowSystem(ids: ComponentIdAccess) : SokolSystem {
         val hoverMeshGlow = mHoverMeshGlow.get(entity).profile
 
         if (event.hovered) {
-            entity.callSingle(MeshesInWorldInstanceSystem.Glowing(true, setOf(event.player)))
-            entity.callSingle(MeshesInWorldInstanceSystem.GlowingColor(hoverMeshGlow.color))
+            entity.call(MeshesInWorldInstanceSystem.Glowing(true, setOf(event.player)))
+            entity.call(MeshesInWorldInstanceSystem.GlowingColor(hoverMeshGlow.color))
         } else {
-            entity.callSingle(MeshesInWorldInstanceSystem.Glowing(false, setOf(event.player)))
+            entity.call(MeshesInWorldInstanceSystem.Glowing(false, setOf(event.player)))
         }
     }
 }

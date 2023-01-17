@@ -4,7 +4,7 @@ import com.github.retrooper.packetevents.event.PacketSendEvent
 import com.gitlab.aecsocket.alexandria.core.input.Input
 import com.gitlab.aecsocket.alexandria.paper.input.InputEvent
 import com.gitlab.aecsocket.sokol.core.SokolEvent
-import com.gitlab.aecsocket.sokol.core.SokolSpace
+import com.gitlab.aecsocket.sokol.core.EntitySpace
 import com.gitlab.aecsocket.sokol.core.call
 import org.bukkit.Location
 import org.bukkit.entity.Player
@@ -12,7 +12,7 @@ import org.bukkit.event.inventory.InventoryClickEvent
 
 object UpdateEvent : SokolEvent
 
-fun SokolSpace.update() = call(UpdateEvent)
+fun EntitySpace.update() = call(UpdateEvent)
 
 object ReloadEvent : SokolEvent
 

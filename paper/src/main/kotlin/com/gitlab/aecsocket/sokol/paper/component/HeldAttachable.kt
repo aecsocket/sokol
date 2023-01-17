@@ -93,7 +93,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
             if (obj === physObj || obj !is SokolPhysicsObject) return@forEach
             val parentEntity = obj.entity
             if (mIsChild.root(parentEntity) === root) return@forEach // slots are on same tree as our entity is currently on
-            parentEntity.entities.forEach children@ { testEntity ->
+            parentEntity.entities().forEach children@ { testEntity ->
                 val testSlot = mEntitySlot.getOr(testEntity) ?: return@children
                 if (testSlot.full()) return@children
                 val testTransform = mPositionAccess.getOr(testEntity)?.transform ?: return@children
@@ -115,7 +115,7 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
         if (newAttachTo != attachTo) {
             heldAttachable.attachTo = newAttachTo
             body.isKinematic = newAttachTo != null
-            entity.callSingle(ChangeAttachTo)
+            entity.call(ChangeAttachTo)
         }
     }
 }
@@ -134,7 +134,6 @@ class HeldAttachableInputsSystem(
     private val mInputCallbacks = ids.mapper<InputCallbacks>()
     private val mRemovable = ids.mapper<Removable>()
     private val mHeld = ids.mapper<Held>()
-    private val mIsChild = ids.mapper<IsChild>()
 
     object AttachTo : SokolEvent
 
@@ -149,15 +148,9 @@ class HeldAttachableInputsSystem(
             if (player !== hold.player) return@callback false
             val attachTo = heldAttachable.attachTo ?: return@callback false
             if (!attachTo.allows) return@callback true
-            val parent = attachTo.target
-            val root = mIsChild.getOr(parent)?.root ?: entity
 
             removable.remove(true)
             attachTo.slot.attach(entity)
-            mIsChild.set(entity, IsChild(parent, root))
-
-            entity.callSingle(Composite.Attach)
-            entity.callSingle(AttachTo)
 
             heldAttachable.attachTo = null
             sokol.holding.stop(hold)

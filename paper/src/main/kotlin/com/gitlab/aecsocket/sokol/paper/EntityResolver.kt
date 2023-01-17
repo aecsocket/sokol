@@ -80,20 +80,22 @@ class EntityResolver internal constructor(
     private lateinit var mInItemTag: ComponentMapper<InItemTag>
 
     internal fun enable() {
-        mInTag = sokol.engine.mapper()
-        mIsWorld = sokol.engine.mapper()
-        mIsChunk = sokol.engine.mapper()
-        mIsBlock = sokol.engine.mapper()
-        mIsMob = sokol.engine.mapper()
-        mIsItem = sokol.engine.mapper()
-        mItemHolder = sokol.engine.mapper()
-        mInItemTag = sokol.engine.mapper()
+        sokol.engine.apply {
+            mInTag = mapper()
+            mIsWorld = mapper()
+            mIsChunk = mapper()
+            mIsBlock = mapper()
+            mIsMob = mapper()
+            mIsItem = mapper()
+            mItemHolder = mapper()
+            mInItemTag = mapper()
+        }
 
         sokol.onInput { event ->
             sokol.useSpace { space ->
                 readPlayerItems(event.player).addAllInto(space)
                 space.construct()
-                space.callSingle(event)
+                space.call(event)
             }
         }
     }
@@ -145,21 +147,22 @@ class EntityResolver internal constructor(
         return mobEntities.remove(mob.entityId)
     }
 
-    fun resolve(callback: (SokolSpace) -> Unit) {
+    fun resolve(callback: (EntitySpace) -> Unit) {
         _lastStats.clear()
         ResolveOperation(callback, _lastStats).resolve()
     }
 
     internal fun update() {
-        val mobSpace = sokol.engine.newEntityContainer(mobEntities.size)
-        if (sokol.hasReloaded) {
+        val mobSpace = if (sokol.hasReloaded) {
+            val mobSpace = sokol.engine.emptySpace(mobEntities.size)
             val newEntities = HashMap<Int, SokolEntity>()
             mobEntities.forEach { (key, entity) ->
                 val mob = mIsMob.getOr(entity)?.mob ?: return@forEach
-                entity.write()
+                sokol.useSpaceOf(entity) {} // write
+
                 val newEntity = readMob(mob)?.create() ?: return@forEach
                 newEntities[key] = newEntity
-                mobSpace.addEntity(newEntity)
+                mobSpace.add(newEntity)
             }
 
             // during reload, IsMob-using systems can still access the old entity via mobEntities
@@ -168,23 +171,23 @@ class EntityResolver internal constructor(
 
             mobEntities.clear()
             mobEntities.putAll(newEntities)
-        } else {
-            mobSpace.addEntities(mobEntities.values)
-        }
+            mobSpace
+        } else sokol.engine.spaceOf(mobEntities.values)
         mobSpace.update()
 
-        resolve {
-            it.construct()
+        resolve { space ->
+            space.construct()
             if (sokol.hasReloaded)
-                it.call(ReloadEvent)
-            it.update()
-            it.write()
+                space.call(ReloadEvent)
+            space.update()
+            space.write()
         }
+
         sokol.hasReloaded = false
     }
 
     private inner class ResolveOperation(
-        val callback: (SokolSpace) -> Unit,
+        val callback: (EntitySpace) -> Unit,
         val stats: MutableMap<SokolObjectType, TypeStats>,
     ) {
         private fun entityTagIn(pdc: PersistentDataContainer) = (pdc as CraftPersistentDataContainer).raw[entityKey] as? CompoundTag
@@ -194,7 +197,7 @@ class EntityResolver internal constructor(
         private fun resolveTag(
             type: SokolObjectType,
             tag: CompoundTag?,
-            space: SokolSpace,
+            entities: EntityCollection,
             function: EntityBlueprint.() -> Unit,
         ) {
             val typeStats = stats.computeIfAbsent(type) { TypeStats() }
@@ -208,7 +211,7 @@ class EntityResolver internal constructor(
                 sokol.persistence.readBlueprint(wrappedTag)
                     .pushSet(mInTag) { InTag(wrappedTag) }
                     .also(function)
-                    .addInto(space)
+                    .addInto(entities)
             } catch (ex: PersistenceException) {
                 throw EntityResolutionException("Could not read entities", ex)
             }
@@ -216,17 +219,17 @@ class EntityResolver internal constructor(
 
         fun resolve() {
             val server = (Bukkit.getServer() as CraftServer).server
-            val rootSpace = sokol.engine.newEntityContainer(lastSize + 64)
+            val rootSpace = sokol.engine.emptySpace(lastSize + 64)
 
             server.allLevels.forEach { level ->
                 resolveLevel(level, log, rootSpace)
             }
 
             callback(rootSpace)
-            lastSize = rootSpace.countEntities()
+            lastSize = rootSpace.size
         }
 
-        private fun resolveLevel(level: ServerLevel, log: LogAcceptor, space: SokolSpace) {
+        private fun resolveLevel(level: ServerLevel, log: LogAcceptor, space: EntityCollection) {
             val bukkit = level.world
             val entityInfo = bukkit.name
             try {
@@ -245,7 +248,7 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveChunk(chunk: LevelChunk, world: World, log: LogAcceptor, space: SokolSpace) {
+        private fun resolveChunk(chunk: LevelChunk, world: World, log: LogAcceptor, space: EntityCollection) {
             val bukkit = chunk.bukkitChunk
             try {
                 resolveTag(SokolObjectType.Chunk, entityTagIn(bukkit.persistentDataContainer), space) {
@@ -260,7 +263,7 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveBlock(block: BlockEntity, pos: BlockPos, world: World, log: LogAcceptor, space: SokolSpace) {
+        private fun resolveBlock(block: BlockEntity, pos: BlockPos, world: World, log: LogAcceptor, space: EntityCollection) {
             val bukkit = world.getBlockAt(pos.x, pos.y, pos.z)
             val state = lazy { bukkit.getState(false) }
 
@@ -290,7 +293,7 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveMob(mob: Entity, log: LogAcceptor, space: SokolSpace) {
+        private fun resolveMob(mob: Entity, log: LogAcceptor, space: EntityCollection) {
             val bukkit = mob.bukkitEntity
             val pos = mob.position()
             val entityInfo = "${bukkit.name} (${mob.uuid}) @ (${pos.x.format()}, ${pos.y.format()}, ${pos.z.format()})"
@@ -359,7 +362,7 @@ class EntityResolver internal constructor(
             tagMeta: CompoundTag,
             holder: ItemHolder,
             log: LogAcceptor,
-            space: SokolSpace,
+            space: EntityCollection,
             allowUnforced: Boolean,
             getStack: () -> ItemStack,
             function: EntityBlueprint.() -> Unit = {},
@@ -403,7 +406,7 @@ class EntityResolver internal constructor(
             }
         }
 
-        private fun resolveItem(item: ItemStack, holder: ItemHolder, log: LogAcceptor, space: SokolSpace) {
+        private fun resolveItem(item: ItemStack, holder: ItemHolder, log: LogAcceptor, space: EntityCollection) {
             val tag = item.tag
             if (item.item === Items.AIR || tag == null) return
             resolveItemTagInternal(tag, holder, log, space, true, { item })

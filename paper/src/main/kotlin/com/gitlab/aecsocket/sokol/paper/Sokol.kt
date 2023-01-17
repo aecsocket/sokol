@@ -83,7 +83,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     private lateinit var command: SokolCommand
     lateinit var settings: Settings private set
     override lateinit var engine: SokolEngine private set
-    lateinit var space: SokolEntityContainer private set
 
     private val _componentTypes = HashMap<String, ComponentType<*>>()
     val componentTypes: Map<String, ComponentType<*>> get() = _componentTypes
@@ -98,6 +97,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     val holding = EntityHolding(this)
     val players = SokolPlayers(this)
     val components = SokolComponents(this)
+    lateinit var space: EntityCollection private set
 
     internal val mobsAdded = HashSet<Int>()
     private val registrations = ArrayList<Registration>()
@@ -173,7 +173,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
             persistence.enable()
             resolver.enable()
             hoster.enable()
-            space = engine.newEntityContainer()
+            space = engine.emptySpace()
             holding.enable()
             players.enable()
 
@@ -243,8 +243,24 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
     override fun componentType(key: Key) = _componentTypes[key.asString()]
 
-    fun useSpace(capacity: Int = 64, write: Boolean = true, consumer: (SokolSpace) -> Unit) {
-        val space = engine.newEntityContainer(capacity)
+    fun useSpace(write: Boolean = true, capacity: Int = 64, consumer: (EntityCollection) -> Unit) {
+        val space = engine.emptySpace(capacity)
+        consumer(space)
+        if (write) {
+            space.write()
+        }
+    }
+
+    fun useSpaceOf(entities: Iterable<SokolEntity>, write: Boolean = true, consumer: (EntitySpace) -> Unit) {
+        val space = engine.spaceOf(entities)
+        consumer(space)
+        if (write) {
+            space.write()
+        }
+    }
+
+    fun useSpaceOf(entity: SokolEntity, write: Boolean = true, consumer: (EntitySpace) -> Unit) {
+        val space = engine.spaceOf(entity)
         consumer(space)
         if (write) {
             space.write()
@@ -268,8 +284,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 system { DisplayNameFromProfileSystem(it) }
                 system { MobConstructorSystem(sokol, it) }
                 system { MobSystem(it) }
-                system { CompositeConstructSystem(it) }
-                system { CompositeRootSystem(it) }
                 system { DeltaTransformTarget }
                 system { DeltaTransformStaticSystem(it) }
                 system { PositionAccessTarget }
@@ -298,7 +312,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 system { ColliderSystem(it) }
                 system { ColliderInstanceSystem(it) }
                 system { ColliderInstanceParentSystem(it) }
-                system { ColliderInstancePositionSystem(it) }
                 system { ColliderMobSystem(sokol, it) }
                 system { ColliderEffectsSystem(it) }
                 system { HoldableInputsSystem(sokol, it) }
@@ -325,6 +338,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 system { ItemLoreStatsSystem(it) }
 
                 componentClass<Profiled>()
+                componentClass<Composite>()
                 componentClass<InTag>()
                 componentClass<IsWorld>()
                 componentClass<IsChunk>()
@@ -337,7 +351,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 persistentComponent(DisplayNameFromProfile.Type)
                 persistentComponent(AsMob.Type)
                 persistentComponent(AsItem.Type)
-                componentClass<IsRoot>()
                 componentClass<IsChild>()
                 persistentComponent(components.containerMap)
                 componentClass<DeltaTransform>()
@@ -407,7 +420,9 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     ) {
         fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
             if (thisBody !is SokolPhysicsObject) return
-            thisBody.entity.callSingle(ColliderSystem.Contact(thisBody, otherBody, point))
+            useSpaceOf(thisBody.entity) { space ->
+                space.call(ColliderSystem.Contact(thisBody, otherBody, point))
+            }
         }
 
         callEvent(bodyA, bodyB)

@@ -114,11 +114,11 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
         CraftBulletAPI.executePhysics {
             fun SokolPhysicsObject.preStepInternal(space: ServerPhysicsSpace) {
-                this.entity.callSingle(PrePhysicsStep(space))
+                this.entity.call(PrePhysicsStep(space))
             }
 
             fun SokolPhysicsObject.postStepInternal(space: ServerPhysicsSpace) {
-                this.entity.callSingle(PostPhysicsStep(space))
+                this.entity.call(PostPhysicsStep(space))
             }
 
             val physObj: SokolPhysicsObject = when {
@@ -166,17 +166,18 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             body.transform = positionRead.transform.bullet()
             physSpace.addCollisionObject(body)
 
-            entity.callSingle(CreatePhysics)
+            entity.call(CreatePhysics)
         }
     }
 }
 
-@All(ColliderInstance::class, Removable::class)
+@All(ColliderInstance::class, Removable::class, PositionAccess::class)
 @Before(ColliderSystem::class)
 @After(ColliderInstanceTarget::class)
 class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mRemovable = ids.mapper<Removable>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
 
     object Remove : SokolEvent
 
@@ -189,8 +190,25 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
         val removable = mRemovable.get(entity)
 
         if (removable.removed) {
-            entity.callSingle(Remove)
+            entity.call(Remove)
         }
+    }
+
+    @Subscribe
+    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
+        val colliderInstance = mColliderInstance.get(entity)
+        val (physObj) = colliderInstance
+        val positionAccess = mPositionAccess.get(entity)
+
+        val transform = colliderInstance.lastTransform?.let { lastTransform ->
+            val delta = transformDelta(lastTransform, physObj.body.transform.alexandria())
+            (positionAccess.transform * delta).also {
+                positionAccess.transform = it
+            }
+        } ?: positionAccess.transform
+
+        physObj.body.transform = transform.bullet()
+        colliderInstance.lastTransform = transform
     }
 
     @Subscribe
@@ -269,46 +287,30 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(ColliderInstance::class, Collider::class, PositionAccess::class)
-@Before(ColliderSystem::class)
-@After(ColliderInstanceTarget::class, PositionAccessTarget::class)
-class ColliderInstancePositionSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mColliderInstance = ids.mapper<ColliderInstance>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
-
-    @Subscribe
-    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
-        val colliderInstance = mColliderInstance.get(entity)
-        val (physObj) = mColliderInstance.get(entity)
-        val positionAccess = mPositionAccess.get(entity)
-
-        val transform = colliderInstance.lastTransform?.let { lastTransform ->
-            val delta = transformDelta(lastTransform, physObj.body.transform.alexandria())
-            (positionAccess.transform * delta).also {
-                positionAccess.transform = it
-            }
-        } ?: positionAccess.transform
-
-        physObj.body.transform = transform.bullet()
-        colliderInstance.lastTransform = transform
-    }
-}
-
-@All(Collider::class, IsMob::class)
+@All(IsMob::class)
 class ColliderMobSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
+    private val mComposite = ids.mapper<Composite>()
+
+    object Create : SokolEvent
+
+    @Subscribe
+    fun on(event: Create, entity: SokolEntity) {
+        entity.call(ColliderSystem.Create)
+        mComposite.forward(entity, event)
+    }
 
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
-        entity.call(ColliderSystem.Create)
+        entity.call(Create)
     }
 
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
-        entity.call(ColliderSystem.Create)
+        entity.call(Create)
     }
 
     @Subscribe

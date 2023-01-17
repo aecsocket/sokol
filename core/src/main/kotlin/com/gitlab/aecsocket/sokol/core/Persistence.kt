@@ -79,7 +79,7 @@ class EntityBlueprint internal constructor(
     }
 
     fun create(): SokolEntity {
-        val entity = engine.newEntity(flags)
+        val entity = engine.entity(flags)
         functions.forEach { it(entity) }
         return entity
     }
@@ -89,10 +89,10 @@ class EntityBlueprint internal constructor(
 
 fun SokolEngine.newBlueprint(flags: Int = 0) = EntityBlueprint(this, flags)
 
-fun EntityBlueprint.addInto(space: SokolSpace) = space.addEntity(create())
+fun EntityBlueprint.addInto(entities: MutableCollection<SokolEntity>) = entities.add(create())
 
-fun Iterable<EntityBlueprint>.addAllInto(space: SokolSpace) {
-    forEach { space.addEntity(it.create()) }
+fun Iterable<EntityBlueprint>.addAllInto(entities: MutableCollection<SokolEntity>) {
+    forEach { entities.add(it.create()) }
 }
 
 open class EntityProfile(
@@ -147,7 +147,7 @@ interface ComponentType<C : SokolComponent> {
 
 object WriteEvent : SokolEvent
 
-fun SokolSpace.write() = call(WriteEvent)
+fun EntitySpace.write() = call(WriteEvent)
 
 @All(InTag::class)
 class PersistenceSystem(
@@ -155,10 +155,13 @@ class PersistenceSystem(
     ids: ComponentIdAccess
 ) : SokolSystem {
     private val mInTag = ids.mapper<InTag>()
+    private val mComposite = ids.mapper<Composite>()
 
     @Subscribe
     fun on(event: WriteEvent, entity: SokolEntity) {
         val inTag = mInTag.get(entity)
         sokol.persistence.writeEntityDelta(entity, inTag.tag)
+
+        mComposite.forward(entity, event)
     }
 }

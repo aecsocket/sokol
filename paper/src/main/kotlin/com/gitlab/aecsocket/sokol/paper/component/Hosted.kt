@@ -91,7 +91,7 @@ data class InItemTag(val nmsTag: CompoundTag) : SokolComponent {
     override val componentType get() = InItemTag::class
 }
 
-@All(IsBlock::class, IsRoot::class)
+@All(IsBlock::class)
 class BlockPersistSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsBlock = ids.mapper<IsBlock>()
 
@@ -104,7 +104,7 @@ class BlockPersistSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(IsItem::class, InTag::class, IsRoot::class)
+@All(IsItem::class, InTag::class)
 class ItemPersistSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -124,7 +124,7 @@ class ItemPersistSystem(
     }
 }
 
-@All(IsItem::class, InItemTag::class, IsRoot::class)
+@All(IsItem::class, InItemTag::class)
 @After(ItemPersistSystem::class)
 class ItemTagPersistSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsItem = ids.mapper<IsItem>()

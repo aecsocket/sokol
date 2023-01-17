@@ -3,6 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.physics.Shape
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -32,6 +33,7 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
 @None(EntitySlot::class)
 @Before(EntitySlotTarget::class)
 class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val compositeMutator = CompositeMutator(ids)
     private val mEntitySlotInMap = ids.mapper<EntitySlotInMap>()
     private val mEntitySlot = ids.mapper<EntitySlot>()
     private val mContainerMap = ids.mapper<ContainerMap>()
@@ -54,7 +56,7 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
 
             override fun attach(child: SokolEntity) {
                 containerMap.attach(entitySlotInMap.childKey, child)
-                entity.addEntity(child)
+                compositeMutator.attach(entity, child)
             }
         })
     }
