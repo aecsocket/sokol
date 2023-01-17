@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.alexandria.paper.AlexandriaPlayer
 import com.gitlab.aecsocket.alexandria.paper.PlayerFeature
 import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.bukkitPlayers
+import com.gitlab.aecsocket.alexandria.paper.extension.location
 import com.gitlab.aecsocket.alexandria.paper.extension.position
 import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
@@ -14,6 +15,7 @@ import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
+import org.bukkit.Particle
 
 class SokolPlayers internal constructor(
     private val sokol: Sokol
@@ -42,11 +44,12 @@ class SokolPlayers internal constructor(
     }
 
     internal fun postPhysicsStep() {
+        val debugDraw = sokol.settings.debugDraw
         bukkitPlayers.forEach { player ->
             val sokolPlayer = player.alexandria.featureData(this)
 
             val physSpace = CraftBulletAPI.spaceOf(player.world)
-            val ghostObject = PhysicsGhostObject(BoxCollisionShape(sokol.settings.drawRadius.toFloat()))
+            val ghostObject = PhysicsGhostObject(BoxCollisionShape(debugDraw.radius.toFloat()))
             ghostObject.physPosition = player.location.position().bullet()
             physSpace.addCollisionObject(ghostObject)
 
@@ -68,7 +71,7 @@ class SokolPlayers internal constructor(
                         CraftBulletAPI
                             .drawPointsShape(hoverShape.profile.shape.bullet())
                             .forEach {
-                                AlexandriaAPI.particles.spawn(sokol.settings.drawHoverShape, transform.apply(it.alexandria()), effector)
+                                AlexandriaAPI.particles.spawn(debugDraw.hoverShape, transform.apply(it.alexandria()), effector)
                             }
                     }
                 }
@@ -78,7 +81,7 @@ class SokolPlayers internal constructor(
                         CraftBulletAPI
                             .drawPointsShape(entitySlot.shape.bullet())
                             .forEach {
-                                AlexandriaAPI.particles.spawn(sokol.settings.drawSlots, transform.apply(it.alexandria()), effector)
+                                AlexandriaAPI.particles.spawn(debugDraw.slots, transform.apply(it.alexandria()), effector)
                             }
                     }
                 }

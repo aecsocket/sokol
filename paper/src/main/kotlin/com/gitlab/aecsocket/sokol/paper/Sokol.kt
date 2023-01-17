@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.keyed.*
 import com.gitlab.aecsocket.alexandria.paper.*
+import com.gitlab.aecsocket.alexandria.paper.effect.ParticleEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.ContactManifoldPoint
 import com.gitlab.aecsocket.craftbullet.core.ServerPhysicsSpace
@@ -20,6 +21,9 @@ import com.jme3.bullet.collision.PhysicsCollisionObject
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
 import org.bstats.bukkit.Metrics
+import org.bukkit.Color
+import org.bukkit.Particle
+import org.bukkit.Particle.DustOptions
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
@@ -54,10 +58,19 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         val enableBstats: Boolean = true,
         val resolveContainerBlocks: Boolean = true,
         val resolveContainerItems: Boolean = true,
-        val entityHoverDistance: Double = 0.0,
-        val drawRadius: Double = 16.0,
-        val drawHoverShape: ParticleEngineEffect = ParticleEngineEffect.Empty,
-        val drawSlots: ParticleEngineEffect = ParticleEngineEffect.Empty,
+        val entityHoverDistance: Double = 4.0,
+        val debugDraw: DebugDraw = DebugDraw(),
+    )
+
+    @ConfigSerializable
+    data class DebugDraw(
+        val radius: Double = 16.0,
+        val hoverShape: ParticleEngineEffect = ParticleEngineEffect(listOf(
+            ParticleEffect(Particle.BLOCK_DUST, data = DustOptions(Color.RED, 0.5f))
+        )),
+        val slots: ParticleEngineEffect = ParticleEngineEffect(listOf(
+            ParticleEffect(Particle.BLOCK_DUST, data = DustOptions(Color.GREEN, 0.5f))
+        )),
     )
 
     private data class Registration(
