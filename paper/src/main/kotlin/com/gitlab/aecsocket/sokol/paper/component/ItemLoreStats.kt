@@ -11,6 +11,10 @@ import com.gitlab.aecsocket.glossa.core.I18N
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
+import com.gitlab.aecsocket.sokol.paper.stat.NameStatFormatter
+import com.gitlab.aecsocket.sokol.paper.stat.NumberStatBarFormatter
+import com.gitlab.aecsocket.sokol.paper.stat.NumberStatFormatter
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
@@ -40,6 +44,17 @@ class StatFormatterSerializer(private val sokol: Sokol) : TypeSerializer<StatFor
 data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("item_lore_stats")
+
+        fun init(ctx: Sokol.InitContext) {
+            val sokol = ctx.sokol
+            val component = sokol.components.itemLoreStats
+            ctx.persistentComponent(component)
+            ctx.system { ItemLoreStatsSystem(it) }
+
+            component.formatterType<NameStatFormatter>(sokol.key("name"))
+            component.formatterType<NumberStatFormatter>(sokol.key("number"))
+            component.formatterType<NumberStatBarFormatter>(sokol.key("number_bar"))
+        }
     }
 
     @ConfigSerializable

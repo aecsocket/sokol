@@ -3,13 +3,20 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.bukkit.entity.Player
 
 object InputRemovable : SimplePersistentComponent {
     override val componentType get() = InputRemovable::class
     override val key = SokolAPI.key("input_removable")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.system { InputRemovableSystem(it) }
+    }
 }
 
 @All(InputRemovable::class, InputCallbacks::class, Removable::class)

@@ -8,14 +8,23 @@ import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import com.jme3.bullet.objects.PhysicsRigidBody
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
+
+class MoveHoldOperation : HoldOperation {
+    override var canRelease = false
+}
 
 data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hold_movable")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { HoldMovableCallbackSystem(ctx.sokol, it) }
+            ctx.system { HoldMovableColliderSystem(it) }
+        }
     }
 
     override val componentType get() = HoldMovable::class
@@ -31,10 +40,6 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
 
         override fun createEmpty() = ComponentBlueprint { HoldMovable(this) }
     }
-}
-
-class MoveHoldOperation : HoldOperation {
-    override var canRelease = false
 }
 
 @All(HoldMovable::class, InputCallbacks::class, PositionAccess::class)

@@ -6,7 +6,9 @@ import com.gitlab.aecsocket.alexandria.paper.MeshSettings
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
@@ -24,6 +26,11 @@ data class MeshProviderStatic(val profile: Profile) : SimplePersistentComponent 
     companion object {
         val Key = SokolAPI.key("mesh_provider_static")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { MeshProviderStaticSystem(it) }
+        }
     }
 
     override val componentType get() = MeshProviderStatic::class

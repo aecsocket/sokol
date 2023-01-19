@@ -2,9 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.EntityHolding
-import com.gitlab.aecsocket.sokol.paper.ReloadEvent
-import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.*
 import net.kyori.adventure.text.format.NamedTextColor
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
@@ -12,6 +10,11 @@ data class HeldMeshGlow(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_mesh_glow")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { HeldMeshGlowSystem(it) }
+        }
     }
 
     override val componentType get() = HeldMeshGlow::class

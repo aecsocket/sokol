@@ -9,11 +9,16 @@ object Holdable : SimplePersistentComponent {
     override val componentType get() = Holdable::class
     override val key = SokolAPI.key("holdable")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.system { HoldableSystem(ctx.sokol, it) }
+    }
 }
 
 @All(Holdable::class, InputCallbacks::class)
 @Before(InputCallbacksSystem::class)
-class HoldableInputsSystem(
+class HoldableSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {

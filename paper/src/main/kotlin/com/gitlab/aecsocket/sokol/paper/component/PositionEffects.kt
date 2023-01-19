@@ -5,14 +5,21 @@ import com.gitlab.aecsocket.alexandria.paper.AlexandriaAPI
 import com.gitlab.aecsocket.alexandria.paper.ParticleEngineEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.UpdateEvent
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("position_effects")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { PositionEffectsSystem(it) }
+        }
     }
 
     override val componentType get() = PositionEffects::class
@@ -34,16 +41,15 @@ data class PositionEffects(val profile: Profile) : SimplePersistentComponent {
 class PositionEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionEffects = ids.mapper<PositionEffects>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
-    private val mVelocityRead = ids.mapper<VelocityRead>()
+    private val mVelocityAccess = ids.mapper<VelocityAccess>()
 
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
         val positionEffects = mPositionEffects.get(entity).profile
         val positionAccess = mPositionAccess.get(entity)
-        val velocityRead = mVelocityRead.getOr(entity)
+        val velocityAccess = mVelocityAccess.getOr(entity)
 
-        val velocity = velocityRead?.linear ?: Vector3.Zero
-
+        val velocity = velocityAccess?.linear ?: Vector3.Zero
         val particle = positionEffects.particle.map { effect ->
             if (effect.count.compareTo(0.0) == 0) effect.copy(
                 size = velocity * positionEffects.particleVelocityMultiplier

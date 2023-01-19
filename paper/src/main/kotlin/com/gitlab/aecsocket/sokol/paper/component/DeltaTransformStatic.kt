@@ -14,7 +14,7 @@ data class DeltaTransformStatic(val profile: Profile) : SimplePersistentComponen
         val Key = SokolAPI.key("delta_transform_static")
         val Type = ComponentType.deserializing(Key, Profile::class)
 
-        fun register(ctx: Sokol.InitContext) {
+        fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { DeltaTransformStaticSystem(it) }
             ctx.system { DeltaTransformStaticForwardSystem(it) }

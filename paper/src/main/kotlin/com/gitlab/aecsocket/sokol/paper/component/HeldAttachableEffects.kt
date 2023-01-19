@@ -5,13 +5,20 @@ import com.gitlab.aecsocket.alexandria.paper.ParticleEngineEffect
 import com.gitlab.aecsocket.alexandria.paper.SoundEngineEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class HeldAttachableEffects(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_attachable_effects")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { HeldAttachableEffectsSystem(it) }
+        }
     }
 
     override val componentType get() = HeldAttachableEffects::class

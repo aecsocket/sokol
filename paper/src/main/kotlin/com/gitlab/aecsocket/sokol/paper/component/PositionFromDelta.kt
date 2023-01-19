@@ -12,7 +12,7 @@ class PositionFromDelta : SimplePersistentComponent {
         val Key = SokolAPI.key("position_from_delta")
         val Type = ComponentType.singletonProfile(Key, Profile)
 
-        fun register(ctx: Sokol.InitContext) {
+        fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { PositionFromDeltaSystem(it) }
             ctx.system { PositionFromDeltaForwardSystem(it) }

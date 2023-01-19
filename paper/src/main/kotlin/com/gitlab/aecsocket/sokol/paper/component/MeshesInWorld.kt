@@ -11,6 +11,15 @@ object MeshesInWorld : SimplePersistentComponent {
     override val componentType get() = MeshesInWorld::class
     override val key = SokolAPI.key("meshes_in_world")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.transientComponent<MeshesInWorldInstance>()
+        ctx.system { MeshesInWorldInstanceTarget }
+        ctx.system { MeshesInWorldSystem(it) }
+        ctx.system { MeshesInWorldInstanceSystem(it) }
+        ctx.system { MeshesInWorldMobSystem(ctx.sokol, it) }
+    }
 }
 
 data class MeshesInWorldInstance(
@@ -155,37 +164,38 @@ class MeshesInWorldMobSystem(
     ids: ComponentIdAccess
 ) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
+    private val mComposite = ids.mapper<Composite>()
 
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
-        entity.call(MeshesInWorldSystem.Create(false))
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(false))
     }
 
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
-        entity.call(MeshesInWorldSystem.Create(false))
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(false))
     }
 
     @Subscribe
     fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {
-        entity.call(MeshesInWorldInstanceSystem.Remove)
+        mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.Remove)
     }
 
     @Subscribe
     fun on(event: MobEvent.Show, entity: SokolEntity) {
-        entity.call(MeshesInWorldInstanceSystem.Show(event.player))
+        mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.Show(event.player))
     }
 
     @Subscribe
     fun on(event: MobEvent.Hide, entity: SokolEntity) {
-        entity.call(MeshesInWorldInstanceSystem.Hide(event.player))
+        mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.Hide(event.player))
     }
 
     @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
         val mob = mIsMob.get(entity).mob
         val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
-        oldEntity.call(MeshesInWorldInstanceSystem.Remove)
-        entity.call(MeshesInWorldSystem.Create(true))
+        mComposite.forwardAll(oldEntity, MeshesInWorldInstanceSystem.Remove)
+        mComposite.forwardAll(entity, MeshesInWorldSystem.Create(true))
     }
 }

@@ -7,12 +7,18 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.ItemEvent
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.bukkit.GameMode
 
 object PlaceableAsMob : SimplePersistentComponent {
     override val componentType get() = PlaceableAsMob::class
     override val key = SokolAPI.key("placeable_as_mob")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.system { PlaceableAsMobSystem(ctx.sokol, it) }
+    }
 }
 
 @All(PlaceableAsMob::class, IsItem::class, AsMob::class, Holdable::class)

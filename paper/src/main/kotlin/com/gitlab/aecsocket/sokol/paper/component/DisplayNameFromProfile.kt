@@ -2,13 +2,20 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("display_name_from_profile")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { DisplayNameFromProfileSystem(it) }
+        }
     }
 
     override val componentType get() = DisplayNameFromProfile::class

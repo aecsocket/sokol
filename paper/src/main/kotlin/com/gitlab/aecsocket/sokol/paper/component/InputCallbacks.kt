@@ -3,8 +3,7 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.input.InputMapper
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.paper.PlayerInputEvent
-import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.*
 import net.kyori.adventure.key.Key
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
@@ -18,6 +17,14 @@ data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("input_callbacks")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.transientComponent<InputCallbacksInstance>()
+            ctx.system { InputCallbacksSystem(it) }
+            ctx.system { InputCallbacksInstanceTarget }
+            ctx.system { InputCallbacksInstanceSystem(it) }
+        }
     }
 
     @ConfigSerializable

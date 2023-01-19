@@ -24,10 +24,30 @@ import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import java.util.UUID
 
+interface SokolPhysicsObject : TrackedPhysicsObject {
+    var entity: SokolEntity
+}
+
 object Collider : SimplePersistentComponent {
     override val componentType get() = Collider::class
     override val key = SokolAPI.key("collider")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.transientComponent<ColliderInstance>()
+        ctx.persistentComponent(ColliderRigidBody.Type)
+        ctx.persistentComponent(ColliderVehicleBody.Type)
+        ctx.system { ColliderInstanceTarget }
+        ctx.system { ColliderSystem(it) }
+        ctx.system { ColliderInstanceSystem(it) }
+        ctx.system { ColliderInstanceParentSystem(it) }
+        ctx.system { ColliderMobSystem(ctx.sokol, it) }
+
+        ctx.sokol.components.stats.apply {
+            stats(ColliderRigidBody.Stats.All)
+        }
+    }
 }
 
 data class ColliderInstance(
@@ -39,8 +59,6 @@ data class ColliderInstance(
 
     var lastTransform: Transform? = null
 }
-
-object ColliderInstanceTarget : SokolSystem
 
 data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -72,9 +90,7 @@ object ColliderVehicleBody : SimplePersistentComponent {
     val Type = ComponentType.singletonComponent(key, this)
 }
 
-interface SokolPhysicsObject : TrackedPhysicsObject {
-    var entity: SokolEntity
-}
+object ColliderInstanceTarget : SokolSystem
 
 @All(Collider::class, PositionAccess::class, Stats::class)
 @One(ColliderRigidBody::class)
@@ -295,22 +311,14 @@ class ColliderMobSystem(
     private val mIsMob = ids.mapper<IsMob>()
     private val mComposite = ids.mapper<Composite>()
 
-    object Create : SokolEvent
-
-    @Subscribe
-    fun on(event: Create, entity: SokolEntity) {
-        entity.call(ColliderSystem.Create)
-        mComposite.forward(entity, event)
-    }
-
     @Subscribe
     fun on(event: MobEvent.Spawn, entity: SokolEntity) {
-        entity.call(Create)
+        mComposite.forwardAll(entity, ColliderSystem.Create)
     }
 
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
-        entity.call(Create)
+        mComposite.forwardAll(entity, ColliderSystem.Create)
     }
 
     @Subscribe
@@ -318,8 +326,8 @@ class ColliderMobSystem(
         val mob = mIsMob.get(entity).mob
         val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
         CraftBulletAPI.executePhysics {
-            oldEntity.call(ColliderInstanceSystem.Remove)
-            entity.call(ColliderSystem.Create)
+            mComposite.forwardAll(oldEntity, ColliderInstanceSystem.Remove)
+            mComposite.forwardAll(entity, ColliderSystem.Create)
         }
     }
 }

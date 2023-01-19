@@ -2,7 +2,9 @@ package com.gitlab.aecsocket.sokol.core
 
 import net.kyori.adventure.key.Key
 
-typealias EntityProvider = () -> Iterable<SokolEntity>
+fun interface EntityProvider {
+    fun entities(): Iterable<SokolEntity>
+}
 
 class Composite(override val engine: SokolEngine) : SokolComponent, EntitySpace {
     object Attach : SokolEvent
@@ -19,7 +21,7 @@ class Composite(override val engine: SokolEngine) : SokolComponent, EntitySpace 
         _entityProviders[key] = provider
     }
 
-    override fun entities() = _entityProviders.values.flatMap { it() }
+    override fun entities() = _entityProviders.values.flatMap { it.entities() }
 }
 
 fun ComponentMapper<Composite>.forward(entity: SokolEntity, event: SokolEvent) {

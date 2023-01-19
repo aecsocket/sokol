@@ -5,6 +5,8 @@ import com.gitlab.aecsocket.alexandria.paper.PlayerInventorySlot
 import com.gitlab.aecsocket.sokol.core.ComponentMapper
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import com.gitlab.aecsocket.sokol.core.SokolEntity
+import com.gitlab.aecsocket.sokol.paper.Sokol
+import com.gitlab.aecsocket.sokol.paper.transientComponent
 import org.bukkit.block.Block
 import org.bukkit.entity.Entity
 import org.bukkit.entity.LivingEntity
@@ -13,35 +15,6 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.Inventory
 
 sealed interface ItemHolder : SokolComponent {
-    override val componentType get() = ItemHolder::class
-
-    interface ByMob : ItemHolder {
-        val mob: Entity
-    }
-
-    interface ByBlock : ItemHolder {
-        val block: Block
-    }
-
-    interface ByContainerItem : ItemHolder {
-        val parent: ItemHolder
-        val slotId: Int
-    }
-
-    interface InCursor : ByMob {
-        override val mob: Player
-    }
-
-    interface InEquipment : ByMob {
-        override val mob: LivingEntity
-        val slot: EquipmentSlot
-    }
-
-    interface InContainer : ItemHolder {
-        val inventory: Inventory
-        val slotId: Int
-    }
-
     companion object {
         fun inCursor(mob: Player) = object : InCursor {
             override val mob get() = mob
@@ -110,6 +83,39 @@ sealed interface ItemHolder : SokolComponent {
             override fun toString() =
                 "ItemHolder.byContainerItem(parent=$parent, slotId=$slotId)"
         }
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.transientComponent<ItemHolder>()
+        }
+    }
+
+    override val componentType get() = ItemHolder::class
+
+    interface ByMob : ItemHolder {
+        val mob: Entity
+    }
+
+    interface ByBlock : ItemHolder {
+        val block: Block
+    }
+
+    interface ByContainerItem : ItemHolder {
+        val parent: ItemHolder
+        val slotId: Int
+    }
+
+    interface InCursor : ByMob {
+        override val mob: Player
+    }
+
+    interface InEquipment : ByMob {
+        override val mob: LivingEntity
+        val slot: EquipmentSlot
+    }
+
+    interface InContainer : ItemHolder {
+        val inventory: Inventory
+        val slotId: Int
     }
 }
 

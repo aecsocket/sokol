@@ -11,7 +11,9 @@ import com.gitlab.aecsocket.craftbullet.core.radians
 import com.gitlab.aecsocket.craftbullet.paper.rayTestFrom
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import com.simsilica.mathd.Vec3d
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -22,6 +24,11 @@ data class HeldSnap(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_snap")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { HeldSnapSystem(it) }
+        }
     }
 
     data class SurfaceData(

@@ -9,14 +9,24 @@ import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import com.jme3.bullet.objects.PhysicsRigidBody
 import org.bukkit.Particle
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+
+class DetachHoldOperation : HoldOperation {
+    override val canRelease get() = true
+}
 
 data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("hold_detachable")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { HoldDetachableLocalSystem(it) }
+            ctx.system { HoldDetachableCallbackSystem(ctx.sokol, it) }
+            ctx.system { HoldDetachableColliderSystem(it) }
+        }
     }
 
     override val componentType get() = HoldDetachable::class
@@ -37,10 +47,6 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
 
         override fun createEmpty() = ComponentBlueprint { HoldDetachable(this) }
     }
-}
-
-class DetachHoldOperation : HoldOperation {
-    override val canRelease get() = true
 }
 
 @All(HoldDetachable::class)

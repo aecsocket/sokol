@@ -7,14 +7,10 @@ import com.gitlab.aecsocket.alexandria.core.physics.invert
 import com.gitlab.aecsocket.alexandria.paper.extension.direction
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.alexandria.paper.extension.position
-import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.sokol.core.*
-import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
-import com.jme3.bullet.collision.shapes.BoxCollisionShape
-import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -24,7 +20,7 @@ data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
         val Key = SokolAPI.key("held_attachable")
         val Type = ComponentType.deserializing(Key, Profile::class)
 
-        fun register(ctx: Sokol.InitContext) {
+        fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { HeldAttachableSystem(ctx.sokol, it) }
             ctx.system { HeldAttachableInputsSystem(ctx.sokol, it) }

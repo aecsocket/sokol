@@ -14,7 +14,7 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
         val Key = SokolAPI.key("entity_slot_in_map")
         val Type = ComponentType.deserializing(Key, Profile::class)
 
-        fun register(ctx: Sokol.InitContext) {
+        fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { EntitySlotInMapSystem(it) }
             ctx.system { EntitySlotInMapForwardSystem(it) }

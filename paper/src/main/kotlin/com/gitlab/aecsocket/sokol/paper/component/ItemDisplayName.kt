@@ -3,7 +3,9 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.ItemEvent
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.TextDecoration
 
@@ -11,6 +13,11 @@ object ItemDisplayName : SimplePersistentComponent {
     override val componentType get() = ItemDisplayName::class
     override val key = SokolAPI.key("item_display_name")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.system { ItemDisplayNameSystem(it) }
+    }
 }
 
 @All(ItemDisplayName::class, DisplayName::class, IsItem::class)

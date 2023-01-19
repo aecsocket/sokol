@@ -6,6 +6,7 @@ import com.gitlab.aecsocket.glossa.core.force
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.ConfigurationNode
 
 data class ContainerMap(
@@ -17,6 +18,10 @@ data class ContainerMap(
         const val DefaultKey = "_"
 
         val CompositeKey = Key.with("composite")
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type(ctx.sokol))
+        }
     }
 
     override val componentType get() = ContainerMap::class

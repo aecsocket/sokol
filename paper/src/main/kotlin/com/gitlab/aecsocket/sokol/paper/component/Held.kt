@@ -14,6 +14,14 @@ import com.jme3.math.Matrix3f
 import com.jme3.math.Vector3f
 
 data class Held(val hold: EntityHolding.Hold) : SokolComponent {
+    companion object {
+        fun init(ctx: Sokol.InitContext) {
+            ctx.transientComponent<Held>()
+            ctx.system { HeldColliderSystem(it) }
+            ctx.system { HeldMobSystem(ctx.sokol, it) }
+        }
+    }
+
     data class Joint(
         val joint: New6Dof,
         val holdTarget: PhysicsRigidBody
@@ -109,6 +117,7 @@ class HeldMobSystem(
 
     @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
+        // TODO
         /*val mob = mIsMob.get(entity).mob
         val oldHeld = sokol.resolver.mobTrackedBy(mob)?.let { mHeld.getOr(it) } ?: return
         oldHeld.hold.entity = entity

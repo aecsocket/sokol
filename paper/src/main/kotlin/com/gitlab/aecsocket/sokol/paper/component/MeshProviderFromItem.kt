@@ -7,12 +7,18 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("mesh_provider_from_item")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { MeshProviderFromItemSystem(ctx.sokol, it) }
+        }
     }
 
     override val componentType get() = MeshProviderFromItem::class

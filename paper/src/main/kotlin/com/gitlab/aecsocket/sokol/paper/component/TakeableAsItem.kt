@@ -5,12 +5,18 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.bukkit.entity.Player
 
 object TakeableAsItem : SimplePersistentComponent {
     override val componentType get() = TakeableAsItem::class
     override val key = SokolAPI.key("takeable_as_item")
     val Type = ComponentType.singletonComponent(key, this)
+
+    fun init(ctx: Sokol.InitContext) {
+        ctx.persistentComponent(Type)
+        ctx.system { TakeableAsItemSystem(ctx.sokol, it) }
+    }
 }
 
 @All(TakeableAsItem::class, InputCallbacks::class, Removable::class, AsItem::class)

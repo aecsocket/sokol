@@ -7,6 +7,8 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
+import com.gitlab.aecsocket.sokol.paper.transientComponent
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.serialize.SerializationException
@@ -100,6 +102,13 @@ class StatSerializer(private val sokol: Sokol) : TypeSerializer<Stat<*>> {
 data class Stats(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("stats")
+
+        fun init(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(ctx.sokol.components.stats)
+            ctx.transientComponent<StatsInstance>()
+            ctx.system { StatsInstanceTarget }
+            ctx.system { StatsSystem(it) }
+        }
     }
 
     override val componentType get() = Stats::class
