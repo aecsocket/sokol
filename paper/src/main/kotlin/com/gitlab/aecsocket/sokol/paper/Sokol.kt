@@ -5,19 +5,24 @@ import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.alexandria.core.LogList
 import com.gitlab.aecsocket.alexandria.core.extension.*
 import com.gitlab.aecsocket.alexandria.core.keyed.*
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.effect.ParticleEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.core.ContactManifoldPoint
 import com.gitlab.aecsocket.craftbullet.core.ServerPhysicsSpace
 import com.gitlab.aecsocket.craftbullet.core.Timings
+import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.component.*
 import com.gitlab.aecsocket.sokol.paper.stat.NumberStatBarFormatter
 import com.gitlab.aecsocket.sokol.paper.stat.NumberStatFormatter
 import com.gitlab.aecsocket.sokol.paper.stat.NameStatFormatter
 import com.jme3.bullet.collision.PhysicsCollisionObject
+import com.jme3.bullet.collision.shapes.BoxCollisionShape
+import com.jme3.bullet.objects.PhysicsGhostObject
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
 import org.bstats.bukkit.Metrics
@@ -121,8 +126,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         super.onEnable()
         command = SokolCommand(this)
         AlexandriaAPI.registerConsumer(this,
-            onInit = {
-                serializers
+            onInit = { ctx ->
+                ctx.serializers
                     .register(matchExactErased<ComponentProfile<*>>(), ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
@@ -133,8 +138,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .register(matchExactErased<Stat<*>>(), StatSerializer(this@Sokol))
                     .register(matchExactErased<StatFormatter<*>>(), StatFormatterSerializer(this@Sokol))
             },
-            onLoad = {
-                addDefaultI18N()
+            onLoad = { ctx ->
+                ctx.addDefaultI18N()
             }
         )
         AlexandriaAPI.onInput { event ->
@@ -242,8 +247,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     }
 
     fun registerConsumer(
-        onInit: InitContext.() -> Unit = {},
-        onPostInit: PostInitContext.() -> Unit = {},
+        onInit: (InitContext) -> Unit = {},
+        onPostInit: (PostInitContext) -> Unit = {},
     ) {
         registrations.add(Registration(onInit, onPostInit))
     }
@@ -282,134 +287,129 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
     private fun registerDefaultConsumer() {
         registerConsumer(
-            onInit = {
-                system { IsWorldTarget }
-                system { IsChunkTarget }
-                system { IsMobTarget }
-                system { IsBlockTarget }
-                system { IsItemFormTarget }
-                system { IsItemTarget }
-                system { PersistenceSystem(sokol, it) }
-                system { BlockPersistSystem(it) }
-                system { ItemPersistSystem(sokol, it) }
-                system { ItemTagPersistSystem(it) }
-                system { DisplayNameTarget }
-                system { DisplayNameFromProfileSystem(it) }
-                system { MobConstructorSystem(sokol, it) }
-                system { MobSystem(it) }
-                system { DeltaTransformTarget }
-                system { DeltaTransformStaticSystem(it) }
-                system { PositionAccessTarget }
-                system { VelocityAccessTarget }
-                system { PositionFromDeltaSystem(it) }
-                system { PlayerTrackedTarget }
-                system { PlayerTrackedSystem(it) }
-                system { RemovablePreTarget }
-                system { RemovableTarget }
-                system { RemovableSystem(it) }
-                system { PositionEffectsSystem(it) }
-                system { InputCallbacksInstanceTarget }
-                system { InputCallbacksSystem(it) }
-                system { InputCallbacksInstanceSystem(it) }
-                system { InputRemovableSystem(it) }
-                system { TakeableAsItemSystem(sokol, it) }
-                system { MeshProviderTarget }
-                system { MeshProviderStaticSystem(it) }
-                system { MeshProviderFromItemSystem(sokol, it) }
-                system { MeshesInWorldInstanceTarget }
-                system { MeshesInWorldSystem(it) }
-                system { MeshesInWorldInstanceSystem(it) }
-                system { MeshesInWorldMobSystem(sokol, it) }
-                system { HoverMeshGlowSystem(it) }
-                system { ColliderInstanceTarget }
-                system { ColliderSystem(it) }
-                system { ColliderInstanceSystem(it) }
-                system { ColliderInstanceParentSystem(it) }
-                system { ColliderMobSystem(sokol, it) }
-                system { ColliderEffectsSystem(it) }
-                system { HoldableInputsSystem(sokol, it) }
-                system { PlaceableAsMobSystem(sokol, it) }
-                system { HeldColliderSystem(it) }
-                system { HeldMobSystem(sokol, it) }
-                system { HoldMovableCallbackSystem(sokol, it) }
-                system { HoldMovableColliderSystem(it) }
-                system { HoldDetachableCallbackSystem(sokol, it) }
-                system { HoldDetachableColliderSystem(it) }
-                system { HeldSnapSystem(it) }
-                system { HeldAttachableSystem(it) }
-                system { HeldAttachableInputsSystem(sokol, it) }
-                system { HeldAttachableEffectsSystem(it) }
-                system { HeldMeshGlowSystem(it) }
-                system { EntitySlotTarget }
-                system { EntitySlotInMapSystem(it) }
-                system { StatsInstanceTarget }
-                system { StatsSystem(it) }
-                system { ItemDisplayNameSystem(it) }
-                system { ItemLoreManagerSystem(it) }
-                system { ItemLoreStaticSystem(it) }
-                system { ItemLoreFromProfileSystem(it) }
-                system { ItemLoreStatsSystem(it) }
+            onInit = { ctx ->
+                ctx.system { IsWorldTarget }
+                ctx.system { IsChunkTarget }
+                ctx.system { IsMobTarget }
+                ctx.system { IsBlockTarget }
+                ctx.system { IsItemFormTarget }
+                ctx.system { IsItemTarget }
+                ctx.system { PersistenceSystem(this, it) }
+                ctx.system { BlockPersistSystem(it) }
+                ctx.system { ItemPersistSystem(this, it) }
+                ctx.system { ItemTagPersistSystem(it) }
+                ctx.system { DisplayNameTarget }
+                ctx.system { DisplayNameFromProfileSystem(it) }
+                ctx.system { MobConstructorSystem(this, it) }
+                ctx.system { MobSystem(it) }
+                ctx.system { DeltaTransformTarget }
+                ctx.system { PositionAccessTarget }
+                ctx.system { VelocityAccessTarget }
+                ctx.system { PlayerTrackedTarget }
+                ctx.system { PlayerTrackedSystem(it) }
+                ctx.system { RemovablePreTarget }
+                ctx.system { RemovableTarget }
+                ctx.system { RemovableSystem(it) }
+                ctx.system { PositionEffectsSystem(it) }
+                ctx.system { InputCallbacksInstanceTarget }
+                ctx.system { InputCallbacksSystem(it) }
+                ctx.system { InputCallbacksInstanceSystem(it) }
+                ctx.system { InputRemovableSystem(it) }
+                ctx.system { TakeableAsItemSystem(this, it) }
+                ctx.system { MeshProviderTarget }
+                ctx.system { MeshProviderStaticSystem(it) }
+                ctx.system { MeshProviderFromItemSystem(this, it) }
+                ctx.system { MeshesInWorldInstanceTarget }
+                ctx.system { MeshesInWorldSystem(it) }
+                ctx.system { MeshesInWorldInstanceSystem(it) }
+                ctx.system { MeshesInWorldMobSystem(this, it) }
+                ctx.system { HoverMeshGlowSystem(it) }
+                ctx.system { ColliderInstanceTarget }
+                ctx.system { ColliderSystem(it) }
+                ctx.system { ColliderInstanceSystem(it) }
+                ctx.system { ColliderInstanceParentSystem(it) }
+                ctx.system { ColliderMobSystem(this, it) }
+                ctx.system { ColliderEffectsSystem(it) }
+                ctx.system { HoldableInputsSystem(this, it) }
+                ctx.system { PlaceableAsMobSystem(this, it) }
+                ctx.system { HeldColliderSystem(it) }
+                ctx.system { HeldMobSystem(this, it) }
+                ctx.system { HoldMovableCallbackSystem(this, it) }
+                ctx.system { HoldMovableColliderSystem(it) }
+                ctx.system { HoldDetachableCallbackSystem(this, it) }
+                ctx.system { HoldDetachableColliderSystem(it) }
+                ctx.system { HeldSnapSystem(it) }
+                ctx.system { HeldAttachableEffectsSystem(it) }
+                ctx.system { HeldMeshGlowSystem(it) }
+                ctx.system { EntitySlotTarget }
+                ctx.system { StatsInstanceTarget }
+                ctx.system { StatsSystem(it) }
+                ctx.system { ItemDisplayNameSystem(it) }
+                ctx.system { ItemLoreManagerSystem(it) }
+                ctx.system { ItemLoreStaticSystem(it) }
+                ctx.system { ItemLoreFromProfileSystem(it) }
+                ctx.system { ItemLoreStatsSystem(it) }
 
-                componentClass<Profiled>()
-                componentClass<Composite>()
-                componentClass<InTag>()
-                componentClass<IsWorld>()
-                componentClass<IsChunk>()
-                componentClass<IsMob>()
-                componentClass<IsBlock>()
-                componentClass<IsItem>()
-                componentClass<ItemHolder>()
-                componentClass<InItemTag>()
-                componentClass<DisplayName>()
-                persistentComponent(DisplayNameFromProfile.Type)
-                persistentComponent(AsMob.Type)
-                persistentComponent(AsItem.Type)
-                componentClass<IsChild>()
-                persistentComponent(components.containerMap)
-                componentClass<DeltaTransform>()
-                persistentComponent(DeltaTransformStatic.Type)
-                persistentComponent(Rotation.Type)
-                componentClass<PositionAccess>()
-                componentClass<VelocityRead>()
-                persistentComponent(PositionFromDelta.Type)
-                componentClass<PlayerTracked>()
-                componentClass<Removable>()
-                persistentComponent(InputCallbacks.Type)
-                componentClass<InputCallbacksInstance>()
-                persistentComponent(InputRemovable.Type)
-                persistentComponent(TakeableAsItem.Type)
-                persistentComponent(PositionEffects.Type)
-                componentClass<MeshProvider>()
-                persistentComponent(MeshProviderStatic.Type)
-                persistentComponent(MeshProviderFromItem.Type)
-                persistentComponent(MeshesInWorld.Type)
-                componentClass<MeshesInWorldInstance>()
-                persistentComponent(HoverShape.Type)
-                persistentComponent(HoverMeshGlow.Type)
-                persistentComponent(Collider.Type)
-                componentClass<ColliderInstance>()
-                persistentComponent(ColliderRigidBody.Type)
-                persistentComponent(ColliderVehicleBody.Type)
-                persistentComponent(ColliderEffects.Type)
-                persistentComponent(Holdable.Type)
-                componentClass<Held>()
-                persistentComponent(PlaceableAsMob.Type)
-                persistentComponent(HoldMovable.Type)
-                persistentComponent(HoldDetachable.Type)
-                persistentComponent(HeldSnap.Type)
-                persistentComponent(HeldAttachable.Type)
-                persistentComponent(HeldAttachableEffects.Type)
-                persistentComponent(HeldMeshGlow.Type)
-                componentClass<EntitySlot>()
-                persistentComponent(EntitySlotInMap.Type)
-                persistentComponent(components.stats)
-                componentClass<StatsInstance>()
-                persistentComponent(ItemDisplayName.Type)
-                persistentComponent(ItemLoreManager.Type)
-                persistentComponent(ItemLoreStatic.Type)
-                persistentComponent(ItemLoreFromProfile.Type)
-                persistentComponent(components.itemLoreStats)
+                ctx.transientComponent<Profiled>()
+                ctx.transientComponent<Composite>()
+                ctx.transientComponent<InTag>()
+                ctx.transientComponent<IsWorld>()
+                ctx.transientComponent<IsChunk>()
+                ctx.transientComponent<IsMob>()
+                ctx.transientComponent<IsBlock>()
+                ctx.transientComponent<IsItem>()
+                ctx.transientComponent<ItemHolder>()
+                ctx.transientComponent<InItemTag>()
+                ctx.transientComponent<DisplayName>()
+                ctx.persistentComponent(DisplayNameFromProfile.Type)
+                ctx.persistentComponent(AsMob.Type)
+                ctx.persistentComponent(AsItem.Type)
+                ctx.transientComponent<IsChild>()
+                ctx.persistentComponent(components.containerMap)
+                ctx.transientComponent<DeltaTransform>()
+                ctx.persistentComponent(Rotation.Type)
+                ctx.transientComponent<PositionAccess>()
+                ctx.transientComponent<VelocityRead>()
+                ctx.transientComponent<PlayerTracked>()
+                ctx.transientComponent<Removable>()
+                ctx.persistentComponent(InputCallbacks.Type)
+                ctx.transientComponent<InputCallbacksInstance>()
+                ctx.persistentComponent(InputRemovable.Type)
+                ctx.persistentComponent(TakeableAsItem.Type)
+                ctx.persistentComponent(PositionEffects.Type)
+                ctx.transientComponent<MeshProvider>()
+                ctx.persistentComponent(MeshProviderStatic.Type)
+                ctx.persistentComponent(MeshProviderFromItem.Type)
+                ctx.persistentComponent(MeshesInWorld.Type)
+                ctx.transientComponent<MeshesInWorldInstance>()
+                ctx.persistentComponent(HoverShape.Type)
+                ctx.persistentComponent(HoverMeshGlow.Type)
+                ctx.persistentComponent(Collider.Type)
+                ctx.transientComponent<ColliderInstance>()
+                ctx.persistentComponent(ColliderRigidBody.Type)
+                ctx.persistentComponent(ColliderVehicleBody.Type)
+                ctx.persistentComponent(ColliderEffects.Type)
+                ctx.persistentComponent(Holdable.Type)
+                ctx.transientComponent<Held>()
+                ctx.persistentComponent(PlaceableAsMob.Type)
+                ctx.persistentComponent(HoldMovable.Type)
+                ctx.persistentComponent(HoldDetachable.Type)
+                ctx.persistentComponent(HeldSnap.Type)
+                ctx.persistentComponent(HeldAttachableEffects.Type)
+                ctx.persistentComponent(HeldMeshGlow.Type)
+                ctx.transientComponent<EntitySlot>()
+                ctx.persistentComponent(components.stats)
+                ctx.transientComponent<StatsInstance>()
+                ctx.persistentComponent(ItemDisplayName.Type)
+                ctx.persistentComponent(ItemLoreManager.Type)
+                ctx.persistentComponent(ItemLoreStatic.Type)
+                ctx.persistentComponent(ItemLoreFromProfile.Type)
+                ctx.persistentComponent(components.itemLoreStats)
 
+                DeltaTransformStatic.register(ctx)
+                PositionFromDelta.register(ctx)
+                EntitySlotInMap.register(ctx)
+                HeldAttachable.register(ctx)
                 // TODO move to own func
                 // move all of this to their own funcs really
                 components.stats.apply {
@@ -449,7 +449,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
 inline fun <reified C : SokolComponent> Sokol.InitContext.persistentComponent(type: ComponentType<C>) {
     componentType(type)
-    componentClass<C>()
+    transientComponent<C>()
 }
 
-inline fun <reified C : SokolComponent> Sokol.InitContext.componentClass() = componentClass(C::class)
+inline fun <reified C : SokolComponent> Sokol.InitContext.transientComponent() = componentClass(C::class)

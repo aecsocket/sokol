@@ -5,6 +5,7 @@ import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
@@ -12,6 +13,12 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("entity_slot_in_map")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun register(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { EntitySlotInMapSystem(it) }
+            ctx.system { EntitySlotInMapForwardSystem(it) }
+        }
     }
 
     override val componentType get() = EntitySlotInMap::class
@@ -31,15 +38,16 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
 
 @All(EntitySlotInMap::class, ContainerMap::class)
 @None(EntitySlot::class)
-@Before(EntitySlotTarget::class)
 class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
     private val compositeMutator = CompositeMutator(ids)
     private val mEntitySlotInMap = ids.mapper<EntitySlotInMap>()
     private val mEntitySlot = ids.mapper<EntitySlot>()
     private val mContainerMap = ids.mapper<ContainerMap>()
 
+    object Update : SokolEvent
+
     @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    fun on(event: Update, entity: SokolEntity) {
         val entitySlotInMap = mEntitySlotInMap.get(entity).profile
         val containerMap = mContainerMap.get(entity)
 
@@ -59,5 +67,15 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
                 compositeMutator.attach(entity, child)
             }
         })
+    }
+}
+
+@Before(EntitySlotTarget::class)
+class EntitySlotInMapForwardSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mComposite = ids.mapper<Composite>()
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        mComposite.forwardAll(entity, EntitySlotInMapSystem.Update)
     }
 }

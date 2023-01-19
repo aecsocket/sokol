@@ -14,6 +14,7 @@ import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.simsilica.mathd.Vec3d
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 import kotlin.math.PI
 import kotlin.math.abs
 
@@ -36,8 +37,8 @@ data class HeldSnap(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
+        @Required val snapDistance: Double,
         val snapTransform: Transform = Transform.Identity,
-        val snapDistance: Double = 0.0,
         val allowFreePlace: Boolean = true
     ) : SimpleComponentProfile<HeldSnap> {
         override val componentType get() = HeldSnap::class

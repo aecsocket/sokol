@@ -24,6 +24,8 @@ private class EntitySpaceImpl(
     override fun entities() = entities
 }
 
+fun entitySpaceOf(engine: SokolEngine, entities: Iterable<SokolEntity>): EntitySpace = EntitySpaceImpl(engine, entities)
+
 class EntityCollection internal constructor(
     override val engine: SokolEngine,
     collection: MutableCollection<SokolEntity>

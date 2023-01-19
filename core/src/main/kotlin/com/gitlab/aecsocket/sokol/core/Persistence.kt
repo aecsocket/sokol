@@ -161,7 +161,6 @@ class PersistenceSystem(
     fun on(event: WriteEvent, entity: SokolEntity) {
         val inTag = mInTag.get(entity)
         sokol.persistence.writeEntityDelta(entity, inTag.tag)
-
         mComposite.forward(entity, event)
     }
 }

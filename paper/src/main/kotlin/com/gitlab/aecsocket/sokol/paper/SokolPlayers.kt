@@ -13,9 +13,6 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.alexandria
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.component.*
-import com.jme3.bullet.collision.shapes.BoxCollisionShape
-import com.jme3.bullet.objects.PhysicsGhostObject
-import org.bukkit.Particle
 
 class SokolPlayers internal constructor(
     private val sokol: Sokol
@@ -47,21 +44,11 @@ class SokolPlayers internal constructor(
         val debugDraw = sokol.settings.debugDraw
         bukkitPlayers.forEach { player ->
             val sokolPlayer = player.alexandria.featureData(this)
-
-            val physSpace = CraftBulletAPI.spaceOf(player.world)
-            val ghostObject = PhysicsGhostObject(BoxCollisionShape(debugDraw.radius.toFloat()))
-            ghostObject.physPosition = player.location.position().bullet()
-            physSpace.addCollisionObject(ghostObject)
-
-            val nearby: List<SokolEntity> = ghostObject.overlappingObjects.flatMap { body ->
-                (body as? SokolPhysicsObject)?.entity?.let { entity ->
-                    if (mIsChild.has(entity)) return@let emptyList()
-                    mComposite.all(entity)
-                } ?: emptyList()
-            }
-
-            physSpace.removeCollisionObject(ghostObject)
-
+            val nearby = sokol.resolver.entitiesNear(
+                CraftBulletAPI.spaceOf(player.world),
+                player.location.position(),
+                debugDraw.radius
+            )
             val effector = player.alexandria.effector
             nearby.forEach nearby@ { entity ->
                 val transform = mPositionAccess.getOr(entity)?.transform ?: return@nearby

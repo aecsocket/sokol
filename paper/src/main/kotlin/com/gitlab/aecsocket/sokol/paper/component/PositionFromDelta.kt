@@ -2,13 +2,21 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.UpdateEvent
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 
 class PositionFromDelta : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("position_from_delta")
         val Type = ComponentType.singletonProfile(Key, Profile)
+
+        fun register(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { PositionFromDeltaSystem(it) }
+            ctx.system { PositionFromDeltaForwardSystem(it) }
+        }
     }
 
     override val componentType get() = PositionFromDelta::class
@@ -24,15 +32,16 @@ class PositionFromDelta : SimplePersistentComponent {
 }
 
 @All(PositionFromDelta::class, IsChild::class, DeltaTransform::class)
-@Before(PositionAccessTarget::class)
-@After(DeltaTransformTarget::class)
 class PositionFromDeltaSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionFromDelta = ids.mapper<PositionFromDelta>()
     private val mIsChild = ids.mapper<IsChild>()
     private val mDeltaTransform = ids.mapper<DeltaTransform>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
-    private fun update(entity: SokolEntity) {
+    object Update : SokolEvent
+
+    @Subscribe
+    fun on(event: Update, entity: SokolEntity) {
         val positionFromDelta = mPositionFromDelta.get(entity)
         if (!positionFromDelta.enabled) return
 
@@ -45,14 +54,20 @@ class PositionFromDeltaSystem(ids: ComponentIdAccess) : SokolSystem {
         if (mPositionAccess.has(entity)) mPositionAccess.get(entity).transform = transform
         else mPositionAccess.set(entity, PositionAccess(pPositionAccess.world, transform))
     }
+}
+
+@Before(PositionAccessTarget::class)
+@After(DeltaTransformTarget::class)
+class PositionFromDeltaForwardSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mComposite = ids.mapper<Composite>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        update(entity)
+        mComposite.forwardAll(entity, PositionFromDeltaSystem.Update)
     }
 
     @Subscribe
     fun on(event: UpdateEvent, entity: SokolEntity) {
-        update(entity)
+        mComposite.forwardAll(entity, PositionFromDeltaSystem.Update)
     }
 }

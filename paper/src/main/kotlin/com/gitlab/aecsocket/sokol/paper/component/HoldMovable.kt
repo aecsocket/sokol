@@ -10,6 +10,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import com.jme3.bullet.objects.PhysicsRigidBody
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 
 data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -22,8 +23,8 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
+        @Required val holdDistance: Double,
         val holdTransform: Transform = Transform.Identity,
-        val holdDistance: Double = 0.0,
         val hasCollision: Boolean = true
     ) : SimpleComponentProfile<HoldMovable> {
         override val componentType get() = HoldMovable::class

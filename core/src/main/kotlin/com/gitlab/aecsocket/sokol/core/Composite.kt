@@ -26,6 +26,12 @@ fun ComponentMapper<Composite>.forward(entity: SokolEntity, event: SokolEvent) {
     getOr(entity)?.call(event)
 }
 
+// more efficient (theoretically?) since we get all the entities in the tree first
+// then run only ONE #call on that entity space
+fun ComponentMapper<Composite>.forwardAll(entity: SokolEntity, event: SokolEvent) {
+    entitySpaceOf(entity.engine, all(entity)).call(event)
+}
+
 data class IsChild(
     val parent: SokolEntity,
     val root: SokolEntity

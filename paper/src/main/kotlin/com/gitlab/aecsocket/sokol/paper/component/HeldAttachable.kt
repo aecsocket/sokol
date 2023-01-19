@@ -12,15 +12,23 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
+import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import com.jme3.bullet.collision.shapes.BoxCollisionShape
 import com.jme3.bullet.objects.PhysicsGhostObject
 import com.jme3.bullet.objects.PhysicsRigidBody
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 
 data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
     companion object {
         val Key = SokolAPI.key("held_attachable")
         val Type = ComponentType.deserializing(Key, Profile::class)
+
+        fun register(ctx: Sokol.InitContext) {
+            ctx.persistentComponent(Type)
+            ctx.system { HeldAttachableSystem(ctx.sokol, it) }
+            ctx.system { HeldAttachableInputsSystem(ctx.sokol, it) }
+        }
     }
 
     data class AttachTo(
@@ -36,11 +44,9 @@ data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        val attachDistance: Double = 0.0
+        @Required val attachDistance: Double
     ) : SimpleComponentProfile<HeldAttachable> {
         override val componentType get() = HeldAttachable::class
-
-        val attachAABB = BoxCollisionShape(attachDistance.toFloat())
 
         override fun createEmpty() = ComponentBlueprint { HeldAttachable(this) }
     }
@@ -48,7 +54,10 @@ data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
 
 @All(HeldAttachable::class, Held::class, ColliderInstance::class)
 @After(ColliderInstanceTarget::class, HoldMovableColliderSystem::class, HeldSnapSystem::class, EntitySlotTarget::class)
-class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
+class HeldAttachableSystem(
+    private val sokol: Sokol,
+    ids: ComponentIdAccess
+) : SokolSystem {
     private val mHeldAttachable = ids.mapper<HeldAttachable>()
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
@@ -66,7 +75,6 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
         val (physObj, physSpace) = mColliderInstance.get(entity)
         val body = physObj.body as? PhysicsRigidBody ?: return
         val localTransform = mDeltaTransform.getOr(entity)?.transform ?: Transform.Identity
-        val root = mIsChild.root(entity)
         val player = hold.player
 
         val operation = hold.operation as? MoveHoldOperation ?: return
@@ -74,11 +82,6 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
 
         val from = player.eyeLocation
         val ray = Ray(from.position(), from.direction())
-
-        val nearby = PhysicsGhostObject(heldAttachable.profile.attachAABB).also {
-            it.physPosition = from.position().bullet()
-            physSpace.addCollisionObject(it)
-        }
 
         data class SlotBody(
             val entity: SokolEntity,
@@ -88,23 +91,18 @@ class HeldAttachableSystem(ids: ComponentIdAccess) : SokolSystem {
         )
 
         val slotBodies = ArrayList<SlotBody>()
+        val nearby = sokol.resolver.entitiesNear(physSpace, from.position(), heldAttachable.profile.attachDistance)
+        val root = mIsChild.root(entity)
+        nearby.forEach { testEntity ->
+            if (mIsChild.root(testEntity) === root) return@forEach
+            val testSlot = mEntitySlot.getOr(testEntity) ?: return@forEach
+            if (testSlot.full()) return@forEach
+            val testTransform = mPositionAccess.getOr(testEntity)?.transform ?: return@forEach
 
-        nearby.overlappingObjects.forEach { obj ->
-            if (obj === physObj || obj !is SokolPhysicsObject) return@forEach
-            val parentEntity = obj.entity
-            if (mIsChild.root(parentEntity) === root) return@forEach // slots are on same tree as our entity is currently on
-            parentEntity.entities().forEach children@ { testEntity ->
-                val testSlot = mEntitySlot.getOr(testEntity) ?: return@children
-                if (testSlot.full()) return@children
-                val testTransform = mPositionAccess.getOr(testEntity)?.transform ?: return@children
-
-                val collision = testSlot.shape.testRay(testTransform.invert(ray)) ?: return@children
-                if (collision.tIn > heldAttachable.profile.attachDistance) return@children
-                slotBodies.add(SlotBody(testEntity, collision.tIn, testSlot, testTransform))
-            }
+            val collision = testSlot.shape.testRay(testTransform.invert(ray)) ?: return@forEach
+            if (collision.tIn > heldAttachable.profile.attachDistance) return@forEach
+            slotBodies.add(SlotBody(testEntity, collision.tIn, testSlot, testTransform))
         }
-
-        physSpace.removeCollisionObject(nearby)
 
         val attachTo = heldAttachable.attachTo
         val newAttachTo = slotBodies.minByOrNull { it.tIn }?.let { slot ->

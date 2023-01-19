@@ -3,8 +3,14 @@ package com.gitlab.aecsocket.sokol.paper
 import com.gitlab.aecsocket.alexandria.core.ForwardingLogging
 import com.gitlab.aecsocket.alexandria.core.LogAcceptor
 import com.gitlab.aecsocket.alexandria.core.LogLevel
+import com.gitlab.aecsocket.alexandria.core.physics.Vector3
+import com.gitlab.aecsocket.craftbullet.core.ServerPhysicsSpace
+import com.gitlab.aecsocket.craftbullet.core.physPosition
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.core.extension.bullet
 import com.gitlab.aecsocket.sokol.paper.component.*
+import com.jme3.bullet.collision.shapes.BoxCollisionShape
+import com.jme3.bullet.objects.PhysicsGhostObject
 import io.papermc.paper.chunk.system.ChunkSystem
 import net.minecraft.core.BlockPos
 import net.minecraft.nbt.CompoundTag
@@ -70,6 +76,8 @@ class EntityResolver internal constructor(
 
     private var lastSize: Int = 0
 
+    private lateinit var mIsChild: ComponentMapper<IsChild>
+    private lateinit var mComposite: ComponentMapper<Composite>
     private lateinit var mInTag: ComponentMapper<InTag>
     private lateinit var mIsWorld: ComponentMapper<IsWorld>
     private lateinit var mIsChunk: ComponentMapper<IsChunk>
@@ -81,6 +89,8 @@ class EntityResolver internal constructor(
 
     internal fun enable() {
         sokol.engine.apply {
+            mIsChild = mapper()
+            mComposite = mapper()
             mInTag = mapper()
             mIsWorld = mapper()
             mIsChunk = mapper()
@@ -145,6 +155,26 @@ class EntityResolver internal constructor(
 
     fun untrackMob(mob: Mob): SokolEntity? {
         return mobEntities.remove(mob.entityId)
+    }
+
+    fun entitiesNear(physSpace: ServerPhysicsSpace, position: Vector3, radius: Double): List<SokolEntity> {
+        val ghost = PhysicsGhostObject(BoxCollisionShape(radius.toFloat()))
+        ghost.physPosition = position.bullet()
+        physSpace.addCollisionObject(ghost)
+
+        val nearby = ghost.overlappingObjects.flatMap { obj ->
+            val entity = (obj as? SokolPhysicsObject)?.entity ?: return@flatMap emptyList()
+            // if entity is a root, we gather all of *that* entity's children
+            // this is because some entities may be virtual, and not have a physics body
+            //   included in overlappingObjects
+            // if it's not a root, then it *should* be included by its root anyway,
+            //   so we ignore it
+            if (mIsChild.has(entity)) return@flatMap emptyList()
+            mComposite.all(entity)
+        }
+
+        physSpace.removeCollisionObject(ghost)
+        return nearby
     }
 
     fun resolve(callback: (EntitySpace) -> Unit) {
