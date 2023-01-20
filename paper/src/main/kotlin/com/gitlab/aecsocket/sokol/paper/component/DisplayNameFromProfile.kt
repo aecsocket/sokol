@@ -2,10 +2,13 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.REPLACE_MARKER
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
+import org.spongepowered.configurate.objectmapping.meta.Setting
 
 data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -15,6 +18,7 @@ data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentCompon
         fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { DisplayNameFromProfileSystem(it) }
+            ctx.system { DisplayNameFromProfileForwardSystem(it) }
         }
     }
 
@@ -23,8 +27,7 @@ data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentCompon
 
     @ConfigSerializable
     data class Profile(
-        val prefix: String = "",
-        val suffix: String = ""
+        @Required @Setting(nodeFromParent = true) val template: String
     ) : SimpleComponentProfile<DisplayNameFromProfile> {
         override val componentType get() = DisplayNameFromProfile::class
 
@@ -34,17 +37,29 @@ data class DisplayNameFromProfile(val profile: Profile) : SimplePersistentCompon
 
 @All(DisplayNameFromProfile::class, Profiled::class)
 @None(DisplayName::class)
-@Before(DisplayNameTarget::class)
 class DisplayNameFromProfileSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mDisplayNameFromProfile = ids.mapper<DisplayNameFromProfile>()
     private val mProfiled = ids.mapper<Profiled>()
     private val mDisplayName = ids.mapper<DisplayName>()
 
+    object Update : SokolEvent
+
     @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    fun on(event: Update, entity: SokolEntity) {
         val displayNameFromProfile = mDisplayNameFromProfile.get(entity).profile
         val profile = mProfiled.get(entity).profile
 
-        mDisplayName.set(entity, DisplayName(displayNameFromProfile.prefix + profile.id + displayNameFromProfile.suffix))
+        val key = displayNameFromProfile.template.replace(REPLACE_MARKER, profile.id)
+        mDisplayName.set(entity, DisplayName(key))
+    }
+}
+
+@Before(DisplayNameTarget::class)
+class DisplayNameFromProfileForwardSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mComposite = ids.mapper<Composite>()
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        mComposite.forwardAll(entity, DisplayNameFromProfileSystem.Update)
     }
 }

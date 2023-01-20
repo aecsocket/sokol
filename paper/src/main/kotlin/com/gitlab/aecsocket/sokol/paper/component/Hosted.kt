@@ -115,7 +115,6 @@ class MobConstructorSystem(
         mPlayerTracked.set(entity, PlayerTracked { mob.trackedPlayers })
 
         var removed = false
-
         mRemovable.set(entity, object : Removable {
             override val removed get() = removed || !mob.isValid
 

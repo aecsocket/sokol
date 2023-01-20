@@ -19,6 +19,7 @@ import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
@@ -68,10 +69,9 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        val rows: List<StatRow> = emptyList(),
-        val tableAligns: TableAligns = TableAligns.Default,
-        val columnSeparatorKey: String? = null,
-        val lineKey: String? = null,
+        @Required val baseKey: String,
+        @Required val rows: List<StatRow>,
+        val tableAligns: TableAligns = TableAligns.Default
     ) : SimpleComponentProfile<ItemLoreStats> {
         override val componentType get() = ItemLoreStats::class
 
@@ -97,6 +97,8 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
 
 inline fun <reified F : StatFormatter<*>> ItemLoreStats.Type.formatterType(key: Key) = formatterType(key, F::class)
 
+private const val COLUMN_SEPARATOR = "column_separator"
+
 @All(ItemLoreStats::class, ItemLoreManager::class, Stats::class)
 @Before(ItemLoreManagerSystem::class)
 class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
@@ -108,6 +110,8 @@ class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mItemLoreManager = ids.mapper<ItemLoreManager>()
     private val mStatsInstance = ids.mapper<StatsInstance>()
 
+    private fun ItemLoreStats.Profile.key(path: String) = "$baseKey.$path"
+
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val itemLoreStats = mItemLoreStats.get(entity).profile
@@ -116,31 +120,24 @@ class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
         itemLoreManager.loreProvider(Lore) { i18n ->
             val stats = mStatsInstance.statMap(entity)
 
-            val columnSeparator = itemLoreStats.columnSeparatorKey?.let { i18n.makeOne(it) } ?: Component.empty()
-
-            val renderer = AlexandriaAPI.ComponentTableRenderer(
-                align = itemLoreStats.tableAligns.aligner(),
-                justify = itemLoreStats.tableAligns.justifier(),
-                colSeparator = columnSeparator,
-                rowSeparator = { emptyList() }
-            )
-
             fun <V : Any> format(formatter: StatFormatter<V>, value: StatValue<*>): TableRow<Component> {
                 @Suppress("UNCHECKED_CAST")
                 return formatter.format(i18n, value as StatValue<V>)
             }
 
-            val rows: TableRow<TableCell<Component>> = itemLoreStats.rows.mapNotNull { row ->
+            val rows: List<TableRow<Component>> = itemLoreStats.rows.mapNotNull { row ->
                 val value = stats[row.stat] ?: return@mapNotNull null
                 val cols = row.formatters.flatMap { format(it, value) }
                 cols
             }
 
-            renderer.render(rows).flatMap { line ->
-                itemLoreStats.lineKey?.let { i18n.make(it) {
-                    subst("line", line)
-                } } ?: listOf(line)
-            }
+            val columnSeparator = i18n.makeOne(itemLoreStats.key(COLUMN_SEPARATOR)) ?: Component.empty()
+            AlexandriaAPI.ComponentTableRenderer(
+                align = itemLoreStats.tableAligns.aligner(),
+                justify = itemLoreStats.tableAligns.justifier(),
+                colSeparator = columnSeparator,
+                rowSeparator = { emptyList() }
+            ).render(rows)
         }
     }
 }

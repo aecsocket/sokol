@@ -38,6 +38,7 @@ private const val CONFIG = "config"
 private const val ENTITY_PROFILES = "entity_profiles"
 
 private const val BSTATS_ID = 11870
+const val REPLACE_MARKER = "%%"
 
 private lateinit var instance: Sokol
 val SokolAPI get() = instance
@@ -111,7 +112,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     val timings = Timings(60 * 1000)
     val holding = EntityHolding(this)
     val players = SokolPlayers(this)
-    val components = SokolComponents(this)
+    val components = SokolComponents()
     lateinit var space: EntityCollection private set
 
     internal val mobsAdded = HashSet<Int>()

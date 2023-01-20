@@ -36,6 +36,8 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
+fun EntitySlotInMap.childOf(container: ContainerMap) = container.child(profile.childKey)
+
 @All(EntitySlotInMap::class, ContainerMap::class)
 @None(EntitySlot::class)
 class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {

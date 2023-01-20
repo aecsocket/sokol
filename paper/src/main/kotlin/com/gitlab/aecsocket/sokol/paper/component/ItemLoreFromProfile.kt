@@ -3,11 +3,13 @@ package com.gitlab.aecsocket.sokol.paper.component
 import com.gitlab.aecsocket.alexandria.core.extension.with
 import com.gitlab.aecsocket.alexandria.paper.extension.key
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.REPLACE_MARKER
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import net.kyori.adventure.key.Key
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 import org.spongepowered.configurate.objectmapping.meta.Setting
 import kotlin.reflect.KClass
 
@@ -27,8 +29,7 @@ data class ItemLoreFromProfile(val profile: Profile) : SimplePersistentComponent
 
     @ConfigSerializable
     data class Profile(
-        val prefix: String = "",
-        val suffix: String = ""
+        @Required @Setting(nodeFromParent = true) val template: String
     ) : SimpleComponentProfile<ItemLoreFromProfile> {
         override val componentType get() = ItemLoreFromProfile::class
 
@@ -53,8 +54,9 @@ class ItemLoreFromProfileSystem(ids: ComponentIdAccess) : SokolSystem {
         val itemLoreManager = mItemLoreManager.get(entity)
         val profile = mProfiled.get(entity).profile
 
+        val key = itemLoreFromProfile.template.replace(REPLACE_MARKER, profile.id)
         itemLoreManager.loreProvider(Lore) { i18n ->
-            i18n.safe(itemLoreFromProfile.prefix + profile.id + itemLoreFromProfile.suffix)
+            i18n.safe(key)
         }
     }
 }
