@@ -14,7 +14,7 @@ and plugin developers to create composable features for these entities.
 
 ### [Quickstart and documentation](https://phosphorous.gitlab.io/sokol)
 
-## Downloads for v2.4.0
+## Downloads for v2.4.1
 
-### [Paper](https://gitlab.com/api/v4/projects/37885933/jobs/artifacts/main/raw/paper/build/libs/sokol-paper-2.4.0.jar?job=build)
-### [Paper (mojmap)](https://gitlab.com/api/v4/projects/37885933/jobs/artifacts/main/raw/paper/build/libs/sokol-paper-2.4.0-dev-all.jar?job=build)
+### [Paper](https://gitlab.com/api/v4/projects/37885933/jobs/artifacts/main/raw/paper/build/libs/sokol-paper-2.4.1.jar?job=build)
+### [Paper (mojmap)](https://gitlab.com/api/v4/projects/37885933/jobs/artifacts/main/raw/paper/build/libs/sokol-paper-2.4.1-dev-all.jar?job=build)
