@@ -28,7 +28,7 @@ import kotlin.reflect.KClass
 private const val TYPE = "type"
 
 fun interface StatFormatter<V : Any> {
-    fun format(i18n: I18N<Component>, value: StatValue<V>): TableRow<Component>
+    fun format(i18n: I18N<Component>, value: StatValue<V>): Iterable<TableCell<Component>>
 }
 
 class StatFormatterSerializer(private val sokol: Sokol) : TypeSerializer<StatFormatter<*>> {
@@ -120,7 +120,7 @@ class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
         itemLoreManager.loreProvider(Lore) { i18n ->
             val stats = mStatsInstance.statMap(entity)
 
-            fun <V : Any> format(formatter: StatFormatter<V>, value: StatValue<*>): TableRow<Component> {
+            fun <V : Any> format(formatter: StatFormatter<V>, value: StatValue<*>): Iterable<TableCell<Component>> {
                 @Suppress("UNCHECKED_CAST")
                 return formatter.format(i18n, value as StatValue<V>)
             }
@@ -128,7 +128,7 @@ class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
             val rows: List<TableRow<Component>> = itemLoreStats.rows.mapNotNull { row ->
                 val value = stats[row.stat] ?: return@mapNotNull null
                 val cols = row.formatters.flatMap { format(it, value) }
-                cols
+                TableRow(cols)
             }
 
             val columnSeparator = i18n.makeOne(itemLoreStats.key(COLUMN_SEPARATOR)) ?: Component.empty()

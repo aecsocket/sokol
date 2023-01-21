@@ -2,7 +2,7 @@ package com.gitlab.aecsocket.sokol.paper.stat
 
 import com.gitlab.aecsocket.alexandria.core.BarRenderer
 import com.gitlab.aecsocket.alexandria.core.RangeMapDouble
-import com.gitlab.aecsocket.alexandria.core.TableRow
+import com.gitlab.aecsocket.alexandria.core.TableCell
 import com.gitlab.aecsocket.alexandria.core.extension.force
 import com.gitlab.aecsocket.glossa.core.I18N
 import com.gitlab.aecsocket.sokol.paper.component.*
@@ -105,7 +105,7 @@ data class DecimalCounterStat(override val key: Key) : Stat<Double> {
 data class NameStatFormatter(
     @Required val key: String
 ) : StatFormatter<Any> {
-    override fun format(i18n: I18N<Component>, value: StatValue<Any>): TableRow<Component> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Any>): Iterable<TableCell<Component>> {
         val text = i18n.safe(key)
         return listOf(text)
     }
@@ -126,7 +126,7 @@ data class NumberStatFormatter(
     val asPercent: Boolean = false,
     val mapper: RangeMapDouble = RangeMapDouble.Identity
 ) : StatFormatter<Number> {
-    override fun format(i18n: I18N<Component>, value: StatValue<Number>): TableRow<Component> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Number>): Iterable<TableCell<Component>> {
         val nodeText = value.mapNotNull { node ->
             val number = (node as? NumberStatValue ?: return@mapNotNull null).value
 
@@ -166,7 +166,7 @@ data class NumberStatBarFormatter(
     @Required val bar: StatBarData,
     val mapper: RangeMapDouble = RangeMapDouble.Identity
 ) : StatFormatter<Number> {
-    override fun format(i18n: I18N<Component>, value: StatValue<Number>): TableRow<Component> {
+    override fun format(i18n: I18N<Component>, value: StatValue<Number>): Iterable<TableCell<Component>> {
         // we can't work without an absolute value
         val number = value.computeOr()?.let { mapper.map(it.toDouble()) } ?: return emptyList()
         val percent = number / bar.max
