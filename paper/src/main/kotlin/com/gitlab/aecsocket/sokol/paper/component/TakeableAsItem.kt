@@ -15,13 +15,10 @@ object TakeableAsItem : SimplePersistentComponent {
 
     fun init(ctx: Sokol.InitContext) {
         ctx.persistentComponent(Type)
-        ctx.system { TakeableAsItemSystem(ctx.sokol, it) }
+        ctx.system { TakeableAsItemSystem(ctx.sokol, it).init(ctx) }
     }
 }
 
-@All(TakeableAsItem::class, InputCallbacks::class, Removable::class, AsItem::class)
-@Before(InputCallbacksSystem::class)
-@After(RemovableTarget::class)
 class TakeableAsItemSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -30,31 +27,27 @@ class TakeableAsItemSystem(
         val Take = TakeableAsItem.key.with("take")
     }
 
-    data class Remove(
-        val player: Player
-    ) : SokolEvent
-
-    private val mInputCallbacks = ids.mapper<InputCallbacks>()
+    private val mTakeableAsItem = ids.mapper<TakeableAsItem>()
     private val mRemovable = ids.mapper<Removable>()
     private val mIsChild = ids.mapper<IsChild>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val inputCallbacks = mInputCallbacks.get(entity)
-
-        inputCallbacks.callback(Take) { player ->
-            mIsChild.root(entity).call(Remove(player))
-            true
+    internal fun init(ctx: Sokol.InitContext): TakeableAsItemSystem {
+        ctx.components.entityCallbacks.apply {
+            callback(Take, ::take)
         }
+        return this
     }
 
-    @Subscribe
-    fun on(event: Remove, entity: SokolEntity) {
-        val removable = mRemovable.get(entity)
-        if (removable.removed) return
-        removable.remove()
+    private fun take(entity: SokolEntity, player: Player): Boolean {
+        if (!mTakeableAsItem.has(entity)) return false
 
+        val root = mIsChild.root(entity)
+        val removable = mRemovable.getOr(root) ?: return false
+        if (removable.removed) return true
+
+        removable.remove()
         val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(entity).create())
-        event.player.inventory.addItem(item)
+        player.inventory.addItem(item)
+        return true
     }
 }

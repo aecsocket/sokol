@@ -39,10 +39,10 @@ class DeltaTransformStaticSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mDeltaTransformStatic = ids.mapper<DeltaTransformStatic>()
     private val mDeltaTransform = ids.mapper<DeltaTransform>()
 
-    object Update : SokolEvent
+    object Construct : SokolEvent
 
     @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
+    fun on(event: Construct, entity: SokolEntity) {
         val deltaTransformStatic = mDeltaTransformStatic.get(entity).profile
 
         mDeltaTransform.combine(entity, deltaTransformStatic.transform)
@@ -55,6 +55,6 @@ class DeltaTransformStaticForwardSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mComposite.forwardAll(entity, DeltaTransformStaticSystem.Update)
+        mComposite.forwardAll(entity, DeltaTransformStaticSystem.Construct)
     }
 }

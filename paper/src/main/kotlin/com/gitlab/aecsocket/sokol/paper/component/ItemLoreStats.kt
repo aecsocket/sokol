@@ -31,12 +31,12 @@ fun interface StatFormatter<V : Any> {
     fun format(i18n: I18N<Component>, value: StatValue<V>): Iterable<TableCell<Component>>
 }
 
-class StatFormatterSerializer(private val sokol: Sokol) : TypeSerializer<StatFormatter<*>> {
+class StatFormatterSerializer(private val itemLoreStats: ItemLoreStats.Type) : TypeSerializer<StatFormatter<*>> {
     override fun serialize(type: Type, obj: StatFormatter<*>?, node: ConfigurationNode) {}
 
     override fun deserialize(type: Type, node: ConfigurationNode): StatFormatter<*> {
         val key = node.node(TYPE).force<Key>()
-        val formatterType = sokol.components.itemLoreStats.formatterType(key)
+        val formatterType = itemLoreStats.formatterType(key)
             ?: throw SerializationException(node, type, "Invalid formatter type '$key'")
         return node.force(formatterType)
     }

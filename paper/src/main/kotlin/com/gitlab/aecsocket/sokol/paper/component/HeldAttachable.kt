@@ -12,6 +12,7 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import com.jme3.bullet.objects.PhysicsRigidBody
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
@@ -22,8 +23,7 @@ data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
 
         fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
-            ctx.system { HeldAttachableSystem(ctx.sokol, it) }
-            ctx.system { HeldAttachableInputsSystem(ctx.sokol, it) }
+            ctx.system { HeldAttachableSystem(ctx.sokol, it).init(ctx) }
         }
     }
 
@@ -55,7 +55,12 @@ class HeldAttachableSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {
+    companion object {
+        val Attach = HeldAttachable.Key.with("attach")
+    }
+
     private val mHeldAttachable = ids.mapper<HeldAttachable>()
+    private val mRemovable = ids.mapper<Removable>()
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
@@ -63,7 +68,34 @@ class HeldAttachableSystem(
     private val mEntitySlot = ids.mapper<EntitySlot>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
+    object AttachTo : SokolEvent
+
     object ChangeAttachTo : SokolEvent
+
+    internal fun init(ctx: Sokol.InitContext): HeldAttachableSystem {
+        ctx.components.entityCallbacks.apply {
+            callback(Attach, ::attach)
+        }
+        return this
+    }
+
+    private fun attach(entity: SokolEntity, player: Player): Boolean {
+        val heldAttachable = mHeldAttachable.getOr(entity) ?: return false
+        val removable = mRemovable.getOr(entity) ?: return false
+        val (hold) = mHeld.getOr(entity) ?: return false
+
+        if (player !== hold.player) return false
+        val attachTo = heldAttachable.attachTo ?: return false
+        if (!attachTo.allows) return true
+
+        removable.remove(true)
+        attachTo.slot.attach(entity)
+
+        heldAttachable.attachTo = null
+        sokol.holding.stop(hold)
+        entity.call(AttachTo)
+        return true
+    }
 
     @Subscribe
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
@@ -111,45 +143,6 @@ class HeldAttachableSystem(
             heldAttachable.attachTo = newAttachTo
             body.isKinematic = newAttachTo != null
             entity.call(ChangeAttachTo)
-        }
-    }
-}
-
-@All(HeldAttachable::class, InputCallbacks::class, Removable::class)
-@Before(InputCallbacksSystem::class)
-class HeldAttachableInputsSystem(
-    private val sokol: Sokol,
-    ids: ComponentIdAccess
-) : SokolSystem {
-    companion object {
-        val Attach = HeldAttachable.Key.with("attach")
-    }
-
-    private val mHeldAttachable = ids.mapper<HeldAttachable>()
-    private val mInputCallbacks = ids.mapper<InputCallbacks>()
-    private val mRemovable = ids.mapper<Removable>()
-    private val mHeld = ids.mapper<Held>()
-
-    object AttachTo : SokolEvent
-
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val heldAttachable = mHeldAttachable.get(entity)
-        val inputCallbacks = mInputCallbacks.get(entity)
-        val removable = mRemovable.get(entity)
-
-        inputCallbacks.callback(Attach) { player ->
-            val (hold) = mHeld.getOr(entity) ?: return@callback false
-            if (player !== hold.player) return@callback false
-            val attachTo = heldAttachable.attachTo ?: return@callback false
-            if (!attachTo.allows) return@callback true
-
-            removable.remove(true)
-            attachTo.slot.attach(entity)
-
-            heldAttachable.attachTo = null
-            sokol.holding.stop(hold)
-            true
         }
     }
 }

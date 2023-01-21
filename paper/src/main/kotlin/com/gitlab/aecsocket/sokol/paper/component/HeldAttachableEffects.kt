@@ -42,7 +42,7 @@ class HeldAttachableEffectsSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
     @Subscribe
-    fun on(event: HeldAttachableInputsSystem.AttachTo, entity: SokolEntity) {
+    fun on(event: HeldAttachableSystem.AttachTo, entity: SokolEntity) {
         val heldAttachableEffects = mHeldAttachableEffects.get(entity).profile
         val attachTo = mHeldAttachable.get(entity).attachTo ?: return
 

@@ -42,10 +42,10 @@ class DisplayNameFromProfileSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mProfiled = ids.mapper<Profiled>()
     private val mDisplayName = ids.mapper<DisplayName>()
 
-    object Update : SokolEvent
+    object Construct : SokolEvent
 
     @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
+    fun on(event: Construct, entity: SokolEntity) {
         val displayNameFromProfile = mDisplayNameFromProfile.get(entity).profile
         val profile = mProfiled.get(entity).profile
 
@@ -60,6 +60,6 @@ class DisplayNameFromProfileForwardSystem(ids: ComponentIdAccess) : SokolSystem 
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mComposite.forwardAll(entity, DisplayNameFromProfileSystem.Update)
+        mComposite.forwardAll(entity, DisplayNameFromProfileSystem.Construct)
     }
 }

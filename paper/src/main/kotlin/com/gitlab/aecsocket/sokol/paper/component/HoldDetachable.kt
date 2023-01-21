@@ -5,11 +5,11 @@ import com.gitlab.aecsocket.alexandria.core.extension.clamp
 import com.gitlab.aecsocket.alexandria.core.physics.*
 import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.alexandria.paper.extension.*
-import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
 import org.bukkit.Particle
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 
 class DetachHoldOperation : HoldOperation {
@@ -23,8 +23,8 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
 
         fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
-            ctx.system { HoldDetachableLocalSystem(it) }
-            ctx.system { HoldDetachableCallbackSystem(ctx.sokol, it) }
+            ctx.system { HoldDetachableSystem(ctx.sokol, it).init(ctx) }
+            //ctx.system { HoldDetachableLocalSystem(it) }
             ctx.system { HoldDetachableColliderSystem(it) }
         }
     }
@@ -49,7 +49,7 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
-@All(HoldDetachable::class)
+/*@All(HoldDetachable::class)
 @Before(DeltaTransformTarget::class)
 class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldDetachable = ids.mapper<HoldDetachable>()
@@ -60,12 +60,9 @@ class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
         val holdDetachable = mHoldDetachable.get(entity)
         mDeltaTransform.combine(entity, holdDetachable.localTransform)
     }
-}
+}*/ // todo wtf does this do??
 
-@All(HoldDetachable::class, InputCallbacks::class, PositionAccess::class)
-@Before(InputCallbacksSystem::class)
-@After(PositionAccessTarget::class)
-class HoldDetachableCallbackSystem(
+class HoldDetachableSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
 ) : SokolSystem {
@@ -73,23 +70,26 @@ class HoldDetachableCallbackSystem(
         val Start = HoldDetachable.Key.with("start")
     }
 
-    private val mInputCallbacks = ids.mapper<InputCallbacks>()
+    private val mHoldDetachable = ids.mapper<HoldDetachable>()
     private val mHeld = ids.mapper<Held>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mIsChild = ids.mapper<IsChild>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val inputCallbacks = mInputCallbacks.get(entity)
-        val positionRead = mPositionAccess.get(entity)
-
-        inputCallbacks.callback(Start) { player ->
-            if (mHeld.has(entity)) return@callback false // this entity is already held
-            if (!mIsChild.has(entity)) return@callback false
-
-            sokol.holding.start(player.alexandria, entity, DetachHoldOperation(), positionRead.transform)
-            true
+    internal fun init(ctx: Sokol.InitContext): HoldDetachableSystem {
+        ctx.components.entityCallbacks.apply {
+            callback(Start, ::start)
         }
+        return this
+    }
+
+    private fun start(entity: SokolEntity, player: Player): Boolean {
+        if (!mHoldDetachable.has(entity)) return false
+        val positionAccess = mPositionAccess.getOr(entity) ?: return false
+
+        if (mHeld.has(entity)) return false // this entity is already held
+        if (!mIsChild.has(entity)) return false
+        sokol.holding.start(player.alexandria, entity, DetachHoldOperation(), positionAccess.transform)
+        return true
     }
 }
 

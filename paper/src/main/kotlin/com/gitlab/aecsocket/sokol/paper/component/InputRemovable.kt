@@ -15,40 +15,34 @@ object InputRemovable : SimplePersistentComponent {
 
     fun init(ctx: Sokol.InitContext) {
         ctx.persistentComponent(Type)
-        ctx.system { InputRemovableSystem(it) }
+        ctx.system { InputRemovableSystem(it).init(ctx) }
     }
 }
 
-@All(InputRemovable::class, InputCallbacks::class, Removable::class)
-@Before(InputCallbacksSystem::class)
-@After(RemovableTarget::class)
 class InputRemovableSystem(ids: ComponentIdAccess) : SokolSystem {
     companion object {
         val Remove = InputRemovable.key.with("remove")
     }
 
-    data class Remove(
-        val player: Player
-    ) : SokolEvent
-
-    private val mInputCallbacks = ids.mapper<InputCallbacks>()
+    private val mInputRemovable = ids.mapper<InputRemovable>()
     private val mRemovable = ids.mapper<Removable>()
     private val mIsChild = ids.mapper<IsChild>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val inputCallbacks = mInputCallbacks.get(entity)
-
-        inputCallbacks.callback(Remove) { player ->
-            mIsChild.root(entity).call(Remove(player))
-            true
+    internal fun init(ctx: Sokol.InitContext): InputRemovableSystem {
+        ctx.components.entityCallbacks.apply {
+            callback(Remove, ::remove)
         }
+        return this
     }
 
-    @Subscribe
-    fun on(event: Remove, entity: SokolEntity) {
-        val removable = mRemovable.get(entity)
-        if (removable.removed) return
+    private fun remove(entity: SokolEntity, player: Player): Boolean {
+        if (!mInputRemovable.has(entity)) return false
+
+        val root = mIsChild.root(entity)
+        val removable = mRemovable.getOr(root) ?: return false
+        if (removable.removed) return true
+
         removable.remove()
+        return true
     }
 }

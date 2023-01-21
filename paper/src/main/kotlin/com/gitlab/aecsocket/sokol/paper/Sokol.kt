@@ -126,12 +126,13 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .register(matchExactErased<ComponentProfile<*>>(), ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
+                    .registerExact(EntityCallbackSerializer(components.entityCallbacks))
                     .registerExact(MeshProviderStatic.MeshDefinitionSerializer)
                     .registerExact(EntitySerializer(this@Sokol))
                     .registerExact(BlueprintSerializer(this@Sokol))
                     .register(DeltaSerializer)
-                    .register(matchExactErased<Stat<*>>(), StatSerializer(this@Sokol))
-                    .register(matchExactErased<StatFormatter<*>>(), StatFormatterSerializer(this@Sokol))
+                    .register(matchExactErased<Stat<*>>(), StatSerializer(components.stats))
+                    .register(matchExactErased<StatFormatter<*>>(), StatFormatterSerializer(components.itemLoreStats))
             },
             onLoad = { ctx ->
                 ctx.addDefaultI18N()

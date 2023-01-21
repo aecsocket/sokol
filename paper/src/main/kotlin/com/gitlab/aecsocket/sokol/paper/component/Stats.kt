@@ -89,12 +89,12 @@ class StatOperationSerializer<V : Any>(
     }
 }
 
-class StatSerializer(private val sokol: Sokol) : TypeSerializer<Stat<*>> {
+class StatSerializer(private val stats: Stats.Type) : TypeSerializer<Stat<*>> {
     override fun serialize(type: Type, obj: Stat<*>?, node: ConfigurationNode) {}
 
     override fun deserialize(type: Type, node: ConfigurationNode): Stat<*> {
         val key = node.force<Key>()
-        return sokol.components.stats.stat(key)
+        return stats.stat(key)
             ?: throw SerializationException(node, type, "Invalid stat '$key'")
     }
 }

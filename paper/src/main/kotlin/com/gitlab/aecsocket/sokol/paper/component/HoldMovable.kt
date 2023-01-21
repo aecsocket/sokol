@@ -8,6 +8,7 @@ import com.gitlab.aecsocket.craftbullet.core.*
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
+import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
@@ -22,7 +23,7 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
 
         fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
-            ctx.system { HoldMovableCallbackSystem(ctx.sokol, it) }
+            ctx.system { HoldMovableCallbackSystem(ctx.sokol, it).init(ctx) }
             ctx.system { HoldMovableColliderSystem(it) }
         }
     }
@@ -42,9 +43,6 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     }
 }
 
-@All(HoldMovable::class, InputCallbacks::class, PositionAccess::class)
-@Before(InputCallbacksSystem::class)
-@After(PositionAccessTarget::class)
 class HoldMovableCallbackSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -53,22 +51,24 @@ class HoldMovableCallbackSystem(
         val Start = HoldMovable.Key.with("start")
     }
 
-    private val mInputCallbacks = ids.mapper<InputCallbacks>()
+    private val mHoldMovable = ids.mapper<HoldMovable>()
     private val mHeld = ids.mapper<Held>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val inputCallbacks = mInputCallbacks.get(entity)
-        val positionAccess = mPositionAccess.get(entity)
-
-        inputCallbacks.callback(Start) { player ->
-            if (mHeld.has(entity)) // this entity is already held
-                return@callback false
-
-            sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), positionAccess.transform)
-            true
+    internal fun init(ctx: Sokol.InitContext): HoldMovableCallbackSystem {
+        ctx.components.entityCallbacks.apply {
+            callback(Start, ::start)
         }
+        return this
+    }
+
+    private fun start(entity: SokolEntity, player: Player): Boolean {
+        if (!mHoldMovable.has(entity)) return false
+        val positionAccess = mPositionAccess.getOr(entity) ?: return false
+
+        if (mHeld.has(entity)) return false // this entity is already held
+        sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), positionAccess.transform)
+        return true
     }
 }
 

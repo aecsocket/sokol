@@ -10,7 +10,6 @@ import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import com.gitlab.aecsocket.sokol.paper.util.ItemDescriptor
-import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.kotlin.extensions.get
@@ -68,10 +67,10 @@ class MeshProviderStaticSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshProviderStatic = ids.mapper<MeshProviderStatic>()
     private val mMeshProvider = ids.mapper<MeshProvider>()
 
-    object Update : SokolEvent
+    object Construct : SokolEvent
 
     @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
+    fun on(event: Construct, entity: SokolEntity) {
         val meshProviderStatic = mMeshProviderStatic.get(entity).profile
 
         mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
@@ -94,6 +93,6 @@ class MeshProviderStaticForwardSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mComposite.forwardAll(entity, MeshProviderStaticSystem.Update)
+        mComposite.forwardAll(entity, MeshProviderStaticSystem.Construct)
     }
 }

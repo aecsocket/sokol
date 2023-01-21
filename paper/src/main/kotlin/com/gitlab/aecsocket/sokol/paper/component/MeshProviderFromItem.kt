@@ -45,10 +45,10 @@ class MeshProviderFromItemSystem(
     private val mMeshProviderFromItem = ids.mapper<MeshProviderFromItem>()
     private val mMeshProvider = ids.mapper<MeshProvider>()
 
-    object Update : SokolEvent
+    object Construct : SokolEvent
 
     @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
+    fun on(event: Construct, entity: SokolEntity) {
         val meshProviderFromItem = mMeshProviderFromItem.get(entity).profile
 
         mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
@@ -69,6 +69,6 @@ class MeshProviderFromItemForwardSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mComposite.forwardAll(entity, MeshProviderFromItemSystem.Update)
+        mComposite.forwardAll(entity, MeshProviderFromItemSystem.Construct)
     }
 }

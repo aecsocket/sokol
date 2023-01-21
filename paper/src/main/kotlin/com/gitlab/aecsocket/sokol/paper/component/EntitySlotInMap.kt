@@ -46,10 +46,10 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mEntitySlot = ids.mapper<EntitySlot>()
     private val mContainerMap = ids.mapper<ContainerMap>()
 
-    object Update : SokolEvent
+    object Construct : SokolEvent
 
     @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
+    fun on(event: Construct, entity: SokolEntity) {
         val entitySlotInMap = mEntitySlotInMap.get(entity).profile
         val containerMap = mContainerMap.get(entity)
 
@@ -78,6 +78,6 @@ class EntitySlotInMapForwardSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
-        mComposite.forwardAll(entity, EntitySlotInMapSystem.Update)
+        mComposite.forwardAll(entity, EntitySlotInMapSystem.Construct)
     }
 }
