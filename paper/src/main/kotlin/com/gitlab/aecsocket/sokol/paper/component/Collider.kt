@@ -60,6 +60,7 @@ data class ColliderInstance(
     override val componentType get() = ColliderInstance::class
 
     var lastTransform: Transform? = null
+    var treeIgnored: List<PhysicsCollisionObject> = emptyList()
 }
 
 data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
@@ -259,6 +260,7 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mComposite = ids.mapper<Composite>()
 
     private fun setJoint(entity: SokolEntity) {
         val colliderInstance = mColliderInstance.get(entity)
@@ -268,44 +270,53 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         val positionAccess = mPositionAccess.get(entity)
 
         // "parent" being the closest parent which has a collider instance
-        var parentEntity = mIsChild.firstParent(entity) {
+        mIsChild.firstParent(entity) {
             mColliderInstance.has(it) && mPositionAccess.has(it)
-        } ?: return
-        val pColliderInstance = mColliderInstance.get(parentEntity)
-        val pPositionAccess = mPositionAccess.get(parentEntity)
-        val parentBody = pColliderInstance.physObj.body as? PhysicsRigidBody ?: return
+        }?.let { parentEntity ->
+            // joint between this entity and its parent
+            val pColliderInstance = mColliderInstance.get(parentEntity)
+            val pPositionAccess = mPositionAccess.get(parentEntity)
+            val parentBody = pColliderInstance.physObj.body as? PhysicsRigidBody ?: return@let
 
-        colliderInstance.parentJoint?.let {
-            physSpace.removeJoint(it)
-            it.isCollisionBetweenLinkedBodies = true
+            // remove old joint settings
+            colliderInstance.treeIgnored.forEach { body.removeFromIgnoreList(it) }
+            colliderInstance.treeIgnored = emptyList()
+            colliderInstance.parentJoint?.let { physSpace.removeJoint(it) }
+
+            val delta = transformDelta(pPositionAccess.transform, positionAccess.transform)
+            val joint = New6Dof(body, parentBody,
+                Vector3f.ZERO, delta.position.bullet().sp(),
+                Matrix3f.IDENTITY, delta.rotation.matrix().bulletSp(), // todo
+                RotationOrder.XYZ)
+
+            repeat(6) {
+                joint.set(MotorParam.LowerLimit, it, 0f)
+                joint.set(MotorParam.UpperLimit, it, 0f)
+            }
+
+            physSpace.addJoint(joint)
+            colliderInstance.parentJoint = joint
         }
 
-        val delta = transformDelta(pPositionAccess.transform, positionAccess.transform)
-
-        val joint = New6Dof(body, parentBody,
-            Vector3f.ZERO, delta.position.bullet().sp(),
-            Matrix3f.IDENTITY, delta.rotation.matrix().bulletSp(), // todo
-            RotationOrder.XYZ)
-
-        repeat(6) {
-            joint.set(MotorParam.LowerLimit, it, 0f)
-            joint.set(MotorParam.UpperLimit, it, 0f)
+        // ignore all bodies on the same tree
+        val treeIgnored = mComposite.all(mIsChild.root(entity)).mapNotNull { child ->
+            val cBody = mColliderInstance.getOr(child)?.physObj?.body ?: return@mapNotNull null
+            if (body === cBody) return@mapNotNull null
+            body.addToIgnoreList(cBody)
+            cBody
         }
-        joint.isCollisionBetweenLinkedBodies = false
-
-        physSpace.addJoint(joint)
-        colliderInstance.parentJoint = joint
+        colliderInstance.treeIgnored = treeIgnored
     }
 
     @Subscribe
     fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
-        //setJoint(entity)
+        setJoint(entity)
     }
 
     @Subscribe
     fun on(event: Composite.Attach, entity: SokolEntity) {
         CraftBulletAPI.executePhysics {
-            //setJoint(entity)
+            setJoint(entity)
         }
     }
 }

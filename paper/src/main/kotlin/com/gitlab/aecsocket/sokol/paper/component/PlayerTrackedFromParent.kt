@@ -19,7 +19,7 @@ object PlayerTrackedFromParent : SimplePersistentComponent {
 }
 
 @All(PlayerTrackedFromParent::class, IsChild::class)
-@None(PlayerTracked::class)
+@Before(PlayerTrackedUpdateTarget::class)
 class PlayerTrackedFromParentSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mIsChild = ids.mapper<IsChild>()

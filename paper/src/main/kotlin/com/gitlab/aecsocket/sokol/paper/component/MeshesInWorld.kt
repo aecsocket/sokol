@@ -65,6 +65,7 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(MeshesInWorldInstance::class, PositionAccess::class, PlayerTracked::class)
+@After(PlayerTrackedUpdateTarget::class)
 class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
     private val mPositionAccess = ids.mapper<PositionAccess>()

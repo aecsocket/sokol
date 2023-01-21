@@ -12,6 +12,7 @@ data class PlayerTracked(
         fun init(ctx: Sokol.InitContext) {
             ctx.transientComponent<PlayerTracked>()
             ctx.system { PlayerTrackedTarget }
+            ctx.system { PlayerTrackedUpdateTarget }
         }
     }
 
@@ -19,3 +20,5 @@ data class PlayerTracked(
 }
 
 object PlayerTrackedTarget : SokolSystem
+
+object PlayerTrackedUpdateTarget : SokolSystem
