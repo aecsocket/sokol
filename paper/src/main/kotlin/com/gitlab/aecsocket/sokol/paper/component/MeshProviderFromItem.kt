@@ -18,6 +18,7 @@ data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponen
         fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { MeshProviderFromItemSystem(ctx.sokol, it) }
+            ctx.system { MeshProviderFromItemForwardSystem(it) }
         }
     }
 
@@ -37,7 +38,6 @@ data class MeshProviderFromItem(val profile: Profile) : SimplePersistentComponen
 
 @All(MeshProviderFromItem::class)
 @None(MeshProvider::class)
-@Before(MeshProviderTarget::class)
 class MeshProviderFromItemSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -45,8 +45,10 @@ class MeshProviderFromItemSystem(
     private val mMeshProviderFromItem = ids.mapper<MeshProviderFromItem>()
     private val mMeshProvider = ids.mapper<MeshProvider>()
 
+    object Update : SokolEvent
+
     @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    fun on(event: Update, entity: SokolEntity) {
         val meshProviderFromItem = mMeshProviderFromItem.get(entity).profile
 
         mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
@@ -58,5 +60,15 @@ class MeshProviderFromItemSystem(
 
             listOf(MeshEntry(mesh, meshProviderFromItem.transform))
         })
+    }
+}
+
+@Before(MeshProviderTarget::class)
+class MeshProviderFromItemForwardSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mComposite = ids.mapper<Composite>()
+
+    @Subscribe
+    fun on(event: ConstructEvent, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshProviderFromItemSystem.Update)
     }
 }

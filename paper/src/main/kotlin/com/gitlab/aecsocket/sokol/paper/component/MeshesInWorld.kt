@@ -65,11 +65,12 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(MeshesInWorldInstance::class, PositionAccess::class, PlayerTracked::class)
-@After(MeshesInWorldInstanceTarget::class, PositionAccessTarget::class, PlayerTrackedTarget::class)
 class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
+
+    object Update : SokolEvent
 
     object Remove : SokolEvent
 
@@ -97,6 +98,17 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
 
         meshesInWorldInstance.meshEntries.forEach { (mesh) ->
             mesh.updateTrackedPlayers { playerTracked.trackedPlayers() }
+        }
+    }
+
+    @Subscribe
+    fun on(event: Update, entity: SokolEntity) {
+        val meshesInWorldInstance = mMeshesInWorldInstance.get(entity)
+        val positionAccess = mPositionAccess.get(entity)
+
+        val transform = positionAccess.transform
+        meshesInWorldInstance.meshEntries.forEach { (mesh, meshTransform) ->
+            mesh.transform = transform * meshTransform
         }
     }
 
@@ -145,20 +157,10 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
             mesh.glowingColor = event.color
         }
     }
-
-    @Subscribe
-    fun on(event: UpdateEvent, entity: SokolEntity) {
-        val meshesInWorldInstance = mMeshesInWorldInstance.get(entity)
-        val positionAccess = mPositionAccess.get(entity)
-
-        val transform = positionAccess.transform
-        meshesInWorldInstance.meshEntries.forEach { (mesh, meshTransform) ->
-            mesh.transform = transform * meshTransform
-        }
-    }
 }
 
-@All(MeshesInWorld::class, IsMob::class)
+@All(IsMob::class)
+@After(MeshesInWorldInstanceTarget::class, PositionAccessTarget::class, PlayerTrackedTarget::class)
 class MeshesInWorldMobSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -174,6 +176,11 @@ class MeshesInWorldMobSystem(
     @Subscribe
     fun on(event: MobEvent.AddToWorld, entity: SokolEntity) {
         mComposite.forwardAll(entity, MeshesInWorldSystem.Create(false))
+    }
+
+    @Subscribe
+    fun on(event: UpdateEvent, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.Update)
     }
 
     @Subscribe

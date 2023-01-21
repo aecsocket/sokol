@@ -73,6 +73,7 @@ class HoldMovableCallbackSystem(
 }
 
 @All(HoldMovable::class, Held::class)
+@Before(HeldColliderSystem::class)
 @After(ColliderInstanceTarget::class)
 class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldMovable = ids.mapper<HoldMovable>()

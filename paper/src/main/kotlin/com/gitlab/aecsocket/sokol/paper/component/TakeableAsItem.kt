@@ -27,7 +27,7 @@ class TakeableAsItemSystem(
     ids: ComponentIdAccess
 ) : SokolSystem {
     companion object {
-        val TakeAsItem = TakeableAsItem.key.with("take")
+        val Take = TakeableAsItem.key.with("take")
     }
 
     data class Remove(
@@ -42,7 +42,7 @@ class TakeableAsItemSystem(
     fun on(event: ConstructEvent, entity: SokolEntity) {
         val inputCallbacks = mInputCallbacks.get(entity)
 
-        inputCallbacks.callback(TakeAsItem) { player ->
+        inputCallbacks.callback(Take) { player ->
             mIsChild.root(entity).call(Remove(player))
             true
         }

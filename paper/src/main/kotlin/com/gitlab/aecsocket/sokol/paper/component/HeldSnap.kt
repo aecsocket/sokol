@@ -55,6 +55,7 @@ data class HeldSnap(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(HeldSnap::class, Held::class, ColliderInstance::class)
+@Before(HeldColliderSystem::class)
 @After(ColliderInstanceTarget::class, HoldMovableColliderSystem::class)
 class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeldSnap = ids.mapper<HeldSnap>()
@@ -66,7 +67,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
     ) : SokolEvent
 
     @Subscribe
-    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val heldSnap = mHeldSnap.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj) = mColliderInstance.get(entity)

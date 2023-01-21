@@ -89,7 +89,6 @@ class ItemLoreContainerMapSystem(ids: ComponentIdAccess) : SokolSystem {
                     childEntity?.let {
                         val row = tableRowOf(keyCell, mDisplayName.getOr(childEntity)?.nameFor(i18n)?.let { listOf(it) }
                             ?: i18n.safe(itemLoreContainerMap.key(SLOT_UNKNOWN)), prefix = depthPrefix)
-                        println(mContainerMap.getOr(childEntity))
                         listOf(row) + rowsOf(childEntity, depth + 1)
                     } ?: listOf(
                         tableRowOf(keyCell, i18n.safe(itemLoreContainerMap.key(SLOT_EMPTY)), prefix = depthPrefix)

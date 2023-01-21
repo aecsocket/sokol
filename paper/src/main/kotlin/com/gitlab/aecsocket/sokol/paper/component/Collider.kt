@@ -22,6 +22,7 @@ import com.jme3.math.Matrix3f
 import com.jme3.math.Vector3f
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
+import org.spongepowered.configurate.objectmapping.meta.Setting
 import java.util.UUID
 
 interface SokolPhysicsObject : TrackedPhysicsObject {
@@ -76,7 +77,7 @@ data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        @Required val shape: Shape
+        @Required @Setting(nodeFromParent = true) val shape: Shape
     ) : SimpleComponentProfile<ColliderRigidBody> {
         override val componentType get() = ColliderRigidBody::class
 

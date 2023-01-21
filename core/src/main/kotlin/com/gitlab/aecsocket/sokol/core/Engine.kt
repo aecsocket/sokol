@@ -34,34 +34,32 @@ class EntityCollection internal constructor(
 }
 
 fun <E : SokolEvent> EntitySpace.call(event: E): E {
-    synchronized(this) {
-        val eventType = event::class.java
+    val eventType = event::class.java
 
-        // find all listeners for this event
-        val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
-            engine.systems.mapNotNull {
-                val listeners = it.listeners
-                    .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
-                    .map { (_, listener) -> listener }
-                if (listeners.isEmpty()) null
-                else SokolEngine.EventSystem(it, listeners)
-            }
+    // find all listeners for this event
+    val systems = engine.systemsForEvent.computeIfAbsent(eventType) {
+        engine.systems.mapNotNull {
+            val listeners = it.listeners
+                .filter { (listenedType) -> listenedType.isAssignableFrom(eventType) }
+                .map { (_, listener) -> listener }
+            if (listeners.isEmpty()) null
+            else SokolEngine.EventSystem(it, listeners)
         }
-
-        // process all systems
-        systems.forEach { (system, listeners) ->
-            if (!system.system.processing) return@forEach
-
-            val filter = system.filter
-            entities().forEach { entity ->
-                if (filter.matches(entity.archetype)) {
-                    listeners.forEach { it(event, entity) }
-                }
-            }
-        }
-
-        return event
     }
+
+    // process all systems
+    systems.forEach { (system, listeners) ->
+        if (!system.system.processing) return@forEach
+
+        val filter = system.filter
+        entities().forEach { entity ->
+            if (filter.matches(entity.archetype)) {
+                listeners.forEach { it(event, entity) }
+            }
+        }
+    }
+
+    return event
 }
 
 class SokolEntity internal constructor(

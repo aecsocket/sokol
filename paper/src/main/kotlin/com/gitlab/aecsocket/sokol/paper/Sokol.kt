@@ -14,9 +14,6 @@ import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
-import com.gitlab.aecsocket.sokol.paper.stat.NumberStatBarFormatter
-import com.gitlab.aecsocket.sokol.paper.stat.NumberStatFormatter
-import com.gitlab.aecsocket.sokol.paper.stat.NameStatFormatter
 import com.jme3.bullet.collision.PhysicsCollisionObject
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
@@ -301,6 +298,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 ItemHolder.init(ctx)
                 Removable.init(ctx)
                 PlayerTracked.init(ctx)
+                PlayerTrackedFromParent.init(ctx)
 
                 EntitySlot.init(ctx)
                 EntitySlotInMap.init(ctx)
@@ -311,7 +309,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
                 DeltaTransform.init(ctx)
                 DeltaTransformStatic.init(ctx)
-                PositionFromDelta.init(ctx)
+                PositionFromParent.init(ctx)
 
                 InputCallbacks.init(ctx)
                 InputRemovable.init(ctx)
