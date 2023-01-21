@@ -49,6 +49,7 @@ data class HeldAttachable(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(HeldAttachable::class, Held::class, ColliderInstance::class)
+@Before(HeldColliderSystem::class)
 @After(ColliderInstanceTarget::class, HoldMovableColliderSystem::class, HeldSnapSystem::class, EntitySlotTarget::class)
 class HeldAttachableSystem(
     private val sokol: Sokol,
@@ -65,7 +66,7 @@ class HeldAttachableSystem(
     object ChangeAttachTo : SokolEvent
 
     @Subscribe
-    fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val heldAttachable = mHeldAttachable.get(entity)
         val (hold) = mHeld.get(entity)
         val (physObj, physSpace) = mColliderInstance.get(entity)

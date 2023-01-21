@@ -42,6 +42,7 @@ object Collider : SimplePersistentComponent {
         ctx.system { ColliderInstanceTarget }
         ctx.system { ColliderSystem(it) }
         ctx.system { ColliderInstanceSystem(it) }
+        ctx.system { ColliderInstanceRemovableSystem(it) }
         ctx.system { ColliderInstanceParentSystem(it) }
         ctx.system { ColliderMobSystem(ctx.sokol, it) }
 
@@ -188,12 +189,11 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
-@All(ColliderInstance::class, Removable::class, PositionAccess::class)
+@All(ColliderInstance::class, PositionAccess::class)
 @Before(ColliderSystem::class)
 @After(ColliderInstanceTarget::class)
 class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
-    private val mRemovable = ids.mapper<Removable>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
     object Remove : SokolEvent
@@ -201,15 +201,6 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     data class ChangeContactResponse(
         val hasResponse: Boolean
     ) : SokolEvent
-
-    @Subscribe
-    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
-        val removable = mRemovable.get(entity)
-
-        if (removable.removed) {
-            entity.call(Remove)
-        }
-    }
 
     @Subscribe
     fun on(event: ColliderSystem.PostPhysicsStep, entity: SokolEntity) {
@@ -246,6 +237,21 @@ class ColliderInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }
 
+@All(ColliderInstance::class, Removable::class)
+@After(ColliderInstanceTarget::class)
+class ColliderInstanceRemovableSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mRemovable = ids.mapper<Removable>()
+
+    @Subscribe
+    fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
+        val removable = mRemovable.get(entity)
+
+        if (removable.removed) {
+            entity.call(ColliderInstanceSystem.Remove)
+        }
+    }
+}
+
 @All(ColliderInstance::class, Collider::class, IsChild::class, PositionAccess::class)
 @Before(ColliderSystem::class)
 @After(ColliderInstanceTarget::class, PositionAccessTarget::class)
@@ -265,16 +271,16 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         var parentEntity = mIsChild.firstParent(entity) {
             mColliderInstance.has(it) && mPositionAccess.has(it)
         } ?: return
-        val parentCollider = mColliderInstance.get(parentEntity)
-        val parentPositionAccess = mPositionAccess.get(parentEntity)
-        val parentBody = parentCollider.physObj.body as? PhysicsRigidBody ?: return
+        val pColliderInstance = mColliderInstance.get(parentEntity)
+        val pPositionAccess = mPositionAccess.get(parentEntity)
+        val parentBody = pColliderInstance.physObj.body as? PhysicsRigidBody ?: return
 
         colliderInstance.parentJoint?.let {
             physSpace.removeJoint(it)
             it.isCollisionBetweenLinkedBodies = true
         }
 
-        val delta = transformDelta(parentPositionAccess.transform, positionAccess.transform)
+        val delta = transformDelta(pPositionAccess.transform, positionAccess.transform)
 
         val joint = New6Dof(body, parentBody,
             Vector3f.ZERO, delta.position.bullet().sp(),
@@ -293,13 +299,13 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
-        setJoint(entity)
+        //setJoint(entity)
     }
 
     @Subscribe
     fun on(event: Composite.Attach, entity: SokolEntity) {
         CraftBulletAPI.executePhysics {
-            setJoint(entity)
+            //setJoint(entity)
         }
     }
 }

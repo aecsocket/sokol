@@ -33,11 +33,12 @@ data class HeldMeshGlow(val profile: Profile) : SimplePersistentComponent {
 }
 
 @All(HeldMeshGlow::class, Held::class)
-@After(MeshesInWorldSystem::class)
+@After(MeshesInWorldInstanceTarget::class)
 class HeldMeshGlowSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeldMeshGlow = ids.mapper<HeldMeshGlow>()
     private val mHeld = ids.mapper<Held>()
     private val mHeldAttachable = ids.mapper<HeldAttachable>()
+    private val mComposite = ids.mapper<Composite>()
 
     private fun update(held: Boolean, entity: SokolEntity) {
         val heldMeshGlow = mHeldMeshGlow.get(entity).profile
@@ -45,13 +46,13 @@ class HeldMeshGlowSystem(ids: ComponentIdAccess) : SokolSystem {
         val player = hold.player
 
         if (held) {
-            entity.call(MeshesInWorldInstanceSystem.Glowing(true, setOf(player)))
+            mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.Glowing(true, setOf(player)))
             val color = mHeldAttachable.getOr(entity)?.attachTo?.let { attachTo ->
                 if (attachTo.allows) heldMeshGlow.attachAllow else heldMeshGlow.attachDisallow
             } ?: heldMeshGlow.default
-            entity.call(MeshesInWorldInstanceSystem.GlowingColor(color))
+            mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.GlowingColor(color))
         } else {
-            entity.call(MeshesInWorldInstanceSystem.Glowing(false, setOf(player)))
+            mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.Glowing(false, setOf(player)))
         }
     }
 

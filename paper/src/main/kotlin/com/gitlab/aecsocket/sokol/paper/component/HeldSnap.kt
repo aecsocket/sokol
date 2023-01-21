@@ -61,6 +61,7 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHeldSnap = ids.mapper<HeldSnap>()
     private val mHeld = ids.mapper<Held>()
     private val mColliderInstance = ids.mapper<ColliderInstance>()
+    private val mIsChild = ids.mapper<IsChild>()
 
     data class ChangeSnapping(
         val isSnapping: Boolean
@@ -79,10 +80,12 @@ class HeldSnapSystem(ids: ComponentIdAccess) : SokolSystem {
         val from = player.eyeLocation
         val direction = from.direction.alexandria()
 
+        val root = mIsChild.root(entity)
         val rayTest = player.rayTestFrom(heldSnap.profile.snapDistance)
             .firstOrNull {
                 val obj = it.collisionObject
-                obj !is TrackedPhysicsObject || obj.id != physObj.id
+                // don't snap to bodies on our own tree
+                obj !is SokolPhysicsObject || (mIsChild.root(obj.entity) !== root)
             }
 
         val isSnapping = if (rayTest == null) {

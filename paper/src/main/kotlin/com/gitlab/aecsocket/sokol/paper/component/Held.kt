@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.paper.alexandria
 import com.gitlab.aecsocket.craftbullet.core.transform
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
@@ -50,6 +51,9 @@ class HeldColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
             val holdTarget = PhysicsRigidBody(EmptyShape(false))
             holdTarget.isKinematic = true
+            // assigned later in PrePhysicsStep, through hold.nextTransform
+            // but if hold.frozen, that isn't ran, so we do an initial transform set here
+            holdTarget.transform = held.hold.nextTransform.bullet()
             physSpace.addCollisionObject(holdTarget)
 
             val joint = New6Dof(
@@ -117,12 +121,12 @@ class HeldMobSystem(
 
     @Subscribe
     fun on(event: ReloadEvent, entity: SokolEntity) {
-        // TODO
-        /*val mob = mIsMob.get(entity).mob
-        val oldHeld = sokol.resolver.mobTrackedBy(mob)?.let { mHeld.getOr(it) } ?: return
-        oldHeld.hold.entity = entity
-        mHeld.set(entity, oldHeld)
-    */}
+        val mob = mIsMob.get(entity).mob
+        val oldEntity = sokol.resolver.mobTrackedBy(mob) ?: return
+        val (oldHold) = mHeld.getOr(oldEntity) ?: return
+        val hold = sokol.holding.start(oldHold.player.alexandria, entity, oldHold.operation, oldHold.nextTransform)
+        hold.frozen = oldHold.frozen
+    }
 
     @Subscribe
     fun on(event: MobEvent.RemoveFromWorld, entity: SokolEntity) {

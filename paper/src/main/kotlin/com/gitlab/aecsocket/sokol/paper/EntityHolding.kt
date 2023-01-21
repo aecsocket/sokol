@@ -152,7 +152,7 @@ class EntityHolding internal constructor(
         hold.player.alexandria.featureData(this).hold = null
     }
 
-    fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation, transform: Transform) {
+    fun start(player: AlexandriaPlayer, entity: SokolEntity, operation: HoldOperation, transform: Transform): Hold {
         if (!mHoldable.has(entity))
             throw IllegalArgumentException("Entity must have Holdable component")
         stop(player)
@@ -166,6 +166,7 @@ class EntityHolding internal constructor(
         mHeld.set(entity, Held(hold))
         entity.call(ChangeHoldState(true))
         player.featureData(this).hold = hold
+        return hold
     }
 }
 

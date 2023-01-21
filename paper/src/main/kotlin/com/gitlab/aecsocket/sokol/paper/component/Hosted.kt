@@ -97,7 +97,7 @@ data class InItemTag(val nmsTag: CompoundTag) : SokolComponent {
 }
 
 @All(IsMob::class)
-@Before(RemovablePreTarget::class, PlayerTrackedTarget::class)
+@Before(RemovableTarget::class, PlayerTrackedTarget::class)
 class MobConstructorSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess

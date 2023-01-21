@@ -297,6 +297,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 VelocityAccess.init(ctx)
                 ItemHolder.init(ctx)
                 Removable.init(ctx)
+                RemovableFromParent.init(ctx)
                 PlayerTracked.init(ctx)
                 PlayerTrackedFromParent.init(ctx)
 
