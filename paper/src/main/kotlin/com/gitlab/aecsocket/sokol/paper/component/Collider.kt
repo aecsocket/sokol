@@ -259,7 +259,6 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
-    private val mComposite = ids.mapper<Composite>()
 
     private fun setJoint(entity: SokolEntity) {
         val colliderInstance = mColliderInstance.get(entity)
@@ -305,13 +304,6 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: Composite.Attach, entity: SokolEntity) {
         CraftBulletAPI.executePhysics {
             setJoint(entity)
-        }
-    }
-
-    @Subscribe
-    fun on(event: Composite.Detach, entity: SokolEntity) {
-        CraftBulletAPI.executePhysics {
-
         }
     }
 }

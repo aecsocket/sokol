@@ -196,6 +196,7 @@ class EntityResolver internal constructor(
             }
 
             // during reload, IsMob-using systems can still access the old entity via mobEntities
+            mobSpace.call(MobConstructorSystem.Construct)
             mobSpace.construct()
             mobSpace.call(ReloadEvent)
 

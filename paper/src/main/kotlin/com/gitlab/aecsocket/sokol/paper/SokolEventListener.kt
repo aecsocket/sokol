@@ -5,6 +5,7 @@ import com.destroystokyo.paper.event.entity.EntityRemoveFromWorldEvent
 import com.destroystokyo.paper.event.server.ServerTickStartEvent
 import com.gitlab.aecsocket.alexandria.core.LogLevel
 import com.gitlab.aecsocket.sokol.core.*
+import com.gitlab.aecsocket.sokol.paper.component.MobConstructorSystem
 import org.bukkit.entity.Player
 import org.bukkit.event.Event
 import org.bukkit.event.EventHandler
@@ -44,6 +45,7 @@ internal class SokolEventListener(
         tryEvent(event) {
             val entity = sokol.resolver.readMob(mob)?.create() ?: return@tryEvent
             sokol.useSpaceOf(entity) { space ->
+                space.call(MobConstructorSystem.Construct)
                 space.construct()
                 space.call(MobEvent.AddToWorld)
             }

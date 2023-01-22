@@ -11,6 +11,7 @@ import com.gitlab.aecsocket.sokol.paper.*
 import org.bukkit.Particle
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 
 class DetachHoldOperation : HoldOperation {
     override val canRelease get() = true
@@ -35,9 +36,9 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        val detachAxis: Vector3 = Vector3.Zero,
-        val stopAt: Double = 0.0,
-        val detachAt: Double = 0.0,
+        @Required val detachAxis: Vector3,
+        @Required val stopAt: Double,
+        @Required val detachAt: Double,
         val hasCollision: Boolean = true
     ) : SimpleComponentProfile<HoldDetachable> {
         override val componentType get() = HoldDetachable::class
@@ -77,7 +78,8 @@ class HoldDetachableSystem(
     private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
-    private val mDeltaTransform = ids.mapper<DeltaTransform>()
+    private val mPositionFromParent = ids.mapper<PositionFromParent>()
+    private val mComposite = ids.mapper<Composite>()
 
     object DetachFrom : SokolEvent
 
@@ -104,7 +106,11 @@ class HoldDetachableSystem(
 
         if (!holdDetachable.profile.hasCollision) {
             // only call from this entity down, so the parent's contact response isn't changed
-            entity.call(ColliderInstanceSystem.ChangeContactResponse(!isHeld))
+            mComposite.forwardAll(entity, ColliderInstanceSystem.ChangeContactResponse(!isHeld))
+        }
+
+        mPositionFromParent.getOr(entity)?.let { positionFromParent ->
+            positionFromParent.enabled = !isHeld
         }
 
         colliderInstance.parentJoint?.let { joint ->
@@ -114,11 +120,17 @@ class HoldDetachableSystem(
 
     @Subscribe
     fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+        val (hold) = mHeld.get(entity)
+        if (hold.operation !is DetachHoldOperation) return
+
         updateBody(entity, true)
     }
 
     @Subscribe
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
+        val (hold) = mHeld.get(entity)
+        if (hold.operation !is DetachHoldOperation) return
+
         CraftBulletAPI.executePhysics {
             updateBody(entity, event.held)
         }
@@ -129,11 +141,10 @@ class HoldDetachableSystem(
         val holdDetachable = mHoldDetachable.get(entity)
         val (hold) = mHeld.get(entity)
         val isChild = mIsChild.get(entity)
+        if (hold.operation !is DetachHoldOperation) return
+        if (hold.frozen) return
         val pPositionAccess = mPositionAccess.getOr(isChild.parent) ?: return
         val player = hold.player
-
-        val operation = hold.operation as? DetachHoldOperation ?: return
-        if (hold.frozen) return
 
         val pTransform = pPositionAccess.transform
         val planeOrigin = pTransform.position
@@ -166,7 +177,6 @@ class HoldDetachableSystem(
                     sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), transform)
                     entity.call(DetachFrom)
                 }
-            } else {
             }
         }
     }

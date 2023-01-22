@@ -92,11 +92,17 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ColliderSystem.CreatePhysics, entity: SokolEntity) {
+        val (hold) = mHeld.get(entity)
+        if (hold.operation !is MoveHoldOperation) return
+
         updateBody(entity, true)
     }
 
     @Subscribe
     fun on(event: EntityHolding.ChangeHoldState, entity: SokolEntity) {
+        val (hold) = mHeld.get(entity)
+        if (hold.operation !is MoveHoldOperation) return
+
         CraftBulletAPI.executePhysics {
             updateBody(entity, event.held)
         }
@@ -106,10 +112,9 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdMovable = mHoldMovable.get(entity)
         val (hold) = mHeld.get(entity)
-        val player = hold.player
-
-        val operation = hold.operation as? MoveHoldOperation ?: return
+        if (hold.operation !is MoveHoldOperation) return
         if (hold.frozen) return
+        val player = hold.player
 
         val from = player.eyeLocation
         val direction = from.direction.alexandria()

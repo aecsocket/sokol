@@ -46,7 +46,7 @@ class TakeableAsItemSystem(
         if (removable.removed) return true
 
         removable.remove()
-        val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(entity).create())
+        val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(root).create())
         player.inventory.addItem(item)
         return true
     }

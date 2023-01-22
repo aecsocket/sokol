@@ -31,6 +31,7 @@ class EntityHoster internal constructor(
     fun hostMob(entity: SokolEntity, location: Location, construct: Boolean = true): Entity {
         return spawnMarkerMob(location) { mob ->
             mIsMob.set(entity, IsMob(mob))
+            entity.call(MobConstructorSystem.Construct)
             if (construct)
                 entity.construct() // construct after IsMob set
             entity.call(MobEvent.Spawn)

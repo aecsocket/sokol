@@ -28,7 +28,7 @@ object Hosted {
         ctx.transientComponent<IsItem>()
         ctx.transientComponent<InItemTag>()
         ctx.system { MobConstructorSystem(ctx.sokol, it) }
-        ctx.system { MobSystem(it) }
+        ctx.system { MobPositionSystem(it) }
         ctx.system { BlockPersistSystem(it) }
         ctx.system { ItemPersistSystem(ctx.sokol, it) }
         ctx.system { ItemTagPersistSystem(it) }
@@ -108,8 +108,12 @@ class MobConstructorSystem(
     private val mRotation = ids.mapper<Rotation>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
+    // separate event to ConstructEvent
+    // so if the mob of an entity changes, we can just call this rather than fully reconstructing
+    object Construct : SokolEvent
+
     @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
+    fun on(event: Construct, entity: SokolEntity) {
         val mob = mIsMob.get(entity).mob
 
         mPlayerTracked.set(entity, PlayerTracked { mob.trackedPlayers })
@@ -136,7 +140,7 @@ class MobConstructorSystem(
 }
 
 @All(IsMob::class, PositionAccess::class)
-class MobSystem(ids: ComponentIdAccess) : SokolSystem {
+class MobPositionSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsMob = ids.mapper<IsMob>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mRotation = ids.mapper<Rotation>()
