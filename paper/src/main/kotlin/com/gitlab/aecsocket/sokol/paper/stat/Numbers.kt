@@ -128,7 +128,13 @@ data class NumberStatFormatter(
 ) : StatFormatter<Number> {
     override fun format(i18n: I18N<Component>, value: StatValue<Number>): Iterable<TableCell<Component>> {
         val nodeText = value.mapNotNull { node ->
-            val number = (node as? NumberStatValue ?: return@mapNotNull null).value
+            val rawNumber = (node as? NumberStatValue ?: return@mapNotNull null).value
+            val number = when (node) {
+                is NumberStatValue.Set,
+                is NumberStatValue.Add,
+                is NumberStatValue.Subtract -> mapper.map(rawNumber.toDouble())
+                else -> rawNumber
+            }
 
             val text = i18n.safeOne(
                 if (asPercent && node is NumberStatValue.Multiply) "$key.$PERCENT"

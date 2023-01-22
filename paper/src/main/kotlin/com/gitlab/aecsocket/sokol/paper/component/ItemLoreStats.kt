@@ -12,6 +12,7 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
+import com.gitlab.aecsocket.sokol.paper.stat.BooleanStatFormatter
 import com.gitlab.aecsocket.sokol.paper.stat.NameStatFormatter
 import com.gitlab.aecsocket.sokol.paper.stat.NumberStatBarFormatter
 import com.gitlab.aecsocket.sokol.paper.stat.NumberStatFormatter
@@ -52,6 +53,7 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
             ctx.persistentComponent(component)
             ctx.system { ItemLoreStatsSystem(it).init(ctx) }
 
+            component.formatterType<BooleanStatFormatter>(sokol.key("boolean"))
             component.formatterType<NameStatFormatter>(sokol.key("name"))
             component.formatterType<NumberStatFormatter>(sokol.key("number"))
             component.formatterType<NumberStatBarFormatter>(sokol.key("number_bar"))
