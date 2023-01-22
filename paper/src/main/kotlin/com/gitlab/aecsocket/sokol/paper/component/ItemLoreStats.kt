@@ -1,5 +1,6 @@
 package com.gitlab.aecsocket.sokol.paper.component
 
+import com.gitlab.aecsocket.alexandria.core.SuppliedKeyI18N
 import com.gitlab.aecsocket.alexandria.core.TableAligns
 import com.gitlab.aecsocket.alexandria.core.TableCell
 import com.gitlab.aecsocket.alexandria.core.TableRow
@@ -62,8 +63,9 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class StatRow(
-        val stat: Stat<*>,
-        val formatters: List<StatFormatter<*>>
+        @Required val stat: Stat<*>,
+        @Required val baseKey: String,
+        @Required val formatters: List<StatFormatter<*>>
     )
 
     override val componentType get() = ItemLoreStats::class
@@ -124,14 +126,15 @@ class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
 
         val stats = mStatsInstance.statMap(entity)
 
-        fun <V : Any> format(formatter: StatFormatter<V>, value: StatValue<*>): Iterable<TableCell<Component>> {
+        fun <V : Any> format(formatter: StatFormatter<V>, i18n: I18N<Component>, value: StatValue<*>): Iterable<TableCell<Component>> {
             @Suppress("UNCHECKED_CAST")
             return formatter.format(i18n, value as StatValue<V>)
         }
 
         val rows: List<TableRow<Component>> = itemLoreStats.order.mapNotNull { row ->
             val value = stats[row.stat] ?: return@mapNotNull null
-            val cols = row.formatters.flatMap { format(it, value) }
+            val baseKeyI18N = SuppliedKeyI18N(i18n, row.baseKey)
+            val cols = row.formatters.flatMap { format(it, baseKeyI18N, value) }
             TableRow(cols)
         }
 

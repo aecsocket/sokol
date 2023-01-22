@@ -9,20 +9,19 @@ import com.gitlab.aecsocket.sokol.paper.component.*
 import net.kyori.adventure.extra.kotlin.join
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.JoinConfiguration
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 import org.spongepowered.configurate.objectmapping.meta.Setting
 import org.spongepowered.configurate.serialize.SerializationException
 
-interface NumberStatValue {
+sealed interface NumberStatValue {
     val value: Number
 
     interface Set<V : Number> : NumberStatValue, StatNode.First<V>
     interface Add<V : Number> : NumberStatValue, StatNode<V>
-    interface Subtract<V : Number> : NumberStatValue, StatNode<V>
     interface Multiply<V : Number> : NumberStatValue, StatNode<V>
-    interface Divide<V : Number> : NumberStatValue, StatNode<V>
 }
 
 data class IntegerStat(override val key: Key) : Stat<Int> {
@@ -33,14 +32,10 @@ data class IntegerStat(override val key: Key) : Stat<Int> {
     data class Add(override val value: Int) : NumberStatValue.Add<Int> {
         override fun with(last: Int) = last + value
     }
-    data class Subtract(override val value: Int) : NumberStatValue.Subtract<Int> {
-        override fun with(last: Int) = last - value
-    }
 
     private val operations = StatOperationSerializer(Int::class, mapOf(
         "=" to { Set(it) },
-        "+" to { Add(it) },
-        "-" to { Subtract(it) }
+        "+" to { Add(it) }
     ))
 
     override fun createNode(node: ConfigurationNode) = operations.createValue(node)
@@ -67,22 +62,14 @@ data class DecimalStat(override val key: Key) : Stat<Double> {
     data class Add(override val value: Double) : NumberStatValue.Add<Double> {
         override fun with(last: Double) = last + value
     }
-    data class Subtract(override val value: Double) : NumberStatValue.Subtract<Double> {
-        override fun with(last: Double) = last - value
-    }
     data class Multiply(override val value: Double) : NumberStatValue.Multiply<Double> {
         override fun with(last: Double) = last * value
-    }
-    data class Divide(override val value: Double) : NumberStatValue.Divide<Double> {
-        override fun with(last: Double) = last / value
     }
 
     private val operations = StatOperationSerializer(Double::class, mapOf(
         "=" to { Set(it) },
         "+" to { Add(it) },
-        "-" to { Subtract(it) },
-        "*" to { Multiply(it) },
-        "/" to { Divide(it) }
+        "*" to { Multiply(it) }
     ))
 
     override fun createNode(node: ConfigurationNode) = operations.createValue(node)
@@ -101,62 +88,94 @@ data class DecimalCounterStat(override val key: Key) : Stat<Double> {
     }
 }
 
-@ConfigSerializable
-data class NameStatFormatter(
-    @Required val key: String
-) : StatFormatter<Any> {
-    override fun format(i18n: I18N<Component>, value: StatValue<Any>): Iterable<TableCell<Component>> {
-        val text = i18n.safe(key)
-        return listOf(text)
-    }
-}
-
 private const val ABSOLUTE = "absolute"
+private const val RELATIVE = "relative"
 private const val PERCENT = "percent"
-private const val LINE = "line"
-private const val SET = "set"
 private const val ADD = "add"
 private const val SUBTRACT = "subtract"
-private const val MULTIPLY = "multiply"
-private const val DIVIDE = "divide"
+private const val SEPARATOR = "separator"
+
+enum class NumberSign(val key: String) {
+    POSITIVE    ("positive"),
+    NEGATIVE    ("negative"),
+    NEUTRAL     ("neutral");
+
+    fun opposite() = when (this) {
+        POSITIVE -> NEGATIVE
+        NEGATIVE -> POSITIVE
+        NEUTRAL -> NEUTRAL
+    }
+}
 
 @ConfigSerializable
 data class NumberStatFormatter(
     @Required val key: String,
-    val asPercent: Boolean = false,
-    val mapper: RangeMapDouble = RangeMapDouble.Identity
+    val absolute: DisplaySettings = DisplaySettings(),
+    val relative: DisplaySettings = DisplaySettings(),
+    val percent: DisplaySettings = DisplaySettings()
 ) : StatFormatter<Number> {
+    @ConfigSerializable
+    data class DisplaySettings(
+        val positive: NumberSign = NumberSign.NEUTRAL,
+        val mapper: RangeMapDouble = RangeMapDouble.Identity
+    )
+
+    private fun key(path: String) = "$key.$path"
+
     override fun format(i18n: I18N<Component>, value: StatValue<Number>): Iterable<TableCell<Component>> {
-        val nodeText = value.mapNotNull { node ->
-            val rawNumber = (node as? NumberStatValue ?: return@mapNotNull null).value
-            val number = when (node) {
-                is NumberStatValue.Set,
-                is NumberStatValue.Add,
-                is NumberStatValue.Subtract -> mapper.map(rawNumber.toDouble())
-                else -> rawNumber
+        val separator = i18n.makeOne(key(SEPARATOR))
+        val text = value.mapNotNull { node ->
+            val rawNumber = (node as? NumberStatValue ?: return@mapNotNull null).value.toDouble()
+            val settings = when (node) {
+                is NumberStatValue.Set -> absolute
+                is NumberStatValue.Add -> relative
+                is NumberStatValue.Multiply -> percent
+            }
+            val number = settings.mapper.map(
+                if (node is NumberStatValue.Multiply) rawNumber - 1 else rawNumber
+            )
+
+            val cell: Component
+            val sign: NumberSign
+            if (node is NumberStatValue.Set) {
+                cell = i18n.safeOne(key(ABSOLUTE)) {
+                    icu("value", number)
+                }
+                sign = NumberSign.NEUTRAL
+            } else {
+                fun numTextOf(number: Double) = i18n.safeOne(
+                    key(if (node is NumberStatValue.Multiply) PERCENT else RELATIVE)
+                ) {
+                    icu("value", number)
+                }
+
+                when {
+                    number > 0.0 -> {
+                        cell = i18n.safeOne(key(ADD)) {
+                            subst("value", numTextOf(number))
+                        }
+                        sign = settings.positive
+                    }
+                    number < 0.0 -> {
+                        cell = i18n.safeOne(key(SUBTRACT)) {
+                            subst("value", numTextOf(-number))
+                        }
+                        sign = settings.positive.opposite()
+                    }
+                    else -> {
+                        cell = i18n.safeOne(key(ADD)) {
+                            subst("value", numTextOf(number))
+                        }
+                        sign = NumberSign.NEUTRAL
+                    }
+                }
             }
 
-            val text = i18n.safeOne(
-                if (asPercent && node is NumberStatValue.Multiply) "$key.$PERCENT"
-                else "$key.$ABSOLUTE"
-            ) {
-                icu("value", number)
+            i18n.safeOne(key(sign.key)) {
+                subst("cell", cell)
             }
-
-            i18n.safeOne("$key.${when (node) {
-                is NumberStatValue.Add -> ADD
-                is NumberStatValue.Subtract -> SUBTRACT
-                is NumberStatValue.Multiply -> MULTIPLY
-                is NumberStatValue.Divide -> DIVIDE
-                else -> SET
-            }}") {
-                subst("value", text)
-            }
-        }.join()
-        val text = i18n.safe("$key.$LINE") {
-            subst("value", nodeText)
-        }
-        return listOf(text)
+        }.join(JoinConfiguration.separator(separator))
+        return listOf(listOf(text))
     }
 }
 
