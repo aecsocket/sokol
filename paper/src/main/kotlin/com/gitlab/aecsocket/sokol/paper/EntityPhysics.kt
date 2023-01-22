@@ -25,7 +25,9 @@ class EntityPhysics internal constructor(private val sokol: Sokol) {
         val (bodyA, bodyB) = ctx
         if (bodyA !is SokolPhysicsObject || bodyB !is SokolPhysicsObject) return
 
-        if (mIsChild.root(bodyA.entity) === mIsChild.root(bodyB.entity)) {
+        // todo: this doesn't exactly work if you attach a body to an existing body
+        // idk why?
+        if (mIsChild.root(bodyA.entity) == mIsChild.root(bodyB.entity)) {
             ctx.doesContact = false
         }
     }

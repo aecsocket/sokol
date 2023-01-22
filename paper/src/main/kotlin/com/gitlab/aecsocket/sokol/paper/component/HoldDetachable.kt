@@ -8,7 +8,6 @@ import com.gitlab.aecsocket.alexandria.paper.extension.*
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.*
-import org.bukkit.Particle
 import org.bukkit.entity.Player
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
@@ -25,21 +24,18 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
         fun init(ctx: Sokol.InitContext) {
             ctx.persistentComponent(Type)
             ctx.system { HoldDetachableSystem(ctx.sokol, it).init(ctx) }
-            //ctx.system { HoldDetachableLocalSystem(it) }
         }
     }
 
     override val componentType get() = HoldDetachable::class
     override val key get() = Key
 
-    var localTransform = Transform.Identity
-
     @ConfigSerializable
     data class Profile(
         @Required val detachAxis: Vector3,
         @Required val stopAt: Double,
         @Required val detachAt: Double,
-        val hasCollision: Boolean = true
+        val disableCollision: Boolean = false
     ) : SimpleComponentProfile<HoldDetachable> {
         override val componentType get() = HoldDetachable::class
 
@@ -48,19 +44,6 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
         override fun createEmpty() = ComponentBlueprint { HoldDetachable(this) }
     }
 }
-
-/*@All(HoldDetachable::class)
-@Before(DeltaTransformTarget::class)
-class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mHoldDetachable = ids.mapper<HoldDetachable>()
-    private val mDeltaTransform = ids.mapper<DeltaTransform>()
-
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val holdDetachable = mHoldDetachable.get(entity)
-        mDeltaTransform.combine(entity, holdDetachable.localTransform)
-    }
-}*/ // todo wtf does this do??
 
 @All(HoldDetachable::class, Held::class, ColliderInstance::class, IsChild::class, PositionAccess::class)
 @After(ColliderInstanceTarget::class, PositionAccessTarget::class)
@@ -101,10 +84,10 @@ class HoldDetachableSystem(
     }
 
     private fun updateBody(entity: SokolEntity, isHeld: Boolean) {
-        val holdDetachable = mHoldDetachable.get(entity)
+        val holdDetachable = mHoldDetachable.get(entity).profile
         val colliderInstance = mColliderInstance.get(entity)
 
-        if (!holdDetachable.profile.hasCollision) {
+        if (holdDetachable.disableCollision) {
             // only call from this entity down, so the parent's contact response isn't changed
             mComposite.forwardAll(entity, ColliderInstanceSystem.ChangeContactResponse(!isHeld))
         }
@@ -138,7 +121,7 @@ class HoldDetachableSystem(
 
     @Subscribe
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
-        val holdDetachable = mHoldDetachable.get(entity)
+        val holdDetachable = mHoldDetachable.get(entity).profile
         val (hold) = mHeld.get(entity)
         val isChild = mIsChild.get(entity)
         if (hold.operation !is DetachHoldOperation) return
@@ -146,37 +129,29 @@ class HoldDetachableSystem(
         val pPositionAccess = mPositionAccess.getOr(isChild.parent) ?: return
         val player = hold.player
 
-        val pTransform = pPositionAccess.transform
-        val planeOrigin = pTransform.position
+        val eye = player.eyeLocation
+        val from = eye.position()
+        val dir = eye.direction()
+        val transform = pPositionAccess.transform
+        val planeOrigin = transform.position
 
-        val eyeLocation = player.eyeLocation
-        val from = eyeLocation.position()
-        val direction = eyeLocation.direction.alexandria()
-        val ray = Ray(from - planeOrigin, direction)
+        val ray = Ray(from - planeOrigin, dir)
+        val plane = PlaneShape((planeOrigin - from).normalized)
+        val (tIn) = plane.testRay(ray) ?: return
+        val intersect = from + dir * tIn
+        val detachAxis = holdDetachable.detachAxisNorm
+        val distanceAlongAxis = transform.invert(intersect).dot(detachAxis)
 
-        val planeNormal = (from - planeOrigin).normalized
-        val plane = PlaneShape(planeNormal)
+        val relative = Transform(detachAxis * clamp(distanceAlongAxis, 0.0, holdDetachable.stopAt))
+        val nextTransform = transform * relative
+        hold.nextTransform = nextTransform
 
-        plane.testRay(ray)?.let { (tIn) ->
-            val axis = holdDetachable.profile.detachAxisNorm
-            val intersect = from + direction * tIn
-            val distanceAlongAxis = (intersect - planeOrigin).dot(axis)
-
-            val relative = Transform(axis * clamp(distanceAlongAxis, 0.0, holdDetachable.profile.stopAt))
-            holdDetachable.localTransform = relative
-            // todo how do we apply a local transform for the next tick?
-
-            val transform = pTransform * relative
-            hold.nextTransform = transform
-            player.spawnParticle(Particle.WATER_BUBBLE, transform.position.location(player.world), 0)
-
-            if (distanceAlongAxis >= holdDetachable.profile.detachAt) {
-                sokol.scheduleDelayed {
-                    compositeMutator.detach(entity)
-                    sokol.hoster.hostMob(entity, player.world, transform, construct = false)
-                    sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), transform)
-                    entity.call(DetachFrom)
-                }
+        if (distanceAlongAxis >= holdDetachable.detachAt) {
+            sokol.scheduleDelayed {
+                compositeMutator.detach(entity)
+                sokol.hoster.hostMob(entity, player.world, nextTransform, construct = false)
+                sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), nextTransform)
+                entity.call(DetachFrom)
             }
         }
     }

@@ -35,7 +35,7 @@ data class HoldMovable(val profile: Profile) : SimplePersistentComponent {
     data class Profile(
         @Required val holdDistance: Double,
         val holdTransform: Transform = Transform.Identity,
-        val hasCollision: Boolean = true
+        val disableCollision: Boolean = false
     ) : SimpleComponentProfile<HoldMovable> {
         override val componentType get() = HoldMovable::class
 
@@ -79,14 +79,14 @@ class HoldMovableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mHoldMovable = ids.mapper<HoldMovable>()
     private val mHeld = ids.mapper<Held>()
     private val mIsChild = ids.mapper<IsChild>()
+    private val mComposite = ids.mapper<Composite>()
 
     private fun updateBody(entity: SokolEntity, isHeld: Boolean) {
         val holdMovable = mHoldMovable.get(entity)
 
-        if (!holdMovable.profile.hasCollision) {
+        if (holdMovable.profile.disableCollision) {
             // call from the root down, so all entities in this tree have their collision response updated
-            mIsChild.root(entity)
-                .call(ColliderInstanceSystem.ChangeContactResponse(!isHeld))
+            mComposite.forwardAll(mIsChild.root(entity), ColliderInstanceSystem.ChangeContactResponse(!isHeld))
         }
     }
 
