@@ -56,7 +56,7 @@ class HoldMovableCallbackSystem(
     private val mPositionAccess = ids.mapper<PositionAccess>()
 
     internal fun init(ctx: Sokol.InitContext): HoldMovableCallbackSystem {
-        ctx.components.entityCallbacks.apply {
+        ctx.components.callbacks.apply {
             callback(Start, ::start)
         }
         return this

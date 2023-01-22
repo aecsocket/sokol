@@ -32,7 +32,7 @@ class TakeableAsItemSystem(
     private val mIsChild = ids.mapper<IsChild>()
 
     internal fun init(ctx: Sokol.InitContext): TakeableAsItemSystem {
-        ctx.components.entityCallbacks.apply {
+        ctx.components.callbacks.apply {
             callback(Take, ::take)
         }
         return this

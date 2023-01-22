@@ -6,6 +6,8 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
+import com.gitlab.aecsocket.sokol.paper.ConstantEntityRule
+import com.gitlab.aecsocket.sokol.paper.EntityRule
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
 
@@ -28,7 +30,7 @@ data class EntitySlotInMap(val profile: Profile) : SimplePersistentComponent {
     data class Profile(
         @Required val shape: Shape,
         val childKey: String = ContainerMap.DefaultKey,
-        val allows: Boolean = true
+        val allows: EntityRule = ConstantEntityRule.True
     ) : SimpleComponentProfile<EntitySlotInMap> {
         override val componentType get() = EntitySlotInMap::class
 
@@ -61,8 +63,8 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
                 return containerMap.contains(childKey)
             }
 
-            override fun allows(): Boolean {
-                return entitySlotInMap.allows
+            override fun allows(child: SokolEntity): Boolean {
+                return entitySlotInMap.allows.eval(child)
             }
 
             override fun attach(child: SokolEntity) {

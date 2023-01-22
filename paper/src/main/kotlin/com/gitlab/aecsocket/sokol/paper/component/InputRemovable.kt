@@ -29,7 +29,7 @@ class InputRemovableSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mIsChild = ids.mapper<IsChild>()
 
     internal fun init(ctx: Sokol.InitContext): InputRemovableSystem {
-        ctx.components.entityCallbacks.apply {
+        ctx.components.callbacks.apply {
             callback(Remove, ::remove)
         }
         return this

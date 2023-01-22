@@ -62,12 +62,13 @@ class HoldDetachableSystem(
     private val mIsChild = ids.mapper<IsChild>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mPositionFromParent = ids.mapper<PositionFromParent>()
+    private val mDeltaTransform = ids.mapper<DeltaTransform>()
     private val mComposite = ids.mapper<Composite>()
 
     object DetachFrom : SokolEvent
 
     internal fun init(ctx: Sokol.InitContext): HoldDetachableSystem {
-        ctx.components.entityCallbacks.apply {
+        ctx.components.callbacks.apply {
             callback(Start, ::start)
         }
         return this
@@ -127,6 +128,7 @@ class HoldDetachableSystem(
         if (hold.operation !is DetachHoldOperation) return
         if (hold.frozen) return
         val pPositionAccess = mPositionAccess.getOr(isChild.parent) ?: return
+        val deltaTransform = mDeltaTransform.getOr(entity)?.transform ?: Transform.Identity
         val player = hold.player
 
         val eye = player.eyeLocation
@@ -143,7 +145,7 @@ class HoldDetachableSystem(
         val distanceAlongAxis = transform.invert(intersect).dot(detachAxis)
 
         val relative = Transform(detachAxis * clamp(distanceAlongAxis, 0.0, holdDetachable.stopAt))
-        val nextTransform = transform * relative
+        val nextTransform = transform * deltaTransform * relative
         hold.nextTransform = nextTransform
 
         if (distanceAlongAxis >= holdDetachable.detachAt) {

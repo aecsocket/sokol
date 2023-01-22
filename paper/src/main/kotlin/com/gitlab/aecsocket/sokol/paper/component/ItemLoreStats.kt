@@ -85,6 +85,7 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
         val formatterTypes: Map<String, KClass<out StatFormatter<*>>> get() = _formatterTypes
 
         fun formatterType(key: Key) = _formatterTypes[key.asString()]
+
         fun formatterType(key: Key, type: KClass<out StatFormatter<*>>) {
             if (_formatterTypes.contains(key.asString()))
                 throw IllegalArgumentException("Duplicate stat formatter type $key")

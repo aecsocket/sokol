@@ -19,7 +19,7 @@ interface EntitySlot : SokolComponent {
 
     fun full(): Boolean
 
-    fun allows(): Boolean
+    fun allows(child: SokolEntity): Boolean
 
     fun attach(child: SokolEntity)
 }

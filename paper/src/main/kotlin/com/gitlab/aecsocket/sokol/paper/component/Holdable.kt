@@ -29,7 +29,7 @@ class HoldableSystem(
     private val mHeld = ids.mapper<Held>()
 
     internal fun init(ctx: Sokol.InitContext): HoldableSystem {
-        ctx.components.entityCallbacks.apply {
+        ctx.components.callbacks.apply {
             callback(Stop, ::stop)
         }
         return this

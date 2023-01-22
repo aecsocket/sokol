@@ -73,7 +73,7 @@ class HeldAttachableSystem(
     object ChangeAttachTo : SokolEvent
 
     internal fun init(ctx: Sokol.InitContext): HeldAttachableSystem {
-        ctx.components.entityCallbacks.apply {
+        ctx.components.callbacks.apply {
             callback(Attach, ::attach)
         }
         return this
@@ -106,7 +106,7 @@ class HeldAttachableSystem(
         val localTransform = mDeltaTransform.getOr(entity)?.transform ?: Transform.Identity
         val player = hold.player
 
-        val operation = hold.operation as? MoveHoldOperation ?: return
+        if (hold.operation !is MoveHoldOperation) return
         if (hold.frozen) return
 
         val from = player.eyeLocation
@@ -135,8 +135,10 @@ class HeldAttachableSystem(
 
         val attachTo = heldAttachable.attachTo
         val newAttachTo = slotBodies.minByOrNull { it.tIn }?.let { slot ->
-            hold.nextTransform = slot.transform * localTransform
-            HeldAttachable.AttachTo(slot.entity, slot.slot.allows(), slot.slot)
+            val allows = slot.slot.allows(entity)
+            if (allows)
+                hold.nextTransform = slot.transform * localTransform
+            HeldAttachable.AttachTo(slot.entity, allows, slot.slot)
         }
 
         if (newAttachTo != attachTo) {

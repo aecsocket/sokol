@@ -8,13 +8,9 @@ import com.gitlab.aecsocket.alexandria.core.keyed.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.effect.ParticleEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.*
-import com.gitlab.aecsocket.craftbullet.core.ContactContext
-import com.gitlab.aecsocket.craftbullet.core.DoesContactContext
 import com.gitlab.aecsocket.craftbullet.core.Timings
-import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.component.*
-import com.jme3.bullet.collision.PhysicsCollisionObject
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.format.TextColor
 import org.bstats.bukkit.Metrics
@@ -127,7 +123,8 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .register(matchExactErased<ComponentProfile<*>>(), ComponentProfileSerializer(this@Sokol))
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
-                    .registerExact(EntityCallbackSerializer(components.entityCallbacks))
+                    .registerExact(EntityRuleSerializer(components.rules))
+                    .registerExact(EntityCallbackSerializer(components.callbacks))
                     .registerExact(LoreProviderSerializer(components.itemLoreManager))
                     .registerExact(MeshProviderStatic.MeshDefinitionSerializer)
                     .registerExact(EntitySerializer(this@Sokol))
@@ -292,6 +289,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
                 DisplayName.init(ctx)
                 DisplayNameFromProfile.init(ctx)
+                Tagged.init(ctx)
 
                 Hosted.init(ctx)
                 PositionAccess.init(ctx)
