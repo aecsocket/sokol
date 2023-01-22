@@ -11,13 +11,17 @@ class Delta<T>(var value: T, dirty: Boolean = false) {
     var dirty = dirty
         private set
 
+    fun set(value: T) {
+        this.value = value
+        dirty = true
+    }
+
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T {
         return value
     }
 
     operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        this.value = value
-        dirty = true
+        set(value)
     }
 
     fun dirty(): Delta<T> {

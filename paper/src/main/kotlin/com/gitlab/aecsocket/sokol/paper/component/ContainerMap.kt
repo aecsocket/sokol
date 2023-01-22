@@ -49,8 +49,7 @@ data class ContainerMap(
     fun detach(key: String): SokolEntity? {
         val delta = children[key] ?: return null
         val old = delta.value
-        delta.value = null
-        delta.dirty()
+        delta.set(null)
         return old
     }
 
@@ -107,7 +106,7 @@ data class ContainerMap(
             val component = ContainerMap(sokol, children)
             blueprints.forEach { (key, blueprint) ->
                 children[key] = Delta(blueprint
-                    .pushSet(mIsChild) { IsChild(entity) { children.remove(key) } }
+                    .pushSet(mIsChild) { IsChild(entity) { component.detach(key) } }
                     .create())
             }
 
