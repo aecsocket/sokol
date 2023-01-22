@@ -7,12 +7,9 @@ import com.gitlab.aecsocket.sokol.core.*
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
-import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Required
-import org.spongepowered.configurate.objectmapping.meta.Setting
-import kotlin.reflect.KClass
 
 data class ItemLoreBodyMass(val profile: Profile) : SimplePersistentComponent {
     companion object {
@@ -65,15 +62,16 @@ class ItemLoreBodyMassSystem(ids: ComponentIdAccess) : SokolSystem {
 
         val thisMass = mColliderRigidBody.getOr(entity)?.profile?.mass ?: 0.0
         val all = mComposite.all(mIsChild.root(entity))
-        return if (all.size == 1) {
-            i18n.safe(itemLoreBodyMass.key(SINGLE)) {
-                icu("this_mass", thisMass)
-            }
-        } else {
-            val totalMass = all.sumOf { mColliderRigidBody.getOr(it)?.profile?.mass ?: 0.0 }
+        val totalMass = all.sumOf { mColliderRigidBody.getOr(it)?.profile?.mass ?: 0.0 }
+
+        return if (totalMass > thisMass) {
             i18n.safe(itemLoreBodyMass.key(MULTIPLE)) {
                 icu("this_mass", thisMass)
                 icu("total_mass", totalMass)
+            }
+        } else {
+            i18n.safe(itemLoreBodyMass.key(SINGLE)) {
+                icu("this_mass", thisMass)
             }
         }
     }

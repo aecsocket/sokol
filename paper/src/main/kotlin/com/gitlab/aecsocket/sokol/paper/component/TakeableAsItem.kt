@@ -30,6 +30,7 @@ class TakeableAsItemSystem(
     private val mTakeableAsItem = ids.mapper<TakeableAsItem>()
     private val mRemovable = ids.mapper<Removable>()
     private val mIsChild = ids.mapper<IsChild>()
+    private val mItemHolder = ids.mapper<ItemHolder>()
 
     internal fun init(ctx: Sokol.InitContext): TakeableAsItemSystem {
         ctx.components.callbacks.apply {
@@ -46,7 +47,9 @@ class TakeableAsItemSystem(
         if (removable.removed) return true
 
         removable.remove()
-        val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(root).create())
+        val item = sokol.hoster.hostItem(sokol.persistence.blueprintOf(root)
+            .pushSet(mItemHolder) { ItemHolder.byMob(player) }
+            .create())
         player.inventory.addItem(item)
         return true
     }
