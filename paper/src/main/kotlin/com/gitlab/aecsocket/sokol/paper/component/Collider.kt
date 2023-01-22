@@ -45,10 +45,6 @@ object Collider : SimplePersistentComponent {
         ctx.system { ColliderInstanceRemovableSystem(it) }
         ctx.system { ColliderInstanceParentSystem(it) }
         ctx.system { ColliderMobSystem(ctx.sokol, it) }
-
-        ctx.sokol.components.stats.apply {
-            stats(ColliderRigidBody.Stats.All)
-        }
     }
 }
 
@@ -68,17 +64,13 @@ data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
         val Type = ComponentType.deserializing(Key, Profile::class)
     }
 
-    object Stats {
-        val Mass = DecimalCounterStat(Key.with("mass"))
-        val All = listOf(Mass)
-    }
-
     override val componentType get() = ColliderRigidBody::class
     override val key get() = Key
 
     @ConfigSerializable
     data class Profile(
-        @Required @Setting(nodeFromParent = true) val shape: Shape
+        @Required val shape: Shape,
+        @Required val mass: Double
     ) : SimpleComponentProfile<ColliderRigidBody> {
         override val componentType get() = ColliderRigidBody::class
 
@@ -94,7 +86,7 @@ object ColliderVehicleBody : SimplePersistentComponent {
 
 object ColliderInstanceTarget : SokolSystem
 
-@All(Collider::class, PositionAccess::class, Stats::class)
+@All(Collider::class, PositionAccess::class)
 @One(ColliderRigidBody::class)
 @After(PositionAccessTarget::class)
 class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
@@ -126,7 +118,6 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: Create, entity: SokolEntity) {
         val positionRead = mPositionAccess.get(entity)
         val colliderRigidBody = mColliderRigidBody.getOr(entity)?.profile
-        val stats = mStatsInstance.statMap(entity)
 
         val bodyId = UUID.randomUUID()
 
@@ -142,7 +133,7 @@ class ColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             val physObj: SokolPhysicsObject = when {
                 colliderRigidBody != null -> {
                     val shape = colliderRigidBody.shape.bullet()
-                    val mass = stats.value(ColliderRigidBody.Stats.Mass).toFloat()
+                    val mass = colliderRigidBody.mass.toFloat()
 
                     if (mVehicleBodyCollider.has(entity)) object : PhysicsVehicle(shape, mass), SokolPhysicsObject {
                         override val id get() = bodyId

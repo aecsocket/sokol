@@ -9,6 +9,7 @@ import com.gitlab.aecsocket.sokol.paper.SokolAPI
 import com.gitlab.aecsocket.sokol.paper.persistentComponent
 import net.kyori.adventure.text.Component
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Required
 import org.spongepowered.configurate.objectmapping.meta.Setting
 
 data class ItemLoreStatic(val profile: Profile) : SimplePersistentComponent {
@@ -27,7 +28,7 @@ data class ItemLoreStatic(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class Profile(
-        @Setting(nodeFromParent = true) val i18nKey: String
+        @Required @Setting(nodeFromParent = true) val i18nKey: String
     ) : SimpleComponentProfile<ItemLoreStatic> {
         override val componentType get() = ItemLoreStatic::class
 

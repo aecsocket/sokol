@@ -44,7 +44,7 @@ data class IsChild(
 fun ComponentMapper<IsChild>.root(entity: SokolEntity): SokolEntity =
     getOr(entity)?.let { root(it.parent) } ?: entity
 
-fun ComponentMapper<Composite>.all(entity: SokolEntity): Collection<SokolEntity> {
+fun ComponentMapper<Composite>.all(entity: SokolEntity): List<SokolEntity> {
     val entities = ArrayList<SokolEntity>()
 
     fun add(entity: SokolEntity) {

@@ -322,6 +322,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 ItemLoreFromProfile.init(ctx)
                 ItemLoreStats.init(ctx)
                 ItemLoreContainerMap.init(ctx)
+                ItemLoreBodyMass.init(ctx)
 
                 PositionEffects.init(ctx)
                 MeshProvider.init(ctx)
