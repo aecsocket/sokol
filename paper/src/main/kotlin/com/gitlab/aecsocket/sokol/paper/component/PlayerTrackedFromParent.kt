@@ -19,36 +19,32 @@ object PlayerTrackedFromParent : SimplePersistentComponent {
 }
 
 @All(PlayerTrackedFromParent::class, IsChild::class)
-@Before(PlayerTrackedUpdateTarget::class)
 class PlayerTrackedFromParentSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
     private val mIsChild = ids.mapper<IsChild>()
 
     object Update : SokolEvent
 
-    private fun update(entity: SokolEntity) {
+    @Subscribe
+    fun on(event: Update, entity: SokolEntity) {
         val parent = mIsChild.firstParent(entity) { mPlayerTracked.has(it) } ?: return
         val pParentTracked = mPlayerTracked.get(parent)
         mPlayerTracked.set(entity, pParentTracked)
     }
-
-    @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
-        update(entity)
-    }
-
-    @Subscribe
-    fun on(event: Composite.Attach, entity: SokolEntity) {
-        update(entity)
-    }
 }
 
+@Before(PlayerTrackedUpdateTarget::class)
 @After(PlayerTrackedTarget::class) // parent needs to have the component set first
 class PlayerTrackedFromParentForwardSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mComposite = ids.mapper<Composite>()
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
+        mComposite.forwardAll(entity, PlayerTrackedFromParentSystem.Update)
+    }
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
         mComposite.forwardAll(entity, PlayerTrackedFromParentSystem.Update)
     }
 }

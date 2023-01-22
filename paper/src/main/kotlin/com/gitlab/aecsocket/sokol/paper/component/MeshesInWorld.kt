@@ -18,6 +18,7 @@ object MeshesInWorld : SimplePersistentComponent {
         ctx.system { MeshesInWorldInstanceTarget }
         ctx.system { MeshesInWorldSystem(it) }
         ctx.system { MeshesInWorldInstanceSystem(it) }
+        ctx.system { MeshesInWorldForwardSystem(it) }
         ctx.system { MeshesInWorldMobSystem(ctx.sokol, it) }
     }
 }
@@ -65,13 +66,15 @@ class MeshesInWorldSystem(ids: ComponentIdAccess) : SokolSystem {
 }
 
 @All(MeshesInWorldInstance::class, PositionAccess::class, PlayerTracked::class)
-@After(PlayerTrackedUpdateTarget::class)
 class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mMeshesInWorldInstance = ids.mapper<MeshesInWorldInstance>()
     private val mPositionAccess = ids.mapper<PositionAccess>()
     private val mPlayerTracked = ids.mapper<PlayerTracked>()
+    private val mComposite = ids.mapper<Composite>()
 
     object Update : SokolEvent
+
+    object UpdateTrackedPlayers : SokolEvent
 
     object Remove : SokolEvent
 
@@ -93,7 +96,7 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
     ) : SokolEvent
 
     @Subscribe
-    fun on(event: Composite.Attach, entity: SokolEntity) {
+    fun on(event: UpdateTrackedPlayers, entity: SokolEntity) {
         val meshesInWorldInstance = mMeshesInWorldInstance.get(entity)
         val playerTracked = mPlayerTracked.get(entity)
 
@@ -157,6 +160,16 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
         meshesInWorldInstance.meshEntries.forEach { (mesh) ->
             mesh.glowingColor = event.color
         }
+    }
+}
+
+@After(PlayerTrackedUpdateTarget::class)
+class MeshesInWorldForwardSystem(ids: ComponentIdAccess) : SokolSystem {
+    private val mComposite = ids.mapper<Composite>()
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.UpdateTrackedPlayers)
     }
 }
 

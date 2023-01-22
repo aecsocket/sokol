@@ -19,27 +19,17 @@ object RemovableFromParent : SimplePersistentComponent {
 }
 
 @All(RemovableFromParent::class, IsChild::class)
-@None(Removable::class)
 class RemovableFromParentSystem(ids: ComponentIdAccess) : SokolSystem {
     private val mRemovable = ids.mapper<Removable>()
     private val mIsChild = ids.mapper<IsChild>()
 
     object Update : SokolEvent
 
-    private fun update(entity: SokolEntity) {
+    @Subscribe
+    fun on(event: Update, entity: SokolEntity) {
         val parent = mIsChild.firstParent(entity) { mRemovable.has(it) } ?: return
         val pRemovable = mRemovable.get(parent)
         mRemovable.set(entity, pRemovable)
-    }
-
-    @Subscribe
-    fun on(event: Update, entity: SokolEntity) {
-        update(entity)
-    }
-
-    @Subscribe
-    fun on(event: Composite.Attach, entity: SokolEntity) {
-        update(entity)
     }
 }
 
@@ -49,6 +39,11 @@ class RemovableFromParentForwardSystem(ids: ComponentIdAccess) : SokolSystem {
 
     @Subscribe
     fun on(event: ConstructEvent, entity: SokolEntity) {
+        mComposite.forwardAll(entity, RemovableFromParentSystem.Update)
+    }
+
+    @Subscribe
+    fun on(event: Composite.Attach, entity: SokolEntity) {
         mComposite.forwardAll(entity, RemovableFromParentSystem.Update)
     }
 }
