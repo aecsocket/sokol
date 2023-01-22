@@ -160,7 +160,6 @@ class HoldDetachableSystem(
             player.spawnParticle(Particle.WATER_BUBBLE, transform.position.location(player.world), 0)
 
             if (distanceAlongAxis >= holdDetachable.profile.detachAt) {
-                // todo do this stupid f'n detach
                 sokol.scheduleDelayed {
                     compositeMutator.detach(entity)
                     sokol.hoster.hostMob(entity, player.world, transform, construct = false)

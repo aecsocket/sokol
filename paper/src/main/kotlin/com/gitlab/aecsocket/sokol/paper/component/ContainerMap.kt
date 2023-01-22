@@ -107,7 +107,7 @@ data class ContainerMap(
             val component = ContainerMap(sokol, children)
             blueprints.forEach { (key, blueprint) ->
                 children[key] = Delta(blueprint
-                    .pushSet(mIsChild) { IsChild(entity, root) { children.remove(key) } }
+                    .pushSet(mIsChild) { IsChild(entity) { children.remove(key) } }
                     .create())
             }
 

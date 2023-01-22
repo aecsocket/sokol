@@ -108,7 +108,7 @@ data class Profiled(val profile: KeyedEntityProfile) : SokolComponent {
     override val componentType get() = Profiled::class
 }
 
-val SokolEntity.id get() = component<Profiled>().profile.id
+val SokolEntity.id get() = componentOr<Profiled>()?.profile?.id
 
 data class InTag(val tag: CompoundNBTTag) : SokolComponent {
     override val componentType get() = InTag::class

@@ -36,13 +36,13 @@ fun ComponentMapper<Composite>.forwardAll(entity: SokolEntity, event: SokolEvent
 
 data class IsChild(
     val parent: SokolEntity,
-    val root: SokolEntity,
     val detach: () -> Unit
 ) : SokolComponent {
     override val componentType get() = IsChild::class
 }
 
-fun ComponentMapper<IsChild>.root(entity: SokolEntity) = getOr(entity)?.root ?: entity
+fun ComponentMapper<IsChild>.root(entity: SokolEntity): SokolEntity =
+    getOr(entity)?.let { root(it.parent) } ?: entity
 
 fun ComponentMapper<Composite>.all(entity: SokolEntity): Collection<SokolEntity> {
     val entities = ArrayList<SokolEntity>()
@@ -71,7 +71,7 @@ class CompositeMutator(ids: ComponentIdAccess) {
     fun attach(parent: SokolEntity, child: SokolEntity, detach: () -> Unit) {
         if (mIsChild.has(child))
             throw IllegalStateException("Entity already has IsChild component")
-        mIsChild.set(child, IsChild(parent, mIsChild.root(parent), detach))
+        mIsChild.set(child, IsChild(parent, detach))
         child.call(Composite.Attach)
     }
 
