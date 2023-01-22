@@ -332,6 +332,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 HoverShape.init(ctx)
                 HoverMeshGlow.init(ctx)
                 Holdable.init(ctx)
+                HoldEffects.init(ctx)
                 Held.init(ctx)
                 HeldMeshGlow.init(ctx)
                 HeldSnap.init(ctx)

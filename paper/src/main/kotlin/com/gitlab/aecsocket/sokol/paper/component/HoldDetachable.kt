@@ -150,8 +150,8 @@ class HoldDetachableSystem(
 
         if (distanceAlongAxis >= holdDetachable.detachAt) {
             sokol.scheduleDelayed {
-                compositeMutator.detach(entity)
                 sokol.hoster.hostMob(entity, player.world, nextTransform, construct = false)
+                compositeMutator.detach(entity)
                 sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), nextTransform)
                 entity.call(DetachFrom)
             }

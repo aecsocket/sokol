@@ -171,6 +171,11 @@ class MeshesInWorldForwardSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: Composite.Attach, entity: SokolEntity) {
         mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.UpdateTrackedPlayers)
     }
+
+    @Subscribe
+    fun on(event: Composite.Detach, entity: SokolEntity) {
+        mComposite.forwardAll(entity, MeshesInWorldInstanceSystem.UpdateTrackedPlayers)
+    }
 }
 
 @All(IsMob::class)
