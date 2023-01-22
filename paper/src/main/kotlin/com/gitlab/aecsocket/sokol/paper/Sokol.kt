@@ -8,8 +8,8 @@ import com.gitlab.aecsocket.alexandria.core.keyed.*
 import com.gitlab.aecsocket.alexandria.paper.*
 import com.gitlab.aecsocket.alexandria.paper.effect.ParticleEffect
 import com.gitlab.aecsocket.alexandria.paper.extension.*
-import com.gitlab.aecsocket.craftbullet.core.ContactManifoldPoint
-import com.gitlab.aecsocket.craftbullet.core.ServerPhysicsSpace
+import com.gitlab.aecsocket.craftbullet.core.ContactContext
+import com.gitlab.aecsocket.craftbullet.core.DoesContactContext
 import com.gitlab.aecsocket.craftbullet.core.Timings
 import com.gitlab.aecsocket.craftbullet.paper.CraftBulletAPI
 import com.gitlab.aecsocket.sokol.core.*
@@ -127,6 +127,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                     .registerExact(EntityProfileSerializer)
                     .registerExact(KeyedEntityProfileSerializer)
                     .registerExact(EntityCallbackSerializer(components.entityCallbacks))
+                    .registerExact(LoreProviderSerializer(components.itemLoreManager))
                     .registerExact(MeshProviderStatic.MeshDefinitionSerializer)
                     .registerExact(EntitySerializer(this@Sokol))
                     .registerExact(BlueprintSerializer(this@Sokol))
@@ -148,6 +149,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         registerEvents(SokolEventListener(this))
         PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this))
 
+        CraftBulletAPI.onDoesContact(::onPhysicsDoesContact)
         CraftBulletAPI.onContact(::onPhysicsContact)
         CraftBulletAPI.onPostStep(::onPhysicsPostStep)
     }
@@ -338,7 +340,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 HeldMeshGlow.init(ctx)
                 HeldSnap.init(ctx)
                 HeldAttachable.init(ctx)
-                HeldAttachableEffects.init(ctx)
+                HeldCompositeEffects.init(ctx)
                 HoldMovable.init(ctx)
                 HoldDetachable.init(ctx)
 
@@ -348,12 +350,18 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         )
     }
 
-    private fun onPhysicsContact(
-        space: ServerPhysicsSpace,
-        bodyA: PhysicsCollisionObject,
-        bodyB: PhysicsCollisionObject,
-        point: ContactManifoldPoint
-    ) {
+    // TODO temp
+    private fun onPhysicsDoesContact(ctx: DoesContactContext) {
+        val (bodyA, bodyB) = ctx
+        if (bodyA !is SokolPhysicsObject || bodyB !is SokolPhysicsObject) return
+        if (engine.mapper<IsChild>().root(bodyA.entity) === engine.mapper<IsChild>().root(bodyB.entity)) {
+            ctx.doesContact = false
+        }
+    }
+
+    private fun onPhysicsContact(ctx: ContactContext) {
+        val (_, bodyA, bodyB, point) = ctx
+
         fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
             if (thisBody !is SokolPhysicsObject) return
             useSpaceOf(thisBody.entity) { space ->

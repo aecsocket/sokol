@@ -21,7 +21,7 @@ data class InputCallbacks(val profile: Profile) : SimplePersistentComponent {
 
     @ConfigSerializable
     data class CallbackData(
-        @Required @Setting(value = "do") val mDo: MutableList<List<EntityCallback>>,
+        @Required @Setting(value = "do") val mDo: MutableList<List<EntityCallbackData>>,
         @Setting(value = "if") val mIf: Set<String> = emptySet()
     )
 

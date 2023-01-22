@@ -103,14 +103,13 @@ data class ContainerMap(
             val composite = mComposite.getOrSet(entity) { Composite(entity.engine) }
             val root = mIsChild.root(entity)
 
-            val children = blueprints.map { (key, blueprint) -> key to blueprint
-                .pushSet(mIsChild) { IsChild(entity, root) }
-                .create()
+            val children = HashMap<String, Delta<SokolEntity?>>()
+            val component = ContainerMap(sokol, children)
+            blueprints.forEach { (key, blueprint) ->
+                children[key] = Delta(blueprint
+                    .pushSet(mIsChild) { IsChild(entity, root) { children.remove(key) } }
+                    .create())
             }
-
-            val component = ContainerMap(sokol, children.map { (key, child) ->
-                key to Delta<SokolEntity?>(child)
-            }.associate { it }.toMutableMap())
 
             composite.entityProvider(CompositeKey) { component.children().values }
             component

@@ -36,7 +36,8 @@ fun ComponentMapper<Composite>.forwardAll(entity: SokolEntity, event: SokolEvent
 
 data class IsChild(
     val parent: SokolEntity,
-    val root: SokolEntity
+    val root: SokolEntity,
+    val detach: () -> Unit
 ) : SokolComponent {
     override val componentType get() = IsChild::class
 }
@@ -67,13 +68,18 @@ fun ComponentMapper<IsChild>.firstParent(entity: SokolEntity, predicate: (SokolE
 class CompositeMutator(ids: ComponentIdAccess) {
     private val mIsChild = ids.mapper<IsChild>()
 
-    fun attach(parent: SokolEntity, child: SokolEntity) {
-        mIsChild.set(child, IsChild(parent, mIsChild.root(parent)))
+    fun attach(parent: SokolEntity, child: SokolEntity, detach: () -> Unit) {
+        if (mIsChild.has(child))
+            throw IllegalStateException("Entity already has IsChild component")
+        mIsChild.set(child, IsChild(parent, mIsChild.root(parent), detach))
         child.call(Composite.Attach)
     }
 
     fun detach(child: SokolEntity) {
-        mIsChild.remove(child)
-        child.call(Composite.Detach)
+        mIsChild.getOr(child)?.let {
+            it.detach()
+            mIsChild.remove(child)
+            child.call(Composite.Detach)
+        }
     }
 }

@@ -25,7 +25,6 @@ data class HoldDetachable(val profile: Profile) : SimplePersistentComponent {
             ctx.persistentComponent(Type)
             ctx.system { HoldDetachableSystem(ctx.sokol, it).init(ctx) }
             //ctx.system { HoldDetachableLocalSystem(it) }
-            ctx.system { HoldDetachableColliderSystem(it) }
         }
     }
 
@@ -62,6 +61,8 @@ class HoldDetachableLocalSystem(ids: ComponentIdAccess) : SokolSystem {
     }
 }*/ // todo wtf does this do??
 
+@All(HoldDetachable::class, Held::class, ColliderInstance::class, IsChild::class, PositionAccess::class)
+@After(ColliderInstanceTarget::class, PositionAccessTarget::class)
 class HoldDetachableSystem(
     private val sokol: Sokol,
     ids: ComponentIdAccess
@@ -70,10 +71,15 @@ class HoldDetachableSystem(
         val Start = HoldDetachable.Key.with("start")
     }
 
+    private val compositeMutator = CompositeMutator(ids)
     private val mHoldDetachable = ids.mapper<HoldDetachable>()
     private val mHeld = ids.mapper<Held>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mColliderInstance = ids.mapper<ColliderInstance>()
     private val mIsChild = ids.mapper<IsChild>()
+    private val mPositionAccess = ids.mapper<PositionAccess>()
+    private val mDeltaTransform = ids.mapper<DeltaTransform>()
+
+    object DetachFrom : SokolEvent
 
     internal fun init(ctx: Sokol.InitContext): HoldDetachableSystem {
         ctx.components.entityCallbacks.apply {
@@ -91,17 +97,6 @@ class HoldDetachableSystem(
         sokol.holding.start(player.alexandria, entity, DetachHoldOperation(), positionAccess.transform)
         return true
     }
-}
-
-@All(HoldDetachable::class, Held::class, ColliderInstance::class, IsChild::class, PositionAccess::class)
-@After(ColliderInstanceTarget::class, PositionAccessTarget::class)
-class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
-    private val mHoldDetachable = ids.mapper<HoldDetachable>()
-    private val mHeld = ids.mapper<Held>()
-    private val mColliderInstance = ids.mapper<ColliderInstance>()
-    private val mIsChild = ids.mapper<IsChild>()
-    private val mPositionAccess = ids.mapper<PositionAccess>()
-    private val mDeltaTransform = ids.mapper<DeltaTransform>()
 
     private fun updateBody(entity: SokolEntity, isHeld: Boolean) {
         val holdDetachable = mHoldDetachable.get(entity)
@@ -133,15 +128,14 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: ColliderSystem.PrePhysicsStep, entity: SokolEntity) {
         val holdDetachable = mHoldDetachable.get(entity)
         val (hold) = mHeld.get(entity)
-        val (physObj) = mColliderInstance.get(entity)
-        val parent = mIsChild.get(entity).parent
-        val pPositionRead = mPositionAccess.getOr(parent) ?: return
+        val isChild = mIsChild.get(entity)
+        val pPositionAccess = mPositionAccess.getOr(isChild.parent) ?: return
         val player = hold.player
 
         val operation = hold.operation as? DetachHoldOperation ?: return
         if (hold.frozen) return
 
-        val pTransform = pPositionRead.transform
+        val pTransform = pPositionAccess.transform
         val planeOrigin = pTransform.position
 
         val eyeLocation = player.eyeLocation
@@ -160,11 +154,19 @@ class HoldDetachableColliderSystem(ids: ComponentIdAccess) : SokolSystem {
             val relative = Transform(axis * clamp(distanceAlongAxis, 0.0, holdDetachable.profile.stopAt))
             holdDetachable.localTransform = relative
             // todo how do we apply a local transform for the next tick?
-            hold.nextTransform = pTransform * relative
-            player.spawnParticle(Particle.WATER_BUBBLE, (pTransform * relative).position.location(player.world), 0)
+
+            val transform = pTransform * relative
+            hold.nextTransform = transform
+            player.spawnParticle(Particle.WATER_BUBBLE, transform.position.location(player.world), 0)
 
             if (distanceAlongAxis >= holdDetachable.profile.detachAt) {
                 // todo do this stupid f'n detach
+                sokol.scheduleDelayed {
+                    compositeMutator.detach(entity)
+                    sokol.hoster.hostMob(entity, player.world, transform)
+                    sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), transform)
+                    entity.call(DetachFrom)
+                }
             } else {
             }
         }

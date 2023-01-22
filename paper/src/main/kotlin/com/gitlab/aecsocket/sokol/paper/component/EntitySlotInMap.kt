@@ -53,11 +53,12 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
         val entitySlotInMap = mEntitySlotInMap.get(entity).profile
         val containerMap = mContainerMap.get(entity)
 
+        val childKey = entitySlotInMap.childKey
         mEntitySlot.set(entity, object : EntitySlot {
             override val shape get() = entitySlotInMap.shape
 
             override fun full(): Boolean {
-                return containerMap.contains(entitySlotInMap.childKey)
+                return containerMap.contains(childKey)
             }
 
             override fun allows(): Boolean {
@@ -65,8 +66,8 @@ class EntitySlotInMapSystem(ids: ComponentIdAccess) : SokolSystem {
             }
 
             override fun attach(child: SokolEntity) {
-                containerMap.attach(entitySlotInMap.childKey, child)
-                compositeMutator.attach(entity, child)
+                containerMap.attach(childKey, child)
+                compositeMutator.attach(entity, child) { containerMap.detach(childKey) }
             }
         })
     }

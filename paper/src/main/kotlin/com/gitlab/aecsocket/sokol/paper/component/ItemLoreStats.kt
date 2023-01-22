@@ -50,7 +50,7 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
             val sokol = ctx.sokol
             val component = sokol.components.itemLoreStats
             ctx.persistentComponent(component)
-            ctx.system { ItemLoreStatsSystem(it) }
+            ctx.system { ItemLoreStatsSystem(it).init(ctx) }
 
             component.formatterType<NameStatFormatter>(sokol.key("name"))
             component.formatterType<NumberStatFormatter>(sokol.key("number"))
@@ -70,7 +70,7 @@ data class ItemLoreStats(val profile: Profile) : SimplePersistentComponent {
     @ConfigSerializable
     data class Profile(
         @Required val baseKey: String,
-        @Required val rows: List<StatRow>,
+        @Required val order: List<StatRow>,
         val tableAligns: TableAligns = TableAligns.Default
     ) : SimpleComponentProfile<ItemLoreStats> {
         override val componentType get() = ItemLoreStats::class
@@ -99,45 +99,45 @@ inline fun <reified F : StatFormatter<*>> ItemLoreStats.Type.formatterType(key: 
 
 private const val COLUMN_SEPARATOR = "column_separator"
 
-@All(ItemLoreStats::class, ItemLoreManager::class, Stats::class)
-@Before(ItemLoreManagerSystem::class)
 class ItemLoreStatsSystem(ids: ComponentIdAccess) : SokolSystem {
     companion object {
         val Lore = ItemLoreStats.Key.with("lore")
     }
 
     private val mItemLoreStats = ids.mapper<ItemLoreStats>()
-    private val mItemLoreManager = ids.mapper<ItemLoreManager>()
     private val mStatsInstance = ids.mapper<StatsInstance>()
 
     private fun ItemLoreStats.Profile.key(path: String) = "$baseKey.$path"
 
-    @Subscribe
-    fun on(event: ConstructEvent, entity: SokolEntity) {
-        val itemLoreStats = mItemLoreStats.get(entity).profile
-        val itemLoreManager = mItemLoreManager.get(entity)
-
-        itemLoreManager.loreProvider(Lore) { i18n ->
-            val stats = mStatsInstance.statMap(entity)
-
-            fun <V : Any> format(formatter: StatFormatter<V>, value: StatValue<*>): Iterable<TableCell<Component>> {
-                @Suppress("UNCHECKED_CAST")
-                return formatter.format(i18n, value as StatValue<V>)
-            }
-
-            val rows: List<TableRow<Component>> = itemLoreStats.rows.mapNotNull { row ->
-                val value = stats[row.stat] ?: return@mapNotNull null
-                val cols = row.formatters.flatMap { format(it, value) }
-                TableRow(cols)
-            }
-
-            val columnSeparator = i18n.makeOne(itemLoreStats.key(COLUMN_SEPARATOR)) ?: Component.empty()
-            AlexandriaAPI.ComponentTableRenderer(
-                align = itemLoreStats.tableAligns.aligner(),
-                justify = itemLoreStats.tableAligns.justifier(),
-                colSeparator = columnSeparator,
-                rowSeparator = { emptyList() }
-            ).render(rows)
+    internal fun init(ctx: Sokol.InitContext): ItemLoreStatsSystem {
+        ctx.components.itemLoreManager.apply {
+            provider(Lore, ::lore)
         }
+        return this
+    }
+
+    private fun lore(entity: SokolEntity, i18n: I18N<Component>): List<Component> {
+        val itemLoreStats = mItemLoreStats.getOr(entity)?.profile ?: return emptyList()
+
+        val stats = mStatsInstance.statMap(entity)
+
+        fun <V : Any> format(formatter: StatFormatter<V>, value: StatValue<*>): Iterable<TableCell<Component>> {
+            @Suppress("UNCHECKED_CAST")
+            return formatter.format(i18n, value as StatValue<V>)
+        }
+
+        val rows: List<TableRow<Component>> = itemLoreStats.order.mapNotNull { row ->
+            val value = stats[row.stat] ?: return@mapNotNull null
+            val cols = row.formatters.flatMap { format(it, value) }
+            TableRow(cols)
+        }
+
+        val columnSeparator = i18n.makeOne(itemLoreStats.key(COLUMN_SEPARATOR)) ?: Component.empty()
+        return AlexandriaAPI.ComponentTableRenderer(
+            align = itemLoreStats.tableAligns.aligner(),
+            justify = itemLoreStats.tableAligns.justifier(),
+            colSeparator = columnSeparator,
+            rowSeparator = { emptyList() }
+        ).render(rows)
     }
 }

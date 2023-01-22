@@ -299,13 +299,13 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
         }
 
         // ignore all bodies on the same tree
-        val treeIgnored = mComposite.all(mIsChild.root(entity)).mapNotNull { child ->
+        /*val treeIgnored = mComposite.all(mIsChild.root(entity)).mapNotNull { child ->
             val cBody = mColliderInstance.getOr(child)?.physObj?.body ?: return@mapNotNull null
             if (body === cBody) return@mapNotNull null
             body.addToIgnoreList(cBody)
             cBody
         }
-        colliderInstance.treeIgnored = treeIgnored
+        colliderInstance.treeIgnored = treeIgnored*/
     }
 
     @Subscribe
@@ -317,6 +317,13 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: Composite.Attach, entity: SokolEntity) {
         CraftBulletAPI.executePhysics {
             setJoint(entity)
+        }
+    }
+
+    @Subscribe
+    fun on(event: Composite.Detach, entity: SokolEntity) {
+        CraftBulletAPI.executePhysics {
+
         }
     }
 }

@@ -9,19 +9,19 @@ import org.spongepowered.configurate.serialize.SerializationException
 import org.spongepowered.configurate.serialize.TypeSerializer
 import java.lang.reflect.Type
 
-fun interface EntityCallbackAction {
+fun interface EntityCallback {
     fun run(entity: SokolEntity, player: Player): Boolean
 }
 
-data class EntityCallback(
+data class EntityCallbackData(
     val key: Key,
-    val action: EntityCallbackAction
+    val action: EntityCallback
 )
 
-class EntityCallbackSerializer(private val entityCallbacks: EntityCallbacks) : TypeSerializer<EntityCallback> {
-    override fun serialize(type: Type, obj: EntityCallback?, node: ConfigurationNode) {}
+class EntityCallbackSerializer(private val entityCallbacks: EntityCallbacks) : TypeSerializer<EntityCallbackData> {
+    override fun serialize(type: Type, obj: EntityCallbackData?, node: ConfigurationNode) {}
 
-    override fun deserialize(type: Type, node: ConfigurationNode): EntityCallback {
+    override fun deserialize(type: Type, node: ConfigurationNode): EntityCallbackData {
         val key = node.force<Key>()
         return entityCallbacks.callback(key)
             ?: throw SerializationException(node, type, "Invalid entity callback '$key'")
@@ -29,14 +29,14 @@ class EntityCallbackSerializer(private val entityCallbacks: EntityCallbacks) : T
 }
 
 class EntityCallbacks {
-    private val _callbacks = HashMap<Key, EntityCallback>()
-    val callbacks: Map<Key, EntityCallback> get() = _callbacks
+    private val _callbacks = HashMap<Key, EntityCallbackData>()
+    val callbacks: Map<Key, EntityCallbackData> get() = _callbacks
 
     fun callback(key: Key) = _callbacks[key]
 
-    fun callback(key: Key, action: EntityCallbackAction) {
+    fun callback(key: Key, action: EntityCallback) {
         if (_callbacks.contains(key))
             throw IllegalArgumentException("Duplicate entity callback $key")
-        _callbacks[key] = EntityCallback(key, action)
+        _callbacks[key] = EntityCallbackData(key, action)
     }
 }
