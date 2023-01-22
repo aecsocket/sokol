@@ -109,6 +109,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     val timings = Timings(60 * 1000)
     val holding = EntityHolding(this)
     val players = SokolPlayers(this)
+    val physics = EntityPhysics(this)
     val components = SokolComponents()
     lateinit var space: EntityCollection private set
 
@@ -148,10 +149,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
 
         registerEvents(SokolEventListener(this))
         PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this))
-
-        CraftBulletAPI.onDoesContact(::onPhysicsDoesContact)
-        CraftBulletAPI.onContact(::onPhysicsContact)
-        CraftBulletAPI.onPostStep(::onPhysicsPostStep)
     }
 
     override fun initInternal(): Boolean {
@@ -192,6 +189,7 @@ class Sokol : BasePlugin(PluginManifest("sokol",
             space = engine.emptySpace()
             holding.enable()
             players.enable()
+            physics.enable()
 
             log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
 
@@ -348,33 +346,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
                 ColliderEffects.init(ctx)
             }
         )
-    }
-
-    // TODO temp
-    private fun onPhysicsDoesContact(ctx: DoesContactContext) {
-        val (bodyA, bodyB) = ctx
-        if (bodyA !is SokolPhysicsObject || bodyB !is SokolPhysicsObject) return
-        if (engine.mapper<IsChild>().root(bodyA.entity) === engine.mapper<IsChild>().root(bodyB.entity)) {
-            ctx.doesContact = false
-        }
-    }
-
-    private fun onPhysicsContact(ctx: ContactContext) {
-        val (_, bodyA, bodyB, point) = ctx
-
-        fun callEvent(thisBody: PhysicsCollisionObject, otherBody: PhysicsCollisionObject) {
-            if (thisBody !is SokolPhysicsObject) return
-            useSpaceOf(thisBody.entity) { space ->
-                space.call(ColliderSystem.Contact(thisBody, otherBody, point))
-            }
-        }
-
-        callEvent(bodyA, bodyB)
-        callEvent(bodyB, bodyA)
-    }
-
-    private fun onPhysicsPostStep() {
-        players.postPhysicsStep()
     }
 }
 

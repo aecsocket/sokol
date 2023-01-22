@@ -28,10 +28,11 @@ class EntityHoster internal constructor(
         mIsItem = sokol.engine.mapper()
     }
 
-    fun hostMob(entity: SokolEntity, location: Location): Entity {
+    fun hostMob(entity: SokolEntity, location: Location, construct: Boolean = true): Entity {
         return spawnMarkerMob(location) { mob ->
             mIsMob.set(entity, IsMob(mob))
-            entity.construct() // construct after IsMob set
+            if (construct)
+                entity.construct() // construct after IsMob set
             entity.call(MobEvent.Spawn)
             sokol.mobsAdded.add(mob.entityId)
             sokol.persistence.writeEntityTagTo(entity, mob.persistentDataContainer)
@@ -39,28 +40,30 @@ class EntityHoster internal constructor(
         }
     }
 
-    fun hostMob(entity: SokolEntity, world: World, transform: Transform): Entity {
+    fun hostMob(entity: SokolEntity, world: World, transform: Transform, construct: Boolean = true): Entity {
         val location = transform.position.location(world)
         mRotation.getOr(entity)?.rotation = transform.rotation
-        return hostMob(entity, location)
+        return hostMob(entity, location, construct)
     }
 
-    fun hostItem(entity: SokolEntity): ItemStack {
+    fun hostItem(entity: SokolEntity, construct: Boolean = true): ItemStack {
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
             mIsItem.set(entity, IsItem({ item }, { meta }))
-            entity.construct() // construct after IsItem set
+            if (construct)
+                entity.construct() // construct after IsItem set
             entity.call(ItemEvent.CreateForm)
             entity.call(ItemEvent.Create)
             sokol.persistence.writeEntityTagTo(entity, meta.persistentDataContainer)
         }
     }
 
-    fun createItemForm(entity: SokolEntity): ItemStack {
+    fun createItemForm(entity: SokolEntity, construct: Boolean = true): ItemStack {
         val item = mAsItem.get(entity).profile.item.create()
         return item.withMeta { meta ->
             mIsItem.set(entity, IsItem({ item }, { meta }))
-            entity.construct() // construct after IsItem set
+            if (construct)
+                entity.construct() // construct after IsItem set
             entity.call(ItemEvent.CreateForm)
         }
     }

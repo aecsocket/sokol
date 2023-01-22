@@ -60,7 +60,6 @@ data class ColliderInstance(
     override val componentType get() = ColliderInstance::class
 
     var lastTransform: Transform? = null
-    var treeIgnored: List<PhysicsCollisionObject> = emptyList()
 }
 
 data class ColliderRigidBody(val profile: Profile) : SimplePersistentComponent {
@@ -279,8 +278,6 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
             val parentBody = pColliderInstance.physObj.body as? PhysicsRigidBody ?: return@let
 
             // remove old joint settings
-            colliderInstance.treeIgnored.forEach { body.removeFromIgnoreList(it) }
-            colliderInstance.treeIgnored = emptyList()
             colliderInstance.parentJoint?.let { physSpace.removeJoint(it) }
 
             val delta = transformDelta(pPositionAccess.transform, positionAccess.transform)
@@ -297,15 +294,6 @@ class ColliderInstanceParentSystem(ids: ComponentIdAccess) : SokolSystem {
             physSpace.addJoint(joint)
             colliderInstance.parentJoint = joint
         }
-
-        // ignore all bodies on the same tree
-        /*val treeIgnored = mComposite.all(mIsChild.root(entity)).mapNotNull { child ->
-            val cBody = mColliderInstance.getOr(child)?.physObj?.body ?: return@mapNotNull null
-            if (body === cBody) return@mapNotNull null
-            body.addToIgnoreList(cBody)
-            cBody
-        }
-        colliderInstance.treeIgnored = treeIgnored*/
     }
 
     @Subscribe

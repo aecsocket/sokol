@@ -163,7 +163,7 @@ class HoldDetachableSystem(
                 // todo do this stupid f'n detach
                 sokol.scheduleDelayed {
                     compositeMutator.detach(entity)
-                    sokol.hoster.hostMob(entity, player.world, transform)
+                    sokol.hoster.hostMob(entity, player.world, transform, construct = false)
                     sokol.holding.start(player.alexandria, entity, MoveHoldOperation(), transform)
                     entity.call(DetachFrom)
                 }
