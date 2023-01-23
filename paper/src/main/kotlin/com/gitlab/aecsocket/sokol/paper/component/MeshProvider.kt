@@ -2,11 +2,11 @@ package com.gitlab.aecsocket.sokol.paper.component
 
 import com.gitlab.aecsocket.alexandria.core.physics.Transform
 import com.gitlab.aecsocket.alexandria.paper.Mesh
+import com.gitlab.aecsocket.alexandria.paper.PlayerTracker
 import com.gitlab.aecsocket.sokol.core.SokolComponent
 import com.gitlab.aecsocket.sokol.core.SokolSystem
 import com.gitlab.aecsocket.sokol.paper.Sokol
 import com.gitlab.aecsocket.sokol.paper.transientComponent
-import org.bukkit.entity.Player
 
 data class MeshEntry(
     val mesh: Mesh,
@@ -14,7 +14,7 @@ data class MeshEntry(
 )
 
 data class MeshProvider(
-    val create: (transform: Transform, trackedPlayers: () -> Iterable<Player>) -> List<MeshEntry>
+    val create: (transform: Transform, playerTracker: PlayerTracker) -> List<MeshEntry>
 ) : SokolComponent {
     companion object {
         fun init(ctx: Sokol.InitContext) {

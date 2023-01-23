@@ -73,13 +73,13 @@ class MeshProviderStaticSystem(ids: ComponentIdAccess) : SokolSystem {
     fun on(event: Construct, entity: SokolEntity) {
         val meshProviderStatic = mMeshProviderStatic.get(entity).profile
 
-        mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
+        mMeshProvider.set(entity, MeshProvider { transform, playerTracker ->
             meshProviderStatic.parts.map { (item, partTransform) ->
-                val mesh = AlexandriaAPI.meshes.create(
-                    item,
+                val mesh = AlexandriaAPI.meshes.createItem(
                     transform * partTransform,
-                    trackedPlayers,
-                    meshProviderStatic.meshSettings
+                    playerTracker,
+                    meshProviderStatic.meshSettings,
+                    item
                 )
                 MeshEntry(mesh, partTransform)
             }

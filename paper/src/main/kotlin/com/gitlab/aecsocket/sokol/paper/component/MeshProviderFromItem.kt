@@ -51,12 +51,12 @@ class MeshProviderFromItemSystem(
     fun on(event: Construct, entity: SokolEntity) {
         val meshProviderFromItem = mMeshProviderFromItem.get(entity).profile
 
-        mMeshProvider.set(entity, MeshProvider { transform, trackedPlayers ->
+        mMeshProvider.set(entity, MeshProvider { transform, playerTracker ->
             val itemEntity = sokol.persistence.blueprintOf(entity).create()
             val item = sokol.hoster.createItemForm(itemEntity)
 
             val transform = transform * meshProviderFromItem.transform
-            val mesh = AlexandriaAPI.meshes.create(item, transform, trackedPlayers, meshProviderFromItem.meshSettings)
+            val mesh = AlexandriaAPI.meshes.createItem(transform, playerTracker, meshProviderFromItem.meshSettings, item)
 
             listOf(MeshEntry(mesh, meshProviderFromItem.transform))
         })

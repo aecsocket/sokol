@@ -101,7 +101,7 @@ class MeshesInWorldInstanceSystem(ids: ComponentIdAccess) : SokolSystem {
         val playerTracked = mPlayerTracked.get(entity)
 
         meshesInWorldInstance.meshEntries.forEach { (mesh) ->
-            mesh.updateTrackedPlayers { playerTracked.trackedPlayers() }
+            mesh.updatePlayerTracker { playerTracked.trackedPlayers() }
         }
     }
 
