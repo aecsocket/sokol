@@ -4,15 +4,15 @@ minecraft = "1.19.3"
 
 kotlin = "1.7.20"
 adventure = "4.11.0"
-glossa = "0.5.2"
+glossa = "0.6.0"
 configurate = "4.1.2"
 cloud = "1.8.0"
 guava = "31.1-jre"
 bstats = "2.2.1"
-alexandria = "0.5.4"
+alexandria = "0.5.5"
 packetEvents = "2.0-SNAPSHOT"
 craftbullet = "0.2.3"
-libBulletJme = "17.2.0"
+libBulletJme = "17.4.0"
 
 [libraries]
 

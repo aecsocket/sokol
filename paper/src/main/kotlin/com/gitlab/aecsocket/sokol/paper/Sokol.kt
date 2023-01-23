@@ -19,7 +19,6 @@ import org.bukkit.Particle
 import org.bukkit.Particle.DustOptions
 import org.bukkit.entity.Entity
 import org.bukkit.inventory.ItemStack
-import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.serialize.SerializationException
 import kotlin.reflect.KClass
@@ -40,7 +39,7 @@ fun interface InputListener {
     fun run(event: PlayerInputEvent)
 }
 
-class Sokol : BasePlugin(PluginManifest("sokol",
+class Sokol : BasePlugin<Sokol.Settings>(PluginManifest("sokol",
     accentColor = TextColor.color(0x329945),
     langPaths = listOf(
         "lang/default_en-US.conf"
@@ -48,15 +47,16 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     savedPaths = listOf(
         "settings.conf"
     )
-)), SokolAPI {
+), Settings::class, Settings()), SokolAPI {
     @ConfigSerializable
     data class Settings(
+        override val logLevel: LogLevel = LogLevel.Verbose,
         val enableBstats: Boolean = true,
         val resolveContainerBlocks: Boolean = true,
         val resolveContainerItems: Boolean = true,
         val entityHoverDistance: Double = 4.0,
         val debugDraw: DebugDraw = DebugDraw(),
-    )
+    ) : BasePluginSettings
 
     @ConfigSerializable
     data class DebugDraw(
@@ -90,7 +90,6 @@ class Sokol : BasePlugin(PluginManifest("sokol",
     }
 
     private lateinit var command: SokolCommand
-    lateinit var settings: Settings private set
     override lateinit var engine: SokolEngine private set
 
     private val _componentTypes = HashMap<String, ComponentType<*>>()
@@ -143,64 +142,61 @@ class Sokol : BasePlugin(PluginManifest("sokol",
         }
 
         registerDefaultConsumer()
-
         registerEvents(SokolEventListener(this))
         PacketEvents.getAPI().eventManager.registerListener(SokolPacketListener(this))
     }
 
     override fun initInternal(): Boolean {
-        if (super.initInternal()) {
-            val engineBuilder = SokolEngine.Builder()
-            val initCtx = object : InitContext {
-                override val sokol get() = this@Sokol
-                override val components get() = this@Sokol.components
+        if (!super.initInternal()) return false
 
-                override fun <C : SokolComponent> componentType(type: ComponentType<C>) {
-                    val key = type.key.asString()
-                    if (_componentTypes.contains(key))
-                        throw IllegalArgumentException("Persistent component type with key $key already exists")
-                    _componentTypes[key] = type
-                }
+        val engineBuilder = SokolEngine.Builder()
+        val initCtx = object : InitContext {
+            override val sokol get() = this@Sokol
+            override val components get() = this@Sokol.components
 
-                override fun <C : SokolComponent> componentClass(type: KClass<C>) {
-                    engineBuilder.componentClass(type)
-                }
-
-                override fun system(factory: EngineSystemFactory) {
-                    engineBuilder.systemFactory(factory)
-                }
+            override fun <C : SokolComponent> componentType(type: ComponentType<C>) {
+                val key = type.key.asString()
+                if (_componentTypes.contains(key))
+                    throw IllegalArgumentException("Persistent component type with key $key already exists")
+                _componentTypes[key] = type
             }
 
-            try {
-                registrations.forEach { it.onInit(initCtx) }
-                engine = engineBuilder.build()
-            } catch (ex: Exception) {
-                log.line(LogLevel.Error, ex) { "Could not set up engine" }
-                return false
+            override fun <C : SokolComponent> componentClass(type: KClass<C>) {
+                engineBuilder.componentClass(type)
             }
 
-            command.enable()
-            persistence.enable()
-            resolver.enable()
-            hoster.enable()
-            space = engine.emptySpace()
-            holding.enable()
-            players.enable()
-            physics.enable()
-
-            log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
-
-            val postInitCtx = object : PostInitContext {}
-            registrations.forEach { it.onPostInit(postInitCtx) }
-
-            return true
+            override fun system(factory: EngineSystemFactory) {
+                engineBuilder.systemFactory(factory)
+            }
         }
-        return false
+
+        try {
+            registrations.forEach { it.onInit(initCtx) }
+            engine = engineBuilder.build()
+        } catch (ex: Exception) {
+            log.line(LogLevel.Error, ex) { "Could not set up engine" }
+            return false
+        }
+
+        command.enable()
+        persistence.enable()
+        resolver.enable()
+        hoster.enable()
+        space = engine.emptySpace()
+        holding.enable()
+        players.enable()
+        physics.enable()
+
+        log.line(LogLevel.Info) { "Set up ${engineBuilder.countComponentTypes()} component types, ${engineBuilder.countSystemFactories()} systems" }
+
+        val postInitCtx = object : PostInitContext {}
+        registrations.forEach { it.onPostInit(postInitCtx) }
+
+        return true
     }
 
-    override fun loadInternal(log: LogList, config: ConfigurationNode): Boolean {
-        if (!super.loadInternal(log, config)) return false
-        settings = config.force()
+    override fun loadInternal(log: LogList): Boolean {
+        if (!super.loadInternal(log)) return false
 
         if (settings.enableBstats) {
             Metrics(this, BSTATS_ID)
